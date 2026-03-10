@@ -36,6 +36,10 @@ class Settings(BaseSettings):
         default=60, alias="RESET_PASSWORD_TOKEN_EXPIRE_MINUTES"
     )
 
+    razorpay_key_id: str = Field(default="rzp_test_key", alias="RAZORPAY_KEY_ID")
+    razorpay_key_secret: str = Field(default="rzp_test_secret", alias="RAZORPAY_KEY_SECRET")
+    razorpay_webhook_secret: str = Field(default="", alias="RAZORPAY_WEBHOOK_SECRET")
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.database_user}:{self.database_password}@{self.database_host}:{self.database_port}/{self.database_name}"
