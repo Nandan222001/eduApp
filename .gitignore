@@ -107,3 +107,12 @@ sentence_transformers/
 transformers_cache/
 huggingface/
 torch_extensions/
+
+# Frontend (Node.js/React)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.vite/
+frontend/coverage/
