@@ -13,6 +13,7 @@ import InstitutionDetail from './pages/InstitutionDetail';
 import InstitutionCreate from './pages/InstitutionCreate';
 import InstitutionSubscription from './pages/InstitutionSubscription';
 import InstitutionAnalytics from './pages/InstitutionAnalytics';
+import InstitutionAdminDashboard from './pages/InstitutionAdminDashboard';
 
 import {
   LoginPage,
@@ -45,7 +46,8 @@ function App() {
 
           <Route element={<ProtectedRoute allowedRoles={['admin']} requireEmailVerified={true} />}>
             <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<Dashboard />} />
+              <Route index element={<InstitutionAdminDashboard />} />
+              <Route path="dashboard" element={<InstitutionAdminDashboard />} />
               <Route path="institutions" element={<div>Institutions</div>} />
               <Route path="institutions/add" element={<div>Add Institution</div>} />
               <Route path="users/students" element={<div>Students</div>} />
