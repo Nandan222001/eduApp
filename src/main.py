@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from src.config import settings
 from src.redis_client import init_redis, close_redis
 from src.api.v1 import api_router
+from src.middleware.tenant_context import TenantContextMiddleware
 
 
 @asynccontextmanager
@@ -18,6 +19,8 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
+
+app.add_middleware(TenantContextMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")
 

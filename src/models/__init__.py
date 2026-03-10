@@ -4,6 +4,7 @@ from src.models.role import Role
 from src.models.permission import Permission
 from src.models.subscription import Subscription
 from src.models.audit_log import AuditLog
+from src.models.password_reset_token import PasswordResetToken
 
 __all__ = [
     "Institution",
@@ -12,4 +13,5 @@ __all__ = [
     "Permission",
     "Subscription",
     "AuditLog",
+    "PasswordResetToken",
 ]
