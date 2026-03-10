@@ -48,6 +48,8 @@ class Grade(Base):
     grade_subjects = relationship("GradeSubject", back_populates="grade", cascade="all, delete-orphan")
     chapters = relationship("Chapter", back_populates="grade", cascade="all, delete-orphan")
     assignments = relationship("Assignment", back_populates="grade", cascade="all, delete-orphan")
+    previous_year_papers = relationship("PreviousYearPaper", back_populates="grade", cascade="all, delete-orphan")
+    questions_bank = relationship("QuestionBank", back_populates="grade", cascade="all, delete-orphan")
     
     __table_args__ = (
         UniqueConstraint('institution_id', 'academic_year_id', 'name', name='uq_institution_year_grade_name'),
@@ -103,6 +105,8 @@ class Subject(Base):
     attendances = relationship("Attendance", back_populates="subject")
     attendance_summaries = relationship("AttendanceSummary", back_populates="subject")
     assignments = relationship("Assignment", back_populates="subject", cascade="all, delete-orphan")
+    previous_year_papers = relationship("PreviousYearPaper", back_populates="subject", cascade="all, delete-orphan")
+    questions_bank = relationship("QuestionBank", back_populates="subject", cascade="all, delete-orphan")
     
     __table_args__ = (
         UniqueConstraint('institution_id', 'name', name='uq_institution_subject_name'),
@@ -154,6 +158,7 @@ class Chapter(Base):
     grade = relationship("Grade", back_populates="chapters")
     topics = relationship("Topic", back_populates="chapter", cascade="all, delete-orphan")
     assignments = relationship("Assignment", back_populates="chapter")
+    questions_bank = relationship("QuestionBank", back_populates="chapter")
     
     __table_args__ = (
         UniqueConstraint('subject_id', 'grade_id', 'name', name='uq_subject_grade_chapter_name'),
@@ -181,6 +186,7 @@ class Topic(Base):
     
     institution = relationship("Institution", back_populates="topics")
     chapter = relationship("Chapter", back_populates="topics")
+    questions_bank = relationship("QuestionBank", back_populates="topic")
     
     __table_args__ = (
         UniqueConstraint('chapter_id', 'name', name='uq_chapter_topic_name'),

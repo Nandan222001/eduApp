@@ -15,7 +15,9 @@ from src.api.v1 import (
     attendance,
     assignments,
     submissions,
-    exams
+    exams,
+    previous_year_papers,
+    question_bank
 )
 
 api_router = APIRouter()
@@ -36,3 +38,5 @@ api_router.include_router(attendance.router, prefix="/attendance", tags=["attend
 api_router.include_router(assignments.router, prefix="/assignments", tags=["assignments"])
 api_router.include_router(submissions.router, prefix="/submissions", tags=["submissions"])
 api_router.include_router(exams.router, prefix="/exams", tags=["exams"])
+api_router.include_router(previous_year_papers.router, prefix="/previous-year-papers", tags=["previous-year-papers"])
+api_router.include_router(question_bank.router, prefix="/question-bank", tags=["question-bank"])

@@ -11,6 +11,7 @@ from src.models.student import Student
 from src.models.attendance import Attendance, AttendanceCorrection, AttendanceSummary, AttendanceStatus, CorrectionStatus
 from src.models.assignment import Assignment, AssignmentFile, Submission, SubmissionFile, AssignmentStatus, SubmissionStatus
 from src.models.examination import Exam, ExamSubject, ExamSchedule, ExamMarks, ExamResult, GradeConfiguration, ExamPerformanceAnalytics, ExamType, ExamStatus
+from src.models.previous_year_papers import PreviousYearPaper, QuestionBank, QuestionType, DifficultyLevel, BloomTaxonomyLevel, Board
 
 __all__ = [
     "Institution",
@@ -50,4 +51,10 @@ __all__ = [
     "ExamPerformanceAnalytics",
     "ExamType",
     "ExamStatus",
+    "PreviousYearPaper",
+    "QuestionBank",
+    "QuestionType",
+    "DifficultyLevel",
+    "BloomTaxonomyLevel",
+    "Board",
 ]
