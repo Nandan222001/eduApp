@@ -14,6 +14,13 @@ import InstitutionCreate from './pages/InstitutionCreate';
 import InstitutionSubscription from './pages/InstitutionSubscription';
 import InstitutionAnalytics from './pages/InstitutionAnalytics';
 import InstitutionAdminDashboard from './pages/InstitutionAdminDashboard';
+import TeacherList from './pages/TeacherList';
+import TeacherProfile from './pages/TeacherProfile';
+import TeacherForm from './pages/TeacherForm';
+import TeacherAssignments from './pages/TeacherAssignments';
+import TeacherBulkImport from './pages/TeacherBulkImport';
+import TeacherPerformanceDashboard from './pages/TeacherPerformanceDashboard';
+import TeacherRoleAssignment from './pages/TeacherRoleAssignment';
 
 import {
   LoginPage,
@@ -51,7 +58,17 @@ function App() {
               <Route path="institutions" element={<div>Institutions</div>} />
               <Route path="institutions/add" element={<div>Add Institution</div>} />
               <Route path="users/students" element={<div>Students</div>} />
-              <Route path="users/teachers" element={<div>Teachers</div>} />
+              <Route path="users/teachers" element={<TeacherList />} />
+              <Route path="users/teachers/new" element={<TeacherForm />} />
+              <Route path="users/teachers/:id" element={<TeacherProfile />} />
+              <Route path="users/teachers/:id/edit" element={<TeacherProfile />} />
+              <Route path="users/teachers/:id/assignments" element={<TeacherAssignments />} />
+              <Route
+                path="users/teachers/:id/performance"
+                element={<TeacherPerformanceDashboard />}
+              />
+              <Route path="users/teachers/:id/roles" element={<TeacherRoleAssignment />} />
+              <Route path="users/teachers/bulk-import" element={<TeacherBulkImport />} />
               <Route path="users/admins" element={<div>Administrators</div>} />
               <Route path="academic/classes" element={<div>Classes</div>} />
               <Route path="academic/subjects" element={<div>Subjects</div>} />

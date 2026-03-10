@@ -43,6 +43,7 @@ export interface AuthUser {
   isActive: boolean;
   emailVerified: boolean;
   isSuperuser: boolean;
+  institution_id?: number;
   createdAt: string;
   updatedAt: string;
 }
