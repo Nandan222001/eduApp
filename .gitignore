@@ -97,3 +97,10 @@ model_checkpoints/
 *.csv
 !requirements.csv
 !examples/*.csv
+
+# Sentence Transformers and HuggingFace cache
+.cache/
+sentence_transformers/
+transformers_cache/
+huggingface/
+torch_extensions/

@@ -233,3 +233,172 @@ class TopicPrediction(Base):
         Index('idx_tp_is_due', 'is_due'),
         Index('idx_tp_analyzed_at', 'analyzed_at'),
     )
+
+
+class QuestionEmbedding(Base):
+    __tablename__ = "question_embeddings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    question_id = Column(Integer, ForeignKey('questions_bank.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    
+    embedding_model = Column(String(100), nullable=False, default='all-MiniLM-L6-v2')
+    embedding_vector = Column(Text, nullable=False)
+    embedding_dimension = Column(Integer, nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    question = relationship("QuestionBank", backref="embedding")
+    
+    __table_args__ = (
+        Index('idx_qe_question', 'question_id'),
+        Index('idx_qe_model', 'embedding_model'),
+    )
+
+
+class QuestionCluster(Base):
+    __tablename__ = "question_clusters"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    cluster_id = Column(Integer, nullable=False, index=True)
+    grade_id = Column(Integer, ForeignKey('grades.id', ondelete='CASCADE'), nullable=False, index=True)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    cluster_label = Column(String(255), nullable=True)
+    cluster_size = Column(Integer, nullable=False, default=0)
+    representative_question_id = Column(Integer, ForeignKey('questions_bank.id', ondelete='SET NULL'), nullable=True)
+    
+    centroid_vector = Column(Text, nullable=True)
+    
+    avg_difficulty = Column(String(50), nullable=True)
+    dominant_bloom_level = Column(String(50), nullable=True)
+    
+    clustering_algorithm = Column(String(50), nullable=False, default='hdbscan')
+    clustering_metadata = Column(Text, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    institution = relationship("Institution")
+    grade = relationship("Grade")
+    subject = relationship("Subject")
+    representative_question = relationship("QuestionBank", foreign_keys=[representative_question_id])
+    members = relationship("QuestionClusterMember", back_populates="cluster", cascade="all, delete-orphan")
+    
+    __table_args__ = (
+        Index('idx_qc_institution', 'institution_id'),
+        Index('idx_qc_cluster_id', 'cluster_id'),
+        Index('idx_qc_grade_subject', 'grade_id', 'subject_id'),
+    )
+
+
+class QuestionClusterMember(Base):
+    __tablename__ = "question_cluster_members"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    cluster_table_id = Column(Integer, ForeignKey('question_clusters.id', ondelete='CASCADE'), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey('questions_bank.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    similarity_score = Column(Float, nullable=True)
+    distance_to_centroid = Column(Float, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    cluster = relationship("QuestionCluster", back_populates="members")
+    question = relationship("QuestionBank")
+    
+    __table_args__ = (
+        Index('idx_qcm_cluster', 'cluster_table_id'),
+        Index('idx_qcm_question', 'question_id'),
+    )
+
+
+class QuestionVariation(Base):
+    __tablename__ = "question_variations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    original_question_id = Column(Integer, ForeignKey('questions_bank.id', ondelete='CASCADE'), nullable=False, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    variation_text = Column(Text, nullable=False)
+    variation_type = Column(String(50), nullable=False)
+    
+    question_type = Column(Enum(QuestionType), nullable=False)
+    difficulty_level = Column(Enum(DifficultyLevel), nullable=False)
+    bloom_taxonomy_level = Column(Enum(BloomTaxonomyLevel), nullable=False)
+    
+    options = Column(Text, nullable=True)
+    correct_option = Column(String(10), nullable=True)
+    answer_text = Column(Text, nullable=True)
+    explanation = Column(Text, nullable=True)
+    
+    similarity_score = Column(Float, nullable=True)
+    
+    generation_method = Column(String(50), nullable=False, default='ai')
+    generation_metadata = Column(Text, nullable=True)
+    
+    is_verified = Column(Boolean, default=False, nullable=False)
+    verified_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    usage_count = Column(Integer, default=0, nullable=False)
+    
+    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    original_question = relationship("QuestionBank", foreign_keys=[original_question_id])
+    institution = relationship("Institution")
+    creator = relationship("User", foreign_keys=[created_by])
+    verifier = relationship("User", foreign_keys=[verified_by])
+    
+    __table_args__ = (
+        Index('idx_qv_original', 'original_question_id'),
+        Index('idx_qv_institution', 'institution_id'),
+        Index('idx_qv_type', 'variation_type'),
+        Index('idx_qv_active', 'is_active'),
+    )
+
+
+class QuestionBlueprint(Base):
+    __tablename__ = "question_blueprints"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    blueprint_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    
+    board = Column(Enum(Board), nullable=False, index=True)
+    grade_id = Column(Integer, ForeignKey('grades.id', ondelete='CASCADE'), nullable=False, index=True)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    total_marks = Column(Integer, nullable=False)
+    duration_minutes = Column(Integer, nullable=False)
+    
+    difficulty_distribution = Column(Text, nullable=False)
+    bloom_taxonomy_distribution = Column(Text, nullable=False)
+    question_type_distribution = Column(Text, nullable=False)
+    chapter_weightage = Column(Text, nullable=True)
+    
+    blueprint_metadata = Column(Text, nullable=True)
+    
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    institution = relationship("Institution")
+    grade = relationship("Grade")
+    subject = relationship("Subject")
+    creator = relationship("User", foreign_keys=[created_by])
+    
+    __table_args__ = (
+        Index('idx_qbp_institution', 'institution_id'),
+        Index('idx_qbp_board', 'board'),
+        Index('idx_qbp_grade_subject', 'grade_id', 'subject_id'),
+        Index('idx_qbp_active', 'is_active'),
+    )

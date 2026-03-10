@@ -26,7 +26,9 @@ from src.api.v1 import (
     gamification,
     goals,
     predictions,
-    board_exam_predictions
+    board_exam_predictions,
+    question_nlp,
+    question_blueprints
 )
 from src.api import ml
 
@@ -60,3 +62,5 @@ api_router.include_router(goals.router, prefix="/goals", tags=["goals"])
 api_router.include_router(ml.router, prefix="/ml", tags=["machine-learning"])
 api_router.include_router(predictions.router, prefix="", tags=["predictions"])
 api_router.include_router(board_exam_predictions.router, prefix="", tags=["board-exam-predictions"])
+api_router.include_router(question_nlp.router, prefix="", tags=["question-nlp"])
+api_router.include_router(question_blueprints.router, prefix="", tags=["question-blueprints"])
