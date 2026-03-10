@@ -7,6 +7,7 @@ interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  selectedInstitution: string | null;
   setUser: (user: AuthUser | null) => void;
   setTokens: (tokens: AuthTokens) => void;
   setAuthenticated: (isAuthenticated: boolean) => void;
@@ -14,6 +15,7 @@ interface AuthState {
   login: (user: AuthUser, tokens: AuthTokens) => void;
   logout: () => void;
   updateUser: (user: Partial<AuthUser>) => void;
+  setSelectedInstitution: (institutionId: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -23,6 +25,7 @@ export const useAuthStore = create<AuthState>()(
         user: null,
         isAuthenticated: false,
         isLoading: false,
+        selectedInstitution: null,
 
         setUser: (user) => set({ user }),
 
@@ -41,19 +44,22 @@ export const useAuthStore = create<AuthState>()(
 
         logout: () => {
           tokenManager.clearTokens();
-          set({ user: null, isAuthenticated: false, isLoading: false });
+          set({ user: null, isAuthenticated: false, isLoading: false, selectedInstitution: null });
         },
 
         updateUser: (userData) =>
           set((state) => ({
             user: state.user ? { ...state.user, ...userData } : null,
           })),
+
+        setSelectedInstitution: (institutionId) => set({ selectedInstitution: institutionId }),
       }),
       {
         name: 'auth-storage',
         partialize: (state) => ({
           user: state.user,
           isAuthenticated: state.isAuthenticated,
+          selectedInstitution: state.selectedInstitution,
         }),
       }
     )

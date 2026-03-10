@@ -1,0 +1,197 @@
+import {
+  Dashboard as DashboardIcon,
+  School as SchoolIcon,
+  People as PeopleIcon,
+  Assignment as AssignmentIcon,
+  Assessment as AssessmentIcon,
+  CalendarMonth as CalendarIcon,
+  Notifications as NotificationsIcon,
+  Settings as SettingsIcon,
+  Business as BusinessIcon,
+  Person as PersonIcon,
+  Class as ClassIcon,
+  Book as BookIcon,
+  Grade as GradeIcon,
+  EmojiEvents as AchievementsIcon,
+  TrendingUp as AnalyticsIcon,
+  Forum as ForumIcon,
+} from '@mui/icons-material';
+import { NavigationItem } from '@/types/navigation';
+
+export const navigationConfig: NavigationItem[] = [
+  {
+    id: 'dashboard',
+    title: 'Dashboard',
+    path: '/admin',
+    icon: <DashboardIcon />,
+    roles: ['admin', 'teacher', 'student'],
+  },
+  {
+    id: 'institutions',
+    title: 'Institutions',
+    icon: <BusinessIcon />,
+    roles: ['admin'],
+    children: [
+      {
+        id: 'institutions-list',
+        title: 'All Institutions',
+        path: '/admin/institutions',
+        icon: <BusinessIcon />,
+      },
+      {
+        id: 'institutions-add',
+        title: 'Add Institution',
+        path: '/admin/institutions/add',
+        icon: <BusinessIcon />,
+      },
+    ],
+  },
+  {
+    id: 'users',
+    title: 'Users',
+    icon: <PeopleIcon />,
+    roles: ['admin'],
+    children: [
+      {
+        id: 'users-students',
+        title: 'Students',
+        path: '/admin/users/students',
+        icon: <PersonIcon />,
+      },
+      {
+        id: 'users-teachers',
+        title: 'Teachers',
+        path: '/admin/users/teachers',
+        icon: <SchoolIcon />,
+      },
+      {
+        id: 'users-admins',
+        title: 'Administrators',
+        path: '/admin/users/admins',
+        icon: <PeopleIcon />,
+      },
+    ],
+  },
+  {
+    id: 'academic',
+    title: 'Academic',
+    icon: <SchoolIcon />,
+    roles: ['admin', 'teacher'],
+    children: [
+      {
+        id: 'academic-classes',
+        title: 'Classes',
+        path: '/admin/academic/classes',
+        icon: <ClassIcon />,
+      },
+      {
+        id: 'academic-subjects',
+        title: 'Subjects',
+        path: '/admin/academic/subjects',
+        icon: <BookIcon />,
+      },
+      {
+        id: 'academic-syllabus',
+        title: 'Syllabus',
+        path: '/admin/academic/syllabus',
+        icon: <BookIcon />,
+      },
+    ],
+  },
+  {
+    id: 'assignments',
+    title: 'Assignments',
+    path: '/admin/assignments',
+    icon: <AssignmentIcon />,
+    roles: ['admin', 'teacher', 'student'],
+    badge: 5,
+  },
+  {
+    id: 'examinations',
+    title: 'Examinations',
+    icon: <AssessmentIcon />,
+    roles: ['admin', 'teacher', 'student'],
+    children: [
+      {
+        id: 'examinations-schedule',
+        title: 'Schedule',
+        path: '/admin/examinations/schedule',
+        icon: <CalendarIcon />,
+      },
+      {
+        id: 'examinations-results',
+        title: 'Results',
+        path: '/admin/examinations/results',
+        icon: <GradeIcon />,
+      },
+      {
+        id: 'examinations-analysis',
+        title: 'Analysis',
+        path: '/admin/examinations/analysis',
+        icon: <AnalyticsIcon />,
+      },
+    ],
+  },
+  {
+    id: 'attendance',
+    title: 'Attendance',
+    path: '/admin/attendance',
+    icon: <CalendarIcon />,
+    roles: ['admin', 'teacher', 'student'],
+  },
+  {
+    id: 'gamification',
+    title: 'Gamification',
+    icon: <AchievementsIcon />,
+    roles: ['admin', 'teacher', 'student'],
+    children: [
+      {
+        id: 'gamification-achievements',
+        title: 'Achievements',
+        path: '/admin/gamification/achievements',
+        icon: <AchievementsIcon />,
+      },
+      {
+        id: 'gamification-leaderboard',
+        title: 'Leaderboard',
+        path: '/admin/gamification/leaderboard',
+        icon: <AnalyticsIcon />,
+      },
+    ],
+  },
+  {
+    id: 'communication',
+    title: 'Communication',
+    icon: <ForumIcon />,
+    roles: ['admin', 'teacher', 'student'],
+    children: [
+      {
+        id: 'communication-announcements',
+        title: 'Announcements',
+        path: '/admin/communication/announcements',
+        icon: <NotificationsIcon />,
+        badge: 3,
+      },
+      {
+        id: 'communication-messages',
+        title: 'Messages',
+        path: '/admin/communication/messages',
+        icon: <ForumIcon />,
+      },
+    ],
+  },
+  {
+    id: 'analytics',
+    title: 'Analytics',
+    path: '/admin/analytics',
+    icon: <AnalyticsIcon />,
+    roles: ['admin', 'teacher'],
+  },
+  {
+    id: 'settings',
+    title: 'Settings',
+    path: '/admin/settings',
+    icon: <SettingsIcon />,
+    roles: ['admin'],
+  },
+];
