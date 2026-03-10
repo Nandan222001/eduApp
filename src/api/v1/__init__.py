@@ -28,7 +28,8 @@ from src.api.v1 import (
     predictions,
     board_exam_predictions,
     question_nlp,
-    question_blueprints
+    question_blueprints,
+    study_planner
 )
 from src.api import ml
 
@@ -64,3 +65,4 @@ api_router.include_router(predictions.router, prefix="", tags=["predictions"])
 api_router.include_router(board_exam_predictions.router, prefix="", tags=["board-exam-predictions"])
 api_router.include_router(question_nlp.router, prefix="", tags=["question-nlp"])
 api_router.include_router(question_blueprints.router, prefix="", tags=["question-blueprints"])
+api_router.include_router(study_planner.router, prefix="", tags=["study-planner"])
