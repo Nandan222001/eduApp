@@ -19,6 +19,7 @@ from src.models.gamification import (
     AchievementType, LeaderboardType, LeaderboardPeriod
 )
 from src.models.goal import Goal, GoalMilestone, GoalProgressLog, GoalAnalytics, GoalTemplate, GoalType, GoalStatus, MilestoneStatus
+from src.models.ml_prediction import MLModel, MLModelVersion, PerformancePrediction, PredictionScenario, ModelType, ModelStatus, PredictionType
 
 __all__ = [
     "Institution",
@@ -96,4 +97,11 @@ __all__ = [
     "GoalType",
     "GoalStatus",
     "MilestoneStatus",
+    "MLModel",
+    "MLModelVersion",
+    "PerformancePrediction",
+    "PredictionScenario",
+    "ModelType",
+    "ModelStatus",
+    "PredictionType",
 ]

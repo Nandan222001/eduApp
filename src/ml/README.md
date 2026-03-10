@@ -1,225 +1,222 @@
-# Machine Learning Module
+# ML Module
 
-This module provides AI/ML infrastructure for student performance analysis and prediction in the educational platform.
+This module contains the machine learning components for student performance prediction.
 
-## Overview
+## Structure
 
-The ML module consists of several components:
+```
+ml/
+├── __init__.py                 # Module initialization
+├── config.py                   # ML system configuration
+├── data_pipeline.py            # Data extraction pipeline
+├── data_preparation.py         # Data preprocessing and validation
+├── feature_engineering.py      # Basic feature engineering
+├── advanced_features.py        # Advanced feature engineering
+├── ml_service.py              # Main ML service
+├── prediction_service.py       # Prediction service with models
+├── model_storage.py           # Model storage and versioning
+└── utils.py                   # Utility functions
+```
 
-1. **Data Pipeline** (`data_pipeline.py`) - Extracts student performance data from the database
-2. **Feature Engineering** (`feature_engineering.py`) - Creates features from raw data
-3. **Data Preparation** (`data_preparation.py`) - Prepares data for ML model training
-4. **ML Service** (`ml_service.py`) - High-level service for ML operations
-5. **Utilities** (`utils.py`) - Helper functions for ML operations
-6. **Configuration** (`config.py`) - ML module configuration
+## Components
 
-## Features
+### Configuration (`config.py`)
+Central configuration for ML system settings:
+- Algorithm default parameters
+- Cache TTL settings
+- Feature engineering settings
+- Prediction type configurations
 
-### Data Extraction
+### Data Pipeline (`data_pipeline.py`)
+Extracts data from database:
+- Student attendance records
+- Assignment submissions
+- Exam results
+- Aggregates historical data
 
-The data pipeline extracts the following data:
+### Data Preparation (`data_preparation.py`)
+Prepares data for training:
+- Train/test splitting
+- Data validation
+- Missing value handling
+- Feature normalization
 
-- **Student Data**: Basic student information
-- **Attendance Data**: Student attendance records with status
-- **Assignment Data**: Assignment submissions and scores
-- **Exam Data**: Exam marks and performance
+### Feature Engineering (`feature_engineering.py`)
+Basic feature extraction:
+- Attendance statistics
+- Assignment scores
+- Exam performance
+- Subject-wise metrics
 
-### Feature Engineering
+### Advanced Features (`advanced_features.py`)
+Advanced feature creation:
+- Time-based features
+- Rolling statistics
+- Lag features
+- Trend analysis
+- Interaction features
 
-The module creates the following features:
+### Prediction Service (`prediction_service.py`)
+Core prediction functionality:
+- Model training with cross-validation
+- Performance predictions with confidence intervals
+- What-if scenario analysis
+- Model metrics retrieval
 
-#### Attendance Features
-- Overall attendance percentage
-- Subject-wise attendance percentage
-- Attendance trends over time
+### Model Storage (`model_storage.py`)
+Model persistence:
+- Local file storage
+- S3 cloud storage
+- Version management
+- Model loading/saving
 
-#### Assignment Features
-- Average assignment score
-- Assignment submission rate
-- Late submission rate
-- Subject-wise assignment performance
-- Chapter-wise assignment performance
+### ML Service (`ml_service.py`)
+High-level ML operations:
+- Feature extraction
+- Training data preparation
+- Performance summaries
+- At-risk student identification
 
-#### Exam Features
-- Average exam score
-- Exam pass rate
-- Exam count
-- Exam trend slope (improving/declining)
-- Recent exam average
-- Subject-wise exam performance
-- Exam type-wise performance (unit, mid-term, final)
+## Usage
 
-#### Derived Features
-- Test trends and slopes
-- Chapter-wise performance metrics
-
-### Data Validation
-
-The module includes data validation for:
-
-- Required columns check
-- Numeric range validation
-- Percentage column validation (0-100)
-- Data quality reporting
-
-### Training Data Preparation
-
-Features include:
-
-- Train/validation/test splits
-- Missing value handling (mean, median, mode strategies)
-- Feature normalization (standard, min-max scaling)
-- Time-series splits for temporal data
-- Rolling window splits
-
-## Usage Examples
-
-### Extract Student Performance Summary
+### Train a Model
 
 ```python
-from src.ml.ml_service import MLService
-from src.database import get_db
+from src.ml.prediction_service import PerformancePredictionService
+from src.database import SessionLocal
 
-db = next(get_db())
-ml_service = MLService(db)
+db = SessionLocal()
+service = PerformancePredictionService(db)
 
-summary = ml_service.get_student_performance_summary(
+model, version = service.train_model(
     institution_id=1,
+    model_name="Performance Predictor",
+    algorithm='random_forest'
+)
+```
+
+### Make Predictions
+
+```python
+prediction = service.predict_performance(
+    model_id=model.id,
     student_id=100,
-    start_date=date(2024, 1, 1),
-    end_date=date(2024, 12, 31)
+    input_features={
+        'attendance_percentage': 85.5,
+        'avg_assignment_score': 78.2,
+        'avg_exam_score': 82.0
+    }
 )
 ```
 
-### Identify At-Risk Students
+### Analyze Scenarios
 
 ```python
-at_risk = ml_service.identify_at_risk_students(
-    institution_id=1,
-    attendance_threshold=75.0,
-    assignment_threshold=60.0,
-    exam_threshold=50.0
+scenarios = service.analyze_what_if_scenarios(
+    base_prediction_id=prediction.id,
+    scenarios=[
+        {
+            'name': 'Improved Attendance',
+            'modified_features': {'attendance_percentage': 95.0}
+        }
+    ]
 )
 ```
 
-### Prepare Training Dataset
+## Supported Algorithms
 
-```python
-dataset = ml_service.prepare_training_dataset(
-    institution_id=1,
-    test_size=0.2,
-    val_size=0.1,
-    normalize=True,
-    normalization_method='standard',
-    handle_missing=True,
-    missing_strategy='mean'
-)
-
-X_train = dataset['X_train']
-X_test = dataset['X_test']
-y_train = dataset['y_train']
-y_test = dataset['y_test']
-```
-
-### Get Feature Matrix
-
-```python
-features = ml_service.extract_and_prepare_features(
-    institution_id=1,
-    student_ids=[100, 101, 102],
-    start_date=date(2024, 1, 1),
-    end_date=date(2024, 12, 31)
-)
-```
-
-## API Endpoints
-
-The ML module exposes the following endpoints:
-
-### POST /api/v1/ml/performance/summary
-Get detailed performance summary for a student.
-
-### POST /api/v1/ml/performance/batch
-Get performance data for multiple students.
-
-### POST /api/v1/ml/students/at-risk
-Identify students at risk of poor performance.
-
-### POST /api/v1/ml/subjects/difficulty
-Analyze subject difficulty based on student performance.
-
-### POST /api/v1/ml/training/prepare
-Prepare training dataset with proper validation splits.
-
-### POST /api/v1/ml/features/extract
-Extract feature matrix for students.
+1. **Random Forest** (recommended)
+2. **Gradient Boosting**
+3. **Linear Regression**
+4. **Ridge Regression**
+5. **Lasso Regression**
 
 ## Configuration
 
-Configuration options are available in `config.py`:
+Edit `config.py` to customize:
 
 ```python
-ml_config = MLConfig(
-    random_state=42,
-    test_size=0.2,
-    val_size=0.1,
-    attendance_threshold=75.0,
-    assignment_threshold=60.0,
-    exam_threshold=50.0
-)
+from src.ml.config import ml_config
+
+# Modify cache settings
+ml_config.CACHE_TTL_PREDICTION = 7200  # 2 hours
+
+# Modify algorithm parameters
+ml_config.RANDOM_FOREST_PARAMS['n_estimators'] = 200
+
+# Modify feature engineering
+ml_config.ROLLING_WINDOWS = [7, 14, 30]
 ```
 
-## Data Quality
+## Features
 
-The module provides comprehensive data quality reporting:
+### Extracted Features
 
-- Total rows and columns
-- Missing value counts and percentages
-- Duplicate row detection
-- Numeric and categorical column identification
-- Statistical summaries for numeric columns
+#### Attendance
+- Overall attendance percentage
+- Subject-wise attendance
+- Attendance categories (high/medium/low)
 
-## Performance Metrics
+#### Assignments
+- Average assignment score
+- Completion rate
+- Subject-wise scores
+- Missing assignments
 
-Available performance metrics:
+#### Exams
+- Average exam score
+- Exam count
+- Performance trend
+- Subject-wise scores
 
-- Attendance percentage
-- Assignment scores and submission rates
-- Exam scores and pass rates
-- Performance trends
-- Consistency scores
-- Improvement rates
-- Performance indices
+#### Composite
+- Overall performance score
+- Engagement score
+- Performance consistency
 
-## Future Enhancements
+### Advanced Features
 
-Potential future features:
+- **Time-based**: Day of week, month, quarter
+- **Rolling**: Moving averages, std dev
+- **Lag**: Historical values
+- **Trend**: Performance slope
+- **Momentum**: Rate of change
+- **Interaction**: Feature combinations
 
-1. Predictive models for performance forecasting
-2. Automated intervention recommendations
-3. Personalized learning path suggestions
-4. Anomaly detection for unusual patterns
-5. Clustering for student grouping
-6. Time series forecasting
-7. Natural language processing for feedback analysis
-8. Deep learning models for advanced predictions
+## Model Versioning
 
-## Dependencies
+Models are versioned automatically:
+- Format: `v{major}.{minor}.{timestamp}`
+- Example: `v1.0.20240115120000`
 
-The module uses the following ML libraries:
+Each version stores:
+- Trained model file
+- Scaler file
+- Training metrics
+- Feature importance
+- Hyperparameters
 
-- **scikit-learn**: Machine learning algorithms and preprocessing
-- **pandas**: Data manipulation and analysis
-- **numpy**: Numerical computations
-- **joblib**: Model persistence
+## Performance
 
-## Best Practices
+### Caching
+- Predictions cached for 1 hour
+- Model metrics cached for 30 minutes
+- Model list cached for 10 minutes
 
-1. Always validate data before feature engineering
-2. Handle missing values appropriately
-3. Normalize features for better model performance
-4. Use proper train/validation/test splits
-5. Monitor data quality metrics
-6. Save preprocessing pipelines for consistency
-7. Document feature engineering decisions
-8. Version control ML models and pipelines
+### Storage
+- Local: `ml_models/` directory
+- Cloud: S3 bucket (optional)
+
+## Testing
+
+Run the example:
+```bash
+python examples/prediction_example.py
+```
+
+## Documentation
+
+See main documentation files:
+- `ML_PREDICTION_IMPLEMENTATION.md` - Complete guide
+- `ML_PREDICTION_QUICK_START.md` - Quick start
+- `ML_PREDICTION_SUMMARY.md` - Summary

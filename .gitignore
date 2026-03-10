@@ -82,6 +82,7 @@ celery_worker.log
 
 # ML/AI models and artifacts
 models/
+ml_models/
 *.pkl
 *.joblib
 *.h5

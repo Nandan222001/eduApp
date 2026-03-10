@@ -24,7 +24,8 @@ from src.api.v1 import (
     notification_templates,
     websocket,
     gamification,
-    goals
+    goals,
+    predictions
 )
 from src.api import ml
 
@@ -56,3 +57,4 @@ api_router.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 api_router.include_router(gamification.router, prefix="/gamification", tags=["gamification"])
 api_router.include_router(goals.router, prefix="/goals", tags=["goals"])
 api_router.include_router(ml.router, prefix="/ml", tags=["machine-learning"])
+api_router.include_router(predictions.router, prefix="", tags=["predictions"])
