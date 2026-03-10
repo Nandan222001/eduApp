@@ -1,105 +1,61 @@
 import { Container, Typography, Box, Paper } from '@mui/material';
+import { useAuth } from '@/hooks/useAuth';
+import RequireRole from '@/components/common/RequireRole';
 
 export default function About() {
+  const { user, isAuthenticated } = useAuth();
+
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h3" component="h1" gutterBottom>
-        About This Application
-      </Typography>
-
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          Tech Stack
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Paper elevation={2} sx={{ p: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          About This Application
         </Typography>
-        <Box component="ul" sx={{ mt: 2 }}>
-          <li>
-            <Typography variant="body1">
-              <strong>React 18:</strong> Modern UI library with concurrent features
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1">
-              <strong>TypeScript:</strong> Type-safe development experience
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1">
-              <strong>Vite:</strong> Next-generation frontend tooling
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1">
-              <strong>React Router v6:</strong> Declarative routing for React
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1">
-              <strong>Material-UI v5:</strong> React component library implementing Material Design
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1">
-              <strong>React Query:</strong> Powerful asynchronous state management
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1">
-              <strong>Zustand:</strong> Lightweight state management solution
-            </Typography>
-          </li>
-        </Box>
-      </Paper>
 
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          Development Tools
+        <Typography variant="body1" paragraph>
+          This is a demo application showcasing a comprehensive authentication system with:
         </Typography>
-        <Box component="ul" sx={{ mt: 2 }}>
-          <li>
-            <Typography variant="body1">
-              <strong>ESLint:</strong> Code quality and consistency
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1">
-              <strong>Prettier:</strong> Automatic code formatting
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1">
-              <strong>Husky:</strong> Git hooks for pre-commit checks
-            </Typography>
-          </li>
-        </Box>
-      </Paper>
 
-      <Paper sx={{ p: 3, mt: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          Features
-        </Typography>
-        <Box component="ul" sx={{ mt: 2 }}>
-          <li>
-            <Typography variant="body1">Environment-based API endpoint management</Typography>
-          </li>
-          <li>
-            <Typography variant="body1">Configured ESLint and Prettier</Typography>
-          </li>
-          <li>
-            <Typography variant="body1">Pre-commit hooks with Husky</Typography>
-          </li>
-          <li>
-            <Typography variant="body1">Custom theme with Material-UI</Typography>
-          </li>
-          <li>
-            <Typography variant="body1">React Query for data fetching</Typography>
-          </li>
-          <li>
-            <Typography variant="body1">Zustand for global state management</Typography>
-          </li>
-          <li>
-            <Typography variant="body1">Path aliases configured (@/*)</Typography>
-          </li>
+        <Box component="ul" sx={{ mb: 3 }}>
+          <li>Email/Password and OTP login options</li>
+          <li>Forgot password and reset flow</li>
+          <li>Session timeout with warnings</li>
+          <li>Automatic JWT token refresh</li>
+          <li>Protected routes with authentication guards</li>
+          <li>Role-based access control</li>
+          <li>Responsive design for all devices</li>
         </Box>
+
+        {isAuthenticated && user && (
+          <Box sx={{ mt: 4, p: 2, bgcolor: 'primary.light', borderRadius: 1 }}>
+            <Typography variant="h6" gutterBottom>
+              Your Session Info
+            </Typography>
+            <Typography variant="body2">
+              Logged in as: {user.fullName} ({user.email})
+            </Typography>
+            <Typography variant="body2">Role: {user.role}</Typography>
+            <Typography variant="body2">
+              Email Verified: {user.emailVerified ? 'Yes' : 'No'}
+            </Typography>
+          </Box>
+        )}
+
+        <RequireRole roles={['admin']}>
+          <Box sx={{ mt: 3, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+            <Typography variant="body1" color="error.contrastText">
+              🔒 This section is only visible to administrators
+            </Typography>
+          </Box>
+        </RequireRole>
+
+        <RequireRole roles={['teacher', 'admin']}>
+          <Box sx={{ mt: 3, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+            <Typography variant="body1" color="info.contrastText">
+              📚 This section is visible to teachers and administrators
+            </Typography>
+          </Box>
+        </RequireRole>
       </Paper>
     </Container>
   );
