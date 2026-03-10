@@ -5,7 +5,7 @@ celery_app = Celery(
     "notification_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["src.tasks.notification_tasks"]
+    include=["src.tasks.notification_tasks", "src.tasks.analytics_tasks"]
 )
 
 celery_app.conf.update(
@@ -30,5 +30,13 @@ celery_app.conf.beat_schedule = {
     "cleanup-old-notifications": {
         "task": "src.tasks.notification_tasks.cleanup_old_notifications",
         "schedule": 86400.0,
+    },
+    "daily-analytics-aggregation": {
+        "task": "analytics.daily_aggregation",
+        "schedule": 86400.0,
+    },
+    "clean-analytics-cache": {
+        "task": "analytics.clean_expired_cache",
+        "schedule": 3600.0,
     },
 }

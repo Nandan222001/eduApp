@@ -25,6 +25,10 @@ from src.models.study_planner import (
     ChapterPerformance, QuestionRecommendation, FocusArea, PersonalizedInsight,
     StudyPlanStatus, TaskStatus, TaskPriority
 )
+from src.models.analytics import (
+    AnalyticsCache, StudentPerformanceMetrics, ClassPerformanceMetrics,
+    InstitutionPerformanceMetrics, GeneratedReport, ReportType, ReportStatus
+)
 
 __all__ = [
     "Institution",
@@ -122,4 +126,11 @@ __all__ = [
     "StudyPlanStatus",
     "TaskStatus",
     "TaskPriority",
+    "AnalyticsCache",
+    "StudentPerformanceMetrics",
+    "ClassPerformanceMetrics",
+    "InstitutionPerformanceMetrics",
+    "GeneratedReport",
+    "ReportType",
+    "ReportStatus",
 ]

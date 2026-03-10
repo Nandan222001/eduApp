@@ -75,6 +75,9 @@ question_images/
 *.pdf
 temp_uploads/
 
+# Analytics reports
+reports/
+
 # Celery
 celerybeat-schedule
 celerybeat.pid

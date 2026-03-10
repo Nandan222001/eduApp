@@ -30,7 +30,8 @@ from src.api.v1 import (
     question_nlp,
     question_blueprints,
     study_planner,
-    weakness_detection
+    weakness_detection,
+    analytics
 )
 from src.api import ml
 
@@ -68,3 +69,4 @@ api_router.include_router(question_nlp.router, prefix="", tags=["question-nlp"])
 api_router.include_router(question_blueprints.router, prefix="", tags=["question-blueprints"])
 api_router.include_router(study_planner.router, prefix="", tags=["study-planner"])
 api_router.include_router(weakness_detection.router, prefix="", tags=["weakness-detection"])
+api_router.include_router(analytics.router, prefix="", tags=["analytics"])
