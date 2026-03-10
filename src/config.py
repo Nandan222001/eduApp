@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = Field(default="rzp_test_secret", alias="RAZORPAY_KEY_SECRET")
     razorpay_webhook_secret: str = Field(default="", alias="RAZORPAY_WEBHOOK_SECRET")
 
+    aws_access_key_id: str = Field(default="", alias="AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: str = Field(default="", alias="AWS_SECRET_ACCESS_KEY")
+    aws_region: str = Field(default="us-east-1", alias="AWS_REGION")
+    s3_bucket_name: str = Field(default="", alias="S3_BUCKET_NAME")
+    s3_upload_max_size: int = Field(default=10485760, alias="S3_UPLOAD_MAX_SIZE")
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.database_user}:{self.database_password}@{self.database_host}:{self.database_port}/{self.database_name}"

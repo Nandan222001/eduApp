@@ -78,6 +78,22 @@ from src.schemas.attendance import (
     AttendanceDefaulter,
     StudentAttendanceDetail,
 )
+from src.schemas.assignment import (
+    AssignmentCreate,
+    AssignmentUpdate,
+    AssignmentResponse,
+    AssignmentWithFilesResponse,
+    AssignmentWithStatsResponse,
+    SubmissionCreate,
+    SubmissionUpdate,
+    SubmissionGradeInput,
+    SubmissionResponse,
+    SubmissionWithFilesResponse,
+    SubmissionWithStudentResponse,
+    SubmissionStatistics,
+    AssignmentAnalytics,
+    FileUploadResponse,
+)
 
 __all__ = [
     "InstitutionBase",
@@ -140,4 +156,18 @@ __all__ = [
     "SubjectAttendanceReport",
     "AttendanceDefaulter",
     "StudentAttendanceDetail",
+    "AssignmentCreate",
+    "AssignmentUpdate",
+    "AssignmentResponse",
+    "AssignmentWithFilesResponse",
+    "AssignmentWithStatsResponse",
+    "SubmissionCreate",
+    "SubmissionUpdate",
+    "SubmissionGradeInput",
+    "SubmissionResponse",
+    "SubmissionWithFilesResponse",
+    "SubmissionWithStudentResponse",
+    "SubmissionStatistics",
+    "AssignmentAnalytics",
+    "FileUploadResponse",
 ]

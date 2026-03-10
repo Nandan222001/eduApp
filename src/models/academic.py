@@ -47,6 +47,7 @@ class Grade(Base):
     sections = relationship("Section", back_populates="grade", cascade="all, delete-orphan")
     grade_subjects = relationship("GradeSubject", back_populates="grade", cascade="all, delete-orphan")
     chapters = relationship("Chapter", back_populates="grade", cascade="all, delete-orphan")
+    assignments = relationship("Assignment", back_populates="grade", cascade="all, delete-orphan")
     
     __table_args__ = (
         UniqueConstraint('institution_id', 'academic_year_id', 'name', name='uq_institution_year_grade_name'),
@@ -73,6 +74,7 @@ class Section(Base):
     grade = relationship("Grade", back_populates="sections")
     students = relationship("Student", back_populates="section")
     attendances = relationship("Attendance", back_populates="section")
+    assignments = relationship("Assignment", back_populates="section")
     
     __table_args__ = (
         UniqueConstraint('grade_id', 'name', name='uq_grade_section_name'),
@@ -100,6 +102,7 @@ class Subject(Base):
     chapters = relationship("Chapter", back_populates="subject", cascade="all, delete-orphan")
     attendances = relationship("Attendance", back_populates="subject")
     attendance_summaries = relationship("AttendanceSummary", back_populates="subject")
+    assignments = relationship("Assignment", back_populates="subject", cascade="all, delete-orphan")
     
     __table_args__ = (
         UniqueConstraint('institution_id', 'name', name='uq_institution_subject_name'),
@@ -150,6 +153,7 @@ class Chapter(Base):
     subject = relationship("Subject", back_populates="chapters")
     grade = relationship("Grade", back_populates="chapters")
     topics = relationship("Topic", back_populates="chapter", cascade="all, delete-orphan")
+    assignments = relationship("Assignment", back_populates="chapter")
     
     __table_args__ = (
         UniqueConstraint('subject_id', 'grade_id', 'name', name='uq_subject_grade_chapter_name'),

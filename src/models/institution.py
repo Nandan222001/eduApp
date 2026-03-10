@@ -33,6 +33,7 @@ class Institution(Base):
     attendances = relationship("Attendance", back_populates="institution", cascade="all, delete-orphan")
     attendance_corrections = relationship("AttendanceCorrection", back_populates="institution", cascade="all, delete-orphan")
     attendance_summaries = relationship("AttendanceSummary", back_populates="institution", cascade="all, delete-orphan")
+    assignments = relationship("Assignment", back_populates="institution", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('idx_institution_active', 'is_active'),

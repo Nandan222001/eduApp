@@ -9,6 +9,7 @@ from src.models.academic import AcademicYear, Grade, Section, Subject, GradeSubj
 from src.models.teacher import Teacher, TeacherSubject
 from src.models.student import Student
 from src.models.attendance import Attendance, AttendanceCorrection, AttendanceSummary, AttendanceStatus, CorrectionStatus
+from src.models.assignment import Assignment, AssignmentFile, Submission, SubmissionFile, AssignmentStatus, SubmissionStatus
 
 __all__ = [
     "Institution",
@@ -33,4 +34,10 @@ __all__ = [
     "AttendanceSummary",
     "AttendanceStatus",
     "CorrectionStatus",
+    "Assignment",
+    "AssignmentFile",
+    "Submission",
+    "SubmissionFile",
+    "AssignmentStatus",
+    "SubmissionStatus",
 ]

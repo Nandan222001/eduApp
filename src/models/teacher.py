@@ -28,6 +28,8 @@ class Teacher(Base):
     institution = relationship("Institution", back_populates="teachers")
     user = relationship("User", back_populates="teacher_profile")
     teacher_subjects = relationship("TeacherSubject", back_populates="teacher", cascade="all, delete-orphan")
+    assignments = relationship("Assignment", back_populates="teacher", cascade="all, delete-orphan")
+    graded_submissions = relationship("Submission", foreign_keys="Submission.graded_by", back_populates="grader")
     
     __table_args__ = (
         UniqueConstraint('institution_id', 'email', name='uq_institution_teacher_email'),
