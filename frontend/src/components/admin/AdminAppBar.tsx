@@ -15,6 +15,7 @@ import {
   Tooltip,
   useTheme,
   alpha,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -30,6 +31,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import InstitutionSwitcher from './InstitutionSwitcher';
 import GlobalSearchBar from '@/components/search/GlobalSearchBar';
+import { MobileHamburgerMenu } from '../mobile';
 
 interface AdminAppBarProps {
   open: boolean;
@@ -39,6 +41,7 @@ interface AdminAppBarProps {
 
 export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminAppBarProps) {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { mode, toggleTheme } = useThemeStore();
@@ -106,33 +109,49 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
     >
       <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <IconButton
-            color="inherit"
-            aria-label="toggle drawer"
-            edge="start"
-            onClick={onMenuClick}
-            sx={{ display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
+          {isMobile ? (
+            <MobileHamburgerMenu />
+          ) : (
+            <IconButton
+              color="inherit"
+              aria-label="toggle drawer"
+              edge="start"
+              onClick={onMenuClick}
+              sx={{ display: { xs: 'none', md: 'block' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           <Box sx={{ display: { xs: 'none', md: 'block' } }}>
             <InstitutionSwitcher />
           </Box>
         </Box>
 
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', px: 2, maxWidth: 600 }}>
+        <Box
+          sx={{
+            flex: 1,
+            display: { xs: 'none', sm: 'flex' },
+            justifyContent: 'center',
+            px: 2,
+            maxWidth: 600,
+          }}
+        >
           <GlobalSearchBar />
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
           <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
-            <IconButton onClick={toggleTheme} color="inherit">
+            <IconButton onClick={toggleTheme} color="inherit" sx={{ minWidth: 44, minHeight: 44 }}>
               {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Notifications">
-            <IconButton onClick={handleNotificationsMenuOpen} color="inherit">
+            <IconButton
+              onClick={handleNotificationsMenuOpen}
+              color="inherit"
+              sx={{ minWidth: 44, minHeight: 44 }}
+            >
               <Badge badgeContent={unreadCount} color="error">
                 <NotificationsIcon />
               </Badge>
@@ -144,6 +163,8 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
               onClick={handleProfileMenuOpen}
               sx={{
                 ml: 1,
+                minWidth: 44,
+                minHeight: 44,
                 '&:hover': {
                   bgcolor: alpha(theme.palette.primary.main, 0.08),
                 },

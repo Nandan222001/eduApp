@@ -106,6 +106,17 @@ export const getTheme = (mode: PaletteMode) =>
             textTransform: 'none',
             fontWeight: 500,
             borderRadius: 8,
+            minHeight: 44,
+            touchAction: 'manipulation',
+          },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            minWidth: 44,
+            minHeight: 44,
+            touchAction: 'manipulation',
           },
         },
       },
@@ -129,6 +140,24 @@ export const getTheme = (mode: PaletteMode) =>
           root: {
             boxShadow:
               mode === 'light' ? '0 1px 3px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.7)',
+          },
+        },
+      },
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            '& .MuiInputBase-input': {
+              fontSize: 16,
+              touchAction: 'manipulation',
+            },
+          },
+        },
+      },
+      MuiListItemButton: {
+        styleOverrides: {
+          root: {
+            minHeight: 48,
+            touchAction: 'manipulation',
           },
         },
       },
