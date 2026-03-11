@@ -19,6 +19,7 @@ import {
   CalendarToday as CalendarTodayIcon,
   Warning as WarningIcon,
   Edit as EditIcon,
+  Psychology as AIIcon,
 } from '@mui/icons-material';
 import { NavigationItem } from '@/types/navigation';
 
@@ -176,6 +177,14 @@ export const navigationConfig: NavigationItem[] = [
         icon: <AssignmentIcon />,
       },
     ],
+  },
+  {
+    id: 'ai-prediction',
+    title: 'AI Exam Prediction',
+    path: '/student/ai-prediction',
+    icon: <AIIcon />,
+    roles: ['student'],
+    badge: 'NEW',
   },
   {
     id: 'attendance',

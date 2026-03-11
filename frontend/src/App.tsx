@@ -38,6 +38,7 @@ import PaperListPage from './pages/PaperListPage';
 import PaperUploadPage from './pages/PaperUploadPage';
 import PaperViewerPage from './pages/PaperViewerPage';
 import QuestionBankBrowserPage from './pages/QuestionBankBrowserPage';
+import AIPredictionDashboard from './pages/AIPredictionDashboard';
 
 import {
   LoginPage,
@@ -143,6 +144,7 @@ function App() {
             <Route path="/student" element={<AdminLayout />}>
               <Route index element={<StudentDashboard />} />
               <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="ai-prediction" element={<AIPredictionDashboard />} />
               <Route path="assignments" element={<div>Student Assignments</div>} />
               <Route path="materials" element={<div>Study Materials</div>} />
               <Route path="question-bank" element={<div>Question Bank</div>} />
