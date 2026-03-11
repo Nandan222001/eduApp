@@ -21,6 +21,7 @@ import TeacherAssignments from './pages/TeacherAssignments';
 import TeacherBulkImport from './pages/TeacherBulkImport';
 import TeacherPerformanceDashboard from './pages/TeacherPerformanceDashboard';
 import TeacherRoleAssignment from './pages/TeacherRoleAssignment';
+import TeacherDashboard from './pages/TeacherDashboard';
 
 import {
   LoginPage,
@@ -94,7 +95,8 @@ function App() {
             }
           >
             <Route path="/teacher" element={<AdminLayout />}>
-              <Route index element={<Dashboard />} />
+              <Route index element={<TeacherDashboard />} />
+              <Route path="dashboard" element={<TeacherDashboard />} />
             </Route>
           </Route>
 

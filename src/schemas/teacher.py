@@ -85,3 +85,93 @@ class BulkImportResult(BaseModel):
     success: int
     failed: int
     errors: List[dict] = []
+
+
+class MyClassOverview(BaseModel):
+    class_id: int
+    class_name: str
+    section: str
+    subject: str
+    student_count: int
+    average_score: float
+    room_number: Optional[str] = None
+
+
+class TodaysSchedule(BaseModel):
+    id: int
+    time_slot: str
+    start_time: str
+    end_time: str
+    class_name: str
+    section: str
+    subject: str
+    room_number: Optional[str] = None
+    status: str
+
+
+class PendingAssignment(BaseModel):
+    id: int
+    title: str
+    class_name: str
+    section: str
+    subject: str
+    submission_count: int
+    due_date: datetime
+    priority: str
+
+
+class PendingGrading(BaseModel):
+    total_count: int
+    assignments: List[PendingAssignment]
+
+
+class RecentSubmission(BaseModel):
+    id: int
+    student_name: str
+    student_photo: Optional[str] = None
+    assignment_title: str
+    class_name: str
+    section: str
+    submitted_at: datetime
+    status: str
+    score: Optional[float] = None
+
+
+class ClassPerformance(BaseModel):
+    class_name: str
+    section: str
+    subject: str
+    average_score: float
+    attendance_rate: float
+    student_count: int
+
+
+class UpcomingExam(BaseModel):
+    id: int
+    exam_name: str
+    exam_type: str
+    class_name: str
+    section: str
+    subject: str
+    date: datetime
+    duration_minutes: int
+    total_marks: int
+
+
+class DashboardStatistics(BaseModel):
+    total_students: int
+    pending_grading_count: int
+    todays_classes: int
+    this_week_attendance: float
+
+
+class TeacherMyDashboardResponse(BaseModel):
+    teacher_id: int
+    teacher_name: str
+    my_classes: List[MyClassOverview]
+    todays_schedule: List[TodaysSchedule]
+    pending_grading: PendingGrading
+    recent_submissions: List[RecentSubmission]
+    class_performance: List[ClassPerformance]
+    upcoming_exams: List[UpcomingExam]
+    statistics: DashboardStatistics

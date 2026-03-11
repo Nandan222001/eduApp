@@ -135,6 +135,80 @@ export interface TeacherDashboardData {
   }>;
 }
 
+export interface TeacherMyDashboardData {
+  teacher_id: number;
+  teacher_name: string;
+  my_classes: Array<{
+    class_id: number;
+    class_name: string;
+    section: string;
+    subject: string;
+    student_count: number;
+    average_score: number;
+    room_number?: string;
+  }>;
+  todays_schedule: Array<{
+    id: number;
+    time_slot: string;
+    start_time: string;
+    end_time: string;
+    class_name: string;
+    section: string;
+    subject: string;
+    room_number?: string;
+    status: 'upcoming' | 'ongoing' | 'completed';
+  }>;
+  pending_grading: {
+    total_count: number;
+    assignments: Array<{
+      id: number;
+      title: string;
+      class_name: string;
+      section: string;
+      subject: string;
+      submission_count: number;
+      due_date: string;
+      priority: 'high' | 'medium' | 'low';
+    }>;
+  };
+  recent_submissions: Array<{
+    id: number;
+    student_name: string;
+    student_photo?: string;
+    assignment_title: string;
+    class_name: string;
+    section: string;
+    submitted_at: string;
+    status: 'pending' | 'graded';
+    score?: number;
+  }>;
+  class_performance: Array<{
+    class_name: string;
+    section: string;
+    subject: string;
+    average_score: number;
+    attendance_rate: number;
+    student_count: number;
+  }>;
+  upcoming_exams: Array<{
+    id: number;
+    exam_name: string;
+    exam_type: string;
+    class_name: string;
+    section: string;
+    subject: string;
+    date: string;
+    duration_minutes: number;
+    total_marks: number;
+  }>;
+  statistics: {
+    total_students: number;
+    pending_grading_count: number;
+    todays_classes: number;
+    this_week_attendance: number;
+  };
+}
+
 const teachersApi = {
   listTeachers: async (params?: {
     skip?: number;
@@ -210,6 +284,11 @@ const teachersApi = {
     const response = await axios.get<TeacherDashboardData>(
       `/api/v1/teachers/${teacherId}/dashboard`
     );
+    return response.data;
+  },
+
+  getMyDashboard: async (): Promise<TeacherMyDashboardData> => {
+    const response = await axios.get<TeacherMyDashboardData>('/api/v1/teachers/my-dashboard');
     return response.data;
   },
 };
