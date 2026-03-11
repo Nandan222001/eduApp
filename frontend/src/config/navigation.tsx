@@ -117,6 +117,20 @@ export const navigationConfig: NavigationItem[] = [
     roles: ['admin', 'teacher', 'student'],
     children: [
       {
+        id: 'examinations-list',
+        title: 'All Exams',
+        path: '/admin/examinations/list',
+        icon: <AssessmentIcon />,
+        roles: ['admin', 'teacher'],
+      },
+      {
+        id: 'examinations-create',
+        title: 'Create Exam',
+        path: '/admin/examinations/create',
+        icon: <AssessmentIcon />,
+        roles: ['admin'],
+      },
+      {
         id: 'examinations-schedule',
         title: 'Schedule',
         path: '/admin/examinations/schedule',

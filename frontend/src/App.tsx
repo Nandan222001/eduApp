@@ -27,6 +27,13 @@ import AttendanceMarkingPage from './pages/AttendanceMarkingPage';
 import AttendanceSheetPage from './pages/AttendanceSheetPage';
 import AttendanceDefaultersPage from './pages/AttendanceDefaultersPage';
 import AttendanceCorrectionPage from './pages/AttendanceCorrectionPage';
+import ExamListPage from './pages/ExamListPage';
+import ExamCreationWizard from './pages/ExamCreationWizard';
+import MarksEntryPage from './pages/MarksEntryPage';
+import MarksVerificationPage from './pages/MarksVerificationPage';
+import ResultGenerationPage from './pages/ResultGenerationPage';
+import StudentMarksheetPage from './pages/StudentMarksheetPage';
+import ExamAnalyticsDashboard from './pages/ExamAnalyticsDashboard';
 
 import {
   LoginPage,
@@ -80,6 +87,19 @@ function App() {
               <Route path="academic/subjects" element={<div>Subjects</div>} />
               <Route path="academic/syllabus" element={<div>Syllabus</div>} />
               <Route path="assignments" element={<div>Assignments</div>} />
+              <Route path="examinations/list" element={<ExamListPage />} />
+              <Route path="examinations/create" element={<ExamCreationWizard />} />
+              <Route path="examinations/:examId/marks-entry" element={<MarksEntryPage />} />
+              <Route path="examinations/:examId/verification" element={<MarksVerificationPage />} />
+              <Route
+                path="examinations/:examId/results/generate"
+                element={<ResultGenerationPage />}
+              />
+              <Route path="examinations/:examId/analytics" element={<ExamAnalyticsDashboard />} />
+              <Route
+                path="examinations/:examId/student/:studentId/marksheet"
+                element={<StudentMarksheetPage />}
+              />
               <Route path="examinations/schedule" element={<div>Exam Schedule</div>} />
               <Route path="examinations/results" element={<div>Exam Results</div>} />
               <Route path="examinations/analysis" element={<div>Exam Analysis</div>} />
