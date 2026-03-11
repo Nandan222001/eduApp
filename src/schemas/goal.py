@@ -1,230 +1,134 @@
-from datetime import datetime, date
-from typing import Optional, List, Dict, Any
-from decimal import Decimal
-from pydantic import BaseModel, Field, ConfigDict
-from src.models.goal import GoalType, GoalStatus, MilestoneStatus
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List
+from datetime import date, datetime
+from enum import Enum
 
 
-class GoalTemplateBase(BaseModel):
-    name: str = Field(..., max_length=200)
+class GoalTypeEnum(str, Enum):
+    PERFORMANCE = "performance"
+    BEHAVIORAL = "behavioral"
+    SKILL = "skill"
+
+
+class GoalStatusEnum(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    OVERDUE = "overdue"
+
+
+class MilestoneStatusEnum(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
+class MilestoneBase(BaseModel):
+    title: str
     description: Optional[str] = None
-    goal_type: GoalType
-    category: Optional[str] = Field(None, max_length=100)
-    default_target_value: Optional[Decimal] = None
-    default_duration_days: Optional[int] = None
-    smart_criteria: Optional[Dict[str, Any]] = None
-    suggested_milestones: Optional[List[Dict[str, Any]]] = None
-    points_reward: int = 0
-    is_active: bool = True
+    target_date: date
+    progress: int = Field(default=0, ge=0, le=100)
 
 
-class GoalTemplateCreate(GoalTemplateBase):
+class MilestoneCreate(MilestoneBase):
     pass
 
 
-class GoalTemplateUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=200)
+class MilestoneUpdate(BaseModel):
+    title: Optional[str] = None
     description: Optional[str] = None
-    goal_type: Optional[GoalType] = None
-    category: Optional[str] = Field(None, max_length=100)
-    default_target_value: Optional[Decimal] = None
-    default_duration_days: Optional[int] = None
-    smart_criteria: Optional[Dict[str, Any]] = None
-    suggested_milestones: Optional[List[Dict[str, Any]]] = None
-    points_reward: Optional[int] = None
-    is_active: Optional[bool] = None
-
-
-class GoalTemplateResponse(GoalTemplateBase):
-    id: int
-    institution_id: int
-    created_by: Optional[int] = None
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class GoalMilestoneBase(BaseModel):
-    title: str = Field(..., max_length=200)
-    description: Optional[str] = None
-    target_value: Decimal
-    order: int
     target_date: Optional[date] = None
-    points_reward: int = 0
+    progress: Optional[int] = Field(None, ge=0, le=100)
 
 
-class GoalMilestoneCreate(GoalMilestoneBase):
-    pass
+class MilestoneResponse(MilestoneBase):
+    id: str
+    status: MilestoneStatusEnum
+    completed_date: Optional[datetime] = None
 
-
-class GoalMilestoneUpdate(BaseModel):
-    title: Optional[str] = Field(None, max_length=200)
-    description: Optional[str] = None
-    target_value: Optional[Decimal] = None
-    order: Optional[int] = None
-    target_date: Optional[date] = None
-    points_reward: Optional[int] = None
-
-
-class GoalMilestoneResponse(GoalMilestoneBase):
-    id: int
-    institution_id: int
-    goal_id: int
-    current_value: Decimal
-    status: MilestoneStatus
-    progress_percentage: Decimal
-    points_earned: int
-    completed_at: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
 class GoalBase(BaseModel):
-    title: str = Field(..., max_length=200)
-    description: Optional[str] = None
-    goal_type: GoalType
-    category: Optional[str] = Field(None, max_length=100)
-    specific: Optional[str] = None
-    measurable: Optional[str] = None
-    achievable: Optional[str] = None
-    relevant: Optional[str] = None
-    time_bound: Optional[str] = None
-    target_value: Decimal
-    unit: Optional[str] = Field(None, max_length=50)
+    title: str
+    description: str
+    type: GoalTypeEnum
+    specific: str
+    measurable: str
+    achievable: str
+    relevant: str
+    time_bound: str
     start_date: date
-    end_date: date
-    points_reward: int = 0
-    subject_id: Optional[int] = None
-    grade_id: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
+    target_date: date
 
 
 class GoalCreate(GoalBase):
-    template_id: Optional[int] = None
-    milestones: Optional[List[GoalMilestoneCreate]] = None
+    milestones: List[MilestoneCreate] = []
 
 
 class GoalUpdate(BaseModel):
-    title: Optional[str] = Field(None, max_length=200)
+    title: Optional[str] = None
     description: Optional[str] = None
-    goal_type: Optional[GoalType] = None
-    category: Optional[str] = Field(None, max_length=100)
+    type: Optional[GoalTypeEnum] = None
     specific: Optional[str] = None
     measurable: Optional[str] = None
     achievable: Optional[str] = None
     relevant: Optional[str] = None
     time_bound: Optional[str] = None
-    target_value: Optional[Decimal] = None
-    unit: Optional[str] = Field(None, max_length=50)
     start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    status: Optional[GoalStatus] = None
-    points_reward: Optional[int] = None
-    subject_id: Optional[int] = None
-    grade_id: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
+    target_date: Optional[date] = None
+    progress: Optional[int] = Field(None, ge=0, le=100)
+    status: Optional[GoalStatusEnum] = None
 
 
 class GoalResponse(GoalBase):
-    id: int
-    institution_id: int
-    user_id: int
-    template_id: Optional[int] = None
-    current_value: Decimal
-    status: GoalStatus
-    progress_percentage: Decimal
-    points_earned: int
-    completed_at: Optional[datetime] = None
-    last_calculated_at: Optional[datetime] = None
+    id: str
+    status: GoalStatusEnum
+    progress: int
+    milestones: List[MilestoneResponse]
+    completed_date: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
-class GoalWithMilestonesResponse(GoalResponse):
-    milestones: List[GoalMilestoneResponse] = []
+class GoalAnalyticsByType(BaseModel):
+    performance: int = 0
+    behavioral: int = 0
+    skill: int = 0
 
 
-class GoalProgressLogResponse(BaseModel):
-    id: int
-    institution_id: int
-    goal_id: int
-    previous_value: Decimal
-    new_value: Decimal
-    change: Decimal
-    previous_percentage: Decimal
-    new_percentage: Decimal
-    notes: Optional[str] = None
-    data_source: Optional[str] = None
-    reference_id: Optional[int] = None
-    reference_type: Optional[str] = None
-    recorded_at: datetime
-    created_at: datetime
+class GoalAnalyticsByStatus(BaseModel):
+    not_started: int = 0
+    in_progress: int = 0
+    completed: int = 0
+    overdue: int = 0
 
-    model_config = ConfigDict(from_attributes=True)
+
+class ImpactCorrelation(BaseModel):
+    academic_performance: float = 0.0
+    attendance_rate: float = 0.0
+    assignment_completion: float = 0.0
+
+
+class MonthlyProgress(BaseModel):
+    month: str
+    goals_created: int = 0
+    goals_completed: int = 0
 
 
 class GoalAnalyticsResponse(BaseModel):
-    id: int
-    institution_id: int
-    user_id: int
-    total_goals: int
-    active_goals: int
-    completed_goals: int
-    failed_goals: int
-    completion_rate: Decimal
-    average_progress: Decimal
-    total_points_earned: int
-    goals_this_month: int
-    goals_this_quarter: int
-    goals_this_year: int
-    completed_this_month: int
-    completed_this_quarter: int
-    completed_this_year: int
-    last_calculated_at: datetime
-    created_at: datetime
-    updated_at: datetime
+    total_goals: int = 0
+    completed_goals: int = 0
+    completion_rate: float = 0.0
+    average_progress: float = 0.0
+    goals_by_type: GoalAnalyticsByType
+    goals_by_status: GoalAnalyticsByStatus
+    impact_correlation: ImpactCorrelation
+    monthly_progress: List[MonthlyProgress] = []
 
-    model_config = ConfigDict(from_attributes=True)
-
-
-class UpdateGoalProgressRequest(BaseModel):
-    current_value: Decimal
-    notes: Optional[str] = None
-    data_source: Optional[str] = None
-    reference_id: Optional[int] = None
-    reference_type: Optional[str] = None
-
-
-class GoalStatusUpdateRequest(BaseModel):
-    status: GoalStatus
-
-
-class GoalProgressReport(BaseModel):
-    goal: GoalWithMilestonesResponse
-    progress_logs: List[GoalProgressLogResponse]
-    milestones_completed: int
-    milestones_total: int
-    days_remaining: int
-    on_track: bool
-    projected_completion_date: Optional[date] = None
-
-
-class GoalSummary(BaseModel):
-    total_goals: int
-    active_goals: int
-    completed_goals: int
-    failed_goals: int
-    completion_rate: Decimal
-    average_progress: Decimal
-    goals_by_type: Dict[str, int]
-    goals_by_status: Dict[str, int]
-
-
-class BulkGoalStatusUpdate(BaseModel):
-    goal_ids: List[int]
-    status: GoalStatus
+    class Config:
+        from_attributes = True

@@ -20,6 +20,7 @@ import {
   Warning as WarningIcon,
   Edit as EditIcon,
   Psychology as AIIcon,
+  Flag as GoalIcon,
 } from '@mui/icons-material';
 import { NavigationItem } from '@/types/navigation';
 
@@ -222,6 +223,13 @@ export const navigationConfig: NavigationItem[] = [
         roles: ['admin', 'teacher'],
       },
     ],
+  },
+  {
+    id: 'goals',
+    title: 'Goals',
+    path: '/admin/goals',
+    icon: <GoalIcon />,
+    roles: ['admin', 'teacher', 'student'],
   },
   {
     id: 'gamification',

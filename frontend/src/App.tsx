@@ -39,6 +39,7 @@ import PaperUploadPage from './pages/PaperUploadPage';
 import PaperViewerPage from './pages/PaperViewerPage';
 import QuestionBankBrowserPage from './pages/QuestionBankBrowserPage';
 import AIPredictionDashboard from './pages/AIPredictionDashboard';
+import GoalsManagement from './pages/GoalsManagement';
 
 import {
   LoginPage,
@@ -117,6 +118,7 @@ function App() {
               <Route path="attendance/sheet" element={<AttendanceSheetPage />} />
               <Route path="attendance/defaulters" element={<AttendanceDefaultersPage />} />
               <Route path="attendance/corrections" element={<AttendanceCorrectionPage />} />
+              <Route path="goals" element={<GoalsManagement />} />
               <Route path="gamification/achievements" element={<div>Achievements</div>} />
               <Route path="gamification/leaderboard" element={<div>Leaderboard</div>} />
               <Route path="communication/announcements" element={<div>Announcements</div>} />
@@ -135,6 +137,7 @@ function App() {
             <Route path="/teacher" element={<AdminLayout />}>
               <Route index element={<TeacherDashboard />} />
               <Route path="dashboard" element={<TeacherDashboard />} />
+              <Route path="goals" element={<GoalsManagement />} />
             </Route>
           </Route>
 
@@ -145,6 +148,7 @@ function App() {
               <Route index element={<StudentDashboard />} />
               <Route path="dashboard" element={<StudentDashboard />} />
               <Route path="ai-prediction" element={<AIPredictionDashboard />} />
+              <Route path="goals" element={<GoalsManagement />} />
               <Route path="assignments" element={<div>Student Assignments</div>} />
               <Route path="materials" element={<div>Study Materials</div>} />
               <Route path="question-bank" element={<div>Question Bank</div>} />

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from src.database import get_db
@@ -11,13 +11,8 @@ from src.schemas.goal import (
 from src.services.goal import GoalService
 from src.dependencies.auth import get_current_user
 from src.models.user import User
-from pydantic import BaseModel
 
-router = APIRouter()
-
-
-class MilestoneProgressUpdate(BaseModel):
-    progress: int
+router = APIRouter(prefix="/api/goals", tags=["goals"])
 
 
 @router.post("", response_model=GoalResponse, status_code=status.HTTP_201_CREATED)
@@ -114,7 +109,7 @@ async def delete_goal(
 async def update_milestone_progress(
     goal_id: int,
     milestone_id: int,
-    data: MilestoneProgressUpdate,
+    progress: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -123,7 +118,7 @@ async def update_milestone_progress(
         goal_id=goal_id,
         milestone_id=milestone_id,
         user_id=current_user.id,
-        progress=data.progress,
+        progress=progress,
     )
     if not goal:
         raise HTTPException(
