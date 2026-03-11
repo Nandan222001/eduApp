@@ -40,7 +40,8 @@ from src.api.v1 import (
     super_admin,
     institution_admin,
     ai_prediction_dashboard,
-    study_materials
+    study_materials,
+    search
 )
 from src.api import ml
 
@@ -88,3 +89,4 @@ api_router.include_router(super_admin.router, prefix="", tags=["super-admin"])
 api_router.include_router(institution_admin.router, prefix="/institution-admin", tags=["institution-admin"])
 api_router.include_router(ai_prediction_dashboard.router, prefix="", tags=["ai-prediction-dashboard"])
 api_router.include_router(study_materials.router, prefix="", tags=["study-materials"])
+api_router.include_router(search.router, prefix="", tags=["search"])

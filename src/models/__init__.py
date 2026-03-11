@@ -33,6 +33,7 @@ from src.models.study_material import (
     StudyMaterial, MaterialBookmark, MaterialAccessLog, MaterialShare, MaterialTag,
     MaterialType
 )
+from src.models.search import SearchHistory, PopularSearch
 
 __all__ = [
     "Institution",
@@ -146,4 +147,6 @@ __all__ = [
     "MaterialShare",
     "MaterialTag",
     "MaterialType",
+    "SearchHistory",
+    "PopularSearch",
 ]

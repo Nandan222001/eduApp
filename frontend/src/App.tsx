@@ -45,6 +45,7 @@ import StudentPerformanceAnalytics from './pages/StudentPerformanceAnalytics';
 import ClassPerformanceAnalytics from './pages/ClassPerformanceAnalytics';
 import InstitutionAnalyticsDashboard from './pages/InstitutionAnalyticsDashboard';
 import SubscriptionBilling from './pages/SubscriptionBilling';
+import SearchResultsPage from './pages/SearchResultsPage';
 
 import {
   LoginPage,
@@ -130,6 +131,7 @@ function App() {
               <Route path="analytics" element={<InstitutionAnalyticsDashboard />} />
               <Route path="analytics/class/:classId" element={<ClassPerformanceAnalytics />} />
               <Route path="subscription" element={<SubscriptionBilling />} />
+              <Route path="search" element={<SearchResultsPage />} />
               <Route path="settings" element={<div>Settings</div>} />
               <Route path="profile" element={<div>Profile</div>} />
             </Route>
@@ -146,6 +148,7 @@ function App() {
               <Route path="analytics/class/:classId" element={<ClassPerformanceAnalytics />} />
               <Route path="goals" element={<GoalsManagement />} />
               <Route path="gamification" element={<GamificationDashboard />} />
+              <Route path="search" element={<SearchResultsPage />} />
             </Route>
           </Route>
 
@@ -159,6 +162,7 @@ function App() {
               <Route path="ai-prediction" element={<AIPredictionDashboard />} />
               <Route path="goals" element={<GoalsManagement />} />
               <Route path="gamification" element={<GamificationDashboard />} />
+              <Route path="search" element={<SearchResultsPage />} />
               <Route path="assignments" element={<div>Student Assignments</div>} />
               <Route path="materials" element={<div>Study Materials</div>} />
               <Route path="question-bank" element={<div>Question Bank</div>} />

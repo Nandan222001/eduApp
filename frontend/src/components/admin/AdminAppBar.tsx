@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import InstitutionSwitcher from './InstitutionSwitcher';
+import GlobalSearchBar from '@/components/search/GlobalSearchBar';
 
 interface AdminAppBarProps {
   open: boolean;
@@ -117,6 +118,10 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
           <Box sx={{ display: { xs: 'none', md: 'block' } }}>
             <InstitutionSwitcher />
           </Box>
+        </Box>
+
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', px: 2, maxWidth: 600 }}>
+          <GlobalSearchBar />
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
