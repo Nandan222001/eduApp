@@ -62,6 +62,7 @@ class Assignment(Base):
     chapter = relationship("Chapter", back_populates="assignments")
     submissions = relationship("Submission", back_populates="assignment", cascade="all, delete-orphan")
     attachment_files = relationship("AssignmentFile", back_populates="assignment", cascade="all, delete-orphan")
+    rubric_criteria = relationship("RubricCriteria", back_populates="assignment", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('idx_assignment_institution', 'institution_id'),
@@ -124,6 +125,7 @@ class Submission(Base):
     student = relationship("Student", back_populates="submissions")
     grader = relationship("Teacher", foreign_keys=[graded_by], back_populates="graded_submissions")
     submission_files = relationship("SubmissionFile", back_populates="submission", cascade="all, delete-orphan")
+    rubric_grades = relationship("SubmissionGrade", back_populates="submission", cascade="all, delete-orphan")
     
     __table_args__ = (
         UniqueConstraint('assignment_id', 'student_id', name='uq_assignment_student_submission'),
@@ -152,4 +154,62 @@ class SubmissionFile(Base):
     
     __table_args__ = (
         Index('idx_submission_file_submission', 'submission_id'),
+    )
+
+
+class RubricCriteria(Base):
+    __tablename__ = "rubric_criteria"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    assignment_id = Column(Integer, ForeignKey('assignments.id', ondelete='CASCADE'), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    max_points = Column(Numeric(10, 2), nullable=False)
+    order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    assignment = relationship("Assignment", back_populates="rubric_criteria")
+    levels = relationship("RubricLevel", back_populates="criteria", cascade="all, delete-orphan")
+    grades = relationship("SubmissionGrade", back_populates="criteria", cascade="all, delete-orphan")
+    
+    __table_args__ = (
+        Index('idx_rubric_criteria_assignment', 'assignment_id'),
+    )
+
+
+class RubricLevel(Base):
+    __tablename__ = "rubric_levels"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    criteria_id = Column(Integer, ForeignKey('rubric_criteria.id', ondelete='CASCADE'), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    points = Column(Numeric(10, 2), nullable=False)
+    order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    criteria = relationship("RubricCriteria", back_populates="levels")
+    
+    __table_args__ = (
+        Index('idx_rubric_level_criteria', 'criteria_id'),
+    )
+
+
+class SubmissionGrade(Base):
+    __tablename__ = "submission_grades"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    submission_id = Column(Integer, ForeignKey('submissions.id', ondelete='CASCADE'), nullable=False, index=True)
+    criteria_id = Column(Integer, ForeignKey('rubric_criteria.id', ondelete='CASCADE'), nullable=False, index=True)
+    points_awarded = Column(Numeric(10, 2), nullable=False)
+    feedback = Column(Text, nullable=True)
+    graded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    submission = relationship("Submission", back_populates="rubric_grades")
+    criteria = relationship("RubricCriteria", back_populates="grades")
+    
+    __table_args__ = (
+        UniqueConstraint('submission_id', 'criteria_id', name='uq_submission_criteria_grade'),
+        Index('idx_submission_grade_submission', 'submission_id'),
+        Index('idx_submission_grade_criteria', 'criteria_id'),
     )

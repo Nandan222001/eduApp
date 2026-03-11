@@ -315,6 +315,32 @@ class QuestionClusterMember(Base):
     )
 
 
+class QuestionBookmark(Base):
+    __tablename__ = "question_bookmarks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey('questions_bank.id', ondelete='CASCADE'), nullable=False, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    notes = Column(Text, nullable=True)
+    tags = Column(String(500), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    user = relationship("User")
+    question = relationship("QuestionBank")
+    institution = relationship("Institution")
+    
+    __table_args__ = (
+        Index('idx_qbm_user', 'user_id'),
+        Index('idx_qbm_question', 'question_id'),
+        Index('idx_qbm_institution', 'institution_id'),
+        Index('idx_qbm_user_question', 'user_id', 'question_id', unique=True),
+    )
+
+
 class QuestionVariation(Base):
     __tablename__ = "question_variations"
     

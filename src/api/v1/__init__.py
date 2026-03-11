@@ -9,8 +9,12 @@ from src.api.v1 import (
     grades, 
     sections, 
     subjects, 
+    terms,
+    timetables,
+    grade_configurations,
     teachers, 
     students, 
+    parents,
     profile,
     attendance,
     assignments,
@@ -18,6 +22,7 @@ from src.api.v1 import (
     exams,
     previous_year_papers,
     question_bank,
+    question_bookmarks,
     notifications,
     announcements,
     messages,
@@ -33,7 +38,11 @@ from src.api.v1 import (
     weakness_detection,
     analytics,
     super_admin,
-    institution_admin
+    institution_admin,
+    ai_prediction_dashboard,
+    study_materials,
+    search,
+    data_management
 )
 from src.api import ml
 
@@ -48,8 +57,12 @@ api_router.include_router(academic_years.router, prefix="/academic-years", tags=
 api_router.include_router(grades.router, prefix="/grades", tags=["grades"])
 api_router.include_router(sections.router, prefix="/sections", tags=["sections"])
 api_router.include_router(subjects.router, prefix="/subjects", tags=["subjects"])
+api_router.include_router(terms.router, prefix="/terms", tags=["terms"])
+api_router.include_router(timetables.router, prefix="/timetables", tags=["timetables"])
+api_router.include_router(grade_configurations.router, prefix="/grade-configurations", tags=["grade-configurations"])
 api_router.include_router(teachers.router, prefix="/teachers", tags=["teachers"])
 api_router.include_router(students.router, prefix="/students", tags=["students"])
+api_router.include_router(parents.router, prefix="/parents", tags=["parents"])
 api_router.include_router(profile.router, prefix="/profile", tags=["profile"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 api_router.include_router(assignments.router, prefix="/assignments", tags=["assignments"])
@@ -57,6 +70,7 @@ api_router.include_router(submissions.router, prefix="/submissions", tags=["subm
 api_router.include_router(exams.router, prefix="/exams", tags=["exams"])
 api_router.include_router(previous_year_papers.router, prefix="/previous-year-papers", tags=["previous-year-papers"])
 api_router.include_router(question_bank.router, prefix="/question-bank", tags=["question-bank"])
+api_router.include_router(question_bookmarks.router, prefix="/question-bookmarks", tags=["question-bookmarks"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(announcements.router, prefix="/announcements", tags=["announcements"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
@@ -74,3 +88,7 @@ api_router.include_router(weakness_detection.router, prefix="", tags=["weakness-
 api_router.include_router(analytics.router, prefix="", tags=["analytics"])
 api_router.include_router(super_admin.router, prefix="", tags=["super-admin"])
 api_router.include_router(institution_admin.router, prefix="/institution-admin", tags=["institution-admin"])
+api_router.include_router(ai_prediction_dashboard.router, prefix="", tags=["ai-prediction-dashboard"])
+api_router.include_router(study_materials.router, prefix="", tags=["study-materials"])
+api_router.include_router(search.router, prefix="", tags=["search"])
+api_router.include_router(data_management.router, prefix="", tags=["data-management"])

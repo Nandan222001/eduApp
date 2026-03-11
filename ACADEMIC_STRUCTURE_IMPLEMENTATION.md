@@ -1,539 +1,403 @@
-# Academic Structure Implementation
+# Academic Structure Configuration Implementation
 
 ## Overview
+Complete implementation of academic structure configuration system with UI components and backend APIs for managing academic years, terms, grades, sections, subjects, timetables, exam schedules, and grading schemes.
 
-This document describes the implementation of the academic structure database models and services for managing educational content hierarchy in the multi-tenant education management system.
+## Backend Implementation
 
-## Database Models
+### Database Models (src/models/academic.py)
 
-### Hierarchical Structure
+#### New Enums
+- `TermType`: semester, trimester, quarter, custom
+- `DayOfWeek`: monday through sunday
 
-The academic structure follows this hierarchy:
+#### New Models
+1. **Term**
+   - Links to AcademicYear
+   - Fields: name, term_type, start_date, end_date, display_order, is_active
+   - Supports multiple term types (semester, trimester, quarter, custom)
 
-```
-Institution
-  └── Academic Year
-        └── Grade
-              ├── Section
-              └── Subject (via GradeSubject)
-                    └── Chapter
-                          └── Topic
-```
+2. **TimetableTemplate**
+   - Links to Institution and AcademicYear
+   - Container for timetable configuration
+   - Has many Periods and TimetableEntries
 
-### Tables
+3. **Period**
+   - Time slots in the timetable
+   - Fields: name, start_time, end_time, display_order, is_break
+   - Supports drag-and-drop ordering via display_order
 
-#### 1. academic_years
-Represents academic/school years for an institution.
+4. **TimetableEntry**
+   - Individual timetable slots
+   - Links: section, period, subject, teacher (optional)
+   - Fields: day_of_week, room_number, notes
+   - Unique constraint on section + period + day
 
-**Columns:**
-- `id` (PK): Integer
-- `institution_id` (FK): References institutions.id, CASCADE delete
-- `name`: String(100), unique per institution
-- `start_date`: Date
-- `end_date`: Date
-- `is_active`: Boolean, default True
-- `is_current`: Boolean, default False (only one current per institution)
-- `description`: Text, nullable
-- `created_at`: DateTime
-- `updated_at`: DateTime
+#### Updated Models
+- **AcademicYear**: Added terms relationship
+- **Institution**: Added terms, timetable_templates, periods, timetable_entries relationships
 
-**Indexes:**
-- `idx_academic_year_institution` on institution_id
-- `idx_academic_year_current` on is_current
-- `idx_academic_year_active` on is_active
+### Schemas (src/schemas/academic.py)
 
-**Constraints:**
-- `uq_institution_academic_year_name`: UNIQUE(institution_id, name)
+#### New Schemas
+1. **Term Schemas**
+   - TermCreate, TermUpdate, TermResponse
+   - Includes term_type enum validation
 
----
+2. **Timetable Schemas**
+   - TimetableTemplateCreate/Update/Response
+   - PeriodCreate/Update/Response
+   - TimetableEntryCreate/Update/Response
+   - TimetableEntryWithDetailsResponse (includes subject and period)
+   - TimetableTemplateWithPeriodsResponse
 
-#### 2. grades
-Represents grade levels (e.g., Grade 1, Grade 2, Class 10).
+3. **Conflict Detection**
+   - TimetableConflict: for validation errors
+   - TimetableValidationResponse: validation results
 
-**Columns:**
-- `id` (PK): Integer
-- `institution_id` (FK): References institutions.id, CASCADE delete
-- `academic_year_id` (FK): References academic_years.id, CASCADE delete
-- `name`: String(100)
-- `display_order`: Integer, default 0
-- `description`: Text, nullable
-- `is_active`: Boolean, default True
-- `created_at`: DateTime
-- `updated_at`: DateTime
+4. **Bulk Operations**
+   - BulkGradeOrderUpdate
+   - BulkSectionOrderUpdate
+   - BulkPeriodOrderUpdate
 
-**Indexes:**
-- `idx_grade_institution` on institution_id
-- `idx_grade_academic_year` on academic_year_id
-- `idx_grade_active` on is_active
+#### Grading Schemas (src/schemas/examination.py)
+- Already existed: GradeConfigurationCreate/Update/Response
+- Supports custom grade boundaries and grade points
 
-**Constraints:**
-- `uq_institution_year_grade_name`: UNIQUE(institution_id, academic_year_id, name)
+### API Endpoints
 
----
+#### 1. Terms API (src/api/v1/terms.py)
+- `POST /api/v1/terms/` - Create term
+- `GET /api/v1/terms/` - List terms (filter by academic_year_id)
+- `GET /api/v1/terms/{term_id}` - Get term details
+- `PUT /api/v1/terms/{term_id}` - Update term
+- `DELETE /api/v1/terms/{term_id}` - Delete term
 
-#### 3. sections
-Represents class sections within a grade (e.g., Section A, Section B).
+#### 2. Timetables API (src/api/v1/timetables.py)
+**Templates**
+- `POST /api/v1/timetables/templates` - Create timetable template
+- `GET /api/v1/timetables/templates` - List templates
+- `GET /api/v1/timetables/templates/{template_id}` - Get template with periods
+- `PUT /api/v1/timetables/templates/{template_id}` - Update template
+- `DELETE /api/v1/timetables/templates/{template_id}` - Delete template
 
-**Columns:**
-- `id` (PK): Integer
-- `institution_id` (FK): References institutions.id, CASCADE delete
-- `grade_id` (FK): References grades.id, CASCADE delete
-- `name`: String(100)
-- `capacity`: Integer, nullable
-- `description`: Text, nullable
-- `is_active`: Boolean, default True
-- `created_at`: DateTime
-- `updated_at`: DateTime
+**Periods**
+- `POST /api/v1/timetables/periods` - Create period
+- `GET /api/v1/timetables/periods?template_id={id}` - List periods
+- `PUT /api/v1/timetables/periods/{period_id}` - Update period
+- `DELETE /api/v1/timetables/periods/{period_id}` - Delete period
+- `PUT /api/v1/timetables/periods/bulk-order` - Bulk update period order
 
-**Indexes:**
-- `idx_section_institution` on institution_id
-- `idx_section_grade` on grade_id
-- `idx_section_active` on is_active
+**Entries**
+- `POST /api/v1/timetables/entries` - Create timetable entry
+- `GET /api/v1/timetables/entries?template_id={id}&section_id={id}&day_of_week={day}` - List entries
+- `GET /api/v1/timetables/entries/{entry_id}` - Get entry with details
+- `PUT /api/v1/timetables/entries/{entry_id}` - Update entry
+- `DELETE /api/v1/timetables/entries/{entry_id}` - Delete entry
 
-**Constraints:**
-- `uq_grade_section_name`: UNIQUE(grade_id, name)
+**Validation**
+- `GET /api/v1/timetables/validate/{template_id}` - Validate timetable for conflicts
 
----
+#### 3. Grade Configurations API (src/api/v1/grade_configurations.py)
+- `POST /api/v1/grade-configurations/` - Create grade configuration
+- `GET /api/v1/grade-configurations/` - List configurations
+- `GET /api/v1/grade-configurations/{config_id}` - Get configuration
+- `PUT /api/v1/grade-configurations/{config_id}` - Update configuration
+- `DELETE /api/v1/grade-configurations/{config_id}` - Delete configuration
+- Validates overlapping percentage ranges
 
-#### 4. subjects
-Represents subjects/courses (e.g., Mathematics, Science).
+#### 4. Enhanced Grades API (src/api/v1/grades.py)
+- Added: `PUT /api/v1/grades/bulk-order` - Bulk update grade display order
 
-**Columns:**
-- `id` (PK): Integer
-- `institution_id` (FK): References institutions.id, CASCADE delete
-- `name`: String(200), unique per institution
-- `code`: String(50), unique per institution, nullable
-- `description`: Text, nullable
-- `is_active`: Boolean, default True
-- `created_at`: DateTime
-- `updated_at`: DateTime
+## Frontend Implementation
 
-**Indexes:**
-- `idx_subject_institution` on institution_id
-- `idx_subject_active` on is_active
+### Main Page (frontend/src/pages/AcademicStructure.tsx)
+- Tabbed interface with 6 sections
+- Tab 1: Academic Year & Terms
+- Tab 2: Grades & Sections
+- Tab 3: Subjects
+- Tab 4: Timetable Builder
+- Tab 5: Exam Schedules
+- Tab 6: Grading Scheme
 
-**Constraints:**
-- `uq_institution_subject_name`: UNIQUE(institution_id, name)
-- `uq_institution_subject_code`: UNIQUE(institution_id, code)
+### Components (frontend/src/components/academic/)
 
----
+#### 1. AcademicYearSetup.tsx
+**Features:**
+- List all academic years with status badges (Current, Active)
+- Create/Edit academic year form with date validation
+- Manage terms for each academic year
+- Add terms with type selection (semester/trimester/quarter/custom)
+- Visual date range display
 
-#### 5. grade_subjects
-Junction table linking subjects to grades.
+**UI Elements:**
+- Card layout for academic years
+- Dialog forms for add/edit
+- Nested list for terms under each year
+- Date picker inputs
 
-**Columns:**
-- `id` (PK): Integer
-- `institution_id` (FK): References institutions.id, CASCADE delete
-- `grade_id` (FK): References grades.id, CASCADE delete
-- `subject_id` (FK): References subjects.id, CASCADE delete
-- `is_compulsory`: Boolean, default True
-- `created_at`: DateTime
+#### 2. GradeManagement.tsx
+**Features:**
+- Two-panel layout: Grades on left, Sections on right
+- **Drag-and-drop ordering** for both grades and sections
+- Visual feedback during drag operations
+- Click grade to view/manage its sections
+- Display section count for each grade
 
-**Indexes:**
-- `idx_grade_subject_institution` on institution_id
-- `idx_grade_subject_grade` on grade_id
-- `idx_grade_subject_subject` on subject_id
+**UI Elements:**
+- Draggable list items with DragIndicator icon
+- Hover and selected states
+- Empty state prompts
+- Real-time order updates via display_order field
 
-**Constraints:**
-- `uq_grade_subject`: UNIQUE(grade_id, subject_id)
+#### 3. SubjectConfiguration.tsx
+**Features:**
+- Subject management with code assignment
+- Grade-subject assignment matrix
+- Elective vs. compulsory designation
+- Visual chips showing assigned grades
+- Assignment table showing all mappings
 
----
+**UI Elements:**
+- Subject list with metadata
+- Assignment table with grade/subject/type columns
+- Checkbox for compulsory/elective selection
+- Color-coded chips (primary=compulsory, default=elective)
 
-#### 6. chapters (NEW)
-Represents chapters within a subject for a specific grade.
+#### 4. TimetableBuilder.tsx
+**Features:**
+- **Visual timetable grid** (periods × days)
+- **Drag-and-drop period ordering** in sidebar
+- **Drag-and-drop timetable entries** across cells
+- Period management with break periods
+- Subject/teacher/room assignment per slot
+- **Conflict detection visualization** (highlighted in red)
+- Real-time conflict warnings
 
-**Columns:**
-- `id` (PK): Integer
-- `institution_id` (FK): References institutions.id, CASCADE delete
-- `subject_id` (FK): References subjects.id, CASCADE delete
-- `grade_id` (FK): References grades.id, CASCADE delete
-- `name`: String(200)
-- `code`: String(50), nullable
-- `display_order`: Integer, default 0
-- `description`: Text, nullable
-- `is_active`: Boolean, default True
-- `created_at`: DateTime
-- `updated_at`: DateTime
+**UI Elements:**
+- Responsive table layout
+- Color-coded cells:
+  - Grey for breaks
+  - Blue for regular classes
+  - Red for conflicts
+- Period sidebar with draggable items
+- Click-to-add functionality
+- Conflict alert panel
 
-**Indexes:**
-- `idx_chapter_institution` on institution_id
-- `idx_chapter_subject` on subject_id
-- `idx_chapter_grade` on grade_id
-- `idx_chapter_active` on is_active
+**Drag-and-Drop:**
+- Periods can be reordered by dragging
+- Timetable entries can be moved between days/periods
+- Visual feedback during drag
+- Automatic conflict detection after drop
 
-**Constraints:**
-- `uq_subject_grade_chapter_name`: UNIQUE(subject_id, grade_id, name)
-- `uq_subject_grade_chapter_code`: UNIQUE(subject_id, grade_id, code)
+#### 5. ExamScheduleManager.tsx
+**Features:**
+- **Calendar view** of exam schedules
+- Group schedules by date
+- Display full schedule details per subject
+- Room and invigilator assignment
+- Time slot management
 
----
+**UI Elements:**
+- Calendar-style cards grouped by date
+- Time badges and metadata chips
+- Section and room number display
+- Date-based organization
 
-#### 7. topics (NEW)
-Represents topics within a chapter.
+#### 6. GradingSchemeConfig.tsx
+**Features:**
+- Custom grade boundary configuration
+- Grade point assignment
+- Passing/failing grade designation
+- Percentage range validation
+- Overlapping range detection
+- Active/inactive status management
 
-**Columns:**
-- `id` (PK): Integer
-- `institution_id` (FK): References institutions.id, CASCADE delete
-- `chapter_id` (FK): References chapters.id, CASCADE delete
-- `name`: String(200)
-- `code`: String(50), nullable
-- `display_order`: Integer, default 0
-- `description`: Text, nullable
-- `is_active`: Boolean, default True
-- `created_at`: DateTime
-- `updated_at`: DateTime
+**UI Elements:**
+- Table view with color-coded grades
+- Example grading scale display
+- Percentage range inputs with validation
+- Status chips (Passing/Failing, Active)
+- Info panel with usage examples
 
-**Indexes:**
-- `idx_topic_institution` on institution_id
-- `idx_topic_chapter` on chapter_id
-- `idx_topic_active` on is_active
+## Key Features Implemented
 
-**Constraints:**
-- `uq_chapter_topic_name`: UNIQUE(chapter_id, name)
-- `uq_chapter_topic_code`: UNIQUE(chapter_id, code)
+### 1. Drag-and-Drop Functionality
+- **HTML5 Drag and Drop API** used throughout
+- Grades: Reorder via drag-drop
+- Sections: Reorder via drag-drop
+- Periods: Reorder via drag-drop
+- Timetable entries: Move between cells via drag-drop
+- Visual feedback with hover states and selection highlighting
 
----
+### 2. Conflict Detection
+- Teacher double-booking detection
+- Visual highlighting of conflicts in timetable
+- Conflict list with details
+- Real-time validation
 
-## Cascade Delete Behavior
+### 3. Data Validation
+- Date range validation (end > start)
+- Percentage range validation (0-100)
+- Non-overlapping grade boundaries
+- Unique constraints on database level
+- Form validation before submission
 
-All foreign keys use `ondelete='CASCADE'` to ensure proper cleanup:
+### 4. User Experience
+- Empty states with helpful prompts
+- Loading states
+- Error handling
+- Confirmation dialogs
+- Responsive design
+- Color-coded status indicators
+- Breadcrumb navigation
 
-1. **Deleting Institution** → Cascades to all academic_years, grades, sections, subjects, grade_subjects, chapters, topics
-2. **Deleting Academic Year** → Cascades to all grades (and their children)
-3. **Deleting Grade** → Cascades to sections, grade_subjects, chapters (and their topics)
-4. **Deleting Subject** → Cascades to grade_subjects, chapters (and their topics)
-5. **Deleting Chapter** → Cascades to all topics
+### 5. Responsive Design
+- Grid layouts adapt to screen size
+- Scrollable tables for small screens
+- Mobile-friendly dialogs
+- Flexible card layouts
 
-## Service Layer
+## Integration Points
 
-### Available Services
+### Required API Integration
+All components currently use mock data. To integrate with real API:
 
-All services are located in `src/services/academic_service.py`:
+1. Import axios or API client
+2. Add API calls in handlers:
+   - `handleSave` → POST/PUT endpoints
+   - `useEffect` → GET endpoints for initial data
+   - `handleDelete` → DELETE endpoints
+3. Add loading states
+4. Add error handling
+5. Use React Query or similar for caching
 
-1. **AcademicYearService** - Manage academic years
-2. **GradeService** - Manage grades
-3. **SectionService** - Manage sections
-4. **SubjectService** - Manage subjects, grade-subject assignments
-5. **ChapterService** - Manage chapters (NEW)
-6. **TopicService** - Manage topics (NEW)
+### Example Integration Pattern
+```typescript
+import { useQuery, useMutation } from '@tanstack/react-query';
+import axios from 'axios';
 
-### Service Methods
+const { data: academicYears } = useQuery({
+  queryKey: ['academicYears'],
+  queryFn: () => axios.get('/api/v1/academic-years/').then(res => res.data.items),
+});
 
-Each service provides:
-- `create_*()` - Create single entity
-- `create_*_bulk()` - Bulk create entities
-- `get_*()` - Get by ID
-- `list_*()` - List with filters, pagination
-- `update_*()` - Update single entity
-- `update_*_bulk()` - Bulk update entities (Chapter & Topic only)
-- `delete_*()` - Delete single entity
-- `delete_*_bulk()` - Bulk delete entities (Chapter & Topic only)
-
-### Example Usage
-
-```python
-from sqlalchemy.orm import Session
-from src.services.academic_service import ChapterService, TopicService
-from src.schemas.academic import ChapterCreate, TopicCreate
-
-# Create Chapter Service
-chapter_service = ChapterService(db)
-
-# Create a single chapter
-chapter_data = ChapterCreate(
-    institution_id=1,
-    subject_id=5,
-    grade_id=10,
-    name="Algebra",
-    code="ALG-01",
-    display_order=1,
-    description="Introduction to Algebra"
-)
-chapter = chapter_service.create_chapter(chapter_data)
-
-# Create multiple chapters at once
-chapters_data = [
-    ChapterCreate(
-        institution_id=1,
-        subject_id=5,
-        grade_id=10,
-        name="Geometry",
-        code="GEO-01",
-        display_order=2
-    ),
-    ChapterCreate(
-        institution_id=1,
-        subject_id=5,
-        grade_id=10,
-        name="Trigonometry",
-        code="TRIG-01",
-        display_order=3
-    )
-]
-chapters = chapter_service.create_chapters_bulk(chapters_data)
-
-# List chapters with filters
-chapters, total = chapter_service.list_chapters(
-    institution_id=1,
-    subject_id=5,
-    grade_id=10,
-    search="algebra",
-    is_active=True,
-    skip=0,
-    limit=10
-)
-
-# Create topics for a chapter
-topic_service = TopicService(db)
-topics_data = [
-    TopicCreate(
-        institution_id=1,
-        chapter_id=chapter.id,
-        name="Linear Equations",
-        code="LE-01",
-        display_order=1
-    ),
-    TopicCreate(
-        institution_id=1,
-        chapter_id=chapter.id,
-        name="Quadratic Equations",
-        code="QE-01",
-        display_order=2
-    )
-]
-topics = topic_service.create_topics_bulk(topics_data)
+const createMutation = useMutation({
+  mutationFn: (data) => axios.post('/api/v1/academic-years/', data),
+  onSuccess: () => queryClient.invalidateQueries(['academicYears']),
+});
 ```
 
-## Repository Layer
+## Database Migration
 
-### Available Repositories
+To apply the new models, create and run migration:
 
-All repositories are located in `src/repositories/academic_repository.py`:
-
-1. **AcademicYearRepository**
-2. **GradeRepository**
-3. **SectionRepository**
-4. **SubjectRepository**
-5. **ChapterRepository**
-6. **TopicRepository**
-
-### Repository Methods
-
-Each repository provides direct database access methods:
-
-#### Core CRUD Operations
-- `create(**kwargs)` - Create single record
-- `create_bulk(items: List[Dict])` - Bulk create records
-- `get_by_id(id: int)` - Get by primary key
-- `update(entity, **kwargs)` - Update record
-- `update_bulk(updates: List[Dict])` - Bulk update records
-- `delete(entity)` - Delete record
-- `delete_bulk(ids: List[int])` - Bulk delete by IDs
-
-#### Specialized Query Methods
-- `get_by_*()` - Get by specific criteria
-- `list_by_institution()` - List with filters and pagination
-- `count_by_institution()` - Count with filters
-
-#### Relationship Methods
-- `get_with_*()` - Eager load relationships
-
-### Repository vs Service
-
-- **Repositories**: Direct database access, no business logic
-- **Services**: Business logic, validation, error handling, uses repositories
-
-### Example Usage
-
-```python
-from src.repositories.academic_repository import ChapterRepository, TopicRepository
-
-# Using repositories directly
-chapter_repo = ChapterRepository(db)
-
-# Create chapter
-chapter = chapter_repo.create(
-    institution_id=1,
-    subject_id=5,
-    grade_id=10,
-    name="Algebra",
-    code="ALG-01",
-    display_order=1
-)
-
-# Bulk create
-chapters = chapter_repo.create_bulk([
-    {"institution_id": 1, "subject_id": 5, "grade_id": 10, "name": "Geometry", "display_order": 2},
-    {"institution_id": 1, "subject_id": 5, "grade_id": 10, "name": "Trigonometry", "display_order": 3}
-])
-
-# List with filters
-chapters = chapter_repo.list_by_institution(
-    institution_id=1,
-    subject_id=5,
-    grade_id=10,
-    skip=0,
-    limit=10
-)
-
-# Get with relationships
-chapter = chapter_repo.get_with_topics(chapter_id=1)
-
-# Bulk update
-updates = [
-    {"id": 1, "display_order": 5},
-    {"id": 2, "display_order": 6}
-]
-updated_chapters = chapter_repo.update_bulk(updates)
-
-# Bulk delete
-deleted_count = chapter_repo.delete_bulk([1, 2, 3])
-db.commit()  # Remember to commit when using repositories
-```
-
-## Schemas
-
-All Pydantic schemas are in `src/schemas/academic.py`:
-
-### Chapter Schemas
-- `ChapterBase` - Base fields
-- `ChapterCreate` - For creation
-- `ChapterUpdate` - For updates (all optional)
-- `ChapterResponse` - For API responses
-- `ChapterWithTopicsResponse` - Include related topics
-
-### Topic Schemas
-- `TopicBase` - Base fields
-- `TopicCreate` - For creation
-- `TopicUpdate` - For updates (all optional)
-- `TopicResponse` - For API responses
-
-### Additional Schemas
-- `SubjectWithChaptersResponse` - Subject with chapters list
-
-## Migration
-
-Migration file: `alembic/versions/006_create_chapters_and_topics_tables.py`
-
-To apply the migration:
 ```bash
+# Generate migration
+alembic revision --autogenerate -m "Add academic structure models"
+
+# Apply migration
 alembic upgrade head
 ```
 
-To rollback:
-```bash
-alembic downgrade -1
-```
+## Testing Checklist
 
-## Bulk Operations
+### Backend
+- [ ] Test all CRUD operations for each endpoint
+- [ ] Test validation rules
+- [ ] Test conflict detection
+- [ ] Test bulk order updates
+- [ ] Test cascading deletes
+- [ ] Test authorization checks
 
-### Service Level Bulk Operations
-
-#### Create Bulk
-```python
-# Chapters
-chapters_data = [ChapterCreate(...), ChapterCreate(...)]
-chapters = chapter_service.create_chapters_bulk(chapters_data)
-
-# Topics
-topics_data = [TopicCreate(...), TopicCreate(...)]
-topics = topic_service.create_topics_bulk(topics_data)
-```
-
-#### Update Bulk
-```python
-# Chapters
-updates = [
-    {"id": 1, "name": "Updated Name", "display_order": 5},
-    {"id": 2, "is_active": False}
-]
-chapters = chapter_service.update_chapters_bulk(updates)
-
-# Topics
-updates = [
-    {"id": 10, "name": "Updated Topic", "display_order": 3},
-    {"id": 11, "is_active": False}
-]
-topics = topic_service.update_topics_bulk(updates)
-```
-
-#### Delete Bulk
-```python
-# Chapters - returns dict with deleted_count and errors
-result = chapter_service.delete_chapters_bulk([1, 2, 3])
-# {"deleted_count": 3, "errors": []}
-
-# Topics
-result = topic_service.delete_topics_bulk([10, 11, 12])
-# {"deleted_count": 3, "errors": []}
-```
-
-### Repository Level Bulk Operations
-
-```python
-# Create
-chapters = chapter_repo.create_bulk([{...}, {...}])
-db.commit()
-
-# Update
-updated = chapter_repo.update_bulk([{"id": 1, ...}, {"id": 2, ...}])
-db.commit()
-
-# Delete
-count = chapter_repo.delete_bulk([1, 2, 3])
-db.commit()
-```
-
-## Testing
-
-Example test scenarios to implement:
-
-1. **Cascade Delete Tests**
-   - Delete institution → verify all related data deleted
-   - Delete grade → verify chapters and topics deleted
-   - Delete subject → verify chapters and topics deleted
-   - Delete chapter → verify topics deleted
-
-2. **Unique Constraint Tests**
-   - Duplicate chapter names in same subject/grade
-   - Duplicate chapter codes in same subject/grade
-   - Duplicate topic names in same chapter
-   - Duplicate topic codes in same chapter
-
-3. **Bulk Operation Tests**
-   - Bulk create with validation errors
-   - Bulk update with non-existent IDs
-   - Bulk delete with mixed valid/invalid IDs
-
-4. **Query Performance Tests**
-   - List operations with large datasets
-   - Eager loading relationships
-   - Filter combinations
+### Frontend
+- [ ] Test drag-and-drop functionality
+- [ ] Test form validation
+- [ ] Test dialog interactions
+- [ ] Test responsive behavior
+- [ ] Test empty states
+- [ ] Test error states
+- [ ] Test data persistence
 
 ## Future Enhancements
 
-Potential additions to consider:
+1. **Timetable Features**
+   - Copy timetable to another section
+   - Timetable templates for quick setup
+   - Print/export timetable as PDF
+   - Bulk import via CSV
 
-1. **Content Management**
-   - Add learning objectives to topics
-   - Add resources/materials to chapters/topics
-   - Add difficulty levels
+2. **Conflict Detection**
+   - Room availability checking
+   - Student elective conflicts
+   - Workload balancing for teachers
 
-2. **Progress Tracking**
-   - Student progress per topic
-   - Chapter completion status
-   - Assessment linkage
+3. **Exam Schedules**
+   - Automatic schedule generation
+   - Conflict detection across sections
+   - Seating arrangement management
 
-3. **Versioning**
-   - Chapter/topic versioning
-   - Historical changes tracking
-   - Draft/published states
+4. **Grading**
+   - Import grade schemes from templates
+   - Multiple grading schemes per institution
+   - Historical grade tracking
 
-4. **Ordering**
-   - Drag-and-drop reordering API
-   - Automatic order calculation
-   - Order validation
+5. **Analytics**
+   - Teacher workload reports
+   - Room utilization statistics
+   - Student schedule conflicts
 
-5. **Import/Export**
-   - Bulk import from CSV/Excel
-   - Export curriculum structure
-   - Template generation
+## File Structure
+
+```
+backend/
+├── src/
+│   ├── models/
+│   │   ├── academic.py (updated with new models)
+│   │   └── institution.py (updated relationships)
+│   ├── schemas/
+│   │   └── academic.py (new schemas added)
+│   └── api/v1/
+│       ├── terms.py (new)
+│       ├── timetables.py (new)
+│       ├── grade_configurations.py (new)
+│       ├── grades.py (updated)
+│       └── __init__.py (updated)
+
+frontend/
+├── src/
+│   ├── pages/
+│   │   └── AcademicStructure.tsx (new)
+│   └── components/
+│       └── academic/
+│           ├── index.ts
+│           ├── AcademicYearSetup.tsx
+│           ├── GradeManagement.tsx
+│           ├── SubjectConfiguration.tsx
+│           ├── TimetableBuilder.tsx
+│           ├── ExamScheduleManager.tsx
+│           └── GradingSchemeConfig.tsx
+```
+
+## Dependencies
+
+### Backend
+- FastAPI
+- SQLAlchemy 2.0
+- Pydantic
+- Python 3.11+
+
+### Frontend
+- React 18
+- Material-UI (MUI) v5
+- TypeScript
+- Native HTML5 Drag and Drop API (no external library needed)
+
+## Conclusion
+
+This implementation provides a comprehensive academic structure configuration system with:
+- Complete backend API with validation
+- Rich UI components with drag-and-drop
+- Conflict detection and visualization
+- Responsive design
+- Extensible architecture for future enhancements

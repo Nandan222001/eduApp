@@ -4,6 +4,7 @@ import { Box, useTheme, useMediaQuery } from '@mui/material';
 import AdminSidebar from './AdminSidebar';
 import AdminAppBar from './AdminAppBar';
 import AdminBreadcrumb from './AdminBreadcrumb';
+import { MobileBottomNav } from '../mobile';
 
 const DRAWER_WIDTH = 280;
 const COLLAPSED_DRAWER_WIDTH = 64;
@@ -37,44 +38,39 @@ export default function AdminLayout() {
         sx={{
           width: { sm: drawerWidth },
           flexShrink: { sm: 0 },
+          display: { xs: 'none', md: 'block' },
         }}
       >
-        {isMobile ? (
-          <AdminSidebar
-            open={mobileOpen}
-            drawerWidth={DRAWER_WIDTH}
-            variant="temporary"
-            onClose={() => setMobileOpen(false)}
-          />
-        ) : (
-          <AdminSidebar
-            open={desktopOpen}
-            drawerWidth={desktopOpen ? DRAWER_WIDTH : COLLAPSED_DRAWER_WIDTH}
-            variant="permanent"
-          />
-        )}
+        <AdminSidebar
+          open={desktopOpen}
+          drawerWidth={desktopOpen ? DRAWER_WIDTH : COLLAPSED_DRAWER_WIDTH}
+          variant="permanent"
+        />
       </Box>
 
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
           minHeight: '100vh',
           bgcolor: theme.palette.background.default,
           transition: theme.transitions.create(['margin', 'width'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
+          pb: { xs: 8, md: 0 },
         }}
       >
         <Box sx={{ minHeight: 64 }} />
 
-        <AdminBreadcrumb />
+        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+          <AdminBreadcrumb />
+        </Box>
 
         <Box
           sx={{
-            p: 3,
+            p: { xs: 2, sm: 2, md: 3 },
             maxWidth: '100%',
             mx: 'auto',
           }}
@@ -82,6 +78,8 @@ export default function AdminLayout() {
           <Outlet />
         </Box>
       </Box>
+
+      <MobileBottomNav />
     </Box>
   );
 }

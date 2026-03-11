@@ -259,3 +259,37 @@ class AnalysisResponse(BaseModel):
     predictions_generated: int
     cache_key: Optional[str] = None
     analyzed_at: datetime
+
+
+class QuestionBookmarkCreate(BaseModel):
+    question_id: int
+    notes: Optional[str] = None
+    tags: Optional[str] = None
+
+
+class QuestionBookmarkUpdate(BaseModel):
+    notes: Optional[str] = None
+    tags: Optional[str] = None
+
+
+class QuestionBookmarkResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    user_id: int
+    question_id: int
+    institution_id: int
+    notes: Optional[str] = None
+    tags: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class QuestionTagSuggestion(BaseModel):
+    question_id: int
+    suggested_tags: List[str]
+    suggested_chapter: Optional[str] = None
+    suggested_topic: Optional[str] = None
+    suggested_difficulty: Optional[str] = None
+    suggested_bloom_level: Optional[str] = None
+    confidence_score: float

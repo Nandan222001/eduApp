@@ -2,7 +2,10 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func
 from datetime import datetime
-from src.models.assignment import Assignment, AssignmentFile, Submission, SubmissionFile, AssignmentStatus, SubmissionStatus
+from src.models.assignment import (
+    Assignment, AssignmentFile, Submission, SubmissionFile, 
+    AssignmentStatus, SubmissionStatus, RubricCriteria, RubricLevel, SubmissionGrade
+)
 
 
 class AssignmentRepository:
@@ -306,4 +309,103 @@ class SubmissionFileRepository:
 
     def delete(self, file: SubmissionFile) -> None:
         self.db.delete(file)
+        self.db.flush()
+
+
+class RubricCriteriaRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create(self, **kwargs) -> RubricCriteria:
+        criteria = RubricCriteria(**kwargs)
+        self.db.add(criteria)
+        self.db.flush()
+        return criteria
+
+    def get_by_id(self, criteria_id: int) -> Optional[RubricCriteria]:
+        return self.db.query(RubricCriteria).filter(RubricCriteria.id == criteria_id).first()
+
+    def get_with_levels(self, criteria_id: int) -> Optional[RubricCriteria]:
+        return self.db.query(RubricCriteria).options(
+            joinedload(RubricCriteria.levels)
+        ).filter(RubricCriteria.id == criteria_id).first()
+
+    def list_by_assignment(self, assignment_id: int) -> List[RubricCriteria]:
+        return self.db.query(RubricCriteria).options(
+            joinedload(RubricCriteria.levels)
+        ).filter(
+            RubricCriteria.assignment_id == assignment_id
+        ).order_by(RubricCriteria.order).all()
+
+    def update(self, criteria: RubricCriteria, **kwargs) -> RubricCriteria:
+        for key, value in kwargs.items():
+            setattr(criteria, key, value)
+        self.db.flush()
+        return criteria
+
+    def delete(self, criteria: RubricCriteria) -> None:
+        self.db.delete(criteria)
+        self.db.flush()
+
+
+class RubricLevelRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create(self, **kwargs) -> RubricLevel:
+        level = RubricLevel(**kwargs)
+        self.db.add(level)
+        self.db.flush()
+        return level
+
+    def get_by_id(self, level_id: int) -> Optional[RubricLevel]:
+        return self.db.query(RubricLevel).filter(RubricLevel.id == level_id).first()
+
+    def update(self, level: RubricLevel, **kwargs) -> RubricLevel:
+        for key, value in kwargs.items():
+            setattr(level, key, value)
+        self.db.flush()
+        return level
+
+    def delete(self, level: RubricLevel) -> None:
+        self.db.delete(level)
+        self.db.flush()
+
+
+class SubmissionGradeRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create(self, **kwargs) -> SubmissionGrade:
+        grade = SubmissionGrade(**kwargs)
+        self.db.add(grade)
+        self.db.flush()
+        return grade
+
+    def get_by_id(self, grade_id: int) -> Optional[SubmissionGrade]:
+        return self.db.query(SubmissionGrade).filter(SubmissionGrade.id == grade_id).first()
+
+    def get_by_submission_and_criteria(
+        self,
+        submission_id: int,
+        criteria_id: int
+    ) -> Optional[SubmissionGrade]:
+        return self.db.query(SubmissionGrade).filter(
+            SubmissionGrade.submission_id == submission_id,
+            SubmissionGrade.criteria_id == criteria_id
+        ).first()
+
+    def list_by_submission(self, submission_id: int) -> List[SubmissionGrade]:
+        return self.db.query(SubmissionGrade).filter(
+            SubmissionGrade.submission_id == submission_id
+        ).all()
+
+    def update(self, grade: SubmissionGrade, **kwargs) -> SubmissionGrade:
+        for key, value in kwargs.items():
+            setattr(grade, key, value)
+        self.db.flush()
+        return grade
+
+    def delete(self, grade: SubmissionGrade) -> None:
+        self.db.delete(grade)
         self.db.flush()

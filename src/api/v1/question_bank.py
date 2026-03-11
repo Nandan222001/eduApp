@@ -305,3 +305,32 @@ async def increment_usage_count(
         )
 
     service.increment_usage_count(question_id)
+
+
+@router.post("/{question_id}/suggest-tags", response_model=dict)
+async def suggest_tags(
+    question_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from src.services.ai_tag_suggestion_service import AITagSuggestionService
+    
+    service = QuestionBankService(db)
+    question = service.get_question(question_id)
+
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found"
+        )
+
+    if question.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this question"
+        )
+
+    ai_service = AITagSuggestionService(db)
+    suggestions = ai_service.suggest_tags_for_question(question_id)
+    
+    return suggestions

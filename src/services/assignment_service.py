@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from datetime import datetime
 from decimal import Decimal
-from src.models.assignment import Assignment, AssignmentFile, Submission, SubmissionFile, AssignmentStatus, SubmissionStatus
+import io
+import zipfile
+from src.models.assignment import (
+    Assignment, AssignmentFile, Submission, SubmissionFile, 
+    AssignmentStatus, SubmissionStatus, RubricCriteria
+)
 from src.models.student import Student
 from src.schemas.assignment import (
     AssignmentCreate,
@@ -11,13 +16,19 @@ from src.schemas.assignment import (
     SubmissionCreate,
     SubmissionUpdate,
     SubmissionGradeInput,
-    FileUploadResponse
+    FileUploadResponse,
+    RubricCriteriaCreate,
+    RubricCriteriaUpdate,
+    BulkGradeInput
 )
 from src.repositories.assignment_repository import (
     AssignmentRepository,
     AssignmentFileRepository,
     SubmissionRepository,
-    SubmissionFileRepository
+    SubmissionFileRepository,
+    RubricCriteriaRepository,
+    RubricLevelRepository,
+    SubmissionGradeRepository
 )
 from src.utils.s3_client import s3_client
 from src.config import settings
@@ -567,3 +578,139 @@ class SubmissionService:
             'pass_count': pass_count,
             'fail_count': fail_count
         }
+
+    async def bulk_download_submissions(self, assignment_id: int) -> io.BytesIO:
+        import requests
+        
+        submissions = self.submission_repo.list_by_assignment(
+            assignment_id=assignment_id,
+            skip=0,
+            limit=1000,
+            status=SubmissionStatus.SUBMITTED
+        )
+        
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for submission in submissions:
+                student = submission.student
+                student_name = f"{student.user.first_name}_{student.user.last_name}".replace(" ", "_")
+                
+                if submission.submission_text:
+                    text_filename = f"{student_name}_submission.txt"
+                    zip_file.writestr(text_filename, submission.submission_text)
+                
+                for file in submission.submission_files:
+                    try:
+                        response = requests.get(file.file_url)
+                        if response.status_code == 200:
+                            file_filename = f"{student_name}_{file.file_name}"
+                            zip_file.writestr(file_filename, response.content)
+                    except Exception:
+                        pass
+        
+        zip_buffer.seek(0)
+        return zip_buffer
+
+
+class RubricService:
+    def __init__(self, db: Session):
+        self.db = db
+        self.criteria_repo = RubricCriteriaRepository(db)
+        self.level_repo = RubricLevelRepository(db)
+        self.grade_repo = SubmissionGradeRepository(db)
+        self.submission_repo = SubmissionRepository(db)
+        self.assignment_repo = AssignmentRepository(db)
+
+    def create_criteria(
+        self,
+        assignment_id: int,
+        data: RubricCriteriaCreate
+    ) -> RubricCriteria:
+        criteria_data = data.model_dump(exclude={'levels'})
+        criteria = self.criteria_repo.create(
+            assignment_id=assignment_id,
+            **criteria_data
+        )
+        
+        for level_data in data.levels:
+            self.level_repo.create(
+                criteria_id=criteria.id,
+                **level_data.model_dump()
+            )
+        
+        self.db.commit()
+        self.db.refresh(criteria)
+        return criteria
+
+    def update_criteria(
+        self,
+        criteria_id: int,
+        data: RubricCriteriaUpdate
+    ) -> Optional[RubricCriteria]:
+        criteria = self.criteria_repo.get_by_id(criteria_id)
+        if not criteria:
+            return None
+
+        update_data = data.model_dump(exclude_unset=True)
+        updated_criteria = self.criteria_repo.update(criteria, **update_data)
+        self.db.commit()
+        self.db.refresh(updated_criteria)
+        return updated_criteria
+
+    def delete_criteria(self, criteria_id: int) -> bool:
+        criteria = self.criteria_repo.get_by_id(criteria_id)
+        if not criteria:
+            return False
+
+        self.criteria_repo.delete(criteria)
+        self.db.commit()
+        return True
+
+    def grade_submission_with_rubric(
+        self,
+        submission_id: int,
+        grader_id: int,
+        grade_data: BulkGradeInput
+    ) -> Submission:
+        submission = self.submission_repo.get_by_id(submission_id)
+        if not submission:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Submission not found"
+            )
+
+        for rubric_grade in grade_data.rubric_grades:
+            existing_grade = self.grade_repo.get_by_submission_and_criteria(
+                submission_id=submission_id,
+                criteria_id=rubric_grade.criteria_id
+            )
+            
+            if existing_grade:
+                self.grade_repo.update(
+                    existing_grade,
+                    points_awarded=rubric_grade.points_awarded,
+                    feedback=rubric_grade.feedback,
+                    graded_at=datetime.utcnow()
+                )
+            else:
+                self.grade_repo.create(
+                    submission_id=submission_id,
+                    criteria_id=rubric_grade.criteria_id,
+                    points_awarded=rubric_grade.points_awarded,
+                    feedback=rubric_grade.feedback
+                )
+
+        updated_submission = self.submission_repo.update(
+            submission,
+            marks_obtained=grade_data.marks_obtained,
+            grade=grade_data.grade,
+            feedback=grade_data.feedback,
+            graded_by=grader_id,
+            graded_at=datetime.utcnow(),
+            status=SubmissionStatus.GRADED
+        )
+
+        self.db.commit()
+        self.db.refresh(updated_submission)
+        return updated_submission

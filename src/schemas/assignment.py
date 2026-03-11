@@ -107,6 +107,11 @@ class AssignmentWithFilesResponse(AssignmentResponse):
     attachment_files: List[AssignmentFileResponse] = []
 
 
+class AssignmentWithRubricResponse(AssignmentResponse):
+    attachment_files: List[AssignmentFileResponse] = []
+    rubric_criteria: List[RubricCriteriaResponse] = []
+
+
 class AssignmentWithStatsResponse(AssignmentResponse):
     total_submissions: int = 0
     submitted_count: int = 0
@@ -171,6 +176,11 @@ class SubmissionWithStudentResponse(SubmissionResponse):
     student_roll_number: Optional[str] = None
 
 
+class SubmissionWithGradesResponse(SubmissionResponse):
+    submission_files: List[SubmissionFileResponse] = []
+    rubric_grades: List[SubmissionGradeResponse] = []
+
+
 class SubmissionStatistics(BaseModel):
     assignment_id: int
     total_students: int
@@ -205,3 +215,74 @@ class FileUploadResponse(BaseModel):
     s3_key: str
     file_size: int
     file_type: str
+
+
+class RubricLevelBase(BaseModel):
+    name: str = Field(..., max_length=255)
+    description: Optional[str] = None
+    points: Decimal = Field(..., ge=0)
+    order: int = Field(default=0)
+
+
+class RubricLevelCreate(RubricLevelBase):
+    pass
+
+
+class RubricLevelResponse(RubricLevelBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    criteria_id: int
+    created_at: datetime
+
+
+class RubricCriteriaBase(BaseModel):
+    name: str = Field(..., max_length=255)
+    description: Optional[str] = None
+    max_points: Decimal = Field(..., ge=0)
+    order: int = Field(default=0)
+
+
+class RubricCriteriaCreate(RubricCriteriaBase):
+    levels: List[RubricLevelCreate] = []
+
+
+class RubricCriteriaUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    max_points: Optional[Decimal] = Field(None, ge=0)
+    order: Optional[int] = None
+
+
+class RubricCriteriaResponse(RubricCriteriaBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    assignment_id: int
+    created_at: datetime
+    levels: List[RubricLevelResponse] = []
+
+
+class SubmissionGradeBase(BaseModel):
+    criteria_id: int
+    points_awarded: Decimal = Field(..., ge=0)
+    feedback: Optional[str] = None
+
+
+class SubmissionGradeCreate(SubmissionGradeBase):
+    pass
+
+
+class SubmissionGradeResponse(SubmissionGradeBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    submission_id: int
+    graded_at: datetime
+
+
+class BulkGradeInput(BaseModel):
+    marks_obtained: Decimal = Field(..., ge=0)
+    grade: Optional[str] = Field(None, max_length=10)
+    feedback: Optional[str] = None
+    rubric_grades: List[SubmissionGradeCreate] = []

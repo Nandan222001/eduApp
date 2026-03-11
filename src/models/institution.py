@@ -12,6 +12,7 @@ class Institution(Base):
     slug = Column(String(100), unique=True, nullable=False, index=True)
     domain = Column(String(255), unique=True, nullable=True, index=True)
     description = Column(Text, nullable=True)
+    logo_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     max_users = Column(Integer, nullable=True)
     settings = Column(Text, nullable=True)
@@ -30,6 +31,10 @@ class Institution(Base):
     students = relationship("Student", back_populates="institution", cascade="all, delete-orphan")
     chapters = relationship("Chapter", back_populates="institution", cascade="all, delete-orphan")
     topics = relationship("Topic", back_populates="institution", cascade="all, delete-orphan")
+    terms = relationship("Term", back_populates="institution", cascade="all, delete-orphan")
+    timetable_templates = relationship("TimetableTemplate", back_populates="institution", cascade="all, delete-orphan")
+    periods = relationship("Period", back_populates="institution", cascade="all, delete-orphan")
+    timetable_entries = relationship("TimetableEntry", back_populates="institution", cascade="all, delete-orphan")
     attendances = relationship("Attendance", back_populates="institution", cascade="all, delete-orphan")
     attendance_corrections = relationship("AttendanceCorrection", back_populates="institution", cascade="all, delete-orphan")
     attendance_summaries = relationship("AttendanceSummary", back_populates="institution", cascade="all, delete-orphan")
@@ -37,6 +42,7 @@ class Institution(Base):
     exams = relationship("Exam", back_populates="institution", cascade="all, delete-orphan")
     previous_year_papers = relationship("PreviousYearPaper", back_populates="institution", cascade="all, delete-orphan")
     questions_bank = relationship("QuestionBank", back_populates="institution", cascade="all, delete-orphan")
+    study_materials = relationship("StudyMaterial", back_populates="institution", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('idx_institution_active', 'is_active'),

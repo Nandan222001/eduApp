@@ -7,11 +7,11 @@ from src.models.audit_log import AuditLog
 from src.models.password_reset_token import PasswordResetToken
 from src.models.academic import AcademicYear, Grade, Section, Subject, GradeSubject, Chapter, Topic
 from src.models.teacher import Teacher, TeacherSubject
-from src.models.student import Student
+from src.models.student import Student, Parent, StudentParent
 from src.models.attendance import Attendance, AttendanceCorrection, AttendanceSummary, AttendanceStatus, CorrectionStatus
 from src.models.assignment import Assignment, AssignmentFile, Submission, SubmissionFile, AssignmentStatus, SubmissionStatus
 from src.models.examination import Exam, ExamSubject, ExamSchedule, ExamMarks, ExamResult, GradeConfiguration, ExamPerformanceAnalytics, ExamType, ExamStatus
-from src.models.previous_year_papers import PreviousYearPaper, QuestionBank, TopicPrediction, QuestionType, DifficultyLevel, BloomTaxonomyLevel, Board
+from src.models.previous_year_papers import PreviousYearPaper, QuestionBank, TopicPrediction, QuestionBookmark, QuestionType, DifficultyLevel, BloomTaxonomyLevel, Board
 from src.models.notification import Notification, NotificationPreference, Announcement, Message, NotificationTemplate, NotificationChannel, NotificationPriority, NotificationStatus, AudienceType
 from src.models.gamification import (
     Badge, UserBadge, UserPoints, PointHistory, BadgeType, BadgeRarity, PointEventType,
@@ -29,6 +29,11 @@ from src.models.analytics import (
     AnalyticsCache, StudentPerformanceMetrics, ClassPerformanceMetrics,
     InstitutionPerformanceMetrics, GeneratedReport, ReportType, ReportStatus
 )
+from src.models.study_material import (
+    StudyMaterial, MaterialBookmark, MaterialAccessLog, MaterialShare, MaterialTag,
+    MaterialType
+)
+from src.models.search import SearchHistory, PopularSearch
 
 __all__ = [
     "Institution",
@@ -48,6 +53,8 @@ __all__ = [
     "Teacher",
     "TeacherSubject",
     "Student",
+    "Parent",
+    "StudentParent",
     "Attendance",
     "AttendanceCorrection",
     "AttendanceSummary",
@@ -71,6 +78,7 @@ __all__ = [
     "PreviousYearPaper",
     "QuestionBank",
     "TopicPrediction",
+    "QuestionBookmark",
     "QuestionType",
     "DifficultyLevel",
     "BloomTaxonomyLevel",
@@ -133,4 +141,12 @@ __all__ = [
     "GeneratedReport",
     "ReportType",
     "ReportStatus",
+    "StudyMaterial",
+    "MaterialBookmark",
+    "MaterialAccessLog",
+    "MaterialShare",
+    "MaterialTag",
+    "MaterialType",
+    "SearchHistory",
+    "PopularSearch",
 ]

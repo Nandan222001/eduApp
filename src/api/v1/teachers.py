@@ -11,6 +11,7 @@ from src.schemas.teacher import (
     TeacherSubjectCreate,
     TeacherSubjectResponse,
     BulkImportResult,
+    TeacherMyDashboardResponse,
 )
 from src.services.teacher_service import TeacherService
 
@@ -204,3 +205,13 @@ async def get_teacher_subjects(
     
     subjects = service.get_teacher_subjects(teacher_id)
     return subjects
+
+
+@router.get("/my-dashboard", response_model=TeacherMyDashboardResponse)
+async def get_my_dashboard(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = TeacherService(db)
+    dashboard_data = service.get_teacher_my_dashboard(current_user)
+    return dashboard_data

@@ -15,6 +15,15 @@ import {
   EmojiEvents as AchievementsIcon,
   TrendingUp as AnalyticsIcon,
   Forum as ForumIcon,
+  CheckCircle as CheckCircleIcon,
+  CalendarToday as CalendarTodayIcon,
+  Warning as WarningIcon,
+  Edit as EditIcon,
+  Psychology as AIIcon,
+  Flag as GoalIcon,
+  Payment as PaymentIcon,
+  CloudDownload as ExportIcon,
+  CloudUpload as ImportIcon,
 } from '@mui/icons-material';
 import { NavigationItem } from '@/types/navigation';
 
@@ -113,6 +122,20 @@ export const navigationConfig: NavigationItem[] = [
     roles: ['admin', 'teacher', 'student'],
     children: [
       {
+        id: 'examinations-list',
+        title: 'All Exams',
+        path: '/admin/examinations/list',
+        icon: <AssessmentIcon />,
+        roles: ['admin', 'teacher'],
+      },
+      {
+        id: 'examinations-create',
+        title: 'Create Exam',
+        path: '/admin/examinations/create',
+        icon: <AssessmentIcon />,
+        roles: ['admin'],
+      },
+      {
         id: 'examinations-schedule',
         title: 'Schedule',
         path: '/admin/examinations/schedule',
@@ -133,10 +156,82 @@ export const navigationConfig: NavigationItem[] = [
     ],
   },
   {
+    id: 'previous-year-papers',
+    title: 'Previous Year Papers',
+    icon: <BookIcon />,
+    roles: ['admin', 'teacher', 'student'],
+    children: [
+      {
+        id: 'papers-list',
+        title: 'All Papers',
+        path: '/admin/papers/list',
+        icon: <BookIcon />,
+      },
+      {
+        id: 'papers-upload',
+        title: 'Upload Paper',
+        path: '/admin/papers/upload',
+        icon: <BookIcon />,
+        roles: ['admin', 'teacher'],
+      },
+      {
+        id: 'question-bank',
+        title: 'Question Bank',
+        path: '/admin/papers/question-bank',
+        icon: <AssignmentIcon />,
+      },
+    ],
+  },
+  {
+    id: 'ai-prediction',
+    title: 'AI Exam Prediction',
+    path: '/student/ai-prediction',
+    icon: <AIIcon />,
+    roles: ['student'],
+    badge: 'NEW',
+  },
+  {
     id: 'attendance',
     title: 'Attendance',
     path: '/admin/attendance',
     icon: <CalendarIcon />,
+    roles: ['admin', 'teacher', 'student'],
+    children: [
+      {
+        id: 'attendance-mark',
+        title: 'Mark Attendance',
+        path: '/admin/attendance/mark',
+        icon: <CheckCircleIcon />,
+        roles: ['admin', 'teacher'],
+      },
+      {
+        id: 'attendance-sheet',
+        title: 'Attendance Sheet',
+        path: '/admin/attendance/sheet',
+        icon: <CalendarTodayIcon />,
+        roles: ['admin', 'teacher'],
+      },
+      {
+        id: 'attendance-defaulters',
+        title: 'Defaulters Report',
+        path: '/admin/attendance/defaulters',
+        icon: <WarningIcon />,
+        roles: ['admin', 'teacher'],
+      },
+      {
+        id: 'attendance-corrections',
+        title: 'Corrections',
+        path: '/admin/attendance/corrections',
+        icon: <EditIcon />,
+        roles: ['admin', 'teacher'],
+      },
+    ],
+  },
+  {
+    id: 'goals',
+    title: 'Goals',
+    path: '/admin/goals',
+    icon: <GoalIcon />,
     roles: ['admin', 'teacher', 'student'],
   },
   {
@@ -186,6 +281,33 @@ export const navigationConfig: NavigationItem[] = [
     path: '/admin/analytics',
     icon: <AnalyticsIcon />,
     roles: ['admin', 'teacher'],
+  },
+  {
+    id: 'subscription',
+    title: 'Subscription & Billing',
+    path: '/admin/subscription',
+    icon: <PaymentIcon />,
+    roles: ['admin'],
+  },
+  {
+    id: 'data-management',
+    title: 'Data Management',
+    icon: <ImportIcon />,
+    roles: ['admin'],
+    children: [
+      {
+        id: 'data-export',
+        title: 'Export Data',
+        path: '/admin/data/export',
+        icon: <ExportIcon />,
+      },
+      {
+        id: 'data-import',
+        title: 'Import Data',
+        path: '/admin/data/import',
+        icon: <ImportIcon />,
+      },
+    ],
   },
   {
     id: 'settings',
