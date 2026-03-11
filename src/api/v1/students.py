@@ -144,6 +144,31 @@ async def get_student_profile(
     return profile
 
 
+@router.get("/{student_id}/dashboard", response_model=dict)
+async def get_student_dashboard(
+    student_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = StudentService(db)
+    student = service.get_student(student_id)
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+    
+    if student.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this student"
+        )
+    
+    dashboard_data = service.get_student_dashboard(student_id, current_user.institution_id)
+    return dashboard_data
+
+
 @router.put("/{student_id}", response_model=StudentResponse)
 async def update_student(
     student_id: int,

@@ -198,6 +198,279 @@ class StudentService:
         
         return student_dict
 
+    def get_student_dashboard(self, student_id: int, institution_id: int) -> Dict[str, Any]:
+        from src.models.gamification import UserPoints, UserBadge, StreakTracker, LeaderboardEntry
+        from src.models.study_planner import WeakArea, DailyStudyTask
+        from src.models.ml_prediction import PerformancePrediction
+        from src.models.assignment import AssignmentStatus, SubmissionStatus
+        
+        student = self.get_student(student_id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student not found"
+            )
+        
+        today = date.today()
+        
+        dashboard_data = {
+            "student_id": student.id,
+            "student_name": f"{student.first_name} {student.last_name}",
+            "photo_url": student.photo_url,
+            "section": None,
+            "grade": None,
+        }
+        
+        if student.section:
+            dashboard_data["section"] = student.section.name
+            if student.section.grade:
+                dashboard_data["grade"] = student.section.grade.name
+        
+        attendance_today = self.db.query(Attendance).filter(
+            Attendance.student_id == student_id,
+            Attendance.date == today
+        ).first()
+        
+        dashboard_data["todays_attendance"] = {
+            "status": attendance_today.status.value if attendance_today else "not_marked",
+            "date": str(today),
+        }
+        
+        current_month = datetime.now().month
+        current_year = datetime.now().year
+        attendance_summary = self.db.query(AttendanceSummary).filter(
+            AttendanceSummary.student_id == student_id,
+            AttendanceSummary.month == current_month,
+            AttendanceSummary.year == current_year,
+            AttendanceSummary.subject_id.is_(None)
+        ).first()
+        
+        if attendance_summary:
+            dashboard_data["attendance_summary"] = {
+                "total_days": attendance_summary.total_days,
+                "present_days": attendance_summary.present_days,
+                "absent_days": attendance_summary.absent_days,
+                "attendance_percentage": float(attendance_summary.attendance_percentage),
+            }
+        else:
+            dashboard_data["attendance_summary"] = {
+                "total_days": 0,
+                "present_days": 0,
+                "absent_days": 0,
+                "attendance_percentage": 0.0,
+            }
+        
+        upcoming_assignments = self.db.query(Assignment).filter(
+            Assignment.section_id == student.section_id,
+            Assignment.due_date >= today,
+            Assignment.status == AssignmentStatus.PUBLISHED
+        ).order_by(Assignment.due_date).limit(5).all()
+        
+        dashboard_data["upcoming_assignments"] = []
+        for assignment in upcoming_assignments:
+            submission = self.db.query(Submission).filter(
+                Submission.assignment_id == assignment.id,
+                Submission.student_id == student_id
+            ).first()
+            
+            days_until_due = (assignment.due_date - today).days
+            
+            dashboard_data["upcoming_assignments"].append({
+                "id": assignment.id,
+                "title": assignment.title,
+                "subject": assignment.subject.name if assignment.subject else None,
+                "due_date": str(assignment.due_date),
+                "days_until_due": days_until_due,
+                "total_marks": assignment.total_marks,
+                "submission_status": submission.status.value if submission else "not_started",
+                "is_submitted": submission.submitted_at is not None if submission else False,
+            })
+        
+        pending_homework = self.db.query(Assignment).outerjoin(
+            Submission,
+            and_(
+                Submission.assignment_id == Assignment.id,
+                Submission.student_id == student_id
+            )
+        ).filter(
+            Assignment.section_id == student.section_id,
+            Assignment.status == AssignmentStatus.PUBLISHED,
+            or_(
+                Submission.id.is_(None),
+                Submission.status != SubmissionStatus.GRADED
+            )
+        ).order_by(Assignment.due_date).limit(10).all()
+        
+        dashboard_data["pending_homework"] = []
+        for assignment in pending_homework:
+            submission = self.db.query(Submission).filter(
+                Submission.assignment_id == assignment.id,
+                Submission.student_id == student_id
+            ).first()
+            
+            dashboard_data["pending_homework"].append({
+                "id": assignment.id,
+                "title": assignment.title,
+                "subject": assignment.subject.name if assignment.subject else None,
+                "due_date": str(assignment.due_date),
+                "is_completed": submission.submitted_at is not None if submission else False,
+            })
+        
+        recent_results = self.db.query(ExamResult).join(
+            Exam, ExamResult.exam_id == Exam.id
+        ).filter(
+            ExamResult.student_id == student_id
+        ).order_by(desc(Exam.start_date)).limit(5).all()
+        
+        dashboard_data["recent_grades"] = []
+        for i, result in enumerate(recent_results):
+            trend = "stable"
+            if i < len(recent_results) - 1:
+                prev_percentage = float(recent_results[i + 1].percentage)
+                curr_percentage = float(result.percentage)
+                if curr_percentage > prev_percentage + 5:
+                    trend = "up"
+                elif curr_percentage < prev_percentage - 5:
+                    trend = "down"
+            
+            dashboard_data["recent_grades"].append({
+                "exam_name": result.exam.name,
+                "subject": result.subject.name if result.subject else None,
+                "marks_obtained": float(result.marks_obtained),
+                "max_marks": float(result.max_marks),
+                "percentage": float(result.percentage),
+                "grade": result.grade,
+                "trend": trend,
+            })
+        
+        latest_prediction = self.db.query(PerformancePrediction).filter(
+            PerformancePrediction.student_id == student_id
+        ).order_by(desc(PerformancePrediction.predicted_at)).first()
+        
+        if latest_prediction:
+            confidence = 0.0
+            if latest_prediction.confidence_upper and latest_prediction.confidence_lower:
+                range_size = latest_prediction.confidence_upper - latest_prediction.confidence_lower
+                confidence = max(0, min(100, 100 - (range_size / 2)))
+            
+            dashboard_data["ai_prediction"] = {
+                "predicted_percentage": float(latest_prediction.predicted_value),
+                "confidence": float(confidence),
+                "confidence_lower": float(latest_prediction.confidence_lower) if latest_prediction.confidence_lower else None,
+                "confidence_upper": float(latest_prediction.confidence_upper) if latest_prediction.confidence_upper else None,
+                "predicted_at": latest_prediction.predicted_at.isoformat() if latest_prediction.predicted_at else None,
+            }
+        else:
+            dashboard_data["ai_prediction"] = None
+        
+        weak_areas = self.db.query(WeakArea).filter(
+            WeakArea.student_id == student_id,
+            WeakArea.is_resolved == False
+        ).order_by(desc(WeakArea.weakness_score)).limit(5).all()
+        
+        dashboard_data["weak_areas"] = []
+        for weak_area in weak_areas:
+            recommendations = []
+            if weak_area.recommended_practice_count:
+                recommendations.append(f"Practice {weak_area.recommended_practice_count} questions")
+            if weak_area.recommended_study_hours:
+                recommendations.append(f"Study for {weak_area.recommended_study_hours} hours")
+            
+            dashboard_data["weak_areas"].append({
+                "id": weak_area.id,
+                "topic": weak_area.topic.name if weak_area.topic else "General",
+                "subject": weak_area.subject.name if weak_area.subject else None,
+                "weakness_score": float(weak_area.weakness_score),
+                "recommendations": recommendations,
+            })
+        
+        user_points = self.db.query(UserPoints).filter(
+            UserPoints.user_id == student.user_id,
+            UserPoints.institution_id == institution_id
+        ).first() if student.user_id else None
+        
+        if user_points:
+            dashboard_data["study_streak"] = {
+                "current_streak": user_points.current_streak,
+                "longest_streak": user_points.longest_streak,
+                "last_activity": user_points.last_login_date.isoformat() if user_points.last_login_date else None,
+            }
+        else:
+            dashboard_data["study_streak"] = {
+                "current_streak": 0,
+                "longest_streak": 0,
+                "last_activity": None,
+            }
+        
+        if user_points:
+            dashboard_data["points_and_rank"] = {
+                "total_points": user_points.total_points,
+                "level": user_points.level,
+                "rank": None,
+            }
+            
+            leaderboard_entry = self.db.query(LeaderboardEntry).join(
+                UserPoints,
+                LeaderboardEntry.user_id == UserPoints.user_id
+            ).filter(
+                UserPoints.user_id == student.user_id,
+                UserPoints.institution_id == institution_id
+            ).first()
+            
+            if leaderboard_entry:
+                dashboard_data["points_and_rank"]["rank"] = leaderboard_entry.rank
+        else:
+            dashboard_data["points_and_rank"] = {
+                "total_points": 0,
+                "level": 1,
+                "rank": None,
+            }
+        
+        user_badges = []
+        if student.user_id:
+            user_badges = self.db.query(UserBadge).filter(
+                UserBadge.user_id == student.user_id,
+                UserBadge.institution_id == institution_id
+            ).order_by(desc(UserBadge.earned_at)).limit(6).all()
+        
+        dashboard_data["badges"] = []
+        for user_badge in user_badges:
+            if user_badge.badge:
+                dashboard_data["badges"].append({
+                    "id": user_badge.badge.id,
+                    "name": user_badge.badge.name,
+                    "description": user_badge.badge.description,
+                    "icon_url": user_badge.badge.icon_url,
+                    "badge_type": user_badge.badge.badge_type.value,
+                    "rarity": user_badge.badge.rarity.value,
+                    "earned_at": user_badge.earned_at.isoformat() if user_badge.earned_at else None,
+                })
+        
+        today_tasks = self.db.query(DailyStudyTask).filter(
+            DailyStudyTask.student_id == student_id,
+            DailyStudyTask.task_date == today
+        ).all()
+        
+        dashboard_data["todays_tasks"] = []
+        for task in today_tasks:
+            dashboard_data["todays_tasks"].append({
+                "id": task.id,
+                "title": task.title,
+                "subject": task.subject.name if task.subject else None,
+                "priority": task.priority.value,
+                "status": task.status.value,
+                "estimated_duration": task.estimated_duration_minutes,
+            })
+        
+        dashboard_data["quick_links"] = [
+            {"title": "Study Materials", "path": "/student/materials", "icon": "book"},
+            {"title": "Question Bank", "path": "/student/question-bank", "icon": "quiz"},
+            {"title": "Previous Papers", "path": "/student/previous-papers", "icon": "assignment"},
+            {"title": "My Progress", "path": "/student/progress", "icon": "trending_up"},
+        ]
+        
+        return dashboard_data
+
     def get_student_by_email(self, institution_id: int, email: str) -> Optional[Student]:
         return self.db.query(Student).filter(
             Student.institution_id == institution_id,

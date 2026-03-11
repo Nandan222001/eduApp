@@ -6,7 +6,6 @@ import About from './pages/About';
 import NotFound from './pages/NotFound';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
-import Dashboard from './pages/Dashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import InstitutionsList from './pages/InstitutionsList';
 import InstitutionDetail from './pages/InstitutionDetail';
@@ -22,6 +21,7 @@ import TeacherBulkImport from './pages/TeacherBulkImport';
 import TeacherPerformanceDashboard from './pages/TeacherPerformanceDashboard';
 import TeacherRoleAssignment from './pages/TeacherRoleAssignment';
 import TeacherDashboard from './pages/TeacherDashboard';
+import StudentDashboard from './pages/StudentDashboard';
 import AttendanceOverviewPage from './pages/AttendanceOverviewPage';
 import AttendanceMarkingPage from './pages/AttendanceMarkingPage';
 import AttendanceSheetPage from './pages/AttendanceSheetPage';
@@ -141,7 +141,13 @@ function App() {
             element={<ProtectedRoute allowedRoles={['student']} requireEmailVerified={false} />}
           >
             <Route path="/student" element={<AdminLayout />}>
-              <Route index element={<Dashboard />} />
+              <Route index element={<StudentDashboard />} />
+              <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="assignments" element={<div>Student Assignments</div>} />
+              <Route path="materials" element={<div>Study Materials</div>} />
+              <Route path="question-bank" element={<div>Question Bank</div>} />
+              <Route path="previous-papers" element={<div>Previous Papers</div>} />
+              <Route path="progress" element={<div>My Progress</div>} />
             </Route>
           </Route>
 

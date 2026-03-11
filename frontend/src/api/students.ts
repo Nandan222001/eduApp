@@ -269,6 +269,96 @@ export interface StudentListParams {
   gender?: string;
 }
 
+export interface StudentDashboardData {
+  student_id: number;
+  student_name: string;
+  photo_url?: string;
+  section?: string;
+  grade?: string;
+  todays_attendance: {
+    status: string;
+    date: string;
+  };
+  attendance_summary: {
+    total_days: number;
+    present_days: number;
+    absent_days: number;
+    attendance_percentage: number;
+  };
+  upcoming_assignments: Array<{
+    id: number;
+    title: string;
+    subject?: string;
+    due_date: string;
+    days_until_due: number;
+    total_marks: number;
+    submission_status: string;
+    is_submitted: boolean;
+  }>;
+  pending_homework: Array<{
+    id: number;
+    title: string;
+    subject?: string;
+    due_date: string;
+    is_completed: boolean;
+  }>;
+  recent_grades: Array<{
+    exam_name: string;
+    subject?: string;
+    marks_obtained: number;
+    max_marks: number;
+    percentage: number;
+    grade?: string;
+    trend: 'up' | 'down' | 'stable';
+  }>;
+  ai_prediction?: {
+    predicted_percentage: number;
+    confidence: number;
+    confidence_lower?: number;
+    confidence_upper?: number;
+    predicted_at?: string;
+  };
+  weak_areas: Array<{
+    id: number;
+    topic: string;
+    subject?: string;
+    weakness_score: number;
+    recommendations: string[];
+  }>;
+  study_streak: {
+    current_streak: number;
+    longest_streak: number;
+    last_activity?: string;
+  };
+  points_and_rank: {
+    total_points: number;
+    level: number;
+    rank?: number;
+  };
+  badges: Array<{
+    id: number;
+    name: string;
+    description?: string;
+    icon_url?: string;
+    badge_type: string;
+    rarity: string;
+    earned_at?: string;
+  }>;
+  todays_tasks: Array<{
+    id: number;
+    title: string;
+    subject?: string;
+    priority: string;
+    status: string;
+    estimated_duration?: number;
+  }>;
+  quick_links: Array<{
+    title: string;
+    path: string;
+    icon: string;
+  }>;
+}
+
 const studentsApi = {
   listStudents: async (params: StudentListParams): Promise<StudentListResponse> => {
     const response = await axios.get('/api/v1/students/', { params });
@@ -372,6 +462,11 @@ const studentsApi = {
 
   unlinkParentFromStudent: async (studentId: number, parentId: number): Promise<void> => {
     await axios.delete(`/api/v1/students/${studentId}/parents/${parentId}`);
+  },
+
+  getStudentDashboard: async (id: number): Promise<StudentDashboardData> => {
+    const response = await axios.get(`/api/v1/students/${id}/dashboard`);
+    return response.data;
   },
 };
 
