@@ -34,6 +34,10 @@ import MarksVerificationPage from './pages/MarksVerificationPage';
 import ResultGenerationPage from './pages/ResultGenerationPage';
 import StudentMarksheetPage from './pages/StudentMarksheetPage';
 import ExamAnalyticsDashboard from './pages/ExamAnalyticsDashboard';
+import PaperListPage from './pages/PaperListPage';
+import PaperUploadPage from './pages/PaperUploadPage';
+import PaperViewerPage from './pages/PaperViewerPage';
+import QuestionBankBrowserPage from './pages/QuestionBankBrowserPage';
 
 import {
   LoginPage,
@@ -103,6 +107,10 @@ function App() {
               <Route path="examinations/schedule" element={<div>Exam Schedule</div>} />
               <Route path="examinations/results" element={<div>Exam Results</div>} />
               <Route path="examinations/analysis" element={<div>Exam Analysis</div>} />
+              <Route path="papers/list" element={<PaperListPage />} />
+              <Route path="papers/upload" element={<PaperUploadPage />} />
+              <Route path="papers/view/:paperId" element={<PaperViewerPage />} />
+              <Route path="papers/question-bank" element={<QuestionBankBrowserPage />} />
               <Route path="attendance" element={<AttendanceOverviewPage />} />
               <Route path="attendance/mark" element={<AttendanceMarkingPage />} />
               <Route path="attendance/sheet" element={<AttendanceSheetPage />} />

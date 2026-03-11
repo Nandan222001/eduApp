@@ -151,6 +151,33 @@ export const navigationConfig: NavigationItem[] = [
     ],
   },
   {
+    id: 'previous-year-papers',
+    title: 'Previous Year Papers',
+    icon: <BookIcon />,
+    roles: ['admin', 'teacher', 'student'],
+    children: [
+      {
+        id: 'papers-list',
+        title: 'All Papers',
+        path: '/admin/papers/list',
+        icon: <BookIcon />,
+      },
+      {
+        id: 'papers-upload',
+        title: 'Upload Paper',
+        path: '/admin/papers/upload',
+        icon: <BookIcon />,
+        roles: ['admin', 'teacher'],
+      },
+      {
+        id: 'question-bank',
+        title: 'Question Bank',
+        path: '/admin/papers/question-bank',
+        icon: <AssignmentIcon />,
+      },
+    ],
+  },
+  {
     id: 'attendance',
     title: 'Attendance',
     path: '/admin/attendance',

@@ -21,6 +21,7 @@ from src.api.v1 import (
     exams,
     previous_year_papers,
     question_bank,
+    question_bookmarks,
     notifications,
     announcements,
     messages,
@@ -63,6 +64,7 @@ api_router.include_router(submissions.router, prefix="/submissions", tags=["subm
 api_router.include_router(exams.router, prefix="/exams", tags=["exams"])
 api_router.include_router(previous_year_papers.router, prefix="/previous-year-papers", tags=["previous-year-papers"])
 api_router.include_router(question_bank.router, prefix="/question-bank", tags=["question-bank"])
+api_router.include_router(question_bookmarks.router, prefix="/question-bookmarks", tags=["question-bookmarks"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(announcements.router, prefix="/announcements", tags=["announcements"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])

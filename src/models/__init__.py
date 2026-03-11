@@ -11,7 +11,7 @@ from src.models.student import Student
 from src.models.attendance import Attendance, AttendanceCorrection, AttendanceSummary, AttendanceStatus, CorrectionStatus
 from src.models.assignment import Assignment, AssignmentFile, Submission, SubmissionFile, AssignmentStatus, SubmissionStatus
 from src.models.examination import Exam, ExamSubject, ExamSchedule, ExamMarks, ExamResult, GradeConfiguration, ExamPerformanceAnalytics, ExamType, ExamStatus
-from src.models.previous_year_papers import PreviousYearPaper, QuestionBank, TopicPrediction, QuestionType, DifficultyLevel, BloomTaxonomyLevel, Board
+from src.models.previous_year_papers import PreviousYearPaper, QuestionBank, TopicPrediction, QuestionBookmark, QuestionType, DifficultyLevel, BloomTaxonomyLevel, Board
 from src.models.notification import Notification, NotificationPreference, Announcement, Message, NotificationTemplate, NotificationChannel, NotificationPriority, NotificationStatus, AudienceType
 from src.models.gamification import (
     Badge, UserBadge, UserPoints, PointHistory, BadgeType, BadgeRarity, PointEventType,
@@ -71,6 +71,7 @@ __all__ = [
     "PreviousYearPaper",
     "QuestionBank",
     "TopicPrediction",
+    "QuestionBookmark",
     "QuestionType",
     "DifficultyLevel",
     "BloomTaxonomyLevel",
