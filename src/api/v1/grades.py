@@ -8,8 +8,10 @@ from src.schemas.academic import (
     GradeCreate,
     GradeUpdate,
     GradeResponse,
+    BulkGradeOrderUpdate,
 )
 from src.services.academic_service import GradeService
+from src.models.academic import Grade
 
 router = APIRouter()
 
@@ -129,3 +131,22 @@ async def delete_grade(
     
     service.delete_grade(grade_id)
     return None
+
+
+@router.put("/bulk-order", response_model=dict)
+async def update_grade_order(
+    order_data: BulkGradeOrderUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    for item in order_data.grades:
+        grade = db.query(Grade).filter(
+            Grade.id == item['id'],
+            Grade.institution_id == current_user.institution_id
+        ).first()
+        
+        if grade:
+            grade.display_order = item['display_order']
+    
+    db.commit()
+    return {"message": "Order updated successfully"}

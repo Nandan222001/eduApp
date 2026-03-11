@@ -9,6 +9,9 @@ from src.api.v1 import (
     grades, 
     sections, 
     subjects, 
+    terms,
+    timetables,
+    grade_configurations,
     teachers, 
     students, 
     profile,
@@ -48,6 +51,9 @@ api_router.include_router(academic_years.router, prefix="/academic-years", tags=
 api_router.include_router(grades.router, prefix="/grades", tags=["grades"])
 api_router.include_router(sections.router, prefix="/sections", tags=["sections"])
 api_router.include_router(subjects.router, prefix="/subjects", tags=["subjects"])
+api_router.include_router(terms.router, prefix="/terms", tags=["terms"])
+api_router.include_router(timetables.router, prefix="/timetables", tags=["timetables"])
+api_router.include_router(grade_configurations.router, prefix="/grade-configurations", tags=["grade-configurations"])
 api_router.include_router(teachers.router, prefix="/teachers", tags=["teachers"])
 api_router.include_router(students.router, prefix="/students", tags=["students"])
 api_router.include_router(profile.router, prefix="/profile", tags=["profile"])
