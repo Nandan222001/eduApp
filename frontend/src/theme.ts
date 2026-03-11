@@ -18,15 +18,23 @@ export const getTheme = (mode: PaletteMode) =>
       },
       error: {
         main: mode === 'light' ? '#d32f2f' : '#f44336',
+        light: mode === 'light' ? '#ef5350' : '#e57373',
+        dark: mode === 'light' ? '#c62828' : '#f44336',
       },
       warning: {
         main: mode === 'light' ? '#ed6c02' : '#ffa726',
+        light: mode === 'light' ? '#ff9800' : '#ffb74d',
+        dark: mode === 'light' ? '#e65100' : '#f57c00',
       },
       info: {
         main: mode === 'light' ? '#0288d1' : '#29b6f6',
+        light: mode === 'light' ? '#03a9f4' : '#4fc3f7',
+        dark: mode === 'light' ? '#01579b' : '#0277bd',
       },
       success: {
         main: mode === 'light' ? '#2e7d32' : '#66bb6a',
+        light: mode === 'light' ? '#4caf50' : '#81c784',
+        dark: mode === 'light' ? '#1b5e20' : '#388e3c',
       },
       background: {
         default: mode === 'light' ? '#f5f5f5' : '#121212',
