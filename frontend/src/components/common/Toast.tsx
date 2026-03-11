@@ -1,7 +1,8 @@
 import { Snackbar, Alert, AlertColor, IconButton, Slide } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { TransitionProps } from '@mui/material/transitions';
-import { ReactElement } from 'react';
+import { ReactElement, useEffect } from 'react';
+import { useAnnounce } from '../../hooks/useAnnounce';
 
 interface ToastProps {
   open: boolean;
@@ -27,6 +28,15 @@ export const Toast = ({
   onClose,
   position = { vertical: 'bottom', horizontal: 'right' },
 }: ToastProps) => {
+  const announce = useAnnounce();
+
+  useEffect(() => {
+    if (open) {
+      const priority = severity === 'error' || severity === 'warning' ? 'assertive' : 'polite';
+      announce(`${severity}: ${message}`, priority);
+    }
+  }, [open, message, severity, announce]);
+
   return (
     <Snackbar
       open={open}
@@ -34,6 +44,8 @@ export const Toast = ({
       onClose={onClose}
       anchorOrigin={position}
       TransitionComponent={SlideTransition}
+      role="alert"
+      aria-live={severity === 'error' || severity === 'warning' ? 'assertive' : 'polite'}
     >
       <Alert
         onClose={onClose}
@@ -41,10 +53,16 @@ export const Toast = ({
         variant="filled"
         sx={{ width: '100%', minWidth: 300 }}
         action={
-          <IconButton size="small" aria-label="close" color="inherit" onClick={onClose}>
+          <IconButton
+            size="small"
+            aria-label="close notification"
+            color="inherit"
+            onClick={onClose}
+          >
             <CloseIcon fontSize="small" />
           </IconButton>
         }
+        role="alert"
       >
         {message}
       </Alert>

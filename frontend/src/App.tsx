@@ -6,6 +6,8 @@ import About from './pages/About';
 import NotFound from './pages/NotFound';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import { useGlobalKeyboardShortcuts } from './hooks/useGlobalKeyboardShortcuts';
+import { useAccessibility } from './contexts/AccessibilityContext';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import InstitutionsList from './pages/InstitutionsList';
 import InstitutionDetail from './pages/InstitutionDetail';
@@ -63,6 +65,32 @@ import { ToastProvider } from './contexts/ToastContext';
 
 function App() {
   const isDevelopment = import.meta.env.DEV;
+  const { announce } = useAccessibility();
+
+  useGlobalKeyboardShortcuts([
+    {
+      key: 's',
+      alt: true,
+      callback: () => {
+        const searchInput = document.querySelector('[aria-label*="search" i]') as HTMLElement;
+        if (searchInput) {
+          searchInput.focus();
+          announce('Search focused');
+        }
+      },
+      description: 'Focus search',
+    },
+    {
+      key: '/',
+      callback: () => {
+        const searchInput = document.querySelector('[aria-label*="search" i]') as HTMLElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+      },
+      description: 'Focus search',
+    },
+  ]);
 
   return (
     <ErrorBoundaryWrapper showDetails={isDevelopment}>

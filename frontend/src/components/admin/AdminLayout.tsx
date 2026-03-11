@@ -5,6 +5,7 @@ import AdminSidebar from './AdminSidebar';
 import AdminAppBar from './AdminAppBar';
 import AdminBreadcrumb from './AdminBreadcrumb';
 import { MobileBottomNav } from '../mobile';
+import SkipToContent from '../common/SkipToContent';
 
 const DRAWER_WIDTH = 280;
 const COLLAPSED_DRAWER_WIDTH = 64;
@@ -27,6 +28,8 @@ export default function AdminLayout() {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <SkipToContent targetId="main-content" />
+
       <AdminAppBar
         open={isMobile ? false : desktopOpen}
         onMenuClick={handleDrawerToggle}
@@ -40,6 +43,7 @@ export default function AdminLayout() {
           flexShrink: { sm: 0 },
           display: { xs: 'none', md: 'block' },
         }}
+        aria-label="Main navigation"
       >
         <AdminSidebar
           open={desktopOpen}
@@ -50,6 +54,10 @@ export default function AdminLayout() {
 
       <Box
         component="main"
+        id="main-content"
+        tabIndex={-1}
+        role="main"
+        aria-label="Main content"
         sx={{
           flexGrow: 1,
           width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
@@ -60,11 +68,18 @@ export default function AdminLayout() {
             duration: theme.transitions.duration.leavingScreen,
           }),
           pb: { xs: 8, md: 0 },
+          '&:focus': {
+            outline: 'none',
+          },
         }}
       >
-        <Box sx={{ minHeight: 64 }} />
+        <Box sx={{ minHeight: 64 }} aria-hidden="true" />
 
-        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <Box
+          sx={{ display: { xs: 'none', md: 'block' } }}
+          role="navigation"
+          aria-label="Breadcrumb"
+        >
           <AdminBreadcrumb />
         </Box>
 
