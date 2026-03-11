@@ -467,3 +467,141 @@ async def aggregate_class_metrics(
             continue
 
     return results
+
+
+@router.get("/student/{student_id}")
+async def get_student_performance_analytics(
+    student_id: int,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get comprehensive student performance analytics for dashboard."""
+    return await get_student_metrics(
+        student_id=student_id,
+        date_range_type=DateRangeType.CUSTOM if start_date else DateRangeType.MONTHLY,
+        start_date=date.fromisoformat(start_date) if start_date else None,
+        end_date=date.fromisoformat(end_date) if end_date else None,
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.get("/class/{class_id}")
+async def get_class_performance_analytics(
+    class_id: int,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get comprehensive class performance analytics for dashboard."""
+    return await get_class_metrics(
+        section_id=class_id,
+        date_range_type=DateRangeType.CUSTOM if start_date else DateRangeType.MONTHLY,
+        start_date=date.fromisoformat(start_date) if start_date else None,
+        end_date=date.fromisoformat(end_date) if end_date else None,
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.get("/institution/{institution_id}")
+async def get_institution_analytics_dashboard(
+    institution_id: int,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get comprehensive institution-wide analytics for dashboard."""
+    return await get_institution_metrics(
+        date_range_type=DateRangeType.CUSTOM if start_date else DateRangeType.MONTHLY,
+        start_date=date.fromisoformat(start_date) if start_date else None,
+        end_date=date.fromisoformat(end_date) if end_date else None,
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.post("/institution/{institution_id}/custom-report")
+async def generate_custom_report(
+    institution_id: int,
+    filters: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generate a custom report with specified filters."""
+    try:
+        redis_client = await get_redis()
+    except Exception:
+        redis_client = None
+
+    service = ReportGenerationService(db, redis_client)
+    
+    report_request = ReportGenerationRequest(
+        report_type=ReportType.CUSTOM,
+        report_title=f"Custom Report - {date.today().isoformat()}",
+        parameters=filters,
+        include_charts=True,
+    )
+    
+    return await generate_report(
+        request=report_request,
+        background_tasks=BackgroundTasks(),
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.post("/export/pdf")
+async def export_report_to_pdf(
+    report_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Export analytics report to PDF."""
+    try:
+        redis_client = await get_redis()
+    except Exception:
+        redis_client = None
+
+    service = ReportGenerationService(db, redis_client)
+    
+    pdf_bytes = await service.export_to_pdf(report_data)
+    
+    from fastapi.responses import StreamingResponse
+    import io
+    
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=analytics-report.pdf"}
+    )
+
+
+@router.post("/export/excel")
+async def export_report_to_excel(
+    report_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Export analytics report to Excel."""
+    try:
+        redis_client = await get_redis()
+    except Exception:
+        redis_client = None
+
+    service = ReportGenerationService(db, redis_client)
+    
+    excel_bytes = await service.export_to_excel(report_data)
+    
+    from fastapi.responses import StreamingResponse
+    import io
+    
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=analytics-report.xlsx"}
+    )

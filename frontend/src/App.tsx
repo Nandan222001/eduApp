@@ -41,6 +41,9 @@ import QuestionBankBrowserPage from './pages/QuestionBankBrowserPage';
 import AIPredictionDashboard from './pages/AIPredictionDashboard';
 import GoalsManagement from './pages/GoalsManagement';
 import GamificationDashboard from './pages/GamificationDashboard';
+import StudentPerformanceAnalytics from './pages/StudentPerformanceAnalytics';
+import ClassPerformanceAnalytics from './pages/ClassPerformanceAnalytics';
+import InstitutionAnalyticsDashboard from './pages/InstitutionAnalyticsDashboard';
 
 import {
   LoginPage,
@@ -123,7 +126,8 @@ function App() {
               <Route path="gamification" element={<GamificationDashboard />} />
               <Route path="communication/announcements" element={<div>Announcements</div>} />
               <Route path="communication/messages" element={<div>Messages</div>} />
-              <Route path="analytics" element={<div>Analytics</div>} />
+              <Route path="analytics" element={<InstitutionAnalyticsDashboard />} />
+              <Route path="analytics/class/:classId" element={<ClassPerformanceAnalytics />} />
               <Route path="settings" element={<div>Settings</div>} />
               <Route path="profile" element={<div>Profile</div>} />
             </Route>
@@ -137,6 +141,7 @@ function App() {
             <Route path="/teacher" element={<AdminLayout />}>
               <Route index element={<TeacherDashboard />} />
               <Route path="dashboard" element={<TeacherDashboard />} />
+              <Route path="analytics/class/:classId" element={<ClassPerformanceAnalytics />} />
               <Route path="goals" element={<GoalsManagement />} />
               <Route path="gamification" element={<GamificationDashboard />} />
             </Route>
@@ -148,6 +153,7 @@ function App() {
             <Route path="/student" element={<AdminLayout />}>
               <Route index element={<StudentDashboard />} />
               <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="analytics" element={<StudentPerformanceAnalytics />} />
               <Route path="ai-prediction" element={<AIPredictionDashboard />} />
               <Route path="goals" element={<GoalsManagement />} />
               <Route path="gamification" element={<GamificationDashboard />} />
