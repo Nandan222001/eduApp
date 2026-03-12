@@ -1,4 +1,4 @@
-import { trackEvent, trackFeatureUsage, trackConversion, trackClick } from '@/lib/analytics';
+import { analytics } from '@/lib/analytics';
 
 export const AnalyticsEvents = {
   AUTH: {
@@ -66,10 +66,9 @@ export class AnalyticsHelper {
     action: keyof typeof AnalyticsEvents.AUTH,
     properties?: Record<string, unknown>
   ) {
-    trackEvent({
-      event_name: AnalyticsEvents.AUTH[action],
+    analytics.trackEvent(AnalyticsEvents.AUTH[action], {
       event_type: 'authentication',
-      properties,
+      ...properties,
     });
   }
 
@@ -77,10 +76,9 @@ export class AnalyticsHelper {
     action: keyof typeof AnalyticsEvents.ASSIGNMENT,
     properties?: Record<string, unknown>
   ) {
-    trackEvent({
-      event_name: AnalyticsEvents.ASSIGNMENT[action],
+    analytics.trackEvent(AnalyticsEvents.ASSIGNMENT[action], {
       event_type: 'assignment',
-      properties,
+      ...properties,
     });
   }
 
@@ -88,10 +86,9 @@ export class AnalyticsHelper {
     action: keyof typeof AnalyticsEvents.ATTENDANCE,
     properties?: Record<string, unknown>
   ) {
-    trackEvent({
-      event_name: AnalyticsEvents.ATTENDANCE[action],
+    analytics.trackEvent(AnalyticsEvents.ATTENDANCE[action], {
       event_type: 'attendance',
-      properties,
+      ...properties,
     });
   }
 
@@ -99,10 +96,9 @@ export class AnalyticsHelper {
     action: keyof typeof AnalyticsEvents.EXAM,
     properties?: Record<string, unknown>
   ) {
-    trackEvent({
-      event_name: AnalyticsEvents.EXAM[action],
+    analytics.trackEvent(AnalyticsEvents.EXAM[action], {
       event_type: 'exam',
-      properties,
+      ...properties,
     });
   }
 
@@ -110,10 +106,9 @@ export class AnalyticsHelper {
     action: keyof typeof AnalyticsEvents.SUBSCRIPTION,
     properties?: Record<string, unknown>
   ) {
-    trackEvent({
-      event_name: AnalyticsEvents.SUBSCRIPTION[action],
+    analytics.trackEvent(AnalyticsEvents.SUBSCRIPTION[action], {
       event_type: 'subscription',
-      properties,
+      ...properties,
     });
   }
 
@@ -121,7 +116,10 @@ export class AnalyticsHelper {
     feature: keyof typeof AnalyticsFeatures,
     properties?: Record<string, unknown>
   ) {
-    trackFeatureUsage(AnalyticsFeatures[feature], properties);
+    analytics.trackFeatureUsage({
+      feature_name: AnalyticsFeatures[feature],
+      ...properties,
+    });
   }
 
   static trackConversionEvent(
@@ -129,80 +127,74 @@ export class AnalyticsHelper {
     value?: number,
     properties?: Record<string, unknown>
   ) {
-    trackConversion(ConversionTypes[type], value, properties);
+    analytics.trackConversion(ConversionTypes[type], {
+      value,
+      ...properties,
+    });
   }
 
   static trackButtonClick(buttonId: string, properties?: Record<string, unknown>) {
-    trackClick(`button_${buttonId}`, properties);
+    analytics.trackClick({
+      element_id: `button_${buttonId}`,
+      ...properties,
+    });
   }
 
   static trackLinkClick(linkId: string, url?: string, properties?: Record<string, unknown>) {
-    trackClick(`link_${linkId}`, { ...properties, url });
+    analytics.trackClick({
+      element_id: `link_${linkId}`,
+      link_url: url,
+      ...properties,
+    });
   }
 
   static trackFormSubmission(formName: string, properties?: Record<string, unknown>) {
-    trackEvent({
-      event_name: `form_submit_${formName}`,
+    analytics.trackEvent(`form_submit_${formName}`, {
       event_type: 'form_submission',
-      properties,
+      ...properties,
     });
   }
 
   static trackError(errorType: string, errorMessage: string, properties?: Record<string, unknown>) {
-    trackEvent({
-      event_name: `error_${errorType}`,
+    analytics.trackEvent(`error_${errorType}`, {
       event_type: 'error',
-      properties: {
-        ...properties,
-        error_message: errorMessage,
-      },
+      error_message: errorMessage,
+      ...properties,
     });
   }
 
   static trackSearch(query: string, resultsCount: number, properties?: Record<string, unknown>) {
-    trackEvent({
-      event_name: 'search',
+    analytics.trackEvent('search', {
       event_type: 'search',
-      properties: {
-        ...properties,
-        query,
-        results_count: resultsCount,
-      },
+      query,
+      results_count: resultsCount,
+      ...properties,
     });
   }
 
   static trackDownload(fileName: string, fileType: string, properties?: Record<string, unknown>) {
-    trackEvent({
-      event_name: 'file_download',
+    analytics.trackEvent('file_download', {
       event_type: 'download',
-      properties: {
-        ...properties,
-        file_name: fileName,
-        file_type: fileType,
-      },
+      file_name: fileName,
+      file_type: fileType,
+      ...properties,
     });
   }
 
   static trackShare(platform: string, contentType: string, properties?: Record<string, unknown>) {
-    trackEvent({
-      event_name: 'content_share',
+    analytics.trackEvent('content_share', {
       event_type: 'share',
-      properties: {
-        ...properties,
-        platform,
-        content_type: contentType,
-      },
+      platform,
+      content_type: contentType,
+      ...properties,
     });
   }
 
   static trackVideoPlay(videoId: string, properties?: Record<string, unknown>) {
-    trackEvent({
-      event_name: 'video_play',
+    analytics.trackEvent('video_play', {
       event_type: 'media',
-      properties: {
-        ...properties,
-        video_id: videoId,
-      },
+      video_id: videoId,
+      ...properties,
     });
   }
 
@@ -211,14 +203,11 @@ export class AnalyticsHelper {
     duration: number,
     properties?: Record<string, unknown>
   ) {
-    trackEvent({
-      event_name: 'video_complete',
+    analytics.trackEvent('video_complete', {
       event_type: 'media',
-      properties: {
-        ...properties,
-        video_id: videoId,
-        duration,
-      },
+      video_id: videoId,
+      duration,
+      ...properties,
     });
   }
 }

@@ -6,7 +6,10 @@ const PageViewTracker: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
-    analytics.trackPageView(location.pathname + location.search, document.title);
+    analytics.trackPageView({
+      page_path: location.pathname + location.search,
+      page_title: document.title,
+    });
   }, [location]);
 
   return null;
