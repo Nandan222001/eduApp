@@ -26,7 +26,7 @@ import {
   ExamPerformanceRadar,
   ChapterMasteryGauges,
 } from '@/components/analytics';
-import analyticsApi from '@/api/analytics';
+import { analyticsApi } from '@/api/analytics';
 import type { StudentPerformanceAnalytics } from '@/types/analytics';
 import { useAuth } from '@/hooks/useAuth';
 import { subDays, subMonths } from 'date-fns';

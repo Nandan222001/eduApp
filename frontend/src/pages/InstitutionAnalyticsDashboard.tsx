@@ -26,7 +26,7 @@ import {
   EngagementStatistics,
   CustomReportBuilder,
 } from '@/components/analytics';
-import analyticsApi from '@/api/analytics';
+import { analyticsApi } from '@/api/analytics';
 import { InstitutionAnalytics, CustomReportData, CustomReportFilter } from '@/types/analytics';
 import { subDays, subMonths } from 'date-fns';
 
@@ -93,8 +93,7 @@ export default function InstitutionAnalyticsDashboard() {
   }, [dateRange]);
 
   const handleGenerateCustomReport = async (filters: CustomReportFilter) => {
-    const institutionId = 1;
-    return await analyticsApi.generateCustomReport(institutionId, filters);
+    return await analyticsApi.generateCustomReport(filters);
   };
 
   const handleExportPDF = async (reportData: CustomReportData) => {

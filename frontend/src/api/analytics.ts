@@ -1,4 +1,11 @@
 import axios from 'axios';
+import type {
+  ClassPerformanceAnalytics,
+  InstitutionAnalytics,
+  StudentPerformanceAnalytics,
+  CustomReportData,
+  CustomReportFilter,
+} from '@/types/analytics';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -110,6 +117,79 @@ export const analyticsApi = {
     const response = await axios.get(`${API_URL}/api/v1/analytics/performance/stats`, {
       params,
     });
+    return response.data;
+  },
+
+  getClassPerformanceAnalytics: async (
+    classId: number,
+    periodStart?: string,
+    periodEnd?: string
+  ): Promise<ClassPerformanceAnalytics> => {
+    const params = {
+      ...(periodStart ? { period_start: periodStart } : {}),
+      ...(periodEnd ? { period_end: periodEnd } : {}),
+    };
+    const response = await axios.get(`${API_URL}/api/v1/analytics/class/${classId}/performance`, {
+      params,
+    });
+    return response.data;
+  },
+
+  getInstitutionAnalytics: async (
+    institutionId: number,
+    periodStart?: string,
+    periodEnd?: string
+  ): Promise<InstitutionAnalytics> => {
+    const params = {
+      ...(periodStart ? { period_start: periodStart } : {}),
+      ...(periodEnd ? { period_end: periodEnd } : {}),
+    };
+    const response = await axios.get(`${API_URL}/api/v1/analytics/institution/${institutionId}`, {
+      params,
+    });
+    return response.data;
+  },
+
+  getStudentPerformanceAnalytics: async (
+    studentId: number,
+    periodStart?: string,
+    periodEnd?: string
+  ): Promise<StudentPerformanceAnalytics> => {
+    const params = {
+      ...(periodStart ? { period_start: periodStart } : {}),
+      ...(periodEnd ? { period_end: periodEnd } : {}),
+    };
+    const response = await axios.get(
+      `${API_URL}/api/v1/analytics/student/${studentId}/performance`,
+      { params }
+    );
+    return response.data;
+  },
+
+  generateCustomReport: async (filters: CustomReportFilter): Promise<CustomReportData> => {
+    const response = await axios.post(`${API_URL}/api/v1/analytics/reports/custom`, filters);
+    return response.data;
+  },
+
+  exportReportToPDF: async (reportData: CustomReportData): Promise<Blob> => {
+    const response = await axios.post(
+      `${API_URL}/api/v1/analytics/reports/export/pdf`,
+      reportData,
+      {
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  },
+
+  exportReportToExcel: async (reportData: CustomReportData): Promise<Blob> => {
+    const response = await axios.post(
+      `${API_URL}/api/v1/analytics/reports/export/excel`,
+      reportData,
+      {
+        responseType: 'blob',
+      }
+    );
     return response.data;
   },
 };

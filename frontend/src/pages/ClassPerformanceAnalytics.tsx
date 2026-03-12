@@ -29,7 +29,7 @@ import {
   SubjectDifficultyAnalysis,
   PerformersTable,
 } from '@/components/analytics';
-import analyticsApi from '@/api/analytics';
+import { analyticsApi } from '@/api/analytics';
 import type { ClassPerformanceAnalytics } from '@/types/analytics';
 import { subDays, subMonths } from 'date-fns';
 
