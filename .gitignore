@@ -136,3 +136,43 @@ playwright/.auth/
 *.e2e.spec.ts-snapshots/
 test_*.db
 *.test.db
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+terraform/crash.log
+terraform/crash.*.log
+terraform/.terraform.tfstate.lock.info
+
+# CloudFormation
+cloudformation/*.yml.bak
+cloudformation/outputs/
+
+# Deployment
+scripts/deployment/*.log
+outputs.txt
+.env.prod
+.env.staging
+
+# SSL Certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+!nginx/ssl/.gitkeep
+
+# Backups
+backups/*.sql
+backups/*.dump
+backups/*.tar.gz
+
+# AWS credentials
+.aws/credentials
+aws-exports.js
+
+# Kubernetes (if used)
+k8s/secrets.yaml
+k8s/configmaps.yaml

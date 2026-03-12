@@ -34,4 +34,30 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "environment": settings.app_env}
+    from src.database import SessionLocal
+    from src.redis_client import get_redis_client
+    
+    health_status = {
+        "status": "healthy",
+        "environment": settings.app_env,
+        "version": "0.1.0"
+    }
+    
+    try:
+        db = SessionLocal()
+        db.execute("SELECT 1")
+        db.close()
+        health_status["database"] = "connected"
+    except Exception as e:
+        health_status["database"] = f"error: {str(e)}"
+        health_status["status"] = "unhealthy"
+    
+    try:
+        redis = await get_redis_client()
+        await redis.ping()
+        health_status["redis"] = "connected"
+    except Exception as e:
+        health_status["redis"] = f"error: {str(e)}"
+        health_status["status"] = "unhealthy"
+    
+    return health_status
