@@ -69,6 +69,7 @@ import RegisterPage from './components/auth/RegisterPage';
 import SessionTimeoutWrapper from './components/common/SessionTimeoutWrapper';
 import { ErrorBoundaryWrapper, OfflineIndicator, QueryErrorHandler } from './components/common';
 import { ToastProvider } from './contexts/ToastContext';
+import { ChatbotWidget } from './components/chatbot';
 
 function App() {
   const isDevelopment = import.meta.env.DEV;
@@ -106,6 +107,7 @@ function App() {
           <QueryErrorHandler>
             <SessionTimeoutWrapper>
               <OfflineIndicator position="top" />
+              <ChatbotWidget />
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />

@@ -10,3 +10,4 @@ export { default as useFocusTrap } from './useFocusTrap';
 export { default as useKeyboardNavigation } from './useKeyboardNavigation';
 export { default as useRovingTabIndex } from './useRovingTabIndex';
 export { default as useGlobalKeyboardShortcuts } from './useGlobalKeyboardShortcuts';
+export { useChatbot } from './useChatbot';
