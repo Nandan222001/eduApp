@@ -279,3 +279,22 @@ a:focus-visible {
     backdrop-filter: blur(5px);
   }
 }
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rotating {
+  animation: rotate 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotating {
+    animation: none;
+  }
+}

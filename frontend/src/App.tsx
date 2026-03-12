@@ -73,9 +73,12 @@ import {
 } from './components/auth';
 import RegisterPage from './components/auth/RegisterPage';
 import SessionTimeoutWrapper from './components/common/SessionTimeoutWrapper';
-import { ErrorBoundaryWrapper, OfflineIndicator, QueryErrorHandler } from './components/common';
+import { ErrorBoundaryWrapper, QueryErrorHandler } from './components/common';
 import { ToastProvider } from './contexts/ToastContext';
 import { ChatbotWidget } from './components/chatbot';
+import { InstallPrompt } from './components/common/InstallPrompt';
+import { UpdatePrompt } from './components/common/UpdatePrompt';
+import { OfflineIndicator as PWAOfflineIndicator } from './components/common/PWAOfflineIndicator';
 
 function App() {
   const isDevelopment = import.meta.env.DEV;
@@ -112,7 +115,9 @@ function App() {
         <ToastProvider>
           <QueryErrorHandler>
             <SessionTimeoutWrapper>
-              <OfflineIndicator position="top" />
+              <PWAOfflineIndicator />
+              <InstallPrompt />
+              <UpdatePrompt />
               <ChatbotWidget />
               <Routes>
                 <Route path="/login" element={<LoginPage />} />

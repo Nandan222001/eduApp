@@ -11,11 +11,15 @@ import { WebSocketConnectionStatus } from './components/common/WebSocketConnecti
 import { initSentry } from './lib/sentry';
 import { analytics } from './lib/analytics';
 import { initWebVitals } from './lib/webVitals';
+import { setupOfflineSync } from './utils/offlineQueue';
+import { setupInstallPrompt } from './utils/pwa';
 import './index.css';
 
 initSentry();
 analytics.init();
 initWebVitals();
+setupOfflineSync();
+setupInstallPrompt();
 
 const queryClient = new QueryClient({
   defaultOptions: {
