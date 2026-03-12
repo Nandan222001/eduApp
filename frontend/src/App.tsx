@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import { AdminLayout } from './components/admin';
+import { ParentLayout } from './components/parent';
 import Home from './pages/Home';
 import About from './pages/About';
 import NotFound from './pages/NotFound';
@@ -58,6 +59,10 @@ import QuizLeaderboardPage from './pages/QuizLeaderboardPage';
 import QuizAnalyticsPage from './pages/QuizAnalyticsPage';
 import PomodoroTimer from './pages/PomodoroTimer';
 import SettingsPage from './pages/SettingsPage';
+import ParentDashboard from './pages/ParentDashboard';
+import ParentAttendanceMonitor from './pages/ParentAttendanceMonitor';
+import ParentGradesMonitor from './pages/ParentGradesMonitor';
+import ParentCommunicationDashboard from './pages/ParentCommunicationDashboard';
 
 import {
   LoginPage,
@@ -273,6 +278,27 @@ function App() {
                       element={<InstitutionSubscription />}
                     />
                     <Route path="institutions/:id/analytics" element={<InstitutionAnalytics />} />
+                  </Route>
+                </Route>
+
+                <Route
+                  element={
+                    <ProtectedRoute allowedRoles={['parent']} requireEmailVerified={false} />
+                  }
+                >
+                  <Route path="/parent" element={<ParentLayout />}>
+                    <Route index element={<ParentDashboard />} />
+                    <Route path="dashboard" element={<ParentDashboard />} />
+                    <Route path="attendance" element={<ParentAttendanceMonitor />} />
+                    <Route path="grades" element={<ParentGradesMonitor />} />
+                    <Route path="assignments" element={<div>Parent Assignments View</div>} />
+                    <Route path="progress" element={<div>Academic Progress</div>} />
+                    <Route path="goals" element={<GoalsManagement />} />
+                    <Route path="communication" element={<ParentCommunicationDashboard />} />
+                    <Route path="schedule" element={<div>Class Schedule</div>} />
+                    <Route path="notifications" element={<div>Notifications</div>} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="profile" element={<SettingsPage />} />
                   </Route>
                 </Route>
 

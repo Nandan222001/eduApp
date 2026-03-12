@@ -42,6 +42,14 @@ export default function MobileBottomNav() {
         { label: 'Materials', icon: <SchoolIcon />, path: '/student/materials' },
         { label: 'Settings', icon: <SettingsIcon />, path: '/student/settings' },
       ];
+    } else if (role === 'parent') {
+      return [
+        { label: 'Dashboard', icon: <DashboardIcon />, path: '/parent/dashboard' },
+        { label: 'Attendance', icon: <SchoolIcon />, path: '/parent/attendance' },
+        { label: 'Grades', icon: <AssignmentIcon />, path: '/parent/grades' },
+        { label: 'Messages', icon: <AnalyticsIcon />, path: '/parent/communication' },
+        { label: 'Settings', icon: <SettingsIcon />, path: '/parent/settings' },
+      ];
     }
 
     return [];

@@ -1,3 +1,8 @@
+export { default as ParentLayout } from './ParentLayout';
+export { default as ParentAppBar } from './ParentAppBar';
+export { default as ParentSidebar } from './ParentSidebar';
+export { default as ParentBreadcrumb } from './ParentBreadcrumb';
+export { default as ParentBottomNav } from './ParentBottomNav';
 export { ChildOverviewCard } from './ChildOverviewCard';
 export { TodayAttendanceCard } from './TodayAttendanceCard';
 export { RecentGradesTable } from './RecentGradesTable';
