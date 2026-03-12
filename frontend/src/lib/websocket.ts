@@ -48,7 +48,7 @@ export class WebSocketClient {
   private socket: Socket | null = null;
   private url: string;
   private isConnecting = false;
-  private isConnected = false;
+  private _isConnected = false;
   private messageHandlers: Map<WebSocketMessageType, Set<MessageHandler>> = new Map();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -60,7 +60,7 @@ export class WebSocketClient {
   }
 
   connect(token?: string): void {
-    if (this.isConnected || this.isConnecting) {
+    if (this._isConnected || this.isConnecting) {
       console.warn('WebSocket is already connected or connecting');
       return;
     }
@@ -84,7 +84,7 @@ export class WebSocketClient {
 
     this.socket.on('connect', () => {
       console.info('WebSocket connected');
-      this.isConnected = true;
+      this._isConnected = true;
       this.isConnecting = false;
       this.reconnectAttempts = 0;
 
@@ -95,7 +95,7 @@ export class WebSocketClient {
 
     this.socket.on('disconnect', (reason) => {
       console.info('WebSocket disconnected:', reason);
-      this.isConnected = false;
+      this._isConnected = false;
       this.isConnecting = false;
     });
 
@@ -140,7 +140,7 @@ export class WebSocketClient {
     this.currentRooms.clear();
     this.socket.disconnect();
     this.socket = null;
-    this.isConnected = false;
+    this._isConnected = false;
     this.isConnecting = false;
     this.reconnectAttempts = 0;
     console.info('WebSocket disconnected manually');
@@ -169,7 +169,7 @@ export class WebSocketClient {
   }
 
   joinRoom(roomId: string): void {
-    if (!this.socket || !this.isConnected) {
+    if (!this.socket || !this._isConnected) {
       console.warn('WebSocket is not connected. Room will be joined after connection.');
       this.currentRooms.add(roomId);
       return;
@@ -181,7 +181,7 @@ export class WebSocketClient {
   }
 
   leaveRoom(roomId: string): void {
-    if (!this.socket || !this.isConnected) {
+    if (!this.socket || !this._isConnected) {
       this.currentRooms.delete(roomId);
       return;
     }
@@ -192,7 +192,7 @@ export class WebSocketClient {
   }
 
   sendMessage<T = unknown>(messageType: WebSocketMessageType, payload: T, roomId?: string): void {
-    if (!this.socket || !this.isConnected) {
+    if (!this.socket || !this._isConnected) {
       console.error('Cannot send message: WebSocket is not connected');
       return;
     }
@@ -208,7 +208,7 @@ export class WebSocketClient {
   }
 
   sendTypingIndicator(roomId: string, isTyping: boolean): void {
-    if (!this.socket || !this.isConnected) {
+    if (!this.socket || !this._isConnected) {
       return;
     }
 
@@ -220,7 +220,7 @@ export class WebSocketClient {
   }
 
   updatePresence(status: 'online' | 'offline' | 'away'): void {
-    if (!this.socket || !this.isConnected) {
+    if (!this.socket || !this._isConnected) {
       console.warn('Cannot update presence: WebSocket is not connected');
       return;
     }
@@ -236,13 +236,69 @@ export class WebSocketClient {
 
   getConnectionStatus(): { isConnected: boolean; isConnecting: boolean } {
     return {
-      isConnected: this.isConnected,
+      isConnected: this._isConnected,
       isConnecting: this.isConnecting,
     };
   }
 
   getCurrentRooms(): string[] {
     return Array.from(this.currentRooms);
+  }
+
+  on<T = unknown>(
+    messageType: WebSocketMessageType | string,
+    handler: MessageHandler<T>
+  ): () => void {
+    if (
+      typeof messageType === 'string' &&
+      !Object.values(WebSocketMessageType).includes(messageType as WebSocketMessageType)
+    ) {
+      if (!this.socket) {
+        console.warn('Cannot subscribe to custom event: WebSocket is not initialized');
+        return () => {};
+      }
+
+      this.socket.on(messageType, (data: unknown) => {
+        const message: WebSocketMessage = {
+          type: messageType as WebSocketMessageType,
+          payload: data,
+          timestamp: Date.now(),
+        };
+        handler(message as WebSocketMessage<T>);
+      });
+
+      return () => {
+        this.socket?.off(messageType);
+      };
+    }
+
+    return this.subscribe(messageType as WebSocketMessageType, handler);
+  }
+
+  isConnected(): boolean {
+    return this.getConnectionStatus().isConnected;
+  }
+
+  sendTyping(roomId: string, isTyping: boolean): void {
+    this.sendTypingIndicator(roomId, isTyping);
+  }
+
+  getOnlineUsers(userIds?: number[]): void {
+    if (!this.socket || !this._isConnected) {
+      console.warn('Cannot get online users: WebSocket is not connected');
+      return;
+    }
+
+    this.socket.emit('get_online_users', userIds ? { userIds } : undefined);
+  }
+
+  getUserPresence(userId: number | string): void {
+    if (!this.socket || !this._isConnected) {
+      console.warn('Cannot get user presence: WebSocket is not connected');
+      return;
+    }
+
+    this.socket.emit('get_user_presence', { userId });
   }
 
   private handleMessage(messageType: WebSocketMessageType, message: WebSocketMessage): void {
