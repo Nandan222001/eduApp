@@ -136,6 +136,9 @@ playwright/.auth/
 *.e2e.spec.ts-snapshots/
 test_*.db
 *.test.db
+.benchmarks/
+.pytest-benchmark/
+benchmark_*.json
 
 # Terraform
 terraform/.terraform/
