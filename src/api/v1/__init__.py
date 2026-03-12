@@ -47,7 +47,9 @@ from src.api.v1 import (
     flashcards,
     quizzes,
     chatbot,
-    ml_training
+    ml_training,
+    ml_monitoring,
+    ml_analytics
 )
 from src.api import ml
 
@@ -102,3 +104,5 @@ api_router.include_router(flashcards.router, prefix="", tags=["flashcards"])
 api_router.include_router(quizzes.router, prefix="", tags=["quizzes"])
 api_router.include_router(chatbot.router, prefix="/chatbot", tags=["chatbot"])
 api_router.include_router(ml_training.router, prefix="", tags=["ml-training"])
+api_router.include_router(ml_monitoring.router, prefix="", tags=["ml-monitoring"])
+api_router.include_router(ml_analytics.router, prefix="", tags=["ml-analytics"])
