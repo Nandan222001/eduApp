@@ -56,6 +56,7 @@ import QuizList from './pages/QuizList';
 import QuizTakePage from './pages/QuizTakePage';
 import QuizLeaderboardPage from './pages/QuizLeaderboardPage';
 import QuizAnalyticsPage from './pages/QuizAnalyticsPage';
+import PomodoroTimer from './pages/PomodoroTimer';
 
 import {
   LoginPage,
@@ -237,6 +238,7 @@ function App() {
                     <Route path="dashboard" element={<StudentDashboard />} />
                     <Route path="analytics" element={<StudentPerformanceAnalytics />} />
                     <Route path="ai-prediction" element={<AIPredictionDashboard />} />
+                    <Route path="pomodoro" element={<PomodoroTimer />} />
                     <Route path="goals" element={<GoalsManagement />} />
                     <Route path="gamification" element={<GamificationDashboard />} />
                     <Route path="search" element={<SearchResultsPage />} />

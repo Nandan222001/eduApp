@@ -24,6 +24,7 @@ import {
   Payment as PaymentIcon,
   CloudDownload as ExportIcon,
   CloudUpload as ImportIcon,
+  Timer as TimerIcon,
 } from '@mui/icons-material';
 import { NavigationItem } from '@/types/navigation';
 
@@ -226,6 +227,14 @@ export const navigationConfig: NavigationItem[] = [
         roles: ['admin', 'teacher'],
       },
     ],
+  },
+  {
+    id: 'pomodoro',
+    title: 'Pomodoro Timer',
+    path: '/student/pomodoro',
+    icon: <TimerIcon />,
+    roles: ['student'],
+    badge: 'NEW',
   },
   {
     id: 'goals',
