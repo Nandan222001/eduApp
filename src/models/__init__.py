@@ -42,6 +42,14 @@ from src.models.timetable import (
     TimetableTemplate, PeriodSlot, Timetable, TimetableEntry,
     DayOfWeek, PeriodType
 )
+from src.models.doubt import (
+    DoubtPost, DoubtAnswer, DoubtVote, AnswerVote, DoubtBookmark, DoubtComment,
+    DoubtStatus, VoteType
+)
+from src.models.study_group import (
+    StudyGroup, GroupMember, GroupMessage, GroupResource, GroupActivity, GroupInvite,
+    GroupMemberRole, MessageType, ActivityType, InviteStatus
+)
 
 __all__ = [
     "Institution",
@@ -186,4 +194,22 @@ __all__ = [
     "TimetableEntry",
     "DayOfWeek",
     "PeriodType",
+    "DoubtPost",
+    "DoubtAnswer",
+    "DoubtVote",
+    "AnswerVote",
+    "DoubtBookmark",
+    "DoubtComment",
+    "DoubtStatus",
+    "VoteType",
+    "StudyGroup",
+    "GroupMember",
+    "GroupMessage",
+    "GroupResource",
+    "GroupActivity",
+    "GroupInvite",
+    "GroupMemberRole",
+    "MessageType",
+    "ActivityType",
+    "InviteStatus",
 ]
