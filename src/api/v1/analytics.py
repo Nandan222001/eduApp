@@ -1,607 +1,181 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
-from sqlalchemy.orm import Session
-from datetime import date
-
+from uuid import UUID
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
-from src.dependencies.auth import get_current_user
-from src.models.user import User
+from src.repositories.analytics_repository import AnalyticsRepository
 from src.schemas.analytics import (
-    AnalyticsQueryParams,
-    StudentMetrics,
-    ClassMetrics,
-    InstitutionMetrics,
-    ExamAnalytics,
-    YoYComparison,
-    StudentPerformanceComparison,
-    AnalyticsResponse,
-    ReportGenerationRequest,
-    ReportResponse,
-    StudentPerformanceTrend,
-    AnalyticsDashboard,
-    DateRangeType,
-    MetricType,
-    ReportType,
+    AnalyticsEventCreate,
+    AnalyticsEventResponse,
+    PerformanceMetricCreate,
+    PerformanceMetricResponse,
+    UserSessionCreate,
+    UserSessionUpdate,
+    UserSessionResponse,
+    FeatureUsageCreate,
+    FeatureUsageResponse,
+    BatchAnalyticsRequest,
+    AnalyticsDashboardStats,
+    FeatureAdoptionStats,
+    UserFlowAnalysis,
+    RetentionCohort,
+    TopEventStats,
+    PerformanceStats,
 )
-from src.services.analytics_service import AnalyticsService
-from src.services.report_generation_service import ReportGenerationService
-from src.redis_client import get_redis
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
-@router.get("/student/{student_id}/metrics", response_model=StudentMetrics)
-async def get_student_metrics(
-    student_id: int,
-    date_range_type: DateRangeType = Query(DateRangeType.MONTHLY),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> StudentMetrics:
-    """Get comprehensive performance metrics for a specific student."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    params = AnalyticsQueryParams(
-        date_range_type=date_range_type,
-        start_date=start_date,
-        end_date=end_date,
-    )
-
-    service = AnalyticsService(db, redis_client)
-    try:
-        metrics = await service.get_student_metrics(
-            current_user.institution_id, student_id, params
-        )
-        return metrics
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch student metrics: {str(e)}",
-        )
-
-
-@router.get("/class/{section_id}/metrics", response_model=ClassMetrics)
-async def get_class_metrics(
-    section_id: int,
-    date_range_type: DateRangeType = Query(DateRangeType.MONTHLY),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> ClassMetrics:
-    """Get comprehensive performance metrics for a specific class/section."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    params = AnalyticsQueryParams(
-        date_range_type=date_range_type,
-        start_date=start_date,
-        end_date=end_date,
-    )
-
-    service = AnalyticsService(db, redis_client)
-    try:
-        metrics = await service.get_class_metrics(
-            current_user.institution_id, section_id, params
-        )
-        return metrics
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch class metrics: {str(e)}",
-        )
-
-
-@router.get("/institution/metrics", response_model=InstitutionMetrics)
-async def get_institution_metrics(
-    date_range_type: DateRangeType = Query(DateRangeType.MONTHLY),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> InstitutionMetrics:
-    """Get comprehensive performance metrics for the entire institution."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    params = AnalyticsQueryParams(
-        date_range_type=date_range_type,
-        start_date=start_date,
-        end_date=end_date,
-    )
-
-    service = AnalyticsService(db, redis_client)
-    try:
-        metrics = await service.get_institution_metrics(
-            current_user.institution_id, params
-        )
-        return metrics
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch institution metrics: {str(e)}",
-        )
-
-
-@router.get("/exam/{exam_id}/analytics", response_model=ExamAnalytics)
-async def get_exam_analytics(
-    exam_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> ExamAnalytics:
-    """Get detailed analytics for a specific exam including subject-wise performance."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    service = AnalyticsService(db, redis_client)
-    try:
-        analytics = await service.get_exam_analytics(
-            current_user.institution_id, exam_id
-        )
-        return analytics
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch exam analytics: {str(e)}",
-        )
-
-
-@router.get("/yoy-comparison", response_model=List[YoYComparison])
-async def get_yoy_comparison(
-    date_range_type: DateRangeType = Query(DateRangeType.YEARLY),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> List[YoYComparison]:
-    """Get year-over-year comparison of key performance metrics."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    params = AnalyticsQueryParams(
-        date_range_type=date_range_type,
-        start_date=start_date,
-        end_date=end_date,
-    )
-
-    service = AnalyticsService(db, redis_client)
-    try:
-        comparisons = await service.get_yoy_comparison(
-            current_user.institution_id, params
-        )
-        return comparisons
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch YoY comparison: {str(e)}",
-        )
-
-
-@router.get("/student/{student_id}/comparison", response_model=StudentPerformanceComparison)
-async def get_student_performance_comparison(
-    student_id: int,
-    date_range_type: DateRangeType = Query(DateRangeType.MONTHLY),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> StudentPerformanceComparison:
-    """Compare student performance against class and grade averages."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    params = AnalyticsQueryParams(
-        date_range_type=date_range_type,
-        start_date=start_date,
-        end_date=end_date,
-    )
-
-    service = AnalyticsService(db, redis_client)
-    try:
-        comparison = await service.get_student_performance_comparison(
-            current_user.institution_id, student_id, params
-        )
-        return comparison
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch performance comparison: {str(e)}",
-        )
-
-
-@router.get("/student/{student_id}/trends", response_model=List[StudentPerformanceTrend])
-async def get_student_performance_trends(
-    student_id: int,
-    date_range_type: DateRangeType = Query(DateRangeType.YEARLY),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> List[StudentPerformanceTrend]:
-    """Get performance trends for a student over time."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    params = AnalyticsQueryParams(
-        date_range_type=date_range_type,
-        start_date=start_date,
-        end_date=end_date,
-    )
-
-    service = AnalyticsService(db, redis_client)
-    try:
-        trends = await service.get_student_performance_trends(
-            current_user.institution_id, student_id, params
-        )
-        return trends
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch performance trends: {str(e)}",
-        )
-
-
-@router.post("/reports/generate", response_model=ReportResponse)
-async def generate_report(
-    request: ReportGenerationRequest,
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> ReportResponse:
-    """Generate a comprehensive analytics report in PDF format."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    service = ReportGenerationService(db, redis_client)
-    try:
-        report_id = await service.generate_report(
-            institution_id=current_user.institution_id,
-            report_type=request.report_type,
-            report_title=request.report_title,
-            parameters=request.parameters,
-            generated_by_id=current_user.id,
-            include_charts=request.include_charts,
-        )
-
-        report = service.get_report(current_user.institution_id, report_id)
-        if not report:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
-            )
-
-        return ReportResponse(
-            id=report.id,
-            institution_id=report.institution_id,
-            report_type=report.report_type.value,
-            report_title=report.report_title,
-            report_description=report.report_description,
-            status=report.status.value,
-            file_url=report.file_url,
-            file_size=report.file_size,
-            error_message=report.error_message,
-            started_at=report.started_at,
-            completed_at=report.completed_at,
-            created_at=report.created_at,
-            updated_at=report.updated_at,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate report: {str(e)}",
-        )
-
-
-@router.get("/reports", response_model=List[ReportResponse])
-async def list_reports(
-    report_type: Optional[ReportType] = Query(None),
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> List[ReportResponse]:
-    """List all generated reports for the institution."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    service = ReportGenerationService(db, redis_client)
-    reports = service.list_reports(
-        current_user.institution_id, report_type, limit, offset
-    )
-
-    return [
-        ReportResponse(
-            id=report.id,
-            institution_id=report.institution_id,
-            report_type=report.report_type.value,
-            report_title=report.report_title,
-            report_description=report.report_description,
-            status=report.status.value,
-            file_url=report.file_url,
-            file_size=report.file_size,
-            error_message=report.error_message,
-            started_at=report.started_at,
-            completed_at=report.completed_at,
-            created_at=report.created_at,
-            updated_at=report.updated_at,
-        )
-        for report in reports
-    ]
-
-
-@router.get("/reports/{report_id}", response_model=ReportResponse)
-async def get_report(
-    report_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> ReportResponse:
-    """Get details of a specific report."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    service = ReportGenerationService(db, redis_client)
-    report = service.get_report(current_user.institution_id, report_id)
-
-    if not report:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
-        )
-
-    return ReportResponse(
-        id=report.id,
-        institution_id=report.institution_id,
-        report_type=report.report_type.value,
-        report_title=report.report_title,
-        report_description=report.report_description,
-        status=report.status.value,
-        file_url=report.file_url,
-        file_size=report.file_size,
-        error_message=report.error_message,
-        started_at=report.started_at,
-        completed_at=report.completed_at,
-        created_at=report.created_at,
-        updated_at=report.updated_at,
-    )
-
-
-@router.post("/aggregation/student", response_model=List[StudentMetrics])
-async def aggregate_student_metrics(
-    student_ids: List[int],
-    date_range_type: DateRangeType = Query(DateRangeType.MONTHLY),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> List[StudentMetrics]:
-    """Get aggregated metrics for multiple students."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    params = AnalyticsQueryParams(
-        date_range_type=date_range_type,
-        start_date=start_date,
-        end_date=end_date,
-        student_ids=student_ids,
-    )
-
-    service = AnalyticsService(db, redis_client)
-    results = []
-
-    for student_id in student_ids:
-        try:
-            metrics = await service.get_student_metrics(
-                current_user.institution_id, student_id, params
-            )
-            results.append(metrics)
-        except Exception:
-            continue
-
-    return results
-
-
-@router.post("/aggregation/class", response_model=List[ClassMetrics])
-async def aggregate_class_metrics(
-    section_ids: List[int],
-    date_range_type: DateRangeType = Query(DateRangeType.MONTHLY),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> List[ClassMetrics]:
-    """Get aggregated metrics for multiple classes/sections."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    params = AnalyticsQueryParams(
-        date_range_type=date_range_type,
-        start_date=start_date,
-        end_date=end_date,
-        section_ids=section_ids,
-    )
-
-    service = AnalyticsService(db, redis_client)
-    results = []
-
-    for section_id in section_ids:
-        try:
-            metrics = await service.get_class_metrics(
-                current_user.institution_id, section_id, params
-            )
-            results.append(metrics)
-        except Exception:
-            continue
-
-    return results
-
-
-@router.get("/student/{student_id}")
-async def get_student_performance_analytics(
-    student_id: int,
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+@router.post("/events", response_model=AnalyticsEventResponse, status_code=201)
+async def track_event(
+    event: AnalyticsEventCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Get comprehensive student performance analytics for dashboard."""
-    return await get_student_metrics(
-        student_id=student_id,
-        date_range_type=DateRangeType.CUSTOM if start_date else DateRangeType.MONTHLY,
-        start_date=date.fromisoformat(start_date) if start_date else None,
-        end_date=date.fromisoformat(end_date) if end_date else None,
-        current_user=current_user,
-        db=db,
-    )
+    """Track an analytics event."""
+    if not event.user_agent:
+        event.user_agent = request.headers.get("user-agent")
+    if not event.ip_address:
+        event.ip_address = request.client.host if request.client else None
+    
+    repo = AnalyticsRepository(db)
+    return await repo.create_event(event)
 
 
-@router.get("/class/{class_id}")
-async def get_class_performance_analytics(
-    class_id: int,
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+@router.post("/performance", response_model=PerformanceMetricResponse, status_code=201)
+async def track_performance_metric(
+    metric: PerformanceMetricCreate,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Get comprehensive class performance analytics for dashboard."""
-    return await get_class_metrics(
-        section_id=class_id,
-        date_range_type=DateRangeType.CUSTOM if start_date else DateRangeType.MONTHLY,
-        start_date=date.fromisoformat(start_date) if start_date else None,
-        end_date=date.fromisoformat(end_date) if end_date else None,
-        current_user=current_user,
-        db=db,
-    )
+    """Track a performance metric."""
+    repo = AnalyticsRepository(db)
+    return await repo.create_performance_metric(metric)
 
 
-@router.get("/institution/{institution_id}")
-async def get_institution_analytics_dashboard(
-    institution_id: int,
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+@router.post("/sessions", response_model=UserSessionResponse, status_code=201)
+async def create_or_update_session(
+    session: UserSessionCreate,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Get comprehensive institution-wide analytics for dashboard."""
-    return await get_institution_metrics(
-        date_range_type=DateRangeType.CUSTOM if start_date else DateRangeType.MONTHLY,
-        start_date=date.fromisoformat(start_date) if start_date else None,
-        end_date=date.fromisoformat(end_date) if end_date else None,
-        current_user=current_user,
-        db=db,
-    )
+    """Create or update a user session."""
+    repo = AnalyticsRepository(db)
+    return await repo.create_or_update_session(session)
 
 
-@router.post("/institution/{institution_id}/custom-report")
-async def generate_custom_report(
-    institution_id: int,
-    filters: dict,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+@router.patch("/sessions/{session_id}", response_model=UserSessionResponse)
+async def update_session(
+    session_id: str,
+    update_data: UserSessionUpdate,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Generate a custom report with specified filters."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    service = ReportGenerationService(db, redis_client)
-    
-    report_request = ReportGenerationRequest(
-        report_type=ReportType.CUSTOM,
-        report_title=f"Custom Report - {date.today().isoformat()}",
-        parameters=filters,
-        include_charts=True,
-    )
-    
-    return await generate_report(
-        request=report_request,
-        background_tasks=BackgroundTasks(),
-        current_user=current_user,
-        db=db,
-    )
+    """Update a user session."""
+    repo = AnalyticsRepository(db)
+    return await repo.update_session(session_id, update_data)
 
 
-@router.post("/export/pdf")
-async def export_report_to_pdf(
-    report_data: dict,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+@router.post("/features", response_model=FeatureUsageResponse, status_code=201)
+async def track_feature_usage(
+    feature: FeatureUsageCreate,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Export analytics report to PDF."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
-
-    service = ReportGenerationService(db, redis_client)
-    
-    pdf_bytes = await service.export_to_pdf(report_data)
-    
-    from fastapi.responses import StreamingResponse
-    import io
-    
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=analytics-report.pdf"}
-    )
+    """Track feature usage."""
+    repo = AnalyticsRepository(db)
+    return await repo.track_feature_usage(feature)
 
 
-@router.post("/export/excel")
-async def export_report_to_excel(
-    report_data: dict,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+@router.post("/batch", status_code=202)
+async def track_batch_analytics(
+    batch: BatchAnalyticsRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Export analytics report to Excel."""
-    try:
-        redis_client = await get_redis()
-    except Exception:
-        redis_client = None
+    """Track multiple analytics events and metrics in a batch."""
+    repo = AnalyticsRepository(db)
+    
+    # Process events
+    for event in batch.events:
+        if not event.user_agent:
+            event.user_agent = request.headers.get("user-agent")
+        if not event.ip_address:
+            event.ip_address = request.client.host if request.client else None
+        await repo.create_event(event)
+    
+    # Process performance metrics
+    for metric in batch.performance_metrics:
+        await repo.create_performance_metric(metric)
+    
+    return {
+        "status": "accepted",
+        "events_count": len(batch.events),
+        "metrics_count": len(batch.performance_metrics),
+    }
 
-    service = ReportGenerationService(db, redis_client)
-    
-    excel_bytes = await service.export_to_excel(report_data)
-    
-    from fastapi.responses import StreamingResponse
-    import io
-    
-    return StreamingResponse(
-        io.BytesIO(excel_bytes),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=analytics-report.xlsx"}
-    )
+
+@router.get("/dashboard", response_model=AnalyticsDashboardStats)
+async def get_dashboard_stats(
+    institution_id: Optional[UUID] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get dashboard statistics."""
+    repo = AnalyticsRepository(db)
+    stats = await repo.get_dashboard_stats(institution_id)
+    return AnalyticsDashboardStats(**stats)
+
+
+@router.get("/features/adoption", response_model=List[FeatureAdoptionStats])
+async def get_feature_adoption(
+    institution_id: Optional[UUID] = None,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get feature adoption statistics."""
+    repo = AnalyticsRepository(db)
+    stats = await repo.get_feature_adoption_stats(institution_id, limit)
+    return [FeatureAdoptionStats(**stat) for stat in stats]
+
+
+@router.get("/user-flow", response_model=UserFlowAnalysis)
+async def get_user_flow(
+    institution_id: Optional[UUID] = None,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get user flow analysis."""
+    repo = AnalyticsRepository(db)
+    return await repo.get_user_flow_analysis(institution_id, limit)
+
+
+@router.get("/retention/cohorts", response_model=List[RetentionCohort])
+async def get_retention_cohorts(
+    institution_id: Optional[UUID] = None,
+    cohort_days: int = 30,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get user retention by cohort."""
+    repo = AnalyticsRepository(db)
+    cohorts = await repo.get_retention_cohorts(institution_id, cohort_days)
+    return [RetentionCohort(**cohort) for cohort in cohorts]
+
+
+@router.get("/events/top", response_model=List[TopEventStats])
+async def get_top_events(
+    institution_id: Optional[UUID] = None,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get top analytics events."""
+    repo = AnalyticsRepository(db)
+    events = await repo.get_top_events(institution_id, limit)
+    return [TopEventStats(**event) for event in events]
+
+
+@router.get("/performance/stats", response_model=List[PerformanceStats])
+async def get_performance_stats(
+    metric_name: Optional[str] = None,
+    days: int = 7,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get performance statistics."""
+    repo = AnalyticsRepository(db)
+    stats = await repo.get_performance_stats(metric_name, days)
+    return [PerformanceStats(**stat) for stat in stats]

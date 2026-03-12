@@ -32,6 +32,7 @@ import { useThemeStore } from '@/store/useThemeStore';
 import InstitutionSwitcher from './InstitutionSwitcher';
 import GlobalSearchBar from '@/components/search/GlobalSearchBar';
 import { MobileHamburgerMenu } from '../mobile';
+import AccessibilityToolbar from '../common/AccessibilityToolbar';
 
 interface AdminAppBarProps {
   open: boolean;
@@ -140,8 +141,15 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
+          <AccessibilityToolbar />
+
           <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
-            <IconButton onClick={toggleTheme} color="inherit" sx={{ minWidth: 44, minHeight: 44 }}>
+            <IconButton
+              onClick={toggleTheme}
+              color="inherit"
+              sx={{ minWidth: 44, minHeight: 44 }}
+              aria-label={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}
+            >
               {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
             </IconButton>
           </Tooltip>
@@ -151,6 +159,9 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
               onClick={handleNotificationsMenuOpen}
               color="inherit"
               sx={{ minWidth: 44, minHeight: 44 }}
+              aria-label={`Notifications. ${unreadCount} unread`}
+              aria-expanded={isNotificationsMenuOpen}
+              aria-haspopup="true"
             >
               <Badge badgeContent={unreadCount} color="error">
                 <NotificationsIcon />
@@ -169,6 +180,9 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
                   bgcolor: alpha(theme.palette.primary.main, 0.08),
                 },
               }}
+              aria-label="Account menu"
+              aria-expanded={isProfileMenuOpen}
+              aria-haspopup="true"
             >
               <Avatar
                 sx={{
@@ -178,6 +192,7 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
                   fontSize: '0.875rem',
                 }}
                 src={user?.avatar}
+                alt={`${user?.firstName} ${user?.lastName}`}
               >
                 {user?.firstName?.[0]}
                 {user?.lastName?.[0]}
@@ -191,6 +206,11 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
         anchorEl={notificationsAnchorEl}
         open={isNotificationsMenuOpen}
         onClose={handleNotificationsMenuClose}
+        aria-labelledby="notifications-button"
+        MenuListProps={{
+          'aria-label': 'Notifications',
+          role: 'menu',
+        }}
         PaperProps={{
           sx: {
             mt: 1.5,
@@ -243,6 +263,11 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
         anchorEl={profileAnchorEl}
         open={isProfileMenuOpen}
         onClose={handleProfileMenuClose}
+        aria-labelledby="profile-button"
+        MenuListProps={{
+          'aria-label': 'Account menu',
+          role: 'menu',
+        }}
         PaperProps={{
           sx: {
             mt: 1.5,

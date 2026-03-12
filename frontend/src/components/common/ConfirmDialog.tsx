@@ -7,7 +7,8 @@ import {
   Button,
   CircularProgress,
 } from '@mui/material';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -34,14 +35,43 @@ export const ConfirmDialog = ({
   loading = false,
   maxWidth = 'sm',
 }: ConfirmDialogProps) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const focusTrapRef = useFocusTrap(open);
+
+  useEffect(() => {
+    if (open && dialogRef.current) {
+      const titleElement = dialogRef.current.querySelector('[role="dialog"]');
+      if (titleElement) {
+        (titleElement as HTMLElement).focus();
+      }
+    }
+  }, [open]);
+
   return (
-    <Dialog open={open} onClose={loading ? undefined : onCancel} maxWidth={maxWidth} fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={loading ? undefined : onCancel}
+      maxWidth={maxWidth}
+      fullWidth
+      ref={dialogRef}
+      aria-labelledby="dialog-title"
+      aria-describedby="dialog-description"
+      PaperProps={{
+        ref: focusTrapRef,
+        role: 'dialog',
+        'aria-modal': true,
+      }}
+    >
+      <DialogTitle id="dialog-title">{title}</DialogTitle>
       <DialogContent>
-        {typeof message === 'string' ? <DialogContentText>{message}</DialogContentText> : message}
+        {typeof message === 'string' ? (
+          <DialogContentText id="dialog-description">{message}</DialogContentText>
+        ) : (
+          <div id="dialog-description">{message}</div>
+        )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel} disabled={loading}>
+        <Button onClick={onCancel} disabled={loading} aria-label={cancelLabel}>
           {cancelLabel}
         </Button>
         <Button
@@ -50,6 +80,8 @@ export const ConfirmDialog = ({
           variant="contained"
           disabled={loading}
           startIcon={loading ? <CircularProgress size={16} /> : undefined}
+          aria-label={confirmLabel}
+          aria-busy={loading}
         >
           {confirmLabel}
         </Button>

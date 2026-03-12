@@ -22,6 +22,8 @@ from src.repositories.attendance_repository import (
     AttendanceCorrectionRepository,
     AttendanceSummaryRepository
 )
+from src.services.realtime_service import realtime_service
+import asyncio
 
 
 class AttendanceService:
@@ -49,7 +51,28 @@ class AttendanceService:
         
         self._update_summary(attendance)
         
+        self._send_realtime_notification(attendance)
+        
         return attendance
+    
+    def _send_realtime_notification(self, attendance: Attendance):
+        try:
+            student = attendance.student
+            if student and student.parents:
+                parent_user_ids = [parent.user_id for parent in student.parents if parent.user_id]
+                if parent_user_ids:
+                    asyncio.create_task(
+                        realtime_service.notify_attendance_update(
+                            db=self.db,
+                            student_id=student.id,
+                            student_name=f"{student.first_name} {student.last_name}",
+                            date=attendance.date.isoformat(),
+                            status=attendance.status.value,
+                            parent_user_ids=parent_user_ids
+                        )
+                    )
+        except Exception as e:
+            pass
 
     def get_attendance(self, attendance_id: int) -> Optional[Attendance]:
         return self.attendance_repo.get_by_id(attendance_id)

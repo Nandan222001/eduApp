@@ -1,0 +1,9 @@
+export { default as ProfileEditor } from './ProfileEditor';
+export { default as PasswordChange } from './PasswordChange';
+export { default as NotificationPreferencesManager } from './NotificationPreferencesManager';
+export { default as ThemeCustomization } from './ThemeCustomization';
+export { default as LanguageSelector } from './LanguageSelector';
+export { default as TimezoneConfiguration } from './TimezoneConfiguration';
+export { default as PrivacySettings } from './PrivacySettings';
+export { default as ConnectedDevicesList } from './ConnectedDevicesList';
+export { default as AccountDeletionForm } from './AccountDeletionForm';

@@ -27,6 +27,9 @@ class User(Base):
     role = relationship("Role", back_populates="users")
     teacher_profile = relationship("Teacher", back_populates="user", uselist=False)
     student_profile = relationship("Student", back_populates="user", uselist=False)
+    settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    devices = relationship("UserDevice", back_populates="user", cascade="all, delete-orphan")
+    deletion_requests = relationship("AccountDeletionRequest", back_populates="user", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('idx_user_institution_email', 'institution_id', 'email', unique=True),

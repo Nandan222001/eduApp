@@ -9,3 +9,4 @@ export {
   isValidationError,
   getHttpStatusMessage,
 } from './errorMessages';
+export * from './accessibility';

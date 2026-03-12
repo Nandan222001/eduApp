@@ -1,5 +1,6 @@
 from src.models.institution import Institution
 from src.models.user import User
+from src.models.user_settings import UserSettings, UserDevice, AccountDeletionRequest
 from src.models.role import Role
 from src.models.permission import Permission
 from src.models.subscription import Subscription
@@ -34,10 +35,37 @@ from src.models.study_material import (
     MaterialType
 )
 from src.models.search import SearchHistory, PopularSearch
+from src.models.fee import FeeStructure, FeePayment, FeeWaiver, FeeCategory, PaymentMethod, PaymentStatus
+from src.models.library import Book, BookCategory, BookIssue, LibrarySettings, BookStatus, IssueStatus
+from src.models.transport import TransportRoute, RouteStop, StudentTransport, RouteStatus, VehicleType
+from src.models.event import Event, EventRSVP, EventPhoto, EventType, EventStatus, RSVPStatus
+from src.models.timetable import (
+    TimetableTemplate, PeriodSlot, Timetable, TimetableEntry,
+    DayOfWeek, PeriodType
+)
+from src.models.doubt import (
+    DoubtPost, DoubtAnswer, DoubtVote, AnswerVote, DoubtBookmark, DoubtComment,
+    DoubtStatus, VoteType
+)
+from src.models.study_group import (
+    StudyGroup, GroupMember, GroupMessage, GroupResource, GroupActivity, GroupInvite,
+    GroupMemberRole, MessageType, ActivityType, InviteStatus
+)
+from src.models.flashcard import (
+    Flashcard, FlashcardDeck, FlashcardDeckShare, FlashcardStudyProgress,
+    FlashcardStudySession, FlashcardDeckVisibility, SpacedRepetitionLevel
+)
+from src.models.quiz import (
+    Quiz, QuizQuestion, QuizAttempt, QuizResponse, QuizLeaderboard, QuizAnalytics,
+    QuizType, QuestionType, QuizStatus, QuizAttemptStatus
+)
 
 __all__ = [
     "Institution",
     "User",
+    "UserSettings",
+    "UserDevice",
+    "AccountDeletionRequest",
     "Role",
     "Permission",
     "Subscription",
@@ -149,4 +177,68 @@ __all__ = [
     "MaterialType",
     "SearchHistory",
     "PopularSearch",
+    "FeeStructure",
+    "FeePayment",
+    "FeeWaiver",
+    "FeeCategory",
+    "PaymentMethod",
+    "PaymentStatus",
+    "Book",
+    "BookCategory",
+    "BookIssue",
+    "LibrarySettings",
+    "BookStatus",
+    "IssueStatus",
+    "TransportRoute",
+    "RouteStop",
+    "StudentTransport",
+    "RouteStatus",
+    "VehicleType",
+    "Event",
+    "EventRSVP",
+    "EventPhoto",
+    "EventType",
+    "EventStatus",
+    "RSVPStatus",
+    "TimetableTemplate",
+    "PeriodSlot",
+    "Timetable",
+    "TimetableEntry",
+    "DayOfWeek",
+    "PeriodType",
+    "DoubtPost",
+    "DoubtAnswer",
+    "DoubtVote",
+    "AnswerVote",
+    "DoubtBookmark",
+    "DoubtComment",
+    "DoubtStatus",
+    "VoteType",
+    "StudyGroup",
+    "GroupMember",
+    "GroupMessage",
+    "GroupResource",
+    "GroupActivity",
+    "GroupInvite",
+    "GroupMemberRole",
+    "MessageType",
+    "ActivityType",
+    "InviteStatus",
+    "Flashcard",
+    "FlashcardDeck",
+    "FlashcardDeckShare",
+    "FlashcardStudyProgress",
+    "FlashcardStudySession",
+    "FlashcardDeckVisibility",
+    "SpacedRepetitionLevel",
+    "Quiz",
+    "QuizQuestion",
+    "QuizAttempt",
+    "QuizResponse",
+    "QuizLeaderboard",
+    "QuizAnalytics",
+    "QuizType",
+    "QuestionType",
+    "QuizStatus",
+    "QuizAttemptStatus",
 ]

@@ -6,6 +6,8 @@ import About from './pages/About';
 import NotFound from './pages/NotFound';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import { useGlobalKeyboardShortcuts } from './hooks/useGlobalKeyboardShortcuts';
+import { useAccessibility } from './contexts/AccessibilityContext';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import InstitutionsList from './pages/InstitutionsList';
 import InstitutionDetail from './pages/InstitutionDetail';
@@ -48,6 +50,14 @@ import SubscriptionBilling from './pages/SubscriptionBilling';
 import SearchResultsPage from './pages/SearchResultsPage';
 import DataExport from './pages/DataExport';
 import DataImport from './pages/DataImport';
+import FlashcardDeckList from './pages/FlashcardDeckList';
+import FlashcardStudyPage from './pages/FlashcardStudyPage';
+import QuizList from './pages/QuizList';
+import QuizTakePage from './pages/QuizTakePage';
+import QuizLeaderboardPage from './pages/QuizLeaderboardPage';
+import QuizAnalyticsPage from './pages/QuizAnalyticsPage';
+import PomodoroTimer from './pages/PomodoroTimer';
+import SettingsPage from './pages/SettingsPage';
 
 import {
   LoginPage,
@@ -60,9 +70,36 @@ import RegisterPage from './components/auth/RegisterPage';
 import SessionTimeoutWrapper from './components/common/SessionTimeoutWrapper';
 import { ErrorBoundaryWrapper, OfflineIndicator, QueryErrorHandler } from './components/common';
 import { ToastProvider } from './contexts/ToastContext';
+import { ChatbotWidget } from './components/chatbot';
 
 function App() {
   const isDevelopment = import.meta.env.DEV;
+  const { announce } = useAccessibility();
+
+  useGlobalKeyboardShortcuts([
+    {
+      key: 's',
+      alt: true,
+      callback: () => {
+        const searchInput = document.querySelector('[aria-label*="search" i]') as HTMLElement;
+        if (searchInput) {
+          searchInput.focus();
+          announce('Search focused');
+        }
+      },
+      description: 'Focus search',
+    },
+    {
+      key: '/',
+      callback: () => {
+        const searchInput = document.querySelector('[aria-label*="search" i]') as HTMLElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+      },
+      description: 'Focus search',
+    },
+  ]);
 
   return (
     <ErrorBoundaryWrapper showDetails={isDevelopment}>
@@ -71,6 +108,7 @@ function App() {
           <QueryErrorHandler>
             <SessionTimeoutWrapper>
               <OfflineIndicator position="top" />
+              <ChatbotWidget />
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
@@ -155,8 +193,14 @@ function App() {
                     <Route path="data/export" element={<DataExport />} />
                     <Route path="data/import" element={<DataImport />} />
                     <Route path="search" element={<SearchResultsPage />} />
-                    <Route path="settings" element={<div>Settings</div>} />
-                    <Route path="profile" element={<div>Profile</div>} />
+                    <Route path="flashcards" element={<FlashcardDeckList />} />
+                    <Route path="flashcards/deck/:deckId/study" element={<FlashcardStudyPage />} />
+                    <Route path="quizzes" element={<QuizList />} />
+                    <Route path="quizzes/:quizId/take" element={<QuizTakePage />} />
+                    <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
+                    <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="profile" element={<SettingsPage />} />
                   </Route>
                 </Route>
 
@@ -178,6 +222,13 @@ function App() {
                     <Route path="goals" element={<GoalsManagement />} />
                     <Route path="gamification" element={<GamificationDashboard />} />
                     <Route path="search" element={<SearchResultsPage />} />
+                    <Route path="flashcards" element={<FlashcardDeckList />} />
+                    <Route path="flashcards/deck/:deckId/study" element={<FlashcardStudyPage />} />
+                    <Route path="quizzes" element={<QuizList />} />
+                    <Route path="quizzes/:quizId/take" element={<QuizTakePage />} />
+                    <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
+                    <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
                   </Route>
                 </Route>
 
@@ -191,6 +242,7 @@ function App() {
                     <Route path="dashboard" element={<StudentDashboard />} />
                     <Route path="analytics" element={<StudentPerformanceAnalytics />} />
                     <Route path="ai-prediction" element={<AIPredictionDashboard />} />
+                    <Route path="pomodoro" element={<PomodoroTimer />} />
                     <Route path="goals" element={<GoalsManagement />} />
                     <Route path="gamification" element={<GamificationDashboard />} />
                     <Route path="search" element={<SearchResultsPage />} />
@@ -199,6 +251,13 @@ function App() {
                     <Route path="question-bank" element={<div>Question Bank</div>} />
                     <Route path="previous-papers" element={<div>Previous Papers</div>} />
                     <Route path="progress" element={<div>My Progress</div>} />
+                    <Route path="flashcards" element={<FlashcardDeckList />} />
+                    <Route path="flashcards/deck/:deckId/study" element={<FlashcardStudyPage />} />
+                    <Route path="quizzes" element={<QuizList />} />
+                    <Route path="quizzes/:quizId/take" element={<QuizTakePage />} />
+                    <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
+                    <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
                   </Route>
                 </Route>
 

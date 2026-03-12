@@ -7,12 +7,21 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#1976d2" />
-    <meta name="description" content="Educational SaaS Platform - Mobile Optimized" />
+    <meta name="theme-color" content="#0d47a1" />
+    <meta name="description" content="Educational SaaS Platform - Accessible, Mobile Optimized" />
     <meta name="format-detection" content="telephone=no" />
     <title>Educational Platform</title>
+    
+    <!-- Accessibility meta tags -->
+    <meta name="color-scheme" content="light dark" />
   </head>
   <body>
+    <noscript>
+      <div role="alert" style="padding: 20px; text-align: center; background: #fff3cd; border: 1px solid #ffc107;">
+        <strong>JavaScript Required:</strong> This application requires JavaScript to be enabled. 
+        Please enable JavaScript in your browser settings to use this application.
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
