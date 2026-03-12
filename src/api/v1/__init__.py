@@ -50,7 +50,8 @@ from src.api.v1 import (
     dashboard_widgets,
     rate_limits,
     performance_monitoring,
-    database_maintenance
+    database_maintenance,
+    collaboration
 )
 from src.api import ml
 
@@ -108,3 +109,4 @@ api_router.include_router(dashboard_widgets.router, prefix="/dashboard", tags=["
 api_router.include_router(rate_limits.router, prefix="/rate-limits", tags=["rate-limits"])
 api_router.include_router(performance_monitoring.router, prefix="/admin", tags=["performance-monitoring"])
 api_router.include_router(database_maintenance.router, tags=["database-maintenance"])
+api_router.include_router(collaboration.router, prefix="/collaboration", tags=["collaboration"])

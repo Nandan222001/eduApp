@@ -49,7 +49,11 @@ from src.models.doubt import (
 )
 from src.models.study_group import (
     StudyGroup, GroupMember, GroupMessage, GroupResource, GroupActivity, GroupInvite,
-    GroupMemberRole, MessageType, ActivityType, InviteStatus
+    StudyBuddyProfile, StudyBuddyMatch, StudySession, SessionParticipant,
+    CollaborativeNote, NoteEditor, NoteRevision, PeerTutorProfile, TutoringRequest,
+    TutoringSession, GroupPerformanceAnalytics,
+    GroupMemberRole, MessageType, ActivityType, InviteStatus, SessionStatus,
+    MatchStatus, TutorRequestStatus
 )
 from src.models.flashcard import (
     Flashcard, FlashcardDeck, FlashcardDeckShare, FlashcardStudyProgress,
@@ -228,10 +232,24 @@ __all__ = [
     "GroupResource",
     "GroupActivity",
     "GroupInvite",
+    "StudyBuddyProfile",
+    "StudyBuddyMatch",
+    "StudySession",
+    "SessionParticipant",
+    "CollaborativeNote",
+    "NoteEditor",
+    "NoteRevision",
+    "PeerTutorProfile",
+    "TutoringRequest",
+    "TutoringSession",
+    "GroupPerformanceAnalytics",
     "GroupMemberRole",
     "MessageType",
     "ActivityType",
     "InviteStatus",
+    "SessionStatus",
+    "MatchStatus",
+    "TutorRequestStatus",
     "Flashcard",
     "FlashcardDeck",
     "FlashcardDeckShare",
