@@ -63,6 +63,11 @@ from src.models.ml_training import (
     MLTrainingJob, ModelPerformanceMetrics, ModelPromotionLog,
     TrainingStatus, TrainingJobType
 )
+from src.models.plagiarism import (
+    PlagiarismCheck, PlagiarismResult, PlagiarismMatchSegment,
+    CodeASTFingerprint, CitationPattern, PlagiarismPrivacyConsent,
+    PlagiarismCheckStatus, ComparisonScope, ContentType, ReviewDecision
+)
 
 __all__ = [
     "Institution",
@@ -250,4 +255,14 @@ __all__ = [
     "ModelPromotionLog",
     "TrainingStatus",
     "TrainingJobType",
+    "PlagiarismCheck",
+    "PlagiarismResult",
+    "PlagiarismMatchSegment",
+    "CodeASTFingerprint",
+    "CitationPattern",
+    "PlagiarismPrivacyConsent",
+    "PlagiarismCheckStatus",
+    "ComparisonScope",
+    "ContentType",
+    "ReviewDecision",
 ]

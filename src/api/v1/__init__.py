@@ -53,7 +53,8 @@ from src.api.v1 import (
     doubts,
     learning_paths,
     virtual_classrooms,
-    classroom_websocket
+    classroom_websocket,
+    plagiarism
 )
 from src.api import ml
 
@@ -114,3 +115,4 @@ api_router.include_router(doubts.router, prefix="", tags=["doubts-intelligence"]
 api_router.include_router(learning_paths.router, prefix="", tags=["learning-paths"])
 api_router.include_router(virtual_classrooms.router, prefix="", tags=["virtual-classrooms"])
 api_router.include_router(classroom_websocket.router, prefix="/ws", tags=["classroom-websocket"])
+api_router.include_router(plagiarism.router, prefix="", tags=["plagiarism"])
