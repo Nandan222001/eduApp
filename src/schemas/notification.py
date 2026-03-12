@@ -5,7 +5,9 @@ from src.models.notification import (
     NotificationChannel,
     NotificationPriority,
     NotificationStatus,
-    AudienceType
+    AudienceType,
+    DigestMode,
+    NotificationGroup
 )
 
 
@@ -13,6 +15,7 @@ class NotificationBase(BaseModel):
     title: str = Field(..., max_length=255)
     message: str
     notification_type: str = Field(..., max_length=50)
+    notification_group: NotificationGroup = NotificationGroup.SYSTEM
     priority: NotificationPriority = NotificationPriority.MEDIUM
     channel: NotificationChannel
     data: Optional[Dict[str, Any]] = None
@@ -36,6 +39,9 @@ class NotificationResponse(NotificationBase):
     sent_at: Optional[datetime] = None
     failed_at: Optional[datetime] = None
     error_message: Optional[str] = None
+    digest_batch_id: Optional[str] = None
+    grouped_with_id: Optional[int] = None
+    group_count: int
     created_at: datetime
     updated_at: datetime
 
@@ -48,9 +54,22 @@ class NotificationPreferenceBase(BaseModel):
     sms_enabled: bool = False
     push_enabled: bool = True
     in_app_enabled: bool = True
-    notification_types: Optional[Dict[str, bool]] = None
+    email_types: Optional[Dict[str, bool]] = None
+    sms_types: Optional[Dict[str, bool]] = None
+    push_types: Optional[Dict[str, bool]] = None
+    in_app_types: Optional[Dict[str, bool]] = None
+    group_preferences: Optional[Dict[str, bool]] = None
+    minimum_priority: NotificationPriority = NotificationPriority.LOW
+    quiet_hours_enabled: bool = False
     quiet_hours_start: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')
     quiet_hours_end: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')
+    quiet_hours_days: Optional[List[int]] = None
+    digest_mode: DigestMode = DigestMode.DISABLED
+    digest_channels: Optional[List[NotificationChannel]] = None
+    digest_delivery_time: Optional[str] = Field(None, pattern=r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$')
+    enable_smart_grouping: bool = True
+    grouping_window_minutes: int = Field(default=60, ge=1, le=1440)
+    dnd_enabled: bool = False
 
 
 class NotificationPreferenceCreate(NotificationPreferenceBase):
@@ -69,6 +88,28 @@ class NotificationPreferenceResponse(NotificationPreferenceBase):
 
     class Config:
         from_attributes = True
+
+
+class NotificationPreviewRequest(BaseModel):
+    title: str = Field(..., max_length=255)
+    message: str
+    notification_type: str = Field(..., max_length=50)
+    channel: NotificationChannel
+    priority: NotificationPriority = NotificationPriority.MEDIUM
+    data: Optional[Dict[str, Any]] = None
+    use_template: bool = False
+    template_id: Optional[int] = None
+    template_variables: Optional[Dict[str, Any]] = None
+
+
+class NotificationPreviewResponse(BaseModel):
+    rendered_subject: str
+    rendered_body: str
+    channel: NotificationChannel
+    priority: NotificationPriority
+    estimated_delivery_time: str
+    would_be_sent: bool
+    blocked_reason: Optional[str] = None
 
 
 class AnnouncementBase(BaseModel):
@@ -185,6 +226,7 @@ class BulkNotificationRequest(BaseModel):
     title: str = Field(..., max_length=255)
     message: str
     notification_type: str = Field(..., max_length=50)
+    notification_group: NotificationGroup = NotificationGroup.SYSTEM
     priority: NotificationPriority = NotificationPriority.MEDIUM
     channel: NotificationChannel
     data: Optional[Dict[str, Any]] = None
@@ -195,6 +237,71 @@ class NotificationStats(BaseModel):
     unread: int
     by_channel: Dict[str, int]
     by_priority: Dict[str, int]
+    by_group: Dict[str, int]
+
+
+class NotificationAnalyticsRequest(BaseModel):
+    start_date: datetime
+    end_date: datetime
+    notification_type: Optional[str] = None
+    notification_group: Optional[NotificationGroup] = None
+    channel: Optional[NotificationChannel] = None
+    priority: Optional[NotificationPriority] = None
+
+
+class NotificationAnalyticsResponse(BaseModel):
+    total_sent: int
+    total_delivered: int
+    total_failed: int
+    total_read: int
+    total_clicked: int
+    delivery_rate: float
+    read_rate: float
+    click_rate: float
+    avg_read_time_seconds: Optional[int]
+    avg_delivery_time_seconds: Optional[int]
+    by_channel: Dict[str, Dict[str, Any]]
+    by_priority: Dict[str, Dict[str, Any]]
+    by_group: Dict[str, Dict[str, Any]]
+    by_type: Dict[str, Dict[str, Any]]
+    timeline: List[Dict[str, Any]]
+
+
+class NotificationEngagementCreate(BaseModel):
+    notification_id: int
+    action: str = Field(..., max_length=50)
+    action_data: Optional[Dict[str, Any]] = None
+
+
+class NotificationEngagementResponse(BaseModel):
+    id: int
+    notification_id: int
+    user_id: int
+    action: str
+    action_data: Optional[Dict[str, Any]]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DigestNotificationRequest(BaseModel):
+    digest_type: DigestMode
+    force_send: bool = False
+
+
+class NotificationGroupSummary(BaseModel):
+    group: NotificationGroup
+    count: int
+    latest_notification: Optional[NotificationResponse]
+    unread_count: int
+
+
+class SmartGroupingSettings(BaseModel):
+    enable_smart_grouping: bool
+    grouping_window_minutes: int = Field(ge=1, le=1440)
+    group_by_type: bool = True
+    group_by_sender: bool = True
 
 
 class WebSocketMessage(BaseModel):

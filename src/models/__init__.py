@@ -13,7 +13,12 @@ from src.models.attendance import Attendance, AttendanceCorrection, AttendanceSu
 from src.models.assignment import Assignment, AssignmentFile, Submission, SubmissionFile, AssignmentStatus, SubmissionStatus
 from src.models.examination import Exam, ExamSubject, ExamSchedule, ExamMarks, ExamResult, GradeConfiguration, ExamPerformanceAnalytics, ExamType, ExamStatus
 from src.models.previous_year_papers import PreviousYearPaper, QuestionBank, TopicPrediction, QuestionBookmark, QuestionType, DifficultyLevel, BloomTaxonomyLevel, Board
-from src.models.notification import Notification, NotificationPreference, Announcement, Message, NotificationTemplate, NotificationChannel, NotificationPriority, NotificationStatus, AudienceType
+from src.models.notification import (
+    Notification, NotificationPreference, Announcement, Message, NotificationTemplate,
+    NotificationDelivery, NotificationEngagement, NotificationAnalytics,
+    NotificationChannel, NotificationPriority, NotificationStatus, AudienceType,
+    DigestMode, NotificationGroup
+)
 from src.models.gamification import (
     Badge, UserBadge, UserPoints, PointHistory, BadgeType, BadgeRarity, PointEventType,
     Achievement, UserAchievement, Leaderboard, LeaderboardEntry, StreakTracker,
@@ -128,10 +133,15 @@ __all__ = [
     "Announcement",
     "Message",
     "NotificationTemplate",
+    "NotificationDelivery",
+    "NotificationEngagement",
+    "NotificationAnalytics",
     "NotificationChannel",
     "NotificationPriority",
     "NotificationStatus",
     "AudienceType",
+    "DigestMode",
+    "NotificationGroup",
     "Badge",
     "UserBadge",
     "UserPoints",

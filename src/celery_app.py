@@ -36,6 +36,23 @@ celery_app.conf.beat_schedule = {
         "task": "src.tasks.notification_tasks.cleanup_old_notifications",
         "schedule": 86400.0,
     },
+    "retry-failed-notifications": {
+        "task": "src.tasks.notification_tasks.retry_failed_notifications",
+        "schedule": 3600.0,  # Every hour
+    },
+    "aggregate-notification-analytics": {
+        "task": "src.tasks.notification_tasks.aggregate_analytics",
+        "schedule": 3600.0,  # Every hour
+    },
+    "process-grouped-notifications": {
+        "task": "src.tasks.notification_tasks.process_grouped_notifications",
+        "schedule": 900.0,  # Every 15 minutes
+    },
+    "send-hourly-digest": {
+        "task": "src.tasks.notification_tasks.send_digest_notifications",
+        "schedule": 3600.0,  # Every hour
+        "kwargs": {"digest_type": "hourly"}
+    },
     "daily-analytics-aggregation": {
         "task": "analytics.daily_aggregation",
         "schedule": 86400.0,

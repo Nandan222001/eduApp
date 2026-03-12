@@ -25,6 +25,7 @@ from src.api.v1 import (
     question_bank,
     question_bookmarks,
     notifications,
+    notification_analytics,
     announcements,
     messages,
     notification_templates,
@@ -82,6 +83,7 @@ api_router.include_router(previous_year_papers.router, prefix="/previous-year-pa
 api_router.include_router(question_bank.router, prefix="/question-bank", tags=["question-bank"])
 api_router.include_router(question_bookmarks.router, prefix="/question-bookmarks", tags=["question-bookmarks"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(notification_analytics.router, prefix="/notification-analytics", tags=["notification-analytics"])
 api_router.include_router(announcements.router, prefix="/announcements", tags=["announcements"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
 api_router.include_router(notification_templates.router, prefix="/notification-templates", tags=["notification-templates"])
