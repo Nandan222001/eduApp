@@ -1,222 +1,171 @@
-from datetime import datetime, date
-from typing import Optional, List, Dict, Any
+from datetime import datetime
+from typing import Optional, Any, Dict, List
+from uuid import UUID
 from pydantic import BaseModel, Field
-from enum import Enum
 
 
-class DateRangeType(str, Enum):
-    DAILY = "daily"
-    WEEKLY = "weekly"
-    MONTHLY = "monthly"
-    QUARTERLY = "quarterly"
-    YEARLY = "yearly"
-    CUSTOM = "custom"
+class AnalyticsEventCreate(BaseModel):
+    event_name: str = Field(..., max_length=255)
+    event_type: str = Field(..., max_length=50)
+    user_id: Optional[UUID] = None
+    session_id: Optional[str] = None
+    institution_id: Optional[UUID] = None
+    properties: Optional[Dict[str, Any]] = None
+    user_agent: Optional[str] = None
+    ip_address: Optional[str] = None
+    referrer: Optional[str] = None
+    url: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
 
 
-class GroupByType(str, Enum):
-    STUDENT = "student"
-    CLASS = "class"
-    SUBJECT = "subject"
-    GRADE = "grade"
-    EXAM = "exam"
-    MONTH = "month"
-
-
-class MetricType(str, Enum):
-    EXAM_PERFORMANCE = "exam_performance"
-    ATTENDANCE = "attendance"
-    ASSIGNMENT = "assignment"
-    OVERALL = "overall"
-
-
-class ReportType(str, Enum):
-    STUDENT_PERFORMANCE = "student_performance"
-    CLASS_PERFORMANCE = "class_performance"
-    INSTITUTION_PERFORMANCE = "institution_performance"
-    ATTENDANCE_SUMMARY = "attendance_summary"
-    ASSIGNMENT_SUMMARY = "assignment_summary"
-    EXAM_ANALYSIS = "exam_analysis"
-    YOY_COMPARISON = "yoy_comparison"
-    SUBJECT_ANALYSIS = "subject_analysis"
-
-
-class ReportStatus(str, Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
-class AnalyticsQueryParams(BaseModel):
-    date_range_type: DateRangeType = DateRangeType.MONTHLY
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    group_by: Optional[GroupByType] = None
-    metric_types: Optional[List[MetricType]] = None
-    student_ids: Optional[List[int]] = None
-    section_ids: Optional[List[int]] = None
-    grade_ids: Optional[List[int]] = None
-    subject_ids: Optional[List[int]] = None
-    academic_year_id: Optional[int] = None
-
-
-class StudentMetrics(BaseModel):
-    student_id: int
-    student_name: str
-    total_exams: int
-    exams_appeared: int
-    exams_passed: int
-    average_percentage: float
-    average_grade_point: Optional[float] = None
-    attendance_percentage: float
-    total_attendance_days: int
-    present_days: int
-    total_assignments: int
-    assignments_submitted: int
-    assignments_graded: int
-    average_assignment_score: Optional[float] = None
-    rank_in_class: Optional[int] = None
-    rank_in_grade: Optional[int] = None
-    total_gamification_points: int = 0
-    badges_earned: int = 0
-    study_streak_days: int = 0
-
-    class Config:
-        from_attributes = True
-
-
-class ClassMetrics(BaseModel):
-    section_id: int
-    section_name: str
-    grade_name: str
-    total_students: int
-    active_students: int
-    average_exam_percentage: float
-    highest_exam_percentage: Optional[float] = None
-    lowest_exam_percentage: Optional[float] = None
-    median_exam_percentage: Optional[float] = None
-    pass_percentage: float
-    average_attendance_percentage: float
-    highest_attendance_percentage: Optional[float] = None
-    lowest_attendance_percentage: Optional[float] = None
-    average_assignment_score: Optional[float] = None
-    assignment_submission_rate: float
-
-    class Config:
-        from_attributes = True
-
-
-class InstitutionMetrics(BaseModel):
-    total_students: int
-    active_students: int
-    total_teachers: int
-    total_classes: int
-    overall_average_percentage: float
-    overall_pass_percentage: float
-    overall_attendance_percentage: float
-    total_exams_conducted: int
-    total_assignments_created: int
-    assignment_submission_rate: float
-
-    class Config:
-        from_attributes = True
-
-
-class SubjectPerformance(BaseModel):
-    subject_id: int
-    subject_name: str
-    average_marks: float
-    highest_marks: float
-    lowest_marks: float
-    pass_percentage: float
-    total_students: int
-    students_passed: int
-    students_failed: int
-
-
-class ExamAnalytics(BaseModel):
-    exam_id: int
-    exam_name: str
-    exam_type: str
-    total_students: int
-    students_appeared: int
-    students_passed: int
-    pass_percentage: float
-    average_marks: float
-    highest_marks: float
-    lowest_marks: float
-    median_marks: Optional[float] = None
-    standard_deviation: Optional[float] = None
-    subjects: List[SubjectPerformance] = []
-
-
-class YoYComparison(BaseModel):
-    metric_name: str
-    current_year_value: float
-    previous_year_value: Optional[float] = None
-    change_percentage: Optional[float] = None
-    trend: str
-
-
-class StudentPerformanceComparison(BaseModel):
-    student_metrics: StudentMetrics
-    class_average: Dict[str, float]
-    grade_average: Dict[str, float]
-    percentile_in_class: Optional[float] = None
-    percentile_in_grade: Optional[float] = None
-    strength_subjects: List[str] = []
-    weak_subjects: List[str] = []
-
-
-class AnalyticsResponse(BaseModel):
-    period_start: date
-    period_end: date
-    group_by: Optional[str] = None
-    metrics: List[Dict[str, Any]]
-    summary: Dict[str, Any]
-    generated_at: datetime
-
-
-class ReportGenerationRequest(BaseModel):
-    report_type: ReportType
-    report_title: str
-    report_description: Optional[str] = None
-    parameters: AnalyticsQueryParams
-    format: str = Field(default="pdf", pattern="^(pdf|csv)$")
-    include_charts: bool = True
-
-
-class ReportResponse(BaseModel):
-    id: int
-    institution_id: int
-    report_type: str
-    report_title: str
-    report_description: Optional[str] = None
-    status: str
-    file_url: Optional[str] = None
-    file_size: Optional[int] = None
-    error_message: Optional[str] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+class AnalyticsEventResponse(BaseModel):
+    id: UUID
+    event_name: str
+    event_type: str
+    user_id: Optional[UUID]
+    session_id: Optional[str]
+    properties: Optional[Dict[str, Any]]
     created_at: datetime
-    updated_at: datetime
 
     class Config:
         from_attributes = True
 
 
-class StudentPerformanceTrend(BaseModel):
-    date: date
-    average_percentage: float
-    attendance_percentage: float
-    assignment_score: Optional[float] = None
+class PerformanceMetricCreate(BaseModel):
+    metric_name: str = Field(..., max_length=100)
+    metric_value: float
+    user_id: Optional[UUID] = None
+    session_id: Optional[str] = None
+    url: Optional[str] = None
+    rating: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
-class AnalyticsDashboard(BaseModel):
-    institution_metrics: InstitutionMetrics
-    recent_exams: List[ExamAnalytics]
-    top_performing_classes: List[ClassMetrics]
-    top_performing_students: List[StudentMetrics]
-    attendance_trends: List[Dict[str, Any]]
-    assignment_trends: List[Dict[str, Any]]
-    yoy_comparisons: List[YoYComparison]
+class PerformanceMetricResponse(BaseModel):
+    id: UUID
+    metric_name: str
+    metric_value: float
+    rating: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserSessionCreate(BaseModel):
+    session_id: str
+    user_id: Optional[UUID] = None
+    institution_id: Optional[UUID] = None
+    landing_page: Optional[str] = None
+    referrer: Optional[str] = None
+    device_type: Optional[str] = None
+    browser: Optional[str] = None
+    os: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+
+
+class UserSessionUpdate(BaseModel):
+    last_seen: Optional[datetime] = None
+    page_views: Optional[int] = None
+    events_count: Optional[int] = None
+    exit_page: Optional[str] = None
+
+
+class UserSessionResponse(BaseModel):
+    id: UUID
+    session_id: str
+    user_id: Optional[UUID]
+    first_seen: datetime
+    last_seen: datetime
+    page_views: int
+    events_count: int
+    landing_page: Optional[str]
+    device_type: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class FeatureUsageCreate(BaseModel):
+    feature_name: str
+    user_id: Optional[UUID] = None
+    institution_id: Optional[UUID] = None
+    properties: Optional[Dict[str, Any]] = None
+
+
+class FeatureUsageResponse(BaseModel):
+    id: UUID
+    feature_name: str
+    user_id: Optional[UUID]
+    usage_count: int
+    first_used_at: datetime
+    last_used_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BatchAnalyticsRequest(BaseModel):
+    events: List[AnalyticsEventCreate] = Field(default_factory=list)
+    performance_metrics: List[PerformanceMetricCreate] = Field(default_factory=list)
+
+
+class AnalyticsDashboardStats(BaseModel):
+    total_users: int
+    active_users_today: int
+    active_users_week: int
+    active_users_month: int
+    total_sessions: int
+    avg_session_duration: float
+    total_page_views: int
+    avg_pages_per_session: float
+
+
+class FeatureAdoptionStats(BaseModel):
+    feature_name: str
+    total_users: int
+    total_usage: int
+    unique_users_today: int
+    unique_users_week: int
+    unique_users_month: int
+    adoption_rate: float
+
+
+class UserFlowNode(BaseModel):
+    page: str
+    count: int
+    drop_off_rate: float
+
+
+class UserFlowAnalysis(BaseModel):
+    nodes: List[UserFlowNode]
+    total_sessions: int
+
+
+class RetentionCohort(BaseModel):
+    cohort_date: str
+    users_count: int
+    retention_day_1: float
+    retention_day_7: float
+    retention_day_14: float
+    retention_day_30: float
+
+
+class TopEventStats(BaseModel):
+    event_name: str
+    event_type: str
+    count: int
+    unique_users: int
+
+
+class PerformanceStats(BaseModel):
+    metric_name: str
+    avg_value: float
+    p50_value: float
+    p75_value: float
+    p95_value: float
+    good_count: int
+    needs_improvement_count: int
+    poor_count: int

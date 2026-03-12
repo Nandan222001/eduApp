@@ -1,3 +1,10 @@
+# Sentry
+.sentryclirc
+*.sentry-release
+
+# Source maps
+*.map
+
 # Python
 __pycache__/
 *.py[cod]

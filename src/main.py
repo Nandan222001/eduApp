@@ -4,10 +4,12 @@ from src.config import settings
 from src.redis_client import init_redis, close_redis
 from src.api.v1 import api_router
 from src.middleware.tenant_context import TenantContextMiddleware
+from src.middleware.sentry_middleware import init_sentry
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_sentry()
     await init_redis()
     yield
     await close_redis()

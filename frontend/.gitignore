@@ -1,3 +1,11 @@
+# Sentry
+.sentryclirc
+*.sentry-release
+sentry-debug-meta.properties
+
+# Source maps
+*.map
+
 # Logs
 logs
 *.log

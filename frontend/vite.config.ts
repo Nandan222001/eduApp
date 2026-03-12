@@ -1,12 +1,28 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      sentryVitePlugin({
+        org: 'your-sentry-org',
+        project: 'your-sentry-project',
+        authToken: env.VITE_SENTRY_AUTH_TOKEN,
+        sourcemaps: {
+          assets: './dist/**',
+        },
+        release: {
+          name: env.VITE_APP_VERSION || '0.0.0',
+          uploadLegacySourcemaps: './dist',
+        },
+        disable: mode === 'development',
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

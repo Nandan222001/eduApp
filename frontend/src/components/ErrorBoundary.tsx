@@ -1,63 +1,78 @@
-import { Component, ReactNode, ErrorInfo } from 'react';
-import { Box, Typography, Button, Container } from '@mui/material';
+import React from 'react';
+import * as Sentry from '@sentry/react';
+import { Box, Typography, Button, Container, Paper } from '@mui/material';
+import { Error as ErrorIcon } from '@mui/icons-material';
 
-interface Props {
-  children: ReactNode;
+interface FallbackProps {
+  error: Error;
+  componentStack: string | null;
+  resetError: () => void;
 }
 
-interface State {
-  hasError: boolean;
-  error?: Error;
-}
-
-export default class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
-  handleReset = () => {
-    this.setState({ hasError: false, error: undefined });
-    window.location.href = '/';
-  };
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <Container maxWidth="md">
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '50vh',
-              gap: 2,
-              textAlign: 'center',
-            }}
-          >
-            <Typography variant="h4" color="error">
-              Oops! Something went wrong
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </Typography>
-            <Button variant="contained" onClick={this.handleReset}>
-              Go to Home
+const ErrorFallback: React.FC<FallbackProps> = ({ error, resetError }) => {
+  return (
+    <Container maxWidth="md">
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          py: 4,
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            textAlign: 'center',
+            maxWidth: 500,
+          }}
+        >
+          <ErrorIcon color="error" sx={{ fontSize: 80, mb: 2 }} />
+          <Typography variant="h4" gutterBottom>
+            Oops! Something went wrong
+          </Typography>
+          <Typography variant="body1" color="text.secondary" paragraph>
+            We&apos;ve been notified of the issue and are working to fix it.
+          </Typography>
+          {import.meta.env.DEV && (
+            <Box
+              sx={{
+                mt: 2,
+                p: 2,
+                bgcolor: 'grey.100',
+                borderRadius: 1,
+                textAlign: 'left',
+                overflow: 'auto',
+              }}
+            >
+              <Typography variant="body2" component="pre">
+                {error.toString()}
+              </Typography>
+            </Box>
+          )}
+          <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center' }}>
+            <Button variant="contained" onClick={resetError}>
+              Try Again
+            </Button>
+            <Button variant="outlined" onClick={() => (window.location.href = '/')}>
+              Go Home
             </Button>
           </Box>
-        </Container>
-      );
-    }
+        </Paper>
+      </Box>
+    </Container>
+  );
+};
 
-    return this.props.children;
+export const SentryErrorBoundary = Sentry.withErrorBoundary(
+  ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  {
+    fallback: ErrorFallback,
+    showDialog: false,
   }
-}
+);
+
+export default SentryErrorBoundary;
