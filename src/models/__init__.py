@@ -34,6 +34,14 @@ from src.models.study_material import (
     MaterialType
 )
 from src.models.search import SearchHistory, PopularSearch
+from src.models.fee import FeeStructure, FeePayment, FeeWaiver, FeeCategory, PaymentMethod, PaymentStatus
+from src.models.library import Book, BookCategory, BookIssue, LibrarySettings, BookStatus, IssueStatus
+from src.models.transport import TransportRoute, RouteStop, StudentTransport, RouteStatus, VehicleType
+from src.models.event import Event, EventRSVP, EventPhoto, EventType, EventStatus, RSVPStatus
+from src.models.timetable import (
+    TimetableTemplate, PeriodSlot, Timetable, TimetableEntry,
+    DayOfWeek, PeriodType
+)
 
 __all__ = [
     "Institution",
@@ -149,4 +157,33 @@ __all__ = [
     "MaterialType",
     "SearchHistory",
     "PopularSearch",
+    "FeeStructure",
+    "FeePayment",
+    "FeeWaiver",
+    "FeeCategory",
+    "PaymentMethod",
+    "PaymentStatus",
+    "Book",
+    "BookCategory",
+    "BookIssue",
+    "LibrarySettings",
+    "BookStatus",
+    "IssueStatus",
+    "TransportRoute",
+    "RouteStop",
+    "StudentTransport",
+    "RouteStatus",
+    "VehicleType",
+    "Event",
+    "EventRSVP",
+    "EventPhoto",
+    "EventType",
+    "EventStatus",
+    "RSVPStatus",
+    "TimetableTemplate",
+    "PeriodSlot",
+    "Timetable",
+    "TimetableEntry",
+    "DayOfWeek",
+    "PeriodType",
 ]
