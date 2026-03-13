@@ -46,6 +46,7 @@ import {
 } from '@mui/icons-material';
 import studentsApi, { StudentDashboardData } from '@/api/students';
 import { useAuth } from '@/hooks/useAuth';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 
 interface WelcomeCardProps {
   name: string;
@@ -859,7 +860,12 @@ export default function StudentDashboard() {
       try {
         setLoading(true);
         const studentId = user?.id ? parseInt(user.id, 10) : 1;
-        const data = await studentsApi.getStudentDashboard(studentId);
+
+        // Use demo data API if user is demo user, otherwise use real API
+        const data = isDemoUser()
+          ? await demoDataApi.students.getStudentDashboard(studentId)
+          : await studentsApi.getStudentDashboard(studentId);
+
         setDashboardData(data);
         setError(null);
       } catch (err: unknown) {
