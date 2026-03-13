@@ -1,329 +1,299 @@
-# Weakness Detection and Recommendation Engine - Implementation Summary
+# ML Model Monitoring and Observability System - Implementation Summary
 
 ## Overview
-A comprehensive AI-powered system for detecting student weaknesses and generating personalized recommendations with spaced repetition, focus area prioritization, and actionable insights.
 
-## Components Implemented
-
-### 1. Database Models (`src/models/study_planner.py`)
-Created four new database models:
-
-#### ChapterPerformance
-- Tracks detailed performance metrics per chapter
-- Calculates mastery scores, success rates, and trends
-- Identifies proficiency levels and improvement rates
-- Fields: average_score, total_attempts, success_rate, mastery_score, trend, proficiency_level, etc.
-
-#### QuestionRecommendation
-- Manages smart question recommendations
-- Implements spaced repetition algorithm (SM-2)
-- Multi-factor scoring system
-- Fields: recommendation_score, relevance_score, difficulty_match_score, spaced_repetition_score, ease_factor, interval_days, etc.
-
-#### FocusArea
-- Prioritizes areas requiring attention
-- Combines urgency, importance, and impact scores
-- Integrates AI predictions
-- Fields: focus_type, urgency_score, importance_score, impact_score, combined_priority, recommended_hours, ai_insights, etc.
-
-#### PersonalizedInsight
-- Generates actionable insights
-- Categorizes by severity and type
-- Tracks acknowledgment and resolution
-- Fields: insight_type, category, title, description, severity, actionable_items, recommendations, supporting_data, etc.
-
-### 2. Service Layer (`src/services/weakness_detection_service.py`)
-Implemented five main service classes:
-
-#### ChapterPerformanceAnalyzer
-- `analyze_chapter_performance()` - Analyzes performance across chapters
-- `get_weak_chapters()` - Identifies chapters below mastery threshold
-- `_calculate_mastery_score()` - Combines scores with consistency bonus
-- `_calculate_trend()` - Detects improving/declining/stable patterns
-- `_determine_proficiency_level()` - Categorizes as beginner to expert
-
-#### SmartQuestionRecommender
-- `generate_recommendations()` - Creates prioritized question list
-- `update_spaced_repetition()` - Updates review schedule based on performance
-- `_calculate_relevance_score()` - Matches questions to weak areas
-- `_calculate_difficulty_match()` - Aligns difficulty with student level
-- `_calculate_spaced_repetition_score()` - Determines review urgency
-- Implements SM-2 algorithm for optimal retention
-
-#### FocusAreaPrioritizer
-- `identify_focus_areas()` - Identifies and prioritizes study areas
-- `_calculate_urgency()` - Considers exam proximity
-- `_calculate_importance()` - Uses topic prediction probabilities
-- `_calculate_impact()` - Evaluates performance effect
-- `_extract_ai_insights()` - Integrates ML predictions
-- `_determine_focus_type()` - Categorizes as critical/high/remedial/maintenance
-
-#### PersonalizedInsightGenerator
-- `generate_insights()` - Creates comprehensive insight set
-- `_generate_performance_insights()` - Low mastery alerts
-- `_generate_trend_insights()` - Declining/improving performance
-- `_generate_focus_insights()` - Critical area notifications
-- `_generate_strength_insights()` - Achievement recognition
-- `_generate_actionable_insights()` - Weekly focus plans
-
-#### WeaknessDetectionEngine
-- `run_comprehensive_analysis()` - Orchestrates full analysis
-- Integrates all components
-- Returns comprehensive results with summary
-
-### 3. Schemas (`src/schemas/weakness_detection.py`)
-Created Pydantic schemas for all models:
-
-- `ChapterPerformanceResponse` - Performance data serialization
-- `QuestionRecommendationResponse` - Recommendation data
-- `QuestionRecommendationUpdate` - Update performance scores
-- `FocusAreaResponse` - Focus area data
-- `FocusAreaUpdate` - Status updates
-- `PersonalizedInsightResponse` - Insight data
-- `PersonalizedInsightUpdate` - Acknowledgment tracking
-- `AnalysisRequest` - Analysis parameters
-- `ComprehensiveAnalysisResponse` - Complete results
-- Supporting schemas for lists and summaries
-
-### 4. API Endpoints (`src/api/v1/weakness_detection.py`)
-Implemented REST API with 10 endpoints:
-
-#### Analysis Endpoints
-- `POST /weakness-detection/analyze` - Run comprehensive analysis
-- `GET /weakness-detection/chapter-performance/{student_id}` - Get performance data
-- `GET /weakness-detection/weak-chapters/{student_id}` - Get weak chapters
-
-#### Recommendation Endpoints
-- `GET /weakness-detection/question-recommendations` - List recommendations
-- `PUT /weakness-detection/question-recommendations/{id}` - Update spaced repetition
-
-#### Focus Area Endpoints
-- `GET /weakness-detection/focus-areas` - List focus areas
-- `PUT /weakness-detection/focus-areas/{id}` - Update focus area
-
-#### Insight Endpoints
-- `GET /weakness-detection/personalized-insights` - List insights
-- `PUT /weakness-detection/personalized-insights/{id}` - Update insight
-- `GET /weakness-detection/insights/summary/{student_id}` - Get summary
-
-### 5. Repository Layer (`src/repositories/weakness_detection_repository.py`)
-Created repository classes for data access:
-
-- `ChapterPerformanceRepository` - CRUD operations for performance
-- `QuestionRecommendationRepository` - CRUD for recommendations
-- `FocusAreaRepository` - CRUD for focus areas
-- `PersonalizedInsightRepository` - CRUD for insights with summary
-
-### 6. Database Migration (`alembic/versions/011_create_weakness_detection_tables.py`)
-Created migration script for all tables:
-
-- `chapter_performance` table with indexes
-- `question_recommendations` table with indexes
-- `focus_areas` table with indexes
-- `personalized_insights` table with indexes
-- All foreign keys and constraints
-- Optimized indexes for common queries
-
-### 7. Documentation
-
-#### System Documentation (`docs/WEAKNESS_DETECTION_SYSTEM.md`)
-Comprehensive documentation including:
-- System architecture
-- Database schema details
-- API endpoint specifications
-- Algorithm explanations
-- Usage examples
-- Integration points
-- Configuration options
-- Best practices
-- Performance optimization
-- Future enhancements
-
-#### Example Code (`examples/weakness_detection_example.py`)
-Complete working examples:
-- Comprehensive analysis workflow
-- Chapter performance analysis
-- Smart question recommendations
-- Spaced repetition updates
-- Focus area prioritization
-- Personalized insight generation
-- Weekly study plan generation
-
-## Key Features
-
-### 1. Chapter-wise Performance Analysis
-- Automatic tracking across all chapters
-- Mastery score calculation with consistency bonus
-- Trend detection (improving/declining/stable)
-- Proficiency level categorization
-- Success rate and attempt tracking
-
-### 2. Smart Question Recommendations
-- Multi-factor scoring algorithm
-- Spaced repetition using SM-2 algorithm
-- Adaptive review scheduling
-- Priority ranking system
-- Completion tracking
-
-### 3. Focus Area Prioritization
-- Combined priority scoring (urgency + importance + impact)
-- AI prediction integration
-- Performance gap analysis
-- Recommended study hours
-- Estimated improvement calculations
-
-### 4. Personalized Insights
-- Multiple insight categories (performance, trends, priorities, achievements)
-- Severity classification (critical, high, medium, info)
-- Actionable recommendations
-- Supporting data and metrics
-- Acknowledgment and resolution tracking
-
-## Algorithms Implemented
-
-### 1. Mastery Score Calculation
-```
-mastery_score = (avg_score * 0.6) + (success_rate * 0.4) + consistency_bonus
-consistency_bonus = min(attempts * 2, 20)
-```
-
-### 2. Recommendation Score
-```
-recommendation_score = 
-    relevance * 0.30 +
-    difficulty_match * 0.25 +
-    weakness_alignment * 0.25 +
-    spaced_repetition * 0.20
-```
-
-### 3. Spaced Repetition (SM-2)
-- Quality rating based on performance (0-5)
-- Dynamic ease factor adjustment
-- Interval calculation based on repetition number
-- Reset on failed recall
-
-### 4. Combined Priority
-```
-combined_priority = 
-    urgency * 0.35 +
-    importance * 0.40 +
-    impact * 0.25
-```
-
-### 5. Focus Type Determination
-- Critical: urgency >= 80 AND importance >= 70
-- High Priority: urgency >= 60 OR importance >= 60
-- Remedial: weakness_score >= 70
-- Maintenance: otherwise
-
-## Integration Points
-
-1. **Exam Performance Data**
-   - Analyzes exam marks
-   - Tracks trends across assessments
-   - Calculates subject/chapter metrics
-
-2. **Assignment Submissions**
-   - Incorporates assignment scores
-   - Identifies concept gaps
-   - Tracks completion rates
-
-3. **AI Predictions**
-   - Integrates ML model forecasts
-   - Uses feature contributions
-   - Provides confidence intervals
-
-4. **Topic Predictions**
-   - Leverages board exam predictions
-   - Prioritizes high-probability topics
-   - Balances with weakness scores
-
-5. **Study Planner**
-   - Generates study plans
-   - Allocates time by priority
-   - Creates aligned daily tasks
-
-## Configuration
-
-### Thresholds
-- Mastery threshold: 60.0%
-- Proficiency levels: Expert (90+), Proficient (75+), Competent (60+), Developing (40+), Beginner (<40)
-- Initial interval: 1 day
-- Min ease factor: 1.3
-
-### Weights
-- Recommendation: Relevance (30%), Difficulty (25%), Weakness (25%), Spacing (20%)
-- Priority: Urgency (35%), Importance (40%), Impact (25%)
+A complete ML model monitoring and observability system has been implemented in the FastAPI application, providing comprehensive drift detection, performance monitoring, and automatic retraining capabilities.
 
 ## Files Created/Modified
 
-### New Files
-1. `src/services/weakness_detection_service.py` (1,100+ lines)
-2. `src/schemas/weakness_detection.py` (200+ lines)
-3. `src/api/v1/weakness_detection.py` (350+ lines)
-4. `src/repositories/weakness_detection_repository.py` (400+ lines)
-5. `alembic/versions/011_create_weakness_detection_tables.py` (250+ lines)
-6. `docs/WEAKNESS_DETECTION_SYSTEM.md` (800+ lines)
-7. `examples/weakness_detection_example.py` (600+ lines)
+### Core Monitoring System
+1. **src/ml/model_monitoring.py** (NEW)
+   - `ModelMonitoringService`: Main monitoring service with drift detection
+   - `MonitoringDashboardService`: Dashboard aggregation service
+   - Implements:
+     - Prediction drift detection (KS test, JS divergence, PSI)
+     - Feature drift monitoring
+     - Performance degradation detection
+     - Confidence trend analysis
+     - Automatic retraining triggers
+     - Health scoring system
 
-### Modified Files
-1. `src/models/study_planner.py` - Added 4 new models (200+ lines)
-2. `src/models/__init__.py` - Exported new models
-3. `src/api/v1/__init__.py` - Registered new router
+### API Endpoints
+2. **src/api/v1/ml_monitoring.py** (NEW)
+   - Monitoring API endpoints:
+     - `GET /ml-monitoring/models/{model_id}/drift/predictions`
+     - `GET /ml-monitoring/models/{model_id}/drift/features`
+     - `GET /ml-monitoring/models/{model_id}/performance/degradation`
+     - `GET /ml-monitoring/models/{model_id}/confidence/trends`
+     - `GET /ml-monitoring/models/{model_id}/report/comprehensive`
+     - `POST /ml-monitoring/models/{model_id}/retraining/trigger`
+     - `GET /ml-monitoring/institutions/{institution_id}/overview`
+     - `GET /ml-monitoring/models/{model_id}/timeline/predictions`
+     - `GET /ml-monitoring/models/{model_id}/features/importance-trends`
 
-## Total Lines of Code
-- **Service Layer**: ~1,100 lines
-- **Models**: ~200 lines
-- **Schemas**: ~200 lines
-- **API Endpoints**: ~350 lines
-- **Repositories**: ~400 lines
-- **Migration**: ~250 lines
-- **Documentation**: ~800 lines
-- **Examples**: ~600 lines
-- **Total**: ~3,900 lines of production code
+3. **src/api/v1/ml_analytics.py** (NEW)
+   - Analytics integration endpoints:
+     - `GET /ml-analytics/institutions/{institution_id}/unified-dashboard`
+     - `GET /ml-analytics/students/{student_id}/ml-insights`
+     - `GET /ml-analytics/models/{model_id}/performance-analytics`
+     - `POST /ml-analytics/models/{model_id}/accuracy-analysis`
+     - `POST /ml-analytics/institutions/{institution_id}/schedule-monitoring`
 
-## Usage Workflow
+### Schemas
+4. **src/schemas/ml_monitoring_schemas.py** (NEW)
+   - Pydantic models for monitoring responses:
+     - `PredictionDriftResponse`
+     - `FeatureDriftResponse`
+     - `PerformanceDegradationResponse`
+     - `ConfidenceTrendsResponse`
+     - `ComprehensiveMonitoringReportResponse`
+     - `AutoRetrainingResponse`
+     - `MonitoringOverviewResponse`
+     - And more...
 
-1. **Run Analysis**
-   ```python
-   result = engine.run_comprehensive_analysis(
-       institution_id=1,
-       student_id=123,
-       target_exam_date=exam_date
-   )
-   ```
+5. **src/schemas/ml_analytics_schemas.py** (NEW)
+   - Pydantic models for analytics integration:
+     - `UnifiedDashboardResponse`
+     - `StudentMLInsightsResponse`
+     - `ModelPerformanceAnalyticsResponse`
+     - `PredictionAccuracyAnalysisResponse`
+     - And more...
 
-2. **Review Insights**
-   - Check critical insights
-   - Acknowledge recommendations
-   - Review focus areas
+### Services
+6. **src/services/ml_analytics_integration_service.py** (NEW)
+   - `MLAnalyticsIntegrationService`: Integrates ML monitoring with analytics
+   - Methods:
+     - `get_unified_institution_dashboard()`
+     - `get_student_ml_insights()`
+     - `get_model_performance_analytics()`
+     - `get_prediction_accuracy_analysis()`
+     - `schedule_monitoring_checks()`
 
-3. **Study Recommendations**
-   - Follow question recommendations
-   - Update performance after practice
-   - Track spaced repetition schedule
+### Celery Tasks
+7. **src/tasks/ml_monitoring_tasks.py** (NEW)
+   - Background tasks for monitoring:
+     - `check_model_health_task`: Check specific model health
+     - `check_institution_models_task`: Check all models in institution
+     - `auto_retrain_model_task`: Trigger automatic retraining
+     - `detect_prediction_drift_task`: Drift detection
+     - `detect_feature_drift_task`: Feature drift detection
+     - `scheduled_monitoring_check_task`: Daily scheduled checks
+     - `cleanup_old_predictions_task`: Data cleanup
 
-4. **Progress Tracking**
-   - Monitor mastery improvements
-   - Track focus area completion
-   - Resolve insights as addressed
+### Documentation
+8. **src/ml/README_MONITORING.md** (NEW)
+   - Comprehensive documentation covering:
+     - Feature overview
+     - API endpoint documentation
+     - Configuration guide
+     - Celery task setup
+     - Best practices
+     - Troubleshooting
 
-## Next Steps
+9. **examples/ml_monitoring_examples.py** (NEW)
+   - 10 practical examples demonstrating:
+     - Basic monitoring
+     - Drift detection
+     - Confidence analysis
+     - Automatic retraining
+     - Institution overview
+     - Unified analytics
+     - Student insights
+     - Accuracy analysis
+     - Timeline visualization
+     - Scheduled monitoring
 
-To use the system:
+### Router Integration
+10. **src/api/v1/__init__.py** (MODIFIED)
+    - Added imports and router registrations for:
+      - `ml_monitoring` router
+      - `ml_analytics` router
 
-1. Run the migration: `alembic upgrade head`
-2. Ensure exam marks and weak areas are populated
-3. Call the analysis endpoint for students
-4. Present insights and recommendations to students
-5. Track their progress as they complete recommendations
+## Key Features Implemented
 
-## Benefits
+### 1. Prediction Drift Detection
+- **Kolmogorov-Smirnov (KS) Test**: Statistical test for distribution differences
+- **Jensen-Shannon Divergence**: Measure of similarity between distributions
+- **Population Stability Index (PSI)**: Industry-standard drift metric
+- Configurable thresholds and baseline windows
 
-1. **Automated Weakness Detection**: No manual analysis required
-2. **Scientific Learning**: Spaced repetition based on proven algorithms
-3. **Personalized Approach**: Tailored to each student's needs
-4. **Data-Driven**: Based on actual performance data
-5. **Actionable Insights**: Clear recommendations with steps
-6. **Progress Tracking**: Monitors improvement over time
-7. **AI Integration**: Leverages ML predictions for better targeting
+### 2. Feature Drift Monitoring
+- Per-feature drift scores
+- KS statistics for each feature
+- Mean shift detection
+- Standard deviation tracking
+- Identifies specific features causing drift
+
+### 3. Performance Degradation Detection
+- Tracks R² score, MAE, RMSE
+- Compares against baseline metrics
+- Confidence interval width monitoring
+- Automatic alert generation
+
+### 4. Confidence Trend Analysis
+- Daily confidence width tracking
+- Trend direction and slope calculation
+- Confidence drop detection
+- Historical comparison
+
+### 5. Model Health Scoring
+- 0-100 health score calculation
+- Five health statuses: excellent, good, fair, poor, critical
+- Considers drift, performance, and confidence
+- Visual status indicators
+
+### 6. Automatic Retraining System
+- Configurable retraining triggers:
+  - R² drop > 15%
+  - MAE increase > 20%
+  - Drift score > 0.25
+  - 3+ consecutive critical alerts
+- Auto-promotion with threshold comparison
+- Champion/challenger model pattern
+
+### 7. Comprehensive Monitoring Reports
+- Unified view of all metrics
+- Retraining recommendations
+- Alert summaries
+- Health status with reasons
+
+### 8. Analytics Integration
+- Combines ML monitoring with traditional analytics
+- Student-specific insights
+- Prediction accuracy analysis
+- Institution-wide dashboards
+
+### 9. Background Task Support
+- Celery tasks for asynchronous monitoring
+- Scheduled daily health checks
+- Automatic cleanup of old predictions
+- Institution-wide monitoring sweeps
+
+## Configuration Options
+
+### Drift Thresholds
+```python
+drift_thresholds = {
+    'prediction_drift': 0.15,
+    'feature_drift': 0.20,
+    'performance_degradation': 0.10,
+    'confidence_drop': 0.15
+}
+```
+
+### Retraining Thresholds
+```python
+retraining_thresholds = {
+    'r2_drop': 0.15,
+    'mae_increase': 0.20,
+    'drift_score': 0.25,
+    'consecutive_alerts': 3
+}
+```
+
+### Monitoring Windows
+```python
+monitoring_window_days = 30
+baseline_window_days = 90
+```
+
+## API Usage Examples
+
+### Check Model Health
+```bash
+curl -X GET "http://localhost:8000/api/v1/ml-monitoring/models/1/report/comprehensive?recent_days=7"
+```
+
+### Get Institution Overview
+```bash
+curl -X GET "http://localhost:8000/api/v1/ml-monitoring/institutions/1/overview?days=7"
+```
+
+### Trigger Retraining
+```bash
+curl -X POST "http://localhost:8000/api/v1/ml-monitoring/models/1/retraining/trigger" \
+  -H "Content-Type: application/json" \
+  -d '{"auto_promote": true, "deployed_by": 1}'
+```
+
+### Get Unified Dashboard
+```bash
+curl -X GET "http://localhost:8000/api/v1/ml-analytics/institutions/1/unified-dashboard?days=7"
+```
+
+## Alert Severity Levels
+
+- **INFO**: Informational, no action required
+- **WARNING**: Moderate issues, monitoring recommended
+- **CRITICAL**: Severe issues, immediate action required
+
+## Health Status Categories
+
+- **Excellent (90-100)**: No issues detected
+- **Good (75-89)**: Minor drift within acceptable ranges
+- **Fair (60-74)**: Some drift or performance concerns
+- **Poor (40-59)**: Significant drift or degradation
+- **Critical (0-39)**: Severe issues, retraining recommended
+
+## Integration Points
+
+1. **Existing ML Services**
+   - Uses `PerformancePredictionService` for predictions
+   - Integrates with `MLTrainingPipeline` for retraining
+   - Leverages `ModelStorageService` for model management
+
+2. **Analytics Service**
+   - Combines with `AnalyticsService` for unified dashboards
+   - Provides ML insights alongside traditional metrics
+   - Redis caching for performance
+
+3. **Database Models**
+   - Uses existing `MLModel`, `MLModelVersion`, `PerformancePrediction`
+   - No new database migrations required
+   - Stores monitoring data in existing structures
+
+4. **Celery Task System**
+   - Integrates with existing Celery infrastructure
+   - Scheduled tasks for automated monitoring
+   - Background processing for heavy computations
+
+## Testing Recommendations
+
+1. **Unit Tests**: Test individual drift detection methods
+2. **Integration Tests**: Test API endpoints with mock data
+3. **End-to-End Tests**: Test complete monitoring workflows
+4. **Performance Tests**: Verify monitoring doesn't impact predictions
+
+## Deployment Considerations
+
+1. **Celery Beat Configuration**: Set up scheduled tasks
+2. **Redis**: Ensure Redis is running for caching
+3. **Monitoring Intervals**: Configure appropriate check frequencies
+4. **Alert Notifications**: Set up notification system for critical alerts
+5. **Data Retention**: Configure cleanup tasks for old predictions
+
+## Next Steps (Optional Enhancements)
+
+1. **Alert Notifications**: Email/Slack notifications for critical alerts
+2. **Custom Dashboards**: Visualization UI for monitoring data
+3. **A/B Testing**: Enhanced champion/challenger testing
+4. **Explainability**: SHAP/LIME integration for predictions
+5. **Advanced Drift Detection**: Additional statistical tests
+6. **Model Registry**: Centralized model versioning system
+
+## Summary
+
+The ML model monitoring and observability system is fully implemented and ready for use. It provides:
+
+- ✅ Prediction drift detection
+- ✅ Feature drift monitoring
+- ✅ Performance degradation alerts
+- ✅ Confidence trend analysis
+- ✅ Automatic retraining triggers
+- ✅ Monitoring dashboard APIs
+- ✅ Analytics service integration
+- ✅ Background task support
+- ✅ Comprehensive documentation
+- ✅ Practical examples
+
+All components are integrated with the existing codebase and follow established patterns and conventions.

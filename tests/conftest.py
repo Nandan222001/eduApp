@@ -7,6 +7,10 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from faker import Faker
 from datetime import datetime, timedelta
+from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock, patch
+import boto3
+from moto import mock_aws
 
 from src.database import Base, get_db
 from src.main import app
@@ -18,8 +22,9 @@ from src.models.institution import Institution
 from src.models.student import Student
 from src.models.teacher import Teacher
 from src.models.academic import AcademicYear, Grade, Section, Subject
+from src.models.subscription import Subscription, Payment, Invoice
 from src.utils.security import get_password_hash
-from unittest.mock import AsyncMock
+from src.utils.session import SessionManager
 
 fake = Faker()
 
@@ -72,6 +77,9 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         mock_redis.set.return_value = True
         mock_redis.delete.return_value = True
         mock_redis.exists.return_value = False
+        mock_redis.expire.return_value = True
+        mock_redis.ttl.return_value = 3600
+        mock_redis.keys.return_value = []
         return mock_redis
 
     app.dependency_overrides[get_db] = override_get_db
@@ -328,6 +336,29 @@ def student(
 
 
 @pytest.fixture
+def subscription(db_session: Session, institution: Institution) -> Subscription:
+    """Create a test subscription."""
+    subscription = Subscription(
+        institution_id=institution.id,
+        plan_name="STARTER",
+        status="active",
+        billing_cycle="monthly",
+        price=Decimal("999.00"),
+        currency="INR",
+        max_users=10,
+        max_storage_gb=50,
+        features='["Basic support", "Email notifications"]',
+        start_date=datetime.utcnow(),
+        next_billing_date=datetime.utcnow() + timedelta(days=30),
+        auto_renew=True,
+    )
+    db_session.add(subscription)
+    db_session.commit()
+    db_session.refresh(subscription)
+    return subscription
+
+
+@pytest.fixture
 def auth_headers(admin_user: User) -> dict:
     """Create authentication headers for testing."""
     from src.utils.security import create_access_token
@@ -343,17 +374,6 @@ def auth_headers(admin_user: User) -> dict:
 
 
 @pytest.fixture
-def mock_s3_client(monkeypatch):
-    """Mock S3 client for file upload tests."""
-    from unittest.mock import MagicMock
-    mock_s3 = MagicMock()
-    mock_s3.upload_fileobj.return_value = None
-    mock_s3.generate_presigned_url.return_value = "https://example.com/test-file.pdf"
-    mock_s3.delete_object.return_value = None
-    return mock_s3
-
-
-@pytest.fixture
 def mock_redis():
     """Mock Redis client for testing."""
     mock = AsyncMock()
@@ -363,4 +383,52 @@ def mock_redis():
     mock.exists.return_value = False
     mock.expire.return_value = True
     mock.ttl.return_value = 3600
+    mock.keys.return_value = []
+    mock.hset.return_value = True
+    mock.hget.return_value = None
+    mock.hdel.return_value = True
+    return mock
+
+
+@pytest.fixture
+def mock_session_manager(mock_redis):
+    """Mock SessionManager for testing."""
+    return SessionManager(mock_redis)
+
+
+@pytest.fixture
+def mock_sendgrid():
+    """Mock SendGrid client for testing."""
+    with patch('sendgrid.SendGridAPIClient') as mock_sg:
+        mock_client = MagicMock()
+        mock_client.send.return_value = MagicMock(status_code=202)
+        mock_sg.return_value = mock_client
+        yield mock_client
+
+
+@pytest.fixture
+def mock_s3():
+    """Mock S3 client for testing."""
+    with mock_aws():
+        s3_client = boto3.client('s3', region_name='us-east-1')
+        s3_client.create_bucket(Bucket='test-bucket')
+        yield s3_client
+
+
+@pytest.fixture
+def mock_razorpay():
+    """Mock Razorpay client for testing."""
+    mock = MagicMock()
+    mock.order.create.return_value = {
+        'id': 'order_test123',
+        'amount': 99900,
+        'currency': 'INR',
+        'status': 'created'
+    }
+    mock.payment.fetch.return_value = {
+        'id': 'pay_test123',
+        'order_id': 'order_test123',
+        'status': 'captured',
+        'amount': 99900
+    }
     return mock

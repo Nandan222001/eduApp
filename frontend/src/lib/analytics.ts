@@ -1,64 +1,31 @@
+interface AnalyticsEvent {
+  event_name: string;
+  event_type: string;
+  properties?: Record<string, unknown>;
+}
+
 declare global {
   interface Window {
-    gtag?: (
-      command: 'config' | 'event' | 'js' | 'set',
-      targetId: string | Date,
-      config?: Record<string, unknown>
-    ) => void;
+    gtag?: (command: string, targetId: string | Date, config?: Record<string, unknown>) => void;
     dataLayer?: unknown[];
   }
 }
 
-export interface EventParams {
-  [key: string]: string | number | boolean | undefined;
-}
-
-export interface PageViewParams {
-  page_title?: string;
-  page_location?: string;
-  page_path?: string;
-}
-
-export interface FeatureUsageParams extends EventParams {
-  feature_name: string;
-  feature_category?: string;
-  feature_value?: string | number;
-}
-
-export interface ConversionParams extends EventParams {
-  value?: number;
-  currency?: string;
-  transaction_id?: string;
-}
-
-export interface ClickParams extends EventParams {
-  element_id?: string;
-  element_class?: string;
-  element_text?: string;
-  link_url?: string;
-}
-
 class Analytics {
-  private measurementId: string | undefined;
-  private isInitialized = false;
-  private isEnabled = false;
+  private initialized = false;
+  private measurementId: string | null = null;
 
   init(): void {
-    this.measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
-    this.isEnabled = import.meta.env.VITE_GA_ENABLED !== 'false' && !import.meta.env.DEV;
+    this.measurementId = import.meta.env.VITE_GA4_MEASUREMENT_ID;
 
-    if (!this.isEnabled || !this.measurementId) {
-      console.info('Google Analytics is disabled');
+    if (!this.measurementId || this.measurementId === 'G-XXXXXXXXXX') {
+      console.warn('Google Analytics is not configured');
       return;
     }
 
-    this.loadGoogleAnalytics();
-    this.isInitialized = true;
-    console.info('Google Analytics initialized', { measurementId: this.measurementId });
-  }
-
-  private loadGoogleAnalytics(): void {
-    if (!this.measurementId) return;
+    if (typeof window === 'undefined') {
+      return;
+    }
 
     const script = document.createElement('script');
     script.async = true;
@@ -67,75 +34,114 @@ class Analytics {
 
     window.dataLayer = window.dataLayer || [];
     window.gtag = function gtag(...args: unknown[]) {
-      window.dataLayer!.push(args);
+      window.dataLayer?.push(args);
     };
 
     window.gtag('js', new Date());
     window.gtag('config', this.measurementId, {
       send_page_view: false,
     });
+
+    this.initialized = true;
   }
 
-  trackPageView(params?: PageViewParams): void {
-    if (!this.isInitialized || !this.measurementId || !window.gtag) {
-      if (import.meta.env.DEV) {
-        console.log('Page view (dev):', params);
-      }
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  trackEvent(event: AnalyticsEvent): void {
+    if (!this.initialized || !window.gtag) {
       return;
     }
 
-    const pageViewParams: PageViewParams = {
-      page_title: params?.page_title || document.title,
-      page_location: params?.page_location || window.location.href,
-      page_path: params?.page_path || window.location.pathname + window.location.search,
-    };
-
-    window.gtag('event', 'page_view', pageViewParams);
+    try {
+      window.gtag('event', event.event_name, {
+        event_category: event.event_type,
+        ...event.properties,
+      });
+    } catch (error) {
+      console.error('Error tracking event:', error);
+    }
   }
 
-  trackEvent(eventName: string, params?: EventParams): void {
-    if (!this.isInitialized || !this.measurementId || !window.gtag) {
-      if (import.meta.env.DEV) {
-        console.log('Event (dev):', eventName, params);
-      }
+  trackPageView(path: string): void {
+    if (!this.initialized || !window.gtag || !this.measurementId) {
       return;
     }
 
-    window.gtag('event', eventName, params);
+    try {
+      window.gtag('config', this.measurementId, {
+        page_path: path,
+      });
+    } catch (error) {
+      console.error('Error tracking page view:', error);
+    }
   }
 
-  trackFeatureUsage(params: FeatureUsageParams): void {
-    if (!this.isInitialized || !this.measurementId || !window.gtag) {
-      if (import.meta.env.DEV) {
-        console.log('Feature usage (dev):', params);
-      }
-      return;
-    }
-
-    window.gtag('event', 'feature_usage', params);
+  trackFeatureUsage(featureName: string, properties?: Record<string, unknown>): void {
+    this.trackEvent({
+      event_name: 'feature_usage',
+      event_type: 'engagement',
+      properties: {
+        feature_name: featureName,
+        ...properties,
+      },
+    });
   }
 
-  trackConversion(eventName: string, params?: ConversionParams): void {
-    if (!this.isInitialized || !this.measurementId || !window.gtag) {
-      if (import.meta.env.DEV) {
-        console.log('Conversion (dev):', eventName, params);
-      }
-      return;
-    }
-
-    window.gtag('event', eventName, params);
+  trackConversion(
+    conversionType: string,
+    value?: number,
+    properties?: Record<string, unknown>
+  ): void {
+    this.trackEvent({
+      event_name: 'conversion',
+      event_type: 'conversion',
+      properties: {
+        conversion_type: conversionType,
+        value,
+        ...properties,
+      },
+    });
   }
 
-  trackClick(params: ClickParams): void {
-    if (!this.isInitialized || !this.measurementId || !window.gtag) {
-      if (import.meta.env.DEV) {
-        console.log('Click (dev):', params);
-      }
-      return;
-    }
-
-    window.gtag('event', 'click', params);
+  trackClick(elementId: string, properties?: Record<string, unknown>): void {
+    this.trackEvent({
+      event_name: 'click',
+      event_type: 'interaction',
+      properties: {
+        element_id: elementId,
+        ...properties,
+      },
+    });
   }
 }
 
 export const analytics = new Analytics();
+
+export const trackEvent = (event: AnalyticsEvent): void => {
+  analytics.trackEvent(event);
+};
+
+export const trackPageView = (path: string): void => {
+  analytics.trackPageView(path);
+};
+
+export const trackFeatureUsage = (
+  featureName: string,
+  properties?: Record<string, unknown>
+): void => {
+  analytics.trackFeatureUsage(featureName, properties);
+};
+
+export const trackConversion = (
+  conversionType: string,
+  value?: number,
+  properties?: Record<string, unknown>
+): void => {
+  analytics.trackConversion(conversionType, value, properties);
+};
+
+export const trackClick = (elementId: string, properties?: Record<string, unknown>): void => {
+  analytics.trackClick(elementId, properties);
+};

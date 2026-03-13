@@ -48,11 +48,14 @@ from src.api.v1 import (
     flashcards,
     quizzes,
     chatbot,
-    dashboard_widgets,
-    rate_limits,
-    performance_monitoring,
-    database_maintenance,
-    collaboration
+    ml_training,
+    ml_monitoring,
+    ml_analytics,
+    doubts,
+    learning_paths,
+    virtual_classrooms,
+    classroom_websocket,
+    plagiarism
 )
 from src.api import ml
 
@@ -107,8 +110,3 @@ api_router.include_router(data_management.router, prefix="", tags=["data-managem
 api_router.include_router(flashcards.router, prefix="", tags=["flashcards"])
 api_router.include_router(quizzes.router, prefix="", tags=["quizzes"])
 api_router.include_router(chatbot.router, prefix="/chatbot", tags=["chatbot"])
-api_router.include_router(dashboard_widgets.router, prefix="/dashboard", tags=["dashboard-widgets"])
-api_router.include_router(rate_limits.router, prefix="/rate-limits", tags=["rate-limits"])
-api_router.include_router(performance_monitoring.router, prefix="/admin", tags=["performance-monitoring"])
-api_router.include_router(database_maintenance.router, tags=["database-maintenance"])
-api_router.include_router(collaboration.router, prefix="/collaboration", tags=["collaboration"])

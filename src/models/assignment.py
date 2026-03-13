@@ -63,6 +63,7 @@ class Assignment(Base):
     submissions = relationship("Submission", back_populates="assignment", cascade="all, delete-orphan")
     attachment_files = relationship("AssignmentFile", back_populates="assignment", cascade="all, delete-orphan")
     rubric_criteria = relationship("RubricCriteria", back_populates="assignment", cascade="all, delete-orphan")
+    plagiarism_checks = relationship("PlagiarismCheck", back_populates="assignment", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('idx_assignment_institution', 'institution_id'),
@@ -126,6 +127,10 @@ class Submission(Base):
     grader = relationship("Teacher", foreign_keys=[graded_by], back_populates="graded_submissions")
     submission_files = relationship("SubmissionFile", back_populates="submission", cascade="all, delete-orphan")
     rubric_grades = relationship("SubmissionGrade", back_populates="submission", cascade="all, delete-orphan")
+    plagiarism_check = relationship("PlagiarismCheck", back_populates="submission", uselist=False)
+    plagiarism_results = relationship("PlagiarismResult", foreign_keys="[PlagiarismResult.submission_id]", back_populates="submission", cascade="all, delete-orphan")
+    code_fingerprints = relationship("CodeASTFingerprint", back_populates="submission", cascade="all, delete-orphan")
+    citations = relationship("CitationPattern", back_populates="submission", cascade="all, delete-orphan")
     
     __table_args__ = (
         UniqueConstraint('assignment_id', 'student_id', name='uq_assignment_student_submission'),

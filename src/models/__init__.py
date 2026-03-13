@@ -68,13 +68,14 @@ from src.models.quiz import (
     Quiz, QuizQuestion, QuizAttempt, QuizResponse, QuizLeaderboard, QuizAnalytics,
     QuizType, QuestionType, QuizStatus, QuizAttemptStatus
 )
-from src.models.dashboard_widget import (
-    DashboardWidget, WidgetPreset, WidgetType, WidgetSize
+from src.models.ml_training import (
+    MLTrainingJob, ModelPerformanceMetrics, ModelPromotionLog,
+    TrainingStatus, TrainingJobType
 )
-from src.models.rate_limit import RateLimitViolation, RateLimitStats
-from src.models.performance_monitoring import (
-    APIPerformanceMetric, DatabaseQueryMetric, CacheMetric, TaskQueueMetric,
-    ResourceUtilizationMetric, PerformanceAlert, MetricStatus, AlertSeverity, AlertStatus
+from src.models.plagiarism import (
+    PlagiarismCheck, PlagiarismResult, PlagiarismMatchSegment,
+    CodeASTFingerprint, CitationPattern, PlagiarismPrivacyConsent,
+    PlagiarismCheckStatus, ComparisonScope, ContentType, ReviewDecision
 )
 
 __all__ = [
@@ -277,19 +278,19 @@ __all__ = [
     "QuestionType",
     "QuizStatus",
     "QuizAttemptStatus",
-    "DashboardWidget",
-    "WidgetPreset",
-    "WidgetType",
-    "WidgetSize",
-    "RateLimitViolation",
-    "RateLimitStats",
-    "APIPerformanceMetric",
-    "DatabaseQueryMetric",
-    "CacheMetric",
-    "TaskQueueMetric",
-    "ResourceUtilizationMetric",
-    "PerformanceAlert",
-    "MetricStatus",
-    "AlertSeverity",
-    "AlertStatus",
+    "MLTrainingJob",
+    "ModelPerformanceMetrics",
+    "ModelPromotionLog",
+    "TrainingStatus",
+    "TrainingJobType",
+    "PlagiarismCheck",
+    "PlagiarismResult",
+    "PlagiarismMatchSegment",
+    "CodeASTFingerprint",
+    "CitationPattern",
+    "PlagiarismPrivacyConsent",
+    "PlagiarismCheckStatus",
+    "ComparisonScope",
+    "ContentType",
+    "ReviewDecision",
 ]

@@ -8,8 +8,7 @@ celery_app = Celery(
     include=[
         "src.tasks.notification_tasks",
         "src.tasks.analytics_tasks",
-        "src.tasks.performance_monitoring_tasks",
-        "src.tasks.database_maintenance_tasks"
+        "src.tasks.ml_training_tasks"
     ]
 )
 
@@ -60,53 +59,5 @@ celery_app.conf.beat_schedule = {
     "clean-analytics-cache": {
         "task": "analytics.clean_expired_cache",
         "schedule": 3600.0,
-    },
-    "check-api-performance": {
-        "task": "performance.check_api_performance",
-        "schedule": 300.0,  # Every 5 minutes
-    },
-    "check-database-performance": {
-        "task": "performance.check_database_performance",
-        "schedule": 300.0,  # Every 5 minutes
-    },
-    "check-cache-performance": {
-        "task": "performance.check_cache_performance",
-        "schedule": 300.0,  # Every 5 minutes
-    },
-    "check-resource-utilization": {
-        "task": "performance.check_resource_utilization",
-        "schedule": 60.0,  # Every minute
-    },
-    "cleanup-old-metrics": {
-        "task": "performance.cleanup_old_metrics",
-        "schedule": 86400.0,  # Daily
-    },
-    "db-maintenance-vacuum-analyze": {
-        "task": "db_maintenance.vacuum_analyze",
-        "schedule": 86400.0,  # Daily at midnight
-    },
-    "db-maintenance-analyze-indexes": {
-        "task": "db_maintenance.analyze_index_usage",
-        "schedule": 604800.0,  # Weekly
-    },
-    "db-maintenance-cleanup-dead-tuples": {
-        "task": "db_maintenance.cleanup_dead_tuples",
-        "schedule": 21600.0,  # Every 6 hours
-    },
-    "db-maintenance-log-slow-queries": {
-        "task": "db_maintenance.log_slow_queries",
-        "schedule": 3600.0,  # Every hour
-    },
-    "db-maintenance-create-partitions": {
-        "task": "db_maintenance.create_partitions",
-        "schedule": 86400.0,  # Daily
-    },
-    "db-maintenance-table-bloat-report": {
-        "task": "db_maintenance.table_bloat_report",
-        "schedule": 604800.0,  # Weekly
-    },
-    "db-maintenance-update-statistics": {
-        "task": "db_maintenance.update_statistics",
-        "schedule": 43200.0,  # Every 12 hours
     },
 }
