@@ -1,12 +1,18 @@
 import { useAuthStore } from '@/store/useAuthStore';
 import { DEMO_CREDENTIALS, demoData } from '@/data/dummyData';
-import type { StudentListParams, StudentProfile, StudentDashboardData } from './students';
+import type { StudentProfile, StudentDashboardData } from './students';
 import type { AssignmentListParams } from '@/types/assignment';
-import type { AttendanceListResponse, MonthlyAttendanceData, StudentAttendanceDetail } from './attendance';
+import type { AttendanceListResponse, StudentAttendanceDetail } from './attendance';
 import type { ExamListParams, ExamListResponse } from './examinations';
 import type { ExamResult } from '@/types/examination';
 import type { AIPredictionDashboardResponse } from './aiPredictionDashboard';
-import type { UserBadge, UserPoints, PointHistory, LeaderboardEntry, Badge } from '@/types/gamification';
+import type {
+  UserBadge,
+  UserPoints,
+  PointHistory,
+  LeaderboardEntry,
+  Badge,
+} from '@/types/gamification';
 import type { Goal, GoalAnalytics } from '@/types/goals';
 import type { StudentPerformanceAnalytics } from '@/types/analytics';
 
@@ -16,11 +22,11 @@ export const isDemoUser = (): boolean => {
 };
 
 export const demoStudentsApi = {
-  getStudentProfile: async (id: number): Promise<StudentProfile> => {
+  getStudentProfile: async (_id: number): Promise<StudentProfile> => {
     return Promise.resolve(demoData.student.profile);
   },
 
-  getStudentDashboard: async (id: number): Promise<StudentDashboardData> => {
+  getStudentDashboard: async (_id: number): Promise<StudentDashboardData> => {
     return Promise.resolve({
       student_id: demoData.student.profile.id,
       student_name: `${demoData.student.profile.first_name} ${demoData.student.profile.last_name}`,
@@ -52,7 +58,7 @@ export const demoStudentsApi = {
         level: demoData.gamification.userPoints.level,
         rank: 3,
       },
-      badges: demoData.gamification.userBadges.map(ub => ({
+      badges: demoData.gamification.userBadges.map((ub) => ({
         id: ub.badge.id,
         name: ub.badge.name,
         description: ub.badge.description,
@@ -68,7 +74,7 @@ export const demoStudentsApi = {
 };
 
 export const demoAssignmentsApi = {
-  list: async (params?: AssignmentListParams) => {
+  list: async (_params?: AssignmentListParams) => {
     return Promise.resolve({
       items: demoData.academics.assignments,
       total: demoData.academics.assignments.length,
@@ -78,20 +84,22 @@ export const demoAssignmentsApi = {
   },
 
   get: async (id: number) => {
-    const assignment = demoData.academics.assignments.find(a => a.id === id);
+    const assignment = demoData.academics.assignments.find((a) => a.id === id);
     return Promise.resolve(assignment || demoData.academics.assignments[0]);
   },
 
   getWithRubric: async (id: number) => {
-    const assignment = demoData.academics.assignments.find(a => a.id === id);
+    const assignment = demoData.academics.assignments.find((a) => a.id === id);
     return Promise.resolve({
       ...(assignment || demoData.academics.assignments[0]),
       rubric_criteria: [],
     });
   },
 
-  listSubmissions: async (assignmentId: number, params?: any) => {
-    const submissions = demoData.academics.submissions.filter(s => s.assignment_id === assignmentId);
+  listSubmissions: async (assignmentId: number, _params?: Record<string, unknown>) => {
+    const submissions = demoData.academics.submissions.filter(
+      (s) => s.assignment_id === assignmentId
+    );
     return Promise.resolve({
       items: submissions,
       total: submissions.length,
@@ -101,22 +109,21 @@ export const demoAssignmentsApi = {
   },
 
   getStatistics: async (assignmentId: number) => {
-    const submissions = demoData.academics.submissions.filter(s => s.assignment_id === assignmentId);
-    const graded = submissions.filter(s => s.marks_obtained !== undefined);
-    
+    const submissions = demoData.academics.submissions.filter(
+      (s) => s.assignment_id === assignmentId
+    );
+    const graded = submissions.filter((s) => s.marks_obtained !== undefined);
+
     return Promise.resolve({
       total_submissions: submissions.length,
       graded_submissions: graded.length,
       pending_submissions: submissions.length - graded.length,
-      average_marks: graded.length > 0 
-        ? graded.reduce((sum, s) => sum + (s.marks_obtained || 0), 0) / graded.length 
-        : 0,
-      highest_marks: graded.length > 0 
-        ? Math.max(...graded.map(s => s.marks_obtained || 0)) 
-        : 0,
-      lowest_marks: graded.length > 0 
-        ? Math.min(...graded.map(s => s.marks_obtained || 0)) 
-        : 0,
+      average_marks:
+        graded.length > 0
+          ? graded.reduce((sum, s) => sum + (s.marks_obtained || 0), 0) / graded.length
+          : 0,
+      highest_marks: graded.length > 0 ? Math.max(...graded.map((s) => s.marks_obtained || 0)) : 0,
+      lowest_marks: graded.length > 0 ? Math.min(...graded.map((s) => s.marks_obtained || 0)) : 0,
     });
   },
 
@@ -124,7 +131,7 @@ export const demoAssignmentsApi = {
     return Promise.resolve({
       assignment_id: assignmentId,
       grade_distribution: {
-        'A': 2,
+        A: 2,
         'B+': 1,
       },
       submission_timeline: [],
@@ -135,12 +142,12 @@ export const demoAssignmentsApi = {
 
 export const demoSubmissionsApi = {
   get: async (id: number) => {
-    const submission = demoData.academics.submissions.find(s => s.id === id);
+    const submission = demoData.academics.submissions.find((s) => s.id === id);
     return Promise.resolve(submission || demoData.academics.submissions[0]);
   },
 
-  grade: async (id: number, data: any) => {
-    const submission = demoData.academics.submissions.find(s => s.id === id);
+  grade: async (id: number, data: Record<string, unknown>) => {
+    const submission = demoData.academics.submissions.find((s) => s.id === id);
     return Promise.resolve({
       ...(submission || demoData.academics.submissions[0]),
       ...data,
@@ -155,7 +162,7 @@ export const demoAttendanceApi = {
     section_id?: number;
     subject_id?: number;
     student_id?: number;
-    status?: any;
+    status?: string;
     skip?: number;
     limit?: number;
   }): Promise<AttendanceListResponse> => {
@@ -169,15 +176,15 @@ export const demoAttendanceApi = {
 
   getStudentDetailedReport: async (
     studentId: number,
-    startDate: string,
-    endDate: string,
-    subjectId?: number
+    _startDate: string,
+    _endDate: string,
+    _subjectId?: number
   ): Promise<StudentAttendanceDetail> => {
     return Promise.resolve({
       student_id: studentId,
       student_name: `${demoData.student.profile.first_name} ${demoData.student.profile.last_name}`,
       admission_number: demoData.student.profile.admission_number,
-      attendances: demoData.student.attendance.monthly.map(a => ({
+      attendances: demoData.student.attendance.monthly.map((a) => ({
         date: a.date,
         status: a.status,
         subject_id: undefined,
@@ -195,10 +202,10 @@ export const demoAttendanceApi = {
   },
 
   getSectionReport: async (
-    sectionId: number,
-    startDate: string,
-    endDate: string,
-    subjectId?: number
+    _sectionId: number,
+    _startDate: string,
+    _endDate: string,
+    _subjectId?: number
   ) => {
     return Promise.resolve([
       {
@@ -216,11 +223,11 @@ export const demoAttendanceApi = {
   },
 
   getDefaulters: async (
-    startDate: string,
-    endDate: string,
-    thresholdPercentage: number = 75.0,
-    sectionId?: number,
-    subjectId?: number
+    _startDate: string,
+    _endDate: string,
+    _thresholdPercentage: number = 75.0,
+    _sectionId?: number,
+    _subjectId?: number
   ) => {
     return Promise.resolve([]);
   },
@@ -238,19 +245,19 @@ export const demoExaminationsApi = {
 
   getStudentResult: async (
     examId: number,
-    studentId: number,
-    institutionId: number
+    _studentId: number,
+    _institutionId: number
   ): Promise<ExamResult> => {
-    const result = demoData.academics.examResults.find(r => r.exam_id === examId);
+    const result = demoData.academics.examResults.find((r) => r.exam_id === examId);
     return Promise.resolve(result || demoData.academics.examResults[0]);
   },
 
   listResults: async (
     examId: number,
-    institutionId: number,
-    sectionId?: number
+    _institutionId: number,
+    _sectionId?: number
   ): Promise<ExamResult[]> => {
-    const results = demoData.academics.examResults.filter(r => r.exam_id === examId);
+    const results = demoData.academics.examResults.filter((r) => r.exam_id === examId);
     return Promise.resolve(results.length > 0 ? results : [demoData.academics.examResults[0]]);
   },
 };
@@ -261,7 +268,7 @@ export const demoAIPredictionDashboardApi = {
     gradeId: number,
     subjectId: number
   ): Promise<AIPredictionDashboardResponse> => {
-    const subject = demoData.academics.subjects.find(s => s.id === subjectId);
+    const subject = demoData.academics.subjects.find((s) => s.id === subjectId);
     return Promise.resolve({
       board,
       grade_id: gradeId,
@@ -283,18 +290,21 @@ export const demoAIPredictionDashboardApi = {
     });
   },
 
-  generateStudyPlan: async (request: any) => {
+  generateStudyPlan: async (request: Record<string, unknown>) => {
     return Promise.resolve({
       exam_date: request.exam_date,
-      days_until_exam: Math.ceil((new Date(request.exam_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
-      total_study_hours: request.available_hours_per_day * 30,
+      days_until_exam: Math.ceil(
+        (new Date(request.exam_date as string).getTime() - new Date().getTime()) /
+          (1000 * 60 * 60 * 24)
+      ),
+      total_study_hours: (request.available_hours_per_day as number) * 30,
       weeks: [],
       completion_percentage: 0,
       milestone_dates: {},
     });
   },
 
-  simulateWhatIfScenario: async (request: any) => {
+  simulateWhatIfScenario: async (_request: Record<string, unknown>) => {
     return Promise.resolve({
       current_predicted_score: 85,
       projected_score: 90,
@@ -329,35 +339,35 @@ export const demoAIPredictionDashboardApi = {
 };
 
 export const demoGamificationApi = {
-  getUserPoints: async (userId: number, institutionId: number): Promise<UserPoints> => {
+  getUserPoints: async (_userId: number, _institutionId: number): Promise<UserPoints> => {
     return Promise.resolve(demoData.gamification.userPoints);
   },
 
   getPointHistory: async (
-    userId: number,
-    institutionId: number,
+    _userId: number,
+    _institutionId: number,
     limit = 50
   ): Promise<PointHistory[]> => {
     return Promise.resolve(demoData.gamification.pointHistory.slice(0, limit));
   },
 
-  getUserBadges: async (userId: number, institutionId: number): Promise<UserBadge[]> => {
+  getUserBadges: async (_userId: number, _institutionId: number): Promise<UserBadge[]> => {
     return Promise.resolve(demoData.gamification.userBadges);
   },
 
-  getBadges: async (institutionId: number): Promise<Badge[]> => {
+  getBadges: async (_institutionId: number): Promise<Badge[]> => {
     return Promise.resolve(demoData.gamification.badges);
   },
 
-  getUserAchievements: async (userId: number, institutionId: number) => {
+  getUserAchievements: async (_userId: number, _institutionId: number) => {
     return Promise.resolve([]);
   },
 
-  getAchievements: async (institutionId: number) => {
+  getAchievements: async (_institutionId: number) => {
     return Promise.resolve([]);
   },
 
-  getLeaderboards: async (institutionId: number) => {
+  getLeaderboards: async (_institutionId: number) => {
     return Promise.resolve([]);
   },
 
@@ -378,9 +388,9 @@ export const demoGamificationApi = {
   },
 
   getDynamicLeaderboard: async (
-    institutionId: number,
-    filter: any,
-    currentUserId?: number,
+    _institutionId: number,
+    _filter: Record<string, unknown>,
+    _currentUserId?: number,
     limit = 50
   ): Promise<LeaderboardEntry[]> => {
     return Promise.resolve(demoData.gamification.leaderboard.slice(0, limit));
@@ -402,7 +412,7 @@ export const demoGamificationApi = {
     ]);
   },
 
-  recordDailyLogin: async (userId: number, institutionId: number) => {
+  recordDailyLogin: async (_userId: number, _institutionId: number) => {
     return Promise.resolve({
       message: 'Daily login recorded',
       streak: demoData.gamification.userPoints.current_streak,
@@ -410,7 +420,7 @@ export const demoGamificationApi = {
     });
   },
 
-  getUserStats: async (userId: number, institutionId: number) => {
+  getUserStats: async (_userId: number, _institutionId: number) => {
     return Promise.resolve({
       total_points: demoData.gamification.userPoints.total_points,
       level: demoData.gamification.userPoints.level,
@@ -435,11 +445,11 @@ export const demoGamificationApi = {
     });
   },
 
-  getRewards: async (institutionId: number) => {
+  getRewards: async (_institutionId: number) => {
     return Promise.resolve([]);
   },
 
-  getUserRedemptions: async (userId: number, institutionId: number) => {
+  getUserRedemptions: async (_userId: number, _institutionId: number) => {
     return Promise.resolve([]);
   },
 
@@ -463,11 +473,11 @@ export const demoGoalsApi = {
   },
 
   getGoal: async (id: string): Promise<Goal> => {
-    const goal = demoData.goals.find(g => g.id === id);
+    const goal = demoData.goals.find((g) => g.id === id);
     return Promise.resolve(goal || demoData.goals[0]);
   },
 
-  createGoal: async (data: any): Promise<Goal> => {
+  createGoal: async (data: Record<string, unknown>): Promise<Goal> => {
     return Promise.resolve({
       id: String(demoData.goals.length + 1),
       ...data,
@@ -475,59 +485,72 @@ export const demoGoalsApi = {
       milestones: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    } as Goal);
   },
 
-  updateGoal: async (id: string, data: any): Promise<Goal> => {
-    const goal = demoData.goals.find(g => g.id === id);
+  updateGoal: async (id: string, data: Record<string, unknown>): Promise<Goal> => {
+    const goal = demoData.goals.find((g) => g.id === id);
     return Promise.resolve({
       ...(goal || demoData.goals[0]),
       ...data,
       updatedAt: new Date().toISOString(),
-    });
+    } as Goal);
   },
 
-  deleteGoal: async (id: string): Promise<void> => {
+  deleteGoal: async (_id: string): Promise<void> => {
     return Promise.resolve();
   },
 
   updateMilestoneProgress: async (
     goalId: string,
-    milestoneId: string,
-    progress: number
+    _milestoneId: string,
+    _progress: number
   ): Promise<Goal> => {
-    const goal = demoData.goals.find(g => g.id === goalId);
+    const goal = demoData.goals.find((g) => g.id === goalId);
     return Promise.resolve(goal || demoData.goals[0]);
   },
 
-  completeMilestone: async (goalId: string, milestoneId: string): Promise<Goal> => {
-    const goal = demoData.goals.find(g => g.id === goalId);
+  completeMilestone: async (goalId: string, _milestoneId: string): Promise<Goal> => {
+    const goal = demoData.goals.find((g) => g.id === goalId);
     return Promise.resolve(goal || demoData.goals[0]);
   },
 
   getAnalytics: async (): Promise<GoalAnalytics> => {
     const totalGoals = demoData.goals.length;
-    const completedGoals = demoData.goals.filter(g => g.status === 'completed').length;
-    const inProgressGoals = demoData.goals.filter(g => g.status === 'in_progress').length;
-    
+    const completedGoals = demoData.goals.filter((g) => g.status === 'completed').length;
+    const inProgressGoals = demoData.goals.filter((g) => g.status === 'in_progress').length;
+    const notStartedGoals = demoData.goals.filter(
+      (g) => g.status === 'not_started' || g.status === 'pending'
+    ).length;
+
     return Promise.resolve({
       totalGoals,
       completedGoals,
-      inProgressGoals,
-      pendingGoals: totalGoals - completedGoals - inProgressGoals,
+      completionRate: (completedGoals / totalGoals) * 100,
       averageProgress: demoData.goals.reduce((sum, g) => sum + g.progress, 0) / totalGoals,
       goalsByType: {
-        performance: demoData.goals.filter(g => g.type === 'performance').length,
-        behavioral: demoData.goals.filter(g => g.type === 'behavioral').length,
-        skill: demoData.goals.filter(g => g.type === 'skill').length,
+        performance: demoData.goals.filter((g) => g.type === 'performance').length,
+        behavioral: demoData.goals.filter((g) => g.type === 'behavioral').length,
+        skill: demoData.goals.filter((g) => g.type === 'skill').length,
       },
-      completionRate: (completedGoals / totalGoals) * 100,
+      goalsByStatus: {
+        not_started: notStartedGoals,
+        in_progress: inProgressGoals,
+        completed: completedGoals,
+        overdue: 0,
+      },
+      impactCorrelation: {
+        academicPerformance: 0.75,
+        attendanceRate: 0.82,
+        assignmentCompletion: 0.68,
+      },
+      monthlyProgress: [],
     });
   },
 };
 
 export const demoAnalyticsApi = {
-  getDashboardStats: async (institutionId?: string) => {
+  getDashboardStats: async (_institutionId?: string) => {
     return Promise.resolve({
       total_users: 1500,
       active_users_today: 350,
@@ -540,33 +563,33 @@ export const demoAnalyticsApi = {
     });
   },
 
-  getFeatureAdoption: async (institutionId?: string, limit = 20) => {
+  getFeatureAdoption: async (_institutionId?: string, _limit = 20) => {
     return Promise.resolve([]);
   },
 
-  getUserFlow: async (institutionId?: string, limit = 10) => {
+  getUserFlow: async (_institutionId?: string, _limit = 10) => {
     return Promise.resolve({
       nodes: [],
       total_sessions: 0,
     });
   },
 
-  getRetentionCohorts: async (institutionId?: string, cohortDays = 30) => {
+  getRetentionCohorts: async (_institutionId?: string, _cohortDays = 30) => {
     return Promise.resolve([]);
   },
 
-  getTopEvents: async (institutionId?: string, limit = 20) => {
+  getTopEvents: async (_institutionId?: string, _limit = 20) => {
     return Promise.resolve([]);
   },
 
-  getPerformanceStats: async (metricName?: string, days = 7) => {
+  getPerformanceStats: async (_metricName?: string, _days = 7) => {
     return Promise.resolve([]);
   },
 
   getClassPerformanceAnalytics: async (
     classId: number,
-    periodStart?: string,
-    periodEnd?: string
+    _periodStart?: string,
+    _periodEnd?: string
   ) => {
     return Promise.resolve({
       class_id: classId,
@@ -580,8 +603,8 @@ export const demoAnalyticsApi = {
 
   getInstitutionAnalytics: async (
     institutionId: number,
-    periodStart?: string,
-    periodEnd?: string
+    _periodStart?: string,
+    _periodEnd?: string
   ) => {
     return Promise.resolve({
       institution_id: institutionId,
@@ -601,31 +624,32 @@ export const demoAnalyticsApi = {
   ): Promise<StudentPerformanceAnalytics> => {
     return Promise.resolve({
       student_id: studentId,
-      overall_average: demoData.analytics.overall_average,
-      attendance_rate: demoData.analytics.attendance_rate,
-      assignment_completion_rate: demoData.analytics.assignment_completion_rate,
-      rank_in_class: demoData.analytics.rank_in_class,
-      total_students: demoData.analytics.total_students,
-      subjects_performance: demoData.analytics.subjects_performance || [],
-      recent_exams: demoData.academics.examResults.map(r => ({
-        exam_name: `Exam ${r.exam_id}`,
-        total_marks: r.total_max_marks,
-        obtained_marks: r.total_marks_obtained,
-        percentage: r.percentage,
-        grade: r.grade,
-        rank: r.section_rank,
-      })),
-      strength_areas: ['Mathematics', 'Physics'],
-      improvement_areas: ['History'],
-      trends: {
-        performance_trend: 'improving',
-        attendance_trend: 'stable',
-        assignment_trend: 'improving',
+      student_name: `${demoData.student.profile.first_name} ${demoData.student.profile.last_name}`,
+      grade: demoData.student.profile.section?.grade?.name || '10th Grade',
+      section: demoData.student.profile.section?.name || 'A',
+      period_start: periodStart || '2024-01-01',
+      period_end: periodEnd || '2024-12-31',
+      subject_trends: [],
+      attendance_calendar: [],
+      assignment_stats: {
+        total_assigned: 25,
+        submitted: 20,
+        pending: 5,
+        submission_rate: 80,
+        average_score: 86.8,
+      },
+      exam_comparisons: [],
+      chapter_mastery: [],
+      overall_performance: {
+        averageScore: demoData.analytics.overall_average,
+        trend: 'improving',
+        rank: demoData.analytics.rank_in_class,
+        totalStudents: demoData.analytics.total_students,
       },
     });
   },
 
-  generateCustomReport: async (filters: any) => {
+  generateCustomReport: async (filters: Record<string, unknown>) => {
     return Promise.resolve({
       report_id: '1',
       title: 'Custom Report',
@@ -635,11 +659,11 @@ export const demoAnalyticsApi = {
     });
   },
 
-  exportReportToPDF: async (reportData: any): Promise<Blob> => {
+  exportReportToPDF: async (_reportData: Record<string, unknown>): Promise<Blob> => {
     return Promise.resolve(new Blob(['PDF content'], { type: 'application/pdf' }));
   },
 
-  exportReportToExcel: async (reportData: any): Promise<Blob> => {
+  exportReportToExcel: async (_reportData: Record<string, unknown>): Promise<Blob> => {
     return Promise.resolve(new Blob(['Excel content'], { type: 'application/vnd.ms-excel' }));
   },
 };

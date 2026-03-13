@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { afterAll, afterEach, beforeAll } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
@@ -84,3 +84,13 @@ Object.defineProperty(window, 'matchMedia', {
   observe() {}
   unobserve() {}
 };
+
+// Mock tokenManager
+vi.mock('@/lib/tokenManager', () => ({
+  tokenManager: {
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+    getAccessToken: vi.fn(() => 'mock-token'),
+    getRefreshToken: vi.fn(() => 'mock-refresh-token'),
+  },
+}));
