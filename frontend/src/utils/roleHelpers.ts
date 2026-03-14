@@ -6,6 +6,7 @@ export const getDashboardRoute = (role: UserRole): string => {
     teacher: '/teacher/dashboard',
     admin: '/admin/dashboard',
     parent: '/parent/dashboard',
+    superadmin: '/super-admin',
   };
   return dashboardRoutes[role] || '/';
 };
