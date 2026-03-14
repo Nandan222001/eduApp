@@ -77,6 +77,12 @@ from src.models.plagiarism import (
     CodeASTFingerprint, CitationPattern, PlagiarismPrivacyConsent,
     PlagiarismCheckStatus, ComparisonScope, ContentType, ReviewDecision
 )
+from src.models.wellbeing import (
+    WellbeingAlert, AlertNote, WellbeingIntervention, SentimentAnalysis,
+    BehavioralPattern, WellbeingConsent, WellbeingDataAccess, CounselorProfile,
+    StudentWellbeingProfile, AlertSeverity, AlertStatus, AlertType,
+    SentimentCategory, ConsentStatus, DataAccessLevel
+)
 
 __all__ = [
     "Institution",
@@ -293,4 +299,19 @@ __all__ = [
     "ComparisonScope",
     "ContentType",
     "ReviewDecision",
+    "WellbeingAlert",
+    "AlertNote",
+    "WellbeingIntervention",
+    "SentimentAnalysis",
+    "BehavioralPattern",
+    "WellbeingConsent",
+    "WellbeingDataAccess",
+    "CounselorProfile",
+    "StudentWellbeingProfile",
+    "AlertSeverity",
+    "AlertStatus",
+    "AlertType",
+    "SentimentCategory",
+    "ConsentStatus",
+    "DataAccessLevel",
 ]
