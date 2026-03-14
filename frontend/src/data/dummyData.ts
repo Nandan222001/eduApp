@@ -1971,6 +1971,577 @@ export const demoUserSettings: UserSettings = {
   timezone: 'America/New_York',
 };
 
+export interface ClassRosterStudent {
+  id: number;
+  admission_number: string;
+  roll_number: string;
+  name: string;
+  photo_url?: string;
+  attendance_status?: 'present' | 'absent' | 'late' | 'half_day' | 'not_marked';
+  attendance_percentage: number;
+  recent_performance: number;
+}
+
+export interface StudentSubmissionDetail {
+  id: number;
+  student_id: number;
+  student_name: string;
+  student_photo?: string;
+  admission_number: string;
+  submission_id?: number;
+  submitted_at?: string;
+  is_late: boolean;
+  status: 'submitted' | 'graded' | 'not_submitted';
+  marks_obtained?: number;
+  grade?: string;
+  feedback?: string;
+}
+
+export interface ExamMarkEntry {
+  id: number;
+  student_id: number;
+  student_name: string;
+  admission_number: string;
+  roll_number: string;
+  theory_marks?: number;
+  practical_marks?: number;
+  total_marks?: number;
+  is_absent: boolean;
+  remarks?: string;
+}
+
+export interface ParentMessage {
+  id: number;
+  parent_id: number;
+  parent_name: string;
+  student_id: number;
+  student_name: string;
+  subject: string;
+  message: string;
+  sent_at: string;
+  is_read: boolean;
+  priority: 'high' | 'medium' | 'low';
+  reply?: string;
+  replied_at?: string;
+}
+
+export interface StudentPerformanceMetric {
+  student_id: number;
+  student_name: string;
+  admission_number: string;
+  roll_number: string;
+  photo_url?: string;
+  average_score: number;
+  attendance_percentage: number;
+  assignments_completed: number;
+  total_assignments: number;
+  rank: number;
+  trend: 'improving' | 'stable' | 'declining';
+  weak_subjects: string[];
+  strong_subjects: string[];
+}
+
+export const demoClassRoster: ClassRosterStudent[] = [
+  {
+    id: 1001,
+    admission_number: 'STD2023001',
+    roll_number: '12',
+    name: 'Alex Johnson',
+    photo_url: 'https://i.pravatar.cc/150?img=12',
+    attendance_status: 'present',
+    attendance_percentage: 92.5,
+    recent_performance: 88.4,
+  },
+  {
+    id: 1005,
+    admission_number: 'STD2023005',
+    roll_number: '8',
+    name: 'Emma Wilson',
+    photo_url: 'https://i.pravatar.cc/150?img=5',
+    attendance_status: 'present',
+    attendance_percentage: 96.2,
+    recent_performance: 94.8,
+  },
+  {
+    id: 1003,
+    admission_number: 'STD2023003',
+    roll_number: '15',
+    name: 'Michael Chen',
+    photo_url: 'https://i.pravatar.cc/150?img=13',
+    attendance_status: 'absent',
+    attendance_percentage: 88.7,
+    recent_performance: 91.2,
+  },
+  {
+    id: 1007,
+    admission_number: 'STD2023007',
+    roll_number: '21',
+    name: 'Sophia Martinez',
+    photo_url: 'https://i.pravatar.cc/150?img=9',
+    attendance_status: 'late',
+    attendance_percentage: 90.3,
+    recent_performance: 86.5,
+  },
+  {
+    id: 1009,
+    admission_number: 'STD2023009',
+    roll_number: '5',
+    name: 'Oliver Davis',
+    photo_url: 'https://i.pravatar.cc/150?img=11',
+    attendance_status: 'present',
+    attendance_percentage: 94.1,
+    recent_performance: 89.7,
+  },
+  {
+    id: 1011,
+    admission_number: 'STD2023011',
+    roll_number: '18',
+    name: 'Isabella Garcia',
+    photo_url: 'https://i.pravatar.cc/150?img=10',
+    attendance_status: 'present',
+    attendance_percentage: 95.8,
+    recent_performance: 92.3,
+  },
+  {
+    id: 1013,
+    admission_number: 'STD2023013',
+    roll_number: '3',
+    name: 'Ethan Brown',
+    photo_url: 'https://i.pravatar.cc/150?img=14',
+    attendance_status: 'present',
+    attendance_percentage: 91.4,
+    recent_performance: 85.6,
+  },
+  {
+    id: 1015,
+    admission_number: 'STD2023015',
+    roll_number: '27',
+    name: 'Mia Taylor',
+    photo_url: 'https://i.pravatar.cc/150?img=16',
+    attendance_status: 'not_marked',
+    attendance_percentage: 93.2,
+    recent_performance: 90.1,
+  },
+];
+
+export const demoStudentSubmissions: StudentSubmissionDetail[] = [
+  {
+    id: 1,
+    student_id: 1001,
+    student_name: 'Alex Johnson',
+    student_photo: 'https://i.pravatar.cc/150?img=12',
+    admission_number: 'STD2023001',
+    submission_id: 101,
+    submitted_at: '2024-02-03T18:30:00Z',
+    is_late: false,
+    status: 'graded',
+    marks_obtained: 92,
+    grade: 'A',
+    feedback: 'Excellent work! Clear understanding of quadratic equations.',
+  },
+  {
+    id: 2,
+    student_id: 1005,
+    student_name: 'Emma Wilson',
+    student_photo: 'https://i.pravatar.cc/150?img=5',
+    admission_number: 'STD2023005',
+    submission_id: 201,
+    submitted_at: '2024-02-14T18:30:00Z',
+    is_late: false,
+    status: 'submitted',
+  },
+  {
+    id: 3,
+    student_id: 1003,
+    student_name: 'Michael Chen',
+    student_photo: 'https://i.pravatar.cc/150?img=13',
+    admission_number: 'STD2023003',
+    submission_id: 202,
+    submitted_at: '2024-02-14T17:15:00Z',
+    is_late: false,
+    status: 'submitted',
+  },
+  {
+    id: 4,
+    student_id: 1007,
+    student_name: 'Sophia Martinez',
+    student_photo: 'https://i.pravatar.cc/150?img=9',
+    admission_number: 'STD2023007',
+    submission_id: 203,
+    submitted_at: '2024-02-14T16:45:00Z',
+    is_late: false,
+    status: 'graded',
+    marks_obtained: 88,
+    grade: 'A',
+    feedback: 'Good effort. Pay attention to detail in problem solving.',
+  },
+  {
+    id: 5,
+    student_id: 1009,
+    student_name: 'Oliver Davis',
+    student_photo: 'https://i.pravatar.cc/150?img=11',
+    admission_number: 'STD2023009',
+    is_late: false,
+    status: 'not_submitted',
+  },
+  {
+    id: 6,
+    student_id: 1011,
+    student_name: 'Isabella Garcia',
+    student_photo: 'https://i.pravatar.cc/150?img=10',
+    admission_number: 'STD2023011',
+    submission_id: 204,
+    submitted_at: '2024-02-05T10:00:00Z',
+    is_late: true,
+    status: 'graded',
+    marks_obtained: 78,
+    grade: 'B+',
+    feedback: 'Late submission. Good understanding but needs more practice.',
+  },
+  {
+    id: 7,
+    student_id: 1013,
+    student_name: 'Ethan Brown',
+    student_photo: 'https://i.pravatar.cc/150?img=14',
+    admission_number: 'STD2023013',
+    submission_id: 205,
+    submitted_at: '2024-02-04T22:00:00Z',
+    is_late: false,
+    status: 'graded',
+    marks_obtained: 85,
+    grade: 'A',
+    feedback: 'Well done! Keep up the good work.',
+  },
+  {
+    id: 8,
+    student_id: 1015,
+    student_name: 'Mia Taylor',
+    student_photo: 'https://i.pravatar.cc/150?img=16',
+    admission_number: 'STD2023015',
+    is_late: false,
+    status: 'not_submitted',
+  },
+];
+
+export const demoExamMarksEntries: ExamMarkEntry[] = [
+  {
+    id: 1,
+    student_id: 1001,
+    student_name: 'Alex Johnson',
+    admission_number: 'STD2023001',
+    roll_number: '12',
+    theory_marks: 88,
+    practical_marks: undefined,
+    total_marks: 88,
+    is_absent: false,
+  },
+  {
+    id: 2,
+    student_id: 1005,
+    student_name: 'Emma Wilson',
+    admission_number: 'STD2023005',
+    roll_number: '8',
+    theory_marks: 95,
+    practical_marks: undefined,
+    total_marks: 95,
+    is_absent: false,
+  },
+  {
+    id: 3,
+    student_id: 1003,
+    student_name: 'Michael Chen',
+    admission_number: 'STD2023003',
+    roll_number: '15',
+    theory_marks: 90,
+    practical_marks: undefined,
+    total_marks: 90,
+    is_absent: false,
+  },
+  {
+    id: 4,
+    student_id: 1007,
+    student_name: 'Sophia Martinez',
+    admission_number: 'STD2023007',
+    roll_number: '21',
+    is_absent: true,
+    remarks: 'Medical leave',
+  },
+  {
+    id: 5,
+    student_id: 1009,
+    student_name: 'Oliver Davis',
+    admission_number: 'STD2023009',
+    roll_number: '5',
+    theory_marks: 86,
+    practical_marks: undefined,
+    total_marks: 86,
+    is_absent: false,
+  },
+  {
+    id: 6,
+    student_id: 1011,
+    student_name: 'Isabella Garcia',
+    admission_number: 'STD2023011',
+    roll_number: '18',
+    theory_marks: 92,
+    practical_marks: undefined,
+    total_marks: 92,
+    is_absent: false,
+  },
+  {
+    id: 7,
+    student_id: 1013,
+    student_name: 'Ethan Brown',
+    admission_number: 'STD2023013',
+    roll_number: '3',
+    theory_marks: 82,
+    practical_marks: undefined,
+    total_marks: 82,
+    is_absent: false,
+  },
+  {
+    id: 8,
+    student_id: 1015,
+    student_name: 'Mia Taylor',
+    admission_number: 'STD2023015',
+    roll_number: '27',
+    theory_marks: undefined,
+    practical_marks: undefined,
+    is_absent: false,
+  },
+];
+
+export const demoParentMessages: ParentMessage[] = [
+  {
+    id: 1,
+    parent_id: 501,
+    parent_name: 'Robert Johnson',
+    student_id: 1001,
+    student_name: 'Alex Johnson',
+    subject: 'Question about upcoming exam',
+    message:
+      'Hello Dr. Carter, I wanted to ask about the syllabus coverage for the upcoming mid-term exam. Could you please share the topics that will be covered?',
+    sent_at: '2024-02-14T10:30:00Z',
+    is_read: false,
+    priority: 'medium',
+  },
+  {
+    id: 2,
+    parent_id: 503,
+    parent_name: 'Sarah Wilson',
+    student_id: 1005,
+    student_name: 'Emma Wilson',
+    subject: 'Thank you for extra help',
+    message:
+      'Dear Dr. Carter, I wanted to thank you for the extra time you spent helping Emma with quadratic equations. She has shown great improvement!',
+    sent_at: '2024-02-13T14:15:00Z',
+    is_read: true,
+    priority: 'low',
+    reply: "You're very welcome! Emma is a dedicated student and it's a pleasure to help her.",
+    replied_at: '2024-02-13T16:00:00Z',
+  },
+  {
+    id: 3,
+    parent_id: 505,
+    parent_name: 'David Chen',
+    student_id: 1003,
+    student_name: 'Michael Chen',
+    subject: 'Concern about recent grades',
+    message:
+      "Hello, I noticed Michael's recent assignment grades have dropped slightly. Is there anything we should be concerned about? How can we help him improve?",
+    sent_at: '2024-02-12T09:45:00Z',
+    is_read: true,
+    priority: 'high',
+    reply:
+      "Thank you for reaching out. Michael is doing well overall, but I've noticed he rushes through problems. I recommend practicing more slowly and checking his work. We can schedule a meeting to discuss strategies.",
+    replied_at: '2024-02-12T15:30:00Z',
+  },
+  {
+    id: 4,
+    parent_id: 507,
+    parent_name: 'Maria Martinez',
+    student_id: 1007,
+    student_name: 'Sophia Martinez',
+    subject: 'Request for makeup assignment',
+    message:
+      'Dr. Carter, Sophia was sick last week and missed the assignment deadline. Would it be possible for her to submit it late? We have a medical note.',
+    sent_at: '2024-02-11T11:20:00Z',
+    is_read: true,
+    priority: 'high',
+    reply:
+      'Of course. Please have Sophia submit the assignment by this Friday. I hope she feels better!',
+    replied_at: '2024-02-11T13:00:00Z',
+  },
+  {
+    id: 5,
+    parent_id: 509,
+    parent_name: 'Jennifer Davis',
+    student_id: 1009,
+    student_name: 'Oliver Davis',
+    subject: 'Question about homework',
+    message:
+      'Hi Dr. Carter, Oliver is confused about problem #15 in the latest homework. Could you provide some guidance?',
+    sent_at: '2024-02-10T18:30:00Z',
+    is_read: true,
+    priority: 'medium',
+    reply:
+      "I'll post a clarification on the class portal. The key is to remember to use the quadratic formula when the equation can't be factored easily.",
+    replied_at: '2024-02-10T20:00:00Z',
+  },
+  {
+    id: 6,
+    parent_id: 511,
+    parent_name: 'Thomas Garcia',
+    student_id: 1011,
+    student_name: 'Isabella Garcia',
+    subject: 'Parent-Teacher Conference',
+    message:
+      "Hello, I would like to schedule a parent-teacher conference to discuss Isabella's progress. When would be a good time for you?",
+    sent_at: '2024-02-09T08:00:00Z',
+    is_read: true,
+    priority: 'medium',
+    reply:
+      "I'm available next Tuesday or Thursday after 3 PM. Please let me know which works best for you.",
+    replied_at: '2024-02-09T10:30:00Z',
+  },
+  {
+    id: 7,
+    parent_id: 513,
+    parent_name: 'Amanda Brown',
+    student_id: 1013,
+    student_name: 'Ethan Brown',
+    subject: 'Tutoring recommendation',
+    message:
+      "Dear Dr. Carter, do you think Ethan needs additional tutoring? We want to ensure he's keeping up with the class.",
+    sent_at: '2024-02-15T09:15:00Z',
+    is_read: false,
+    priority: 'medium',
+  },
+];
+
+export const demoStudentPerformanceMetrics: StudentPerformanceMetric[] = [
+  {
+    student_id: 1005,
+    student_name: 'Emma Wilson',
+    admission_number: 'STD2023005',
+    roll_number: '8',
+    photo_url: 'https://i.pravatar.cc/150?img=5',
+    average_score: 94.8,
+    attendance_percentage: 96.2,
+    assignments_completed: 24,
+    total_assignments: 25,
+    rank: 1,
+    trend: 'improving',
+    weak_subjects: [],
+    strong_subjects: ['Mathematics', 'Physics', 'Chemistry'],
+  },
+  {
+    student_id: 1011,
+    student_name: 'Isabella Garcia',
+    admission_number: 'STD2023011',
+    roll_number: '18',
+    photo_url: 'https://i.pravatar.cc/150?img=10',
+    average_score: 92.3,
+    attendance_percentage: 95.8,
+    assignments_completed: 24,
+    total_assignments: 25,
+    rank: 2,
+    trend: 'stable',
+    weak_subjects: [],
+    strong_subjects: ['Mathematics', 'English'],
+  },
+  {
+    student_id: 1003,
+    student_name: 'Michael Chen',
+    admission_number: 'STD2023003',
+    roll_number: '15',
+    photo_url: 'https://i.pravatar.cc/150?img=13',
+    average_score: 91.2,
+    attendance_percentage: 88.7,
+    assignments_completed: 22,
+    total_assignments: 25,
+    rank: 3,
+    trend: 'declining',
+    weak_subjects: ['English'],
+    strong_subjects: ['Mathematics', 'Physics'],
+  },
+  {
+    student_id: 1015,
+    student_name: 'Mia Taylor',
+    admission_number: 'STD2023015',
+    roll_number: '27',
+    photo_url: 'https://i.pravatar.cc/150?img=16',
+    average_score: 90.1,
+    attendance_percentage: 93.2,
+    assignments_completed: 23,
+    total_assignments: 25,
+    rank: 4,
+    trend: 'improving',
+    weak_subjects: ['Chemistry'],
+    strong_subjects: ['Mathematics', 'English'],
+  },
+  {
+    student_id: 1009,
+    student_name: 'Oliver Davis',
+    admission_number: 'STD2023009',
+    roll_number: '5',
+    photo_url: 'https://i.pravatar.cc/150?img=11',
+    average_score: 89.7,
+    attendance_percentage: 94.1,
+    assignments_completed: 23,
+    total_assignments: 25,
+    rank: 5,
+    trend: 'stable',
+    weak_subjects: ['Physics'],
+    strong_subjects: ['Mathematics', 'Chemistry'],
+  },
+  {
+    student_id: 1001,
+    student_name: 'Alex Johnson',
+    admission_number: 'STD2023001',
+    roll_number: '12',
+    photo_url: 'https://i.pravatar.cc/150?img=12',
+    average_score: 88.4,
+    attendance_percentage: 92.5,
+    assignments_completed: 20,
+    total_assignments: 25,
+    rank: 6,
+    trend: 'stable',
+    weak_subjects: ['Chemistry'],
+    strong_subjects: ['Mathematics', 'Physics'],
+  },
+  {
+    student_id: 1007,
+    student_name: 'Sophia Martinez',
+    admission_number: 'STD2023007',
+    roll_number: '21',
+    photo_url: 'https://i.pravatar.cc/150?img=9',
+    average_score: 86.5,
+    attendance_percentage: 90.3,
+    assignments_completed: 21,
+    total_assignments: 25,
+    rank: 7,
+    trend: 'improving',
+    weak_subjects: ['Mathematics'],
+    strong_subjects: ['English', 'History'],
+  },
+  {
+    student_id: 1013,
+    student_name: 'Ethan Brown',
+    admission_number: 'STD2023013',
+    roll_number: '3',
+    photo_url: 'https://i.pravatar.cc/150?img=14',
+    average_score: 85.6,
+    attendance_percentage: 91.4,
+    assignments_completed: 22,
+    total_assignments: 25,
+    rank: 8,
+    trend: 'stable',
+    weak_subjects: ['Physics', 'Chemistry'],
+    strong_subjects: ['English'],
+  },
+];
+
 export const demoData = {
   credentials: DEMO_CREDENTIALS,
   auth: {
@@ -1994,6 +2565,13 @@ export const demoData = {
     examResults: demoExamResults,
     upcomingAssignments: demoUpcomingAssignments,
     recentGrades: demoRecentGrades,
+  },
+  teacher: {
+    classRoster: demoClassRoster,
+    studentSubmissions: demoStudentSubmissions,
+    examMarksEntries: demoExamMarksEntries,
+    parentMessages: demoParentMessages,
+    studentPerformanceMetrics: demoStudentPerformanceMetrics,
   },
   gamification: {
     badges: demoBadges,

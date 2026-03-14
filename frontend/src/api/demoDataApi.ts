@@ -10,6 +10,11 @@ import {
   parentDashboardData,
   adminDashboardData,
   superadminDashboardData,
+  type ClassRosterStudent,
+  type StudentSubmissionDetail,
+  type ExamMarkEntry,
+  type ParentMessage,
+  type StudentPerformanceMetric,
 } from '@/data/dummyData';
 import type { StudentProfile, StudentDashboardData } from './students';
 import type { AssignmentListParams, Assignment } from '@/types/assignment';
@@ -841,6 +846,465 @@ export const demoTeachersApi = {
   getPendingGrading: async (_teacherId: number) => {
     return Promise.resolve(teacherDashboardData.pending_grading);
   },
+
+  getClassRoster: async (
+    _classId: number,
+    _sectionId?: number,
+    _date?: string
+  ): Promise<{
+    class_name: string;
+    section: string;
+    subject: string;
+    date: string;
+    students: typeof demoData.teacher.classRoster;
+  }> => {
+    return Promise.resolve({
+      class_name: '10th Grade',
+      section: 'A',
+      subject: 'Mathematics',
+      date: _date || new Date().toISOString().split('T')[0],
+      students: demoData.teacher.classRoster,
+    });
+  },
+
+  markAttendance: async (
+    _classId: number,
+    _date: string,
+    _attendanceData: Array<{ student_id: number; status: string; remarks?: string }>
+  ): Promise<{ message: string; marked_count: number }> => {
+    return Promise.resolve({
+      message: 'Attendance marked successfully',
+      marked_count: _attendanceData.length,
+    });
+  },
+
+  getAssignmentSubmissions: async (
+    assignmentId: number,
+    params?: {
+      status?: string;
+      section_id?: number;
+      skip?: number;
+      limit?: number;
+    }
+  ): Promise<{
+    assignment: (typeof demoData.academics.assignments)[0];
+    submissions: typeof demoData.teacher.studentSubmissions;
+    total: number;
+    graded: number;
+    pending: number;
+  }> => {
+    const assignment = demoData.academics.assignments.find((a) => a.id === assignmentId);
+    let submissions = [...demoData.teacher.studentSubmissions];
+
+    if (params?.status) {
+      submissions = submissions.filter((s) => s.status === params.status);
+    }
+
+    const graded = submissions.filter((s) => s.status === 'graded').length;
+    const pending = submissions.filter((s) => s.status === 'submitted').length;
+
+    return Promise.resolve({
+      assignment: assignment || demoData.academics.assignments[0],
+      submissions,
+      total: submissions.length,
+      graded,
+      pending,
+    });
+  },
+
+  gradeSubmission: async (
+    _submissionId: number,
+    data: {
+      marks_obtained: number;
+      grade?: string;
+      feedback?: string;
+    }
+  ): Promise<{ message: string; submission: (typeof demoData.teacher.studentSubmissions)[0] }> => {
+    const submission = demoData.teacher.studentSubmissions.find(
+      (s) => s.submission_id === _submissionId
+    );
+    const updatedSubmission = {
+      ...(submission || demoData.teacher.studentSubmissions[0]),
+      ...data,
+      status: 'graded' as const,
+    };
+
+    return Promise.resolve({
+      message: 'Submission graded successfully',
+      submission: updatedSubmission,
+    });
+  },
+
+  bulkGradeSubmissions: async (
+    _assignmentId: number,
+    _grades: Array<{
+      submission_id: number;
+      marks_obtained: number;
+      grade?: string;
+      feedback?: string;
+    }>
+  ): Promise<{ message: string; graded_count: number }> => {
+    return Promise.resolve({
+      message: 'Submissions graded successfully',
+      graded_count: _grades.length,
+    });
+  },
+
+  getExamMarksEntry: async (
+    examId: number,
+    _sectionId?: number
+  ): Promise<{
+    exam_id: number;
+    exam_name: string;
+    subject: string;
+    max_marks: number;
+    has_practical: boolean;
+    students: typeof demoData.teacher.examMarksEntries;
+  }> => {
+    return Promise.resolve({
+      exam_id: examId,
+      exam_name: 'Mid-Term Examination',
+      subject: 'Mathematics',
+      max_marks: 100,
+      has_practical: false,
+      students: demoData.teacher.examMarksEntries,
+    });
+  },
+
+  submitExamMarks: async (
+    examId: number,
+    _marks: Array<{
+      student_id: number;
+      theory_marks?: number;
+      practical_marks?: number;
+      is_absent: boolean;
+      remarks?: string;
+    }>
+  ): Promise<{ message: string; submitted_count: number }> => {
+    return Promise.resolve({
+      message: 'Exam marks submitted successfully',
+      submitted_count: _marks.length,
+    });
+  },
+
+  updateExamMarks: async (
+    _examResultId: number,
+    _data: {
+      theory_marks?: number;
+      practical_marks?: number;
+      is_absent?: boolean;
+      remarks?: string;
+    }
+  ): Promise<{ message: string }> => {
+    return Promise.resolve({
+      message: 'Exam marks updated successfully',
+    });
+  },
+
+  getParentMessages: async (params?: {
+    is_read?: boolean;
+    priority?: string;
+    student_id?: number;
+    skip?: number;
+    limit?: number;
+  }): Promise<{
+    messages: typeof demoData.teacher.parentMessages;
+    total: number;
+    unread_count: number;
+  }> => {
+    let messages = [...demoData.teacher.parentMessages];
+
+    if (params?.is_read !== undefined) {
+      messages = messages.filter((m) => m.is_read === params.is_read);
+    }
+
+    if (params?.priority) {
+      messages = messages.filter((m) => m.priority === params.priority);
+    }
+
+    if (params?.student_id) {
+      messages = messages.filter((m) => m.student_id === params.student_id);
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedMessages = messages.slice(skip, skip + limit);
+
+    const unread_count = demoData.teacher.parentMessages.filter((m) => !m.is_read).length;
+
+    return Promise.resolve({
+      messages: paginatedMessages,
+      total: messages.length,
+      unread_count,
+    });
+  },
+
+  getParentMessage: async (
+    messageId: number
+  ): Promise<(typeof demoData.teacher.parentMessages)[0]> => {
+    const message = demoData.teacher.parentMessages.find((m) => m.id === messageId);
+    return Promise.resolve(message || demoData.teacher.parentMessages[0]);
+  },
+
+  replyToParentMessage: async (
+    messageId: number,
+    reply: string
+  ): Promise<{
+    message: string;
+    updated_message: (typeof demoData.teacher.parentMessages)[0];
+  }> => {
+    const message = demoData.teacher.parentMessages.find((m) => m.id === messageId);
+    const updatedMessage = {
+      ...(message || demoData.teacher.parentMessages[0]),
+      reply,
+      replied_at: new Date().toISOString(),
+      is_read: true,
+    };
+
+    return Promise.resolve({
+      message: 'Reply sent successfully',
+      updated_message: updatedMessage,
+    });
+  },
+
+  markMessageAsRead: async (_messageId: number): Promise<{ message: string }> => {
+    return Promise.resolve({
+      message: 'Message marked as read',
+    });
+  },
+
+  sendMessageToParent: async (data: {
+    parent_id: number;
+    student_id: number;
+    subject: string;
+    message: string;
+    priority?: 'high' | 'medium' | 'low';
+  }): Promise<{
+    message: string;
+    sent_message: (typeof demoData.teacher.parentMessages)[0];
+  }> => {
+    const newMessage = {
+      id: demoData.teacher.parentMessages.length + 1,
+      parent_id: data.parent_id,
+      parent_name: 'Parent Name',
+      student_id: data.student_id,
+      student_name: 'Student Name',
+      subject: data.subject,
+      message: data.message,
+      sent_at: new Date().toISOString(),
+      is_read: true,
+      priority: data.priority || 'medium',
+    };
+
+    return Promise.resolve({
+      message: 'Message sent successfully',
+      sent_message: newMessage,
+    });
+  },
+
+  getClassPerformanceAnalytics: async (
+    classId: number,
+    _sectionId?: number,
+    params?: {
+      start_date?: string;
+      end_date?: string;
+      subject_id?: number;
+    }
+  ): Promise<{
+    class_id: number;
+    class_name: string;
+    section: string;
+    subject: string;
+    period_start: string;
+    period_end: string;
+    total_students: number;
+    average_score: number;
+    average_attendance: number;
+    students: typeof demoData.teacher.studentPerformanceMetrics;
+    subject_performance: Array<{
+      subject: string;
+      average_score: number;
+      highest_score: number;
+      lowest_score: number;
+      pass_rate: number;
+    }>;
+    performance_distribution: {
+      excellent: number;
+      good: number;
+      average: number;
+      below_average: number;
+      poor: number;
+    };
+    attendance_trends: Array<{
+      week: string;
+      attendance_percentage: number;
+    }>;
+    top_performers: typeof demoData.teacher.studentPerformanceMetrics;
+    students_needing_attention: typeof demoData.teacher.studentPerformanceMetrics;
+  }> => {
+    const students = demoData.teacher.studentPerformanceMetrics;
+    const avgScore = students.reduce((sum, s) => sum + s.average_score, 0) / students.length;
+    const avgAttendance =
+      students.reduce((sum, s) => sum + s.attendance_percentage, 0) / students.length;
+
+    return Promise.resolve({
+      class_id: classId,
+      class_name: '10th Grade',
+      section: 'A',
+      subject: 'Mathematics',
+      period_start: params?.start_date || '2024-01-01',
+      period_end: params?.end_date || '2024-02-15',
+      total_students: students.length,
+      average_score: avgScore,
+      average_attendance: avgAttendance,
+      students,
+      subject_performance: [
+        {
+          subject: 'Mathematics',
+          average_score: 89.2,
+          highest_score: 98,
+          lowest_score: 75,
+          pass_rate: 95,
+        },
+        {
+          subject: 'Physics',
+          average_score: 86.5,
+          highest_score: 96,
+          lowest_score: 72,
+          pass_rate: 92,
+        },
+        {
+          subject: 'Chemistry',
+          average_score: 87.3,
+          highest_score: 94,
+          lowest_score: 70,
+          pass_rate: 93,
+        },
+      ],
+      performance_distribution: {
+        excellent: 3,
+        good: 3,
+        average: 2,
+        below_average: 0,
+        poor: 0,
+      },
+      attendance_trends: [
+        { week: 'Week 1', attendance_percentage: 92.5 },
+        { week: 'Week 2', attendance_percentage: 94.2 },
+        { week: 'Week 3', attendance_percentage: 91.8 },
+        { week: 'Week 4', attendance_percentage: 93.7 },
+        { week: 'Week 5', attendance_percentage: 95.1 },
+        { week: 'Week 6', attendance_percentage: 92.9 },
+      ],
+      top_performers: students.slice(0, 3),
+      students_needing_attention: students.filter(
+        (s) => s.average_score < 87 || s.attendance_percentage < 92
+      ),
+    });
+  },
+
+  getStudentPerformanceDetail: async (
+    studentId: number,
+    _params?: {
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<{
+    student: (typeof demoData.teacher.studentPerformanceMetrics)[0];
+    subject_breakdown: Array<{
+      subject: string;
+      average_score: number;
+      trend: 'improving' | 'stable' | 'declining';
+      assignments_completed: number;
+      total_assignments: number;
+      attendance_percentage: number;
+    }>;
+    recent_grades: Array<{
+      assignment_name: string;
+      subject: string;
+      marks_obtained: number;
+      max_marks: number;
+      date: string;
+    }>;
+    attendance_history: Array<{
+      date: string;
+      status: string;
+    }>;
+  }> => {
+    const student = demoData.teacher.studentPerformanceMetrics.find(
+      (s) => s.student_id === studentId
+    );
+
+    return Promise.resolve({
+      student: student || demoData.teacher.studentPerformanceMetrics[0],
+      subject_breakdown: [
+        {
+          subject: 'Mathematics',
+          average_score: 92.0,
+          trend: 'improving',
+          assignments_completed: 8,
+          total_assignments: 8,
+          attendance_percentage: 95.0,
+        },
+        {
+          subject: 'Physics',
+          average_score: 88.5,
+          trend: 'stable',
+          assignments_completed: 7,
+          total_assignments: 8,
+          attendance_percentage: 93.0,
+        },
+        {
+          subject: 'Chemistry',
+          average_score: 85.0,
+          trend: 'declining',
+          assignments_completed: 6,
+          total_assignments: 9,
+          attendance_percentage: 91.0,
+        },
+      ],
+      recent_grades: [
+        {
+          assignment_name: 'Quadratic Equations',
+          subject: 'Mathematics',
+          marks_obtained: 92,
+          max_marks: 100,
+          date: '2024-02-10',
+        },
+        {
+          assignment_name: "Newton's Laws",
+          subject: 'Physics',
+          marks_obtained: 88,
+          max_marks: 100,
+          date: '2024-02-08',
+        },
+        {
+          assignment_name: 'Chemical Bonding',
+          subject: 'Chemistry',
+          marks_obtained: 85,
+          max_marks: 100,
+          date: '2024-02-05',
+        },
+      ],
+      attendance_history: demoData.student.attendance.monthly.map((a) => ({
+        date: a.date,
+        status: a.status,
+      })),
+    });
+  },
+
+  exportClassPerformanceReport: async (
+    _classId: number,
+    _sectionId?: number,
+    format: 'pdf' | 'excel' = 'pdf'
+  ): Promise<Blob> => {
+    const content = format === 'pdf' ? 'PDF Report Content' : 'Excel Report Content';
+    const mimeType =
+      format === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    return Promise.resolve(new Blob([content], { type: mimeType }));
+  },
 };
 
 export const demoParentsApi = {
@@ -1495,4 +1959,12 @@ export const demoDataApi = {
   quizzes: demoQuizzesApi,
   pomodoro: demoPomodoroApi,
   settings: demoSettingsApi,
+};
+
+export type {
+  ClassRosterStudent,
+  StudentSubmissionDetail,
+  ExamMarkEntry,
+  ParentMessage,
+  StudentPerformanceMetric,
 };
