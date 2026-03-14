@@ -282,3 +282,155 @@ class CrossInstitutionAnalyticsResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class ImpersonateUserRequest(BaseModel):
+    user_id: int = Field(..., description="User ID to impersonate")
+    reason: str = Field(..., min_length=10, max_length=500, description="Reason for impersonation")
+    duration_minutes: Optional[int] = Field(60, ge=1, le=480, description="Duration in minutes (max 8 hours)")
+
+
+class ImpersonateUserResponse(BaseModel):
+    access_token: str = Field(..., description="Temporary access token")
+    user_id: int = Field(..., description="Impersonated user ID")
+    user_email: str = Field(..., description="Impersonated user email")
+    user_name: str = Field(..., description="Impersonated user name")
+    institution_id: int = Field(..., description="Institution ID")
+    institution_name: str = Field(..., description="Institution name")
+    role: str = Field(..., description="User role")
+    expires_at: datetime = Field(..., description="Token expiration time")
+    impersonation_log_id: int = Field(..., description="Impersonation log record ID")
+
+
+class EndImpersonationRequest(BaseModel):
+    impersonation_log_id: int = Field(..., description="Impersonation log record ID")
+
+
+class ActivityLogItem(BaseModel):
+    id: int
+    user_id: Optional[int]
+    user_email: Optional[str]
+    institution_id: Optional[int]
+    activity_type: str
+    activity_category: str
+    endpoint: Optional[str]
+    method: Optional[str]
+    status_code: Optional[int]
+    description: Optional[str]
+    error_message: Optional[str]
+    ip_address: Optional[str]
+    duration_ms: Optional[int]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ActivityLogFilters(BaseModel):
+    user_id: Optional[int] = None
+    institution_id: Optional[int] = None
+    activity_category: Optional[str] = None
+    activity_type: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    has_errors: Optional[bool] = None
+
+
+class ActivityLogResponse(BaseModel):
+    items: List[ActivityLogItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class SessionReplayEvent(BaseModel):
+    timestamp: datetime
+    event_type: str
+    data: dict
+
+
+class SessionReplayItem(BaseModel):
+    id: int
+    session_id: str
+    user_id: Optional[int]
+    user_email: Optional[str]
+    institution_id: Optional[int]
+    started_at: datetime
+    ended_at: Optional[datetime]
+    duration_seconds: Optional[int]
+    page_count: int
+    interaction_count: int
+    error_count: int
+    ip_address: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+
+class SessionReplayDetail(SessionReplayItem):
+    events: List[dict]
+    metadata: Optional[dict]
+
+
+class SessionReplayFilters(BaseModel):
+    user_id: Optional[int] = None
+    institution_id: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    has_errors: Optional[bool] = None
+
+
+class SessionReplayResponse(BaseModel):
+    items: List[SessionReplayItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class ExecuteSQLQueryRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=5000, description="SQL query to execute (read-only)")
+    limit: Optional[int] = Field(100, ge=1, le=1000, description="Maximum number of rows to return")
+
+
+class ExecuteSQLQueryResponse(BaseModel):
+    columns: List[str] = Field(..., description="Column names")
+    rows: List[List[Any]] = Field(..., description="Query result rows")
+    row_count: int = Field(..., description="Number of rows returned")
+    execution_time_ms: float = Field(..., description="Query execution time in milliseconds")
+    query: str = Field(..., description="Executed query")
+
+
+class ImpersonationLogItem(BaseModel):
+    id: int
+    super_admin_id: Optional[int]
+    super_admin_email: Optional[str]
+    impersonated_user_id: Optional[int]
+    impersonated_user_email: Optional[str]
+    institution_id: Optional[int]
+    institution_name: Optional[str]
+    reason: Optional[str]
+    started_at: datetime
+    ended_at: Optional[datetime]
+    is_active: bool
+    duration_minutes: Optional[int]
+    
+    class Config:
+        from_attributes = True
+
+
+class ImpersonationLogResponse(BaseModel):
+    items: List[ImpersonationLogItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class RecordSessionReplayRequest(BaseModel):
+    session_id: str = Field(..., description="Unique session identifier")
+    events: List[dict] = Field(..., description="Session events")
+    metadata: Optional[dict] = Field(None, description="Additional metadata")
+    started_at: datetime = Field(..., description="Session start time")
+    ended_at: Optional[datetime] = Field(None, description="Session end time")

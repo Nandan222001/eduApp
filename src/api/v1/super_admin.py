@@ -1,10 +1,13 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Optional, Any
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, File, UploadFile
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc
+from sqlalchemy import func, and_, or_, desc, text
+from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 from decimal import Decimal
 import math
+import time
+import re
 
 from src.database import get_db
 from src.dependencies.auth import get_current_user, require_super_admin
@@ -14,6 +17,7 @@ from src.models.subscription import Subscription, Payment, Invoice, UsageRecord
 from src.models.student import Student
 from src.models.teacher import Teacher
 from src.models.role import Role
+from src.models.audit_log import ImpersonationLog, ActivityLog, SessionReplay
 from src.schemas.super_admin import (
     SuperAdminDashboardResponse,
     InstitutionMetricsSummary,
@@ -31,8 +35,23 @@ from src.schemas.super_admin import (
     BillingHistoryItem,
     UsageMetric,
     InstitutionAnalytics,
+    ImpersonateUserRequest,
+    ImpersonateUserResponse,
+    EndImpersonationRequest,
+    ActivityLogResponse,
+    ActivityLogItem,
+    ActivityLogFilters,
+    SessionReplayResponse,
+    SessionReplayItem,
+    SessionReplayDetail,
+    SessionReplayFilters,
+    ExecuteSQLQueryRequest,
+    ExecuteSQLQueryResponse,
+    ImpersonationLogResponse,
+    ImpersonationLogItem,
+    RecordSessionReplayRequest,
 )
-from src.utils.security import hash_password
+from src.utils.security import get_password_hash, create_access_token
 from src.services.branding_service import branding_service
 from src.schemas.branding import (
     InstitutionBrandingCreate,
@@ -43,7 +62,6 @@ from src.schemas.branding import (
     CustomDomainResponse,
     UploadLogoResponse,
 )
-from fastapi import File, UploadFile, Request
 from src.middleware.branding_middleware import get_branding_context
 
 router = APIRouter(prefix="/super-admin", tags=["Super Admin"])
@@ -638,7 +656,7 @@ async def create_institution(
         first_name=institution_data.admin_user.first_name,
         last_name=institution_data.admin_user.last_name,
         phone=institution_data.admin_user.phone,
-        password_hash=hash_password(institution_data.admin_user.password),
+        hashed_password=get_password_hash(institution_data.admin_user.password),
         institution_id=institution.id,
         role_id=admin_role.id,
         is_active=True,
@@ -1162,3 +1180,533 @@ async def get_current_branding(request: Request):
     return {
         "branding": branding_context
     }
+
+
+# ==================== Impersonation & Debugging Tools ====================
+
+@router.post("/impersonate", response_model=ImpersonateUserResponse)
+async def impersonate_user(
+    request: Request,
+    impersonation_request: ImpersonateUserRequest,
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Impersonate a user with audit logging."""
+    user_to_impersonate = db.query(User).filter(User.id == impersonation_request.user_id).first()
+    
+    if not user_to_impersonate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if not user_to_impersonate.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot impersonate an inactive user"
+        )
+    
+    institution = db.query(Institution).filter(
+        Institution.id == user_to_impersonate.institution_id
+    ).first()
+    
+    if not institution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Institution not found"
+        )
+    
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("User-Agent")
+    
+    impersonation_log = ImpersonationLog(
+        super_admin_id=current_user.id,
+        impersonated_user_id=user_to_impersonate.id,
+        institution_id=institution.id,
+        reason=impersonation_request.reason,
+        started_at=datetime.utcnow(),
+        ip_address=client_ip,
+        user_agent=user_agent,
+        is_active=True,
+    )
+    db.add(impersonation_log)
+    db.commit()
+    db.refresh(impersonation_log)
+    
+    expires_delta = timedelta(minutes=impersonation_request.duration_minutes or 60)
+    expires_at = datetime.utcnow() + expires_delta
+    
+    token_data = {
+        "sub": user_to_impersonate.id,
+        "institution_id": user_to_impersonate.institution_id,
+        "role_id": user_to_impersonate.role_id,
+        "is_impersonated": True,
+        "impersonation_log_id": impersonation_log.id,
+        "super_admin_id": current_user.id,
+    }
+    
+    access_token = create_access_token(data=token_data, expires_delta=expires_delta)
+    
+    user_name = f"{user_to_impersonate.first_name or ''} {user_to_impersonate.last_name or ''}".strip()
+    if not user_name:
+        user_name = user_to_impersonate.email
+    
+    return ImpersonateUserResponse(
+        access_token=access_token,
+        user_id=user_to_impersonate.id,
+        user_email=user_to_impersonate.email,
+        user_name=user_name,
+        institution_id=institution.id,
+        institution_name=institution.name,
+        role=user_to_impersonate.role.name if user_to_impersonate.role else "unknown",
+        expires_at=expires_at,
+        impersonation_log_id=impersonation_log.id,
+    )
+
+
+@router.post("/end-impersonation")
+async def end_impersonation(
+    end_request: EndImpersonationRequest,
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """End an active impersonation session."""
+    impersonation_log = db.query(ImpersonationLog).filter(
+        ImpersonationLog.id == end_request.impersonation_log_id
+    ).first()
+    
+    if not impersonation_log:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Impersonation log not found"
+        )
+    
+    if impersonation_log.super_admin_id != current_user.id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to end this impersonation"
+        )
+    
+    impersonation_log.ended_at = datetime.utcnow()
+    impersonation_log.is_active = False
+    db.commit()
+    
+    return {
+        "message": "Impersonation ended successfully",
+        "duration_minutes": int((impersonation_log.ended_at - impersonation_log.started_at).total_seconds() / 60)
+    }
+
+
+@router.get("/impersonation-logs", response_model=ImpersonationLogResponse)
+async def get_impersonation_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user_id: Optional[int] = Query(None),
+    institution_id: Optional[int] = Query(None),
+    is_active: Optional[bool] = Query(None),
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Get impersonation logs with filtering."""
+    query = db.query(ImpersonationLog)
+    
+    if user_id:
+        query = query.filter(
+            or_(
+                ImpersonationLog.super_admin_id == user_id,
+                ImpersonationLog.impersonated_user_id == user_id
+            )
+        )
+    
+    if institution_id:
+        query = query.filter(ImpersonationLog.institution_id == institution_id)
+    
+    if is_active is not None:
+        query = query.filter(ImpersonationLog.is_active == is_active)
+    
+    total = query.count()
+    logs = query.order_by(desc(ImpersonationLog.started_at)).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+    
+    items = []
+    for log in logs:
+        super_admin = db.query(User).filter(User.id == log.super_admin_id).first()
+        impersonated_user = db.query(User).filter(User.id == log.impersonated_user_id).first()
+        institution = db.query(Institution).filter(Institution.id == log.institution_id).first()
+        
+        duration_minutes = None
+        if log.ended_at:
+            duration_minutes = int((log.ended_at - log.started_at).total_seconds() / 60)
+        
+        items.append(ImpersonationLogItem(
+            id=log.id,
+            super_admin_id=log.super_admin_id,
+            super_admin_email=super_admin.email if super_admin else None,
+            impersonated_user_id=log.impersonated_user_id,
+            impersonated_user_email=impersonated_user.email if impersonated_user else None,
+            institution_id=log.institution_id,
+            institution_name=institution.name if institution else None,
+            reason=log.reason,
+            started_at=log.started_at,
+            ended_at=log.ended_at,
+            is_active=log.is_active,
+            duration_minutes=duration_minutes,
+        ))
+    
+    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    
+    return ImpersonationLogResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get("/institutions/{institution_id}/access-admin-panel")
+async def access_institution_admin_panel(
+    institution_id: int,
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Get access token to view institution's admin panel."""
+    institution = db.query(Institution).filter(Institution.id == institution_id).first()
+    
+    if not institution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Institution not found"
+        )
+    
+    admin_role = db.query(Role).filter(Role.name == "institution_admin").first()
+    if not admin_role:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Admin role not found"
+        )
+    
+    admin_user = db.query(User).filter(
+        and_(
+            User.institution_id == institution_id,
+            User.role_id == admin_role.id,
+            User.is_active == True
+        )
+    ).first()
+    
+    if not admin_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active admin user found for this institution"
+        )
+    
+    expires_delta = timedelta(hours=2)
+    expires_at = datetime.utcnow() + expires_delta
+    
+    token_data = {
+        "sub": admin_user.id,
+        "institution_id": institution_id,
+        "role_id": admin_role.id,
+        "is_super_admin_view": True,
+        "super_admin_id": current_user.id,
+    }
+    
+    access_token = create_access_token(data=token_data, expires_delta=expires_delta)
+    
+    return {
+        "access_token": access_token,
+        "institution_id": institution_id,
+        "institution_name": institution.name,
+        "admin_user_id": admin_user.id,
+        "admin_email": admin_user.email,
+        "expires_at": expires_at,
+    }
+
+
+@router.get("/activity-logs", response_model=ActivityLogResponse)
+async def get_activity_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    user_id: Optional[int] = Query(None),
+    institution_id: Optional[int] = Query(None),
+    activity_category: Optional[str] = Query(None),
+    activity_type: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    has_errors: Optional[bool] = Query(None),
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """View activity logs for troubleshooting."""
+    query = db.query(ActivityLog)
+    
+    if user_id:
+        query = query.filter(ActivityLog.user_id == user_id)
+    
+    if institution_id:
+        query = query.filter(ActivityLog.institution_id == institution_id)
+    
+    if activity_category:
+        query = query.filter(ActivityLog.activity_category == activity_category)
+    
+    if activity_type:
+        query = query.filter(ActivityLog.activity_type == activity_type)
+    
+    if start_date:
+        query = query.filter(ActivityLog.created_at >= start_date)
+    
+    if end_date:
+        query = query.filter(ActivityLog.created_at <= end_date)
+    
+    if has_errors is not None:
+        if has_errors:
+            query = query.filter(ActivityLog.error_message.isnot(None))
+        else:
+            query = query.filter(ActivityLog.error_message.is_(None))
+    
+    total = query.count()
+    logs = query.order_by(desc(ActivityLog.created_at)).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+    
+    items = []
+    for log in logs:
+        user = db.query(User).filter(User.id == log.user_id).first() if log.user_id else None
+        
+        items.append(ActivityLogItem(
+            id=log.id,
+            user_id=log.user_id,
+            user_email=user.email if user else None,
+            institution_id=log.institution_id,
+            activity_type=log.activity_type,
+            activity_category=log.activity_category,
+            endpoint=log.endpoint,
+            method=log.method,
+            status_code=log.status_code,
+            description=log.description,
+            error_message=log.error_message,
+            ip_address=log.ip_address,
+            duration_ms=log.duration_ms,
+            created_at=log.created_at,
+        ))
+    
+    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    
+    return ActivityLogResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get("/session-replays", response_model=SessionReplayResponse)
+async def get_session_replays(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user_id: Optional[int] = Query(None),
+    institution_id: Optional[int] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
+    has_errors: Optional[bool] = Query(None),
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Get list of session replays for bug reproduction."""
+    query = db.query(SessionReplay)
+    
+    if user_id:
+        query = query.filter(SessionReplay.user_id == user_id)
+    
+    if institution_id:
+        query = query.filter(SessionReplay.institution_id == institution_id)
+    
+    if start_date:
+        query = query.filter(SessionReplay.started_at >= start_date)
+    
+    if end_date:
+        query = query.filter(SessionReplay.started_at <= end_date)
+    
+    if has_errors is not None:
+        if has_errors:
+            query = query.filter(SessionReplay.error_count > 0)
+        else:
+            query = query.filter(SessionReplay.error_count == 0)
+    
+    total = query.count()
+    replays = query.order_by(desc(SessionReplay.started_at)).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+    
+    items = []
+    for replay in replays:
+        user = db.query(User).filter(User.id == replay.user_id).first() if replay.user_id else None
+        
+        items.append(SessionReplayItem(
+            id=replay.id,
+            session_id=replay.session_id,
+            user_id=replay.user_id,
+            user_email=user.email if user else None,
+            institution_id=replay.institution_id,
+            started_at=replay.started_at,
+            ended_at=replay.ended_at,
+            duration_seconds=replay.duration_seconds,
+            page_count=replay.page_count,
+            interaction_count=replay.interaction_count,
+            error_count=replay.error_count,
+            ip_address=replay.ip_address,
+        ))
+    
+    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    
+    return SessionReplayResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get("/session-replays/{replay_id}", response_model=SessionReplayDetail)
+async def get_session_replay_detail(
+    replay_id: int,
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Get detailed session replay with all events."""
+    replay = db.query(SessionReplay).filter(SessionReplay.id == replay_id).first()
+    
+    if not replay:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session replay not found"
+        )
+    
+    user = db.query(User).filter(User.id == replay.user_id).first() if replay.user_id else None
+    
+    return SessionReplayDetail(
+        id=replay.id,
+        session_id=replay.session_id,
+        user_id=replay.user_id,
+        user_email=user.email if user else None,
+        institution_id=replay.institution_id,
+        started_at=replay.started_at,
+        ended_at=replay.ended_at,
+        duration_seconds=replay.duration_seconds,
+        page_count=replay.page_count,
+        interaction_count=replay.interaction_count,
+        error_count=replay.error_count,
+        ip_address=replay.ip_address,
+        events=replay.events,
+        metadata=replay.metadata,
+    )
+
+
+@router.post("/session-replays/record")
+async def record_session_replay(
+    request: Request,
+    replay_data: RecordSessionReplayRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Record a session replay for debugging."""
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("User-Agent")
+    
+    page_count = len([e for e in replay_data.events if e.get("type") == "page_view"])
+    interaction_count = len([e for e in replay_data.events if e.get("type") in ["click", "input", "scroll"]])
+    error_count = len([e for e in replay_data.events if e.get("type") == "error"])
+    
+    duration_seconds = None
+    if replay_data.ended_at:
+        duration_seconds = int((replay_data.ended_at - replay_data.started_at).total_seconds())
+    
+    session_replay = SessionReplay(
+        session_id=replay_data.session_id,
+        user_id=current_user.id,
+        institution_id=current_user.institution_id,
+        events=replay_data.events,
+        metadata=replay_data.metadata,
+        started_at=replay_data.started_at,
+        ended_at=replay_data.ended_at,
+        duration_seconds=duration_seconds,
+        page_count=page_count,
+        interaction_count=interaction_count,
+        error_count=error_count,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    
+    db.add(session_replay)
+    db.commit()
+    db.refresh(session_replay)
+    
+    return {
+        "id": session_replay.id,
+        "session_id": session_replay.session_id,
+        "message": "Session replay recorded successfully"
+    }
+
+
+@router.post("/execute-sql", response_model=ExecuteSQLQueryResponse)
+async def execute_sql_query(
+    query_request: ExecuteSQLQueryRequest,
+    current_user: User = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Execute read-only SQL query for data investigation."""
+    query_lower = query_request.query.lower().strip()
+    
+    dangerous_keywords = [
+        'insert', 'update', 'delete', 'drop', 'create', 'alter',
+        'truncate', 'grant', 'revoke', 'exec', 'execute'
+    ]
+    
+    for keyword in dangerous_keywords:
+        if re.search(r'\b' + keyword + r'\b', query_lower):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Query contains forbidden keyword: {keyword}. Only SELECT queries are allowed."
+            )
+    
+    if not query_lower.startswith('select'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only SELECT queries are allowed"
+        )
+    
+    query_with_limit = query_request.query
+    if 'limit' not in query_lower:
+        query_with_limit += f" LIMIT {query_request.limit}"
+    
+    try:
+        start_time = time.time()
+        result = db.execute(text(query_with_limit))
+        execution_time_ms = (time.time() - start_time) * 1000
+        
+        columns = list(result.keys())
+        rows = [list(row) for row in result.fetchall()]
+        
+        for i, row in enumerate(rows):
+            for j, value in enumerate(row):
+                if isinstance(value, datetime):
+                    rows[i][j] = value.isoformat()
+                elif isinstance(value, Decimal):
+                    rows[i][j] = float(value)
+        
+        return ExecuteSQLQueryResponse(
+            columns=columns,
+            rows=rows,
+            row_count=len(rows),
+            execution_time_ms=round(execution_time_ms, 2),
+            query=query_with_limit,
+        )
+        
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"SQL execution error: {str(e)}"
+        )
