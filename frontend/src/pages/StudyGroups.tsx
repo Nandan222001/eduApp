@@ -29,6 +29,8 @@ import { GroupCreationForm } from '../components/studyGroups';
 import studyGroupsApi from '../api/studyGroups';
 import { StudyGroup, GroupSearchFilters, GroupStats } from '../types/studyGroup';
 import axios from 'axios';
+import { useAuth } from '@/hooks/useAuth';
+import { isDemoUser } from '@/api/demoDataApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -38,6 +40,8 @@ interface Subject {
 }
 
 const StudyGroups: React.FC = () => {
+  const { user } = useAuth();
+  const isDemo = isDemoUser(user?.email);
   const [tabValue, setTabValue] = useState(0);
   const [groups, setGroups] = useState<StudyGroup[]>([]);
   const [stats, setStats] = useState<GroupStats | null>(null);
@@ -69,10 +73,14 @@ const StudyGroups: React.FC = () => {
     } else if (tabValue === 1) {
       setFilters((prev) => ({ ...prev, my_groups: true, page: 1 }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabValue]);
 
   const loadGroups = async () => {
+    if (isDemo) {
+      setGroups([]);
+      setTotalPages(0);
+      return;
+    }
     try {
       const response = await studyGroupsApi.searchGroups(filters);
       setGroups(response.groups);
@@ -83,6 +91,15 @@ const StudyGroups: React.FC = () => {
   };
 
   const loadStats = async () => {
+    if (isDemo) {
+      setStats({
+        total_groups: 0,
+        my_groups: 0,
+        total_members: 0,
+        active_today: 0,
+      });
+      return;
+    }
     try {
       const data = await studyGroupsApi.getStats();
       setStats(data);
@@ -92,6 +109,10 @@ const StudyGroups: React.FC = () => {
   };
 
   const loadSubjects = async () => {
+    if (isDemo) {
+      setSubjects([]);
+      return;
+    }
     try {
       const response = await axios.get(`${API_BASE_URL}/api/v1/academic/subjects`);
       setSubjects(response.data);
@@ -116,6 +137,10 @@ const StudyGroups: React.FC = () => {
   };
 
   const handleJoinGroup = async (groupId: number) => {
+    if (isDemo) {
+      showSnackbar('Joined group successfully', 'success');
+      return;
+    }
     try {
       await studyGroupsApi.joinGroup(groupId);
       showSnackbar('Joined group successfully', 'success');

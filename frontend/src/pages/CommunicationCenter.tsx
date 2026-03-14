@@ -16,6 +16,8 @@ import {
   MessagingInterface,
   NotificationPreferences,
 } from '@/components/communications';
+import { useAuth } from '@/hooks/useAuth';
+import { isDemoUser } from '@/api/demoDataApi';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -33,10 +35,12 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
 
 export const CommunicationCenter: React.FC = () => {
   const theme = useTheme();
+  const { user } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [tabValue, setTabValue] = useState(0);
   const [showAnnouncementComposer, setShowAnnouncementComposer] = useState(false);
   const [showNotificationPreferences, setShowNotificationPreferences] = useState(false);
+  const _isDemo = isDemoUser(user?.email);
 
   return (
     <Container maxWidth="xl">

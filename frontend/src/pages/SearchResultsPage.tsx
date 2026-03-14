@@ -47,6 +47,8 @@ import {
   AnnouncementSearchResult,
 } from '@/api/search';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
+import { isDemoUser, demoSearchApi } from '@/api/demoDataApi';
 
 const categoryInfo = {
   students: { icon: StudentIcon, label: 'Students', color: '#1976d2' },
@@ -59,6 +61,7 @@ const categoryInfo = {
 export default function SearchResultsPage() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [results, setResults] = useState<SearchResults | null>(null);
@@ -66,6 +69,7 @@ export default function SearchResultsPage() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const isDemo = isDemoUser(user?.email);
 
   const [filters, setFilters] = useState({
     grade_id: '',
@@ -79,6 +83,9 @@ export default function SearchResultsPage() {
 
   useEffect(() => {
     const loadFilterOptions = async () => {
+      if (isDemo) {
+        return;
+      }
       try {
         const options = await searchApi.getFilterOptions();
         setFilterOptions(options);
@@ -87,7 +94,7 @@ export default function SearchResultsPage() {
       }
     };
     loadFilterOptions();
-  }, []);
+  }, [isDemo]);
 
   useEffect(() => {
     const q = searchParams.get('q');
@@ -102,18 +109,39 @@ export default function SearchResultsPage() {
 
     setLoading(true);
     try {
-      const searchTypes = activeTab === 'all' ? undefined : [activeTab];
-      const activeFilters = Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => value !== '')
-      );
+      if (isDemo) {
+        const searchTypes = activeTab === 'all' ? undefined : [activeTab];
+        const demoResults = await demoSearchApi.search({
+          query: searchQuery,
+          types: searchTypes,
+          limit: 50,
+        });
 
-      const searchResults = await searchApi.globalSearch({
-        query: searchQuery,
-        search_types: searchTypes,
-        filters: Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
-        limit: 50,
-      });
-      setResults(searchResults);
+        const mappedResults: SearchResults = {
+          query: searchQuery,
+          total_results: demoResults.total,
+          search_time_ms: 10,
+          students: demoResults.students as unknown as StudentSearchResult[],
+          teachers: demoResults.teachers as unknown as TeacherSearchResult[],
+          assignments: demoResults.assignments as unknown as AssignmentSearchResult[],
+          papers: [],
+          announcements: demoResults.announcements as unknown as AnnouncementSearchResult[],
+        };
+        setResults(mappedResults);
+      } else {
+        const searchTypes = activeTab === 'all' ? undefined : [activeTab];
+        const activeFilters = Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== '')
+        );
+
+        const searchResults = await searchApi.globalSearch({
+          query: searchQuery,
+          search_types: searchTypes,
+          filters: Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
+          limit: 50,
+        });
+        setResults(searchResults);
+      }
     } catch (error) {
       console.error('Search error:', error);
     } finally {

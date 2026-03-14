@@ -18,8 +18,12 @@ import { Add, HelpOutline, TrendingUp, Bookmark } from '@mui/icons-material';
 import { DoubtComposer, DoubtCard, DoubtFeedFilters } from '../components/doubts';
 import doubtsApi from '../api/doubts';
 import { DoubtPost, DoubtSearchFilters, DoubtStats } from '../types/doubt';
+import { useAuth } from '@/hooks/useAuth';
+import { isDemoUser } from '@/api/demoDataApi';
 
 const DoubtForum: React.FC = () => {
+  const { user } = useAuth();
+  const isDemo = isDemoUser(user?.email);
   const [tabValue, setTabValue] = useState(0);
   const [doubts, setDoubts] = useState<DoubtPost[]>([]);
   const [stats, setStats] = useState<DoubtStats | null>(null);
@@ -62,6 +66,11 @@ const DoubtForum: React.FC = () => {
   };
 
   const loadDoubts = async () => {
+    if (isDemo) {
+      setDoubts([]);
+      setTotalPages(0);
+      return;
+    }
     try {
       const response = await doubtsApi.searchDoubts(filters as DoubtSearchFilters);
       setDoubts(response.doubts);
@@ -72,6 +81,15 @@ const DoubtForum: React.FC = () => {
   };
 
   const loadStats = async () => {
+    if (isDemo) {
+      setStats({
+        total_doubts: 0,
+        unanswered_doubts: 0,
+        resolved_doubts: 0,
+        my_doubts: 0,
+      });
+      return;
+    }
     try {
       const data = await doubtsApi.getStats();
       setStats(data);
@@ -81,6 +99,10 @@ const DoubtForum: React.FC = () => {
   };
 
   const loadBookmarkedDoubts = async () => {
+    if (isDemo) {
+      setDoubts([]);
+      return;
+    }
     try {
       const bookmarks = await doubtsApi.getMyBookmarks();
       setDoubts(
@@ -110,6 +132,10 @@ const DoubtForum: React.FC = () => {
   };
 
   const handleUpvote = async (doubt: DoubtPost) => {
+    if (isDemo) {
+      showSnackbar('Vote updated', 'success');
+      return;
+    }
     try {
       if (doubt.is_upvoted) {
         await doubtsApi.removeDoubtVote(doubt.id);
@@ -123,6 +149,10 @@ const DoubtForum: React.FC = () => {
   };
 
   const handleBookmark = async (doubt: DoubtPost) => {
+    if (isDemo) {
+      showSnackbar(doubt.is_bookmarked ? 'Bookmark removed' : 'Doubt bookmarked', 'success');
+      return;
+    }
     try {
       if (doubt.is_bookmarked) {
         await doubtsApi.removeBookmark(doubt.id);

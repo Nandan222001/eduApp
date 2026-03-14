@@ -3511,6 +3511,9 @@ export const demoDataApi = {
   quizzes: demoQuizzesApi,
   pomodoro: demoPomodoroApi,
   settings: demoSettingsApi,
+  search: demoSearchApi,
+  communications: demoCommunicationsApi,
+  studyMaterials: demoStudyMaterialsApi,
 };
 
 export type {

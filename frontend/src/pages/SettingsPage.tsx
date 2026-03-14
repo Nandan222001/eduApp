@@ -31,6 +31,8 @@ import {
   ConnectedDevicesList,
   AccountDeletionForm,
 } from '@/components/settings';
+import { useAuth } from '@/hooks/useAuth';
+import { isDemoUser } from '@/api/demoDataApi';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -54,7 +56,9 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState(0);
   const theme = useTheme();
+  const { user } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const _isDemo = isDemoUser(user?.email);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);

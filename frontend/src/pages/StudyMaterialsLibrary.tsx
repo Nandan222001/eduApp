@@ -30,8 +30,12 @@ import studyMaterialsApi, {
   MaterialHierarchyNode,
   MaterialStats,
 } from '../api/studyMaterials';
+import { useAuth } from '@/hooks/useAuth';
+import { isDemoUser, demoStudyMaterialsApi } from '@/api/demoDataApi';
 
 const StudyMaterialsLibrary: React.FC = () => {
+  const { user } = useAuth();
+  const isDemo = isDemoUser(user?.email);
   const [tabValue, setTabValue] = useState(0);
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
   const [hierarchy, setHierarchy] = useState<MaterialHierarchyNode[]>([]);
@@ -72,15 +76,27 @@ const StudyMaterialsLibrary: React.FC = () => {
 
   const loadMaterials = async () => {
     try {
-      const response = await studyMaterialsApi.searchMaterials(filters as MaterialSearchFilters);
-      setMaterials(response.materials);
-      setTotalPages(response.total_pages);
+      if (isDemo) {
+        const response = await demoStudyMaterialsApi.getPreviousYearPapers({
+          skip: ((filters.page || 1) - 1) * (filters.page_size || 20),
+          limit: filters.page_size || 20,
+        });
+        setMaterials(response.items as unknown as StudyMaterial[]);
+        setTotalPages(Math.ceil(response.total / (filters.page_size || 20)));
+      } else {
+        const response = await studyMaterialsApi.searchMaterials(filters as MaterialSearchFilters);
+        setMaterials(response.materials);
+        setTotalPages(response.total_pages);
+      }
     } catch (error) {
       showSnackbar('Failed to load materials', 'error');
     }
   };
 
   const loadHierarchy = async () => {
+    if (isDemo) {
+      return;
+    }
     try {
       const data = await studyMaterialsApi.getHierarchy();
       setHierarchy(data);
@@ -90,6 +106,9 @@ const StudyMaterialsLibrary: React.FC = () => {
   };
 
   const loadRecentlyAccessed = async () => {
+    if (isDemo) {
+      return;
+    }
     try {
       const data = await studyMaterialsApi.getRecentlyAccessed(10);
       setRecentlyAccessed(data);
@@ -99,6 +118,9 @@ const StudyMaterialsLibrary: React.FC = () => {
   };
 
   const loadBookmarks = async () => {
+    if (isDemo) {
+      return;
+    }
     try {
       const bookmarks = await studyMaterialsApi.getMyBookmarks(false);
       setBookmarkedMaterials(bookmarks.map((b) => b.material!).filter(Boolean));
@@ -108,6 +130,15 @@ const StudyMaterialsLibrary: React.FC = () => {
   };
 
   const loadStats = async () => {
+    if (isDemo) {
+      setStats({
+        total_materials: 45,
+        total_views: 1234,
+        total_downloads: 567,
+        bookmarked_count: 12,
+      });
+      return;
+    }
     try {
       const data = await studyMaterialsApi.getStats();
       setStats(data);
@@ -131,12 +162,18 @@ const StudyMaterialsLibrary: React.FC = () => {
   const handleViewMaterial = async (material: StudyMaterial) => {
     setSelectedMaterial(material);
     setViewerOpen(true);
-    await studyMaterialsApi.viewMaterial(material.id);
-    loadMaterials();
+    if (!isDemo) {
+      await studyMaterialsApi.viewMaterial(material.id);
+      loadMaterials();
+    }
   };
 
   const handleDownloadMaterial = async (material: StudyMaterial) => {
     try {
+      if (isDemo) {
+        showSnackbar('Download started', 'success');
+        return;
+      }
       const response = await studyMaterialsApi.downloadMaterial(material.id);
       window.open(response.download_url, '_blank');
       showSnackbar('Download started', 'success');
@@ -147,6 +184,10 @@ const StudyMaterialsLibrary: React.FC = () => {
   };
 
   const handleBookmark = async (material: StudyMaterial) => {
+    if (isDemo) {
+      showSnackbar(material.is_bookmarked ? 'Bookmark removed' : 'Material bookmarked', 'success');
+      return;
+    }
     try {
       if (material.is_bookmarked) {
         await studyMaterialsApi.deleteBookmark(material.id);
@@ -166,6 +207,13 @@ const StudyMaterialsLibrary: React.FC = () => {
   };
 
   const handleFavorite = async (material: StudyMaterial) => {
+    if (isDemo) {
+      showSnackbar(
+        material.is_favorite ? 'Removed from favorites' : 'Added to favorites',
+        'success'
+      );
+      return;
+    }
     try {
       if (material.is_bookmarked) {
         await studyMaterialsApi.updateBookmark(material.id, {
