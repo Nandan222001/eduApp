@@ -57,7 +57,8 @@ from src.api.v1 import (
     virtual_classrooms,
     classroom_websocket,
     plagiarism,
-    institution_health
+    institution_health,
+    credentials
 )
 from src.api import ml
 
@@ -122,3 +123,5 @@ api_router.include_router(virtual_classrooms.router, prefix="", tags=["virtual-c
 api_router.include_router(classroom_websocket.router, prefix="", tags=["classroom-websocket"])
 api_router.include_router(plagiarism.router, prefix="", tags=["plagiarism"])
 api_router.include_router(institution_health.router, prefix="", tags=["institution-health"])
+api_router.include_router(credentials.router, tags=["credentials"])
+api_router.include_router(credentials.employer_router, tags=["employer-verification"])

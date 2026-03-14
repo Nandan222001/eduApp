@@ -184,3 +184,12 @@ aws-exports.js
 # Kubernetes (if used)
 k8s/secrets.yaml
 k8s/configmaps.yaml
+
+# Blockchain/Hyperledger Fabric
+blockchain/network/crypto-config/
+blockchain/network/channel-artifacts/
+blockchain/network/*.block
+blockchain/network/*.tx
+blockchain/scripts/log.txt
+blockchain/scripts/*.log
+*.tar.gz

@@ -1,0 +1,17 @@
+OrdererOrgs:
+  - Name: Orderer
+    Domain: credentials.com
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer
+    Users:
+      Count: 1
+
+PeerOrgs:
+  - Name: EducationOrg
+    Domain: education.credentials.com
+    EnableNodeOUs: true
+    Template:
+      Count: 2
+    Users:
+      Count: 1
