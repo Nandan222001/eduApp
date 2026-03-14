@@ -1,5 +1,16 @@
 import { useAuthStore } from '@/store/useAuthStore';
-import { DEMO_CREDENTIALS, demoData } from '@/data/dummyData';
+import {
+  DEMO_CREDENTIALS,
+  TEACHER_CREDENTIALS,
+  PARENT_CREDENTIALS,
+  ADMIN_CREDENTIALS,
+  SUPERADMIN_CREDENTIALS,
+  demoData,
+  teacherDashboardData,
+  parentDashboardData,
+  adminDashboardData,
+  superadminDashboardData,
+} from '@/data/dummyData';
 import type { StudentProfile, StudentDashboardData } from './students';
 import type { AssignmentListParams } from '@/types/assignment';
 import type { AttendanceListResponse, StudentAttendanceDetail } from './attendance';
@@ -15,10 +26,20 @@ import type {
 } from '@/types/gamification';
 import type { Goal, GoalAnalytics } from '@/types/goals';
 import type { StudentPerformanceAnalytics } from '@/types/analytics';
+import type { Teacher, TeacherMyDashboardData, ClassAssignment } from './teachers';
+import type { ParentDashboard, ChildOverview, TodayAttendance, RecentGrade } from '@/types/parent';
+import type { DashboardResponse as InstitutionAdminDashboardResponse } from './institutionAdmin';
+import type { SuperAdminDashboardResponse } from './superAdmin';
 
-export const isDemoUser = (): boolean => {
-  const user = useAuthStore.getState().user;
-  return user?.email === DEMO_CREDENTIALS.email;
+export const isDemoUser = (email?: string): boolean => {
+  const userEmail = email || useAuthStore.getState().user?.email;
+  return (
+    userEmail === DEMO_CREDENTIALS.email ||
+    userEmail === TEACHER_CREDENTIALS.email ||
+    userEmail === PARENT_CREDENTIALS.email ||
+    userEmail === ADMIN_CREDENTIALS.email ||
+    userEmail === SUPERADMIN_CREDENTIALS.email
+  );
 };
 
 export const demoStudentsApi = {
@@ -668,6 +689,68 @@ export const demoAnalyticsApi = {
   },
 };
 
+export const demoTeachersApi = {
+  getTeacherProfile: async (teacherId: number): Promise<Teacher> => {
+    const teacher = demoData.academics.teachers.find((t) => t.id === teacherId);
+    return Promise.resolve(teacher || demoData.academics.teachers[0]);
+  },
+
+  getTeacherDashboard: async (_teacherId: number): Promise<TeacherMyDashboardData> => {
+    return Promise.resolve(teacherDashboardData);
+  },
+
+  getClassAssignments: async (_teacherId: number): Promise<ClassAssignment[]> => {
+    return Promise.resolve(
+      teacherDashboardData.my_classes.map((c) => ({
+        id: c.class_id,
+        class_name: c.class_name,
+        section: c.section,
+        subject: c.subject,
+        student_count: c.student_count,
+      }))
+    );
+  },
+
+  getPendingGrading: async (_teacherId: number) => {
+    return Promise.resolve(teacherDashboardData.pending_grading);
+  },
+};
+
+export const demoParentsApi = {
+  getDashboard: async (_childId?: number): Promise<ParentDashboard> => {
+    return Promise.resolve(parentDashboardData);
+  },
+
+  getChildren: async (): Promise<ChildOverview[]> => {
+    return Promise.resolve(parentDashboardData.children);
+  },
+
+  getChildOverview: async (childId: number): Promise<ChildOverview> => {
+    const child = parentDashboardData.children.find((c) => c.id === childId);
+    return Promise.resolve(child || parentDashboardData.children[0]);
+  },
+
+  getTodayAttendance: async (_childId: number): Promise<TodayAttendance> => {
+    return Promise.resolve(parentDashboardData.today_attendance);
+  },
+
+  getRecentGrades: async (_childId: number, limit = 10): Promise<RecentGrade[]> => {
+    return Promise.resolve(parentDashboardData.recent_grades.slice(0, limit));
+  },
+};
+
+export const demoInstitutionAdminApi = {
+  getDashboard: async (): Promise<InstitutionAdminDashboardResponse> => {
+    return Promise.resolve(adminDashboardData);
+  },
+};
+
+export const demoSuperAdminApi = {
+  getDashboard: async (): Promise<SuperAdminDashboardResponse> => {
+    return Promise.resolve(superadminDashboardData);
+  },
+};
+
 export const demoDataApi = {
   students: demoStudentsApi,
   assignments: demoAssignmentsApi,
@@ -678,4 +761,8 @@ export const demoDataApi = {
   gamification: demoGamificationApi,
   goals: demoGoalsApi,
   analytics: demoAnalyticsApi,
+  teachers: demoTeachersApi,
+  parents: demoParentsApi,
+  institutionAdmin: demoInstitutionAdminApi,
+  superAdmin: demoSuperAdminApi,
 };
