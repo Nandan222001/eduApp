@@ -48,7 +48,13 @@ export interface AuthUser {
   updatedAt: string;
 }
 
-export type UserRole = 'admin' | 'teacher' | 'student' | 'parent';
+export type UserRole =
+  | 'admin'
+  | 'teacher'
+  | 'student'
+  | 'parent'
+  | 'institution_admin'
+  | 'superadmin';
 
 export interface AuthResponse {
   user: AuthUser;

@@ -10,7 +10,18 @@ import type {
   RefreshTokenResponse,
   AuthUser,
 } from '@/types/auth';
-import { DEMO_CREDENTIALS, demoAuthResponse } from '@/data/dummyData';
+import {
+  DEMO_CREDENTIALS,
+  demoAuthResponse,
+  TEACHER_CREDENTIALS,
+  teacherAuthResponse,
+  PARENT_CREDENTIALS,
+  parentAuthResponse,
+  ADMIN_CREDENTIALS,
+  adminAuthResponse,
+  SUPERADMIN_CREDENTIALS,
+  superadminAuthResponse,
+} from '@/data/dummyData';
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
@@ -19,6 +30,30 @@ export const authApi = {
       credentials.password === DEMO_CREDENTIALS.password
     ) {
       return demoAuthResponse;
+    }
+    if (
+      credentials.email === TEACHER_CREDENTIALS.email &&
+      credentials.password === TEACHER_CREDENTIALS.password
+    ) {
+      return teacherAuthResponse;
+    }
+    if (
+      credentials.email === PARENT_CREDENTIALS.email &&
+      credentials.password === PARENT_CREDENTIALS.password
+    ) {
+      return parentAuthResponse;
+    }
+    if (
+      credentials.email === ADMIN_CREDENTIALS.email &&
+      credentials.password === ADMIN_CREDENTIALS.password
+    ) {
+      return adminAuthResponse;
+    }
+    if (
+      credentials.email === SUPERADMIN_CREDENTIALS.email &&
+      credentials.password === SUPERADMIN_CREDENTIALS.password
+    ) {
+      return superadminAuthResponse;
     }
     const response = await axios.post<AuthResponse>('/api/auth/login', credentials);
     return response.data;
