@@ -68,6 +68,7 @@ import ParentAssignmentsView from './pages/ParentAssignmentsView';
 import ParentProgressView from './pages/ParentProgressView';
 import ParentScheduleView from './pages/ParentScheduleView';
 import ParentNotifications from './pages/ParentNotifications';
+import PeerTutoringMarketplace from './pages/PeerTutoringMarketplace';
 
 import {
   LoginPage,
@@ -254,6 +255,7 @@ function App() {
                   <Route path="quizzes/:quizId/take" element={<QuizTakePage />} />
                   <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
                   <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
+                  <Route path="peer-tutoring" element={<PeerTutoringMarketplace />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
@@ -281,6 +283,7 @@ function App() {
                   <Route path="quizzes/:quizId/take" element={<QuizTakePage />} />
                   <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
                   <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
+                  <Route path="peer-tutoring" element={<PeerTutoringMarketplace />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
@@ -288,7 +291,10 @@ function App() {
               <Route element={<ProtectedRoute requireSuperAdmin={true} />}>
                 <Route path="/super-admin" element={<AdminLayout />}>
                   <Route index element={<SuperAdminDashboard />} />
-                  <Route path="analytics/cross-institution" element={<SuperAdminCrossInstitutionAnalytics />} />
+                  <Route
+                    path="analytics/cross-institution"
+                    element={<SuperAdminCrossInstitutionAnalytics />}
+                  />
                   <Route path="institutions" element={<InstitutionsList />} />
                   <Route path="institutions/create" element={<InstitutionCreate />} />
                   <Route path="institutions/:id" element={<InstitutionDetail />} />
