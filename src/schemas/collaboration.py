@@ -1,335 +1,165 @@
-from datetime import datetime
-from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
+from typing import Optional, List, Dict, Any
+from datetime import date, datetime
+from decimal import Decimal
 
 
-class StudyBuddyProfileBase(BaseModel):
-    subjects: List[int] = Field(..., description="List of subject IDs")
-    performance_level: str = Field(..., description="Performance level: excellent, good, average, needs_improvement")
-    study_schedule: Optional[Dict[str, Any]] = None
-    preferred_study_times: Optional[List[str]] = None
-    study_goals: Optional[str] = None
-    learning_style: Optional[str] = Field(None, description="visual, auditory, kinesthetic, reading_writing")
-    availability_days: Optional[List[str]] = None
-    preferred_group_size: int = Field(4, ge=2, le=10)
-    is_available: bool = True
-    bio: Optional[str] = None
-
-
-class StudyBuddyProfileCreate(StudyBuddyProfileBase):
-    pass
-
-
-class StudyBuddyProfileUpdate(BaseModel):
-    subjects: Optional[List[int]] = None
-    performance_level: Optional[str] = None
-    study_schedule: Optional[Dict[str, Any]] = None
-    preferred_study_times: Optional[List[str]] = None
-    study_goals: Optional[str] = None
-    learning_style: Optional[str] = None
-    availability_days: Optional[List[str]] = None
-    preferred_group_size: Optional[int] = None
-    is_available: Optional[bool] = None
-    bio: Optional[str] = None
-
-
-class StudyBuddyProfileResponse(StudyBuddyProfileBase):
-    id: int
-    institution_id: int
+class CollaborationGoalCreate(BaseModel):
     student_id: int
-    user_id: int
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class StudyBuddyMatchResponse(BaseModel):
-    id: int
-    institution_id: int
-    requester_id: int
-    matched_student_id: int
-    match_score: float
-    common_subjects: Optional[List[int]] = None
-    match_reason: Optional[str] = None
-    status: str
-    created_at: datetime
-    responded_at: Optional[datetime] = None
-    matched_student: Optional[Dict[str, Any]] = None
-
-    class Config:
-        from_attributes = True
-
-
-class StudyBuddyMatchRequest(BaseModel):
-    subject_ids: Optional[List[int]] = None
-    performance_level: Optional[str] = None
-    max_matches: int = Field(10, ge=1, le=50)
-
-
-class StudySessionBase(BaseModel):
-    title: str = Field(..., max_length=500)
+    teacher_id: int
+    parent_id: int
+    title: str = Field(..., max_length=255)
     description: Optional[str] = None
-    subject_id: Optional[int] = None
-    chapter_id: Optional[int] = None
-    scheduled_start: datetime
-    scheduled_end: datetime
-    video_platform: Optional[str] = Field(None, description="zoom, teams, meet, jitsi")
-    meeting_link: Optional[str] = None
-    max_participants: int = Field(10, ge=2, le=100)
-    is_public: bool = True
-    notes: Optional[str] = None
-    tags: Optional[List[str]] = None
+    category: Optional[str] = None
+    measurable_target: str
+    target_value: Optional[Decimal] = None
+    unit: Optional[str] = None
+    success_criteria: Optional[List[Dict[str, Any]]] = None
+    start_date: date
+    target_date: date
+    metadata: Optional[Dict[str, Any]] = None
 
 
-class StudySessionCreate(StudySessionBase):
-    group_id: Optional[int] = None
-
-
-class StudySessionUpdate(BaseModel):
-    title: Optional[str] = None
+class CollaborationGoalUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
-    subject_id: Optional[int] = None
-    chapter_id: Optional[int] = None
-    scheduled_start: Optional[datetime] = None
-    scheduled_end: Optional[datetime] = None
-    video_platform: Optional[str] = None
-    meeting_link: Optional[str] = None
-    max_participants: Optional[int] = None
-    is_public: Optional[bool] = None
-    notes: Optional[str] = None
-    tags: Optional[List[str]] = None
+    category: Optional[str] = None
+    measurable_target: Optional[str] = None
+    target_value: Optional[Decimal] = None
+    current_value: Optional[Decimal] = None
+    unit: Optional[str] = None
+    success_criteria: Optional[List[Dict[str, Any]]] = None
+    start_date: Optional[date] = None
+    target_date: Optional[date] = None
     status: Optional[str] = None
+    progress_percentage: Optional[Decimal] = None
+    achievement_notes: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
-class StudySessionResponse(StudySessionBase):
+class CollaborationGoalProgressCreate(BaseModel):
+    goal_id: int
+    new_value: Decimal
+    notes: Optional[str] = None
+    evidence_urls: Optional[List[str]] = None
+
+
+class CollaborationGoalProgressResponse(BaseModel):
     id: int
-    institution_id: int
-    group_id: Optional[int] = None
-    created_by: int
-    actual_start: Optional[datetime] = None
-    actual_end: Optional[datetime] = None
-    video_room_id: Optional[str] = None
-    recording_url: Optional[str] = None
-    participant_count: int
-    status: str
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class SessionParticipantResponse(BaseModel):
-    id: int
-    session_id: int
-    user_id: int
-    joined_at: Optional[datetime] = None
-    left_at: Optional[datetime] = None
-    duration_minutes: int
-    is_organizer: bool
+    goal_id: int
+    previous_value: Decimal
+    new_value: Decimal
+    progress_percentage: Decimal
+    notes: Optional[str]
+    evidence_urls: Optional[List[str]]
+    recorded_by_user_id: Optional[int]
+    recorded_at: datetime
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-class SessionJoinRequest(BaseModel):
-    session_id: int
-
-
-class SessionStartRequest(BaseModel):
-    video_room_id: Optional[str] = None
-
-
-class CollaborativeNoteBase(BaseModel):
-    title: str = Field(..., max_length=500)
-    content: str
-    subject_id: Optional[int] = None
-    chapter_id: Optional[int] = None
-    is_public: bool = False
-    tags: Optional[List[str]] = None
-
-
-class CollaborativeNoteCreate(CollaborativeNoteBase):
-    group_id: Optional[int] = None
-    session_id: Optional[int] = None
-
-
-class CollaborativeNoteUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    subject_id: Optional[int] = None
-    chapter_id: Optional[int] = None
-    is_public: Optional[bool] = None
-    tags: Optional[List[str]] = None
-    change_description: Optional[str] = None
-
-
-class CollaborativeNoteResponse(CollaborativeNoteBase):
-    id: int
-    institution_id: int
-    group_id: Optional[int] = None
-    session_id: Optional[int] = None
-    created_by: int
-    version: int
-    last_edited_by: Optional[int] = None
-    view_count: int
-    edit_count: int
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class NoteEditorResponse(BaseModel):
-    id: int
-    note_id: int
-    user_id: int
-    can_edit: bool
-    added_at: datetime
-    last_edit_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-class NoteRevisionResponse(BaseModel):
-    id: int
-    note_id: int
-    user_id: int
-    content: str
-    version: int
-    change_description: Optional[str] = None
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class AddNoteEditorRequest(BaseModel):
-    user_id: int
-    can_edit: bool = True
-
-
-class PeerTutorProfileBase(BaseModel):
-    expertise_subjects: List[int] = Field(..., description="List of subject IDs")
-    hourly_rate: Optional[float] = Field(None, ge=0)
-    availability_schedule: Optional[Dict[str, Any]] = None
-    bio: Optional[str] = None
-    qualifications: Optional[str] = None
-    is_active: bool = True
-
-
-class PeerTutorProfileCreate(PeerTutorProfileBase):
-    pass
-
-
-class PeerTutorProfileUpdate(BaseModel):
-    expertise_subjects: Optional[List[int]] = None
-    hourly_rate: Optional[float] = None
-    availability_schedule: Optional[Dict[str, Any]] = None
-    bio: Optional[str] = None
-    qualifications: Optional[str] = None
-    is_active: Optional[bool] = None
-
-
-class PeerTutorProfileResponse(PeerTutorProfileBase):
+class CollaborationGoalResponse(BaseModel):
     id: int
     institution_id: int
     student_id: int
-    user_id: int
-    total_sessions: int
-    average_rating: float
-    total_earnings: float
-    is_verified: bool
+    teacher_id: int
+    parent_id: int
+    title: str
+    description: Optional[str]
+    category: Optional[str]
+    measurable_target: str
+    target_value: Optional[Decimal]
+    current_value: Decimal
+    unit: Optional[str]
+    success_criteria: Optional[List[Dict[str, Any]]]
+    start_date: date
+    target_date: date
+    status: str
+    progress_percentage: Decimal
+    parent_agreed_at: Optional[datetime]
+    teacher_agreed_at: Optional[datetime]
+    achievement_notes: Optional[str]
+    achieved_at: Optional[datetime]
+    metadata: Optional[Dict[str, Any]]
     created_at: datetime
     updated_at: datetime
+    progress_updates: List[CollaborationGoalProgressResponse] = []
 
     class Config:
         from_attributes = True
 
 
-class TutoringRequestBase(BaseModel):
-    subject_id: Optional[int] = None
-    chapter_id: Optional[int] = None
-    topic: str = Field(..., max_length=500)
-    description: str
-    preferred_time: Optional[datetime] = None
-    duration_minutes: int = Field(60, ge=30, le=180)
-    offered_rate: Optional[float] = Field(None, ge=0)
-
-
-class TutoringRequestCreate(TutoringRequestBase):
-    pass
-
-
-class TutoringRequestUpdate(BaseModel):
-    subject_id: Optional[int] = None
-    chapter_id: Optional[int] = None
-    topic: Optional[str] = None
-    description: Optional[str] = None
-    preferred_time: Optional[datetime] = None
+class ConferenceAgendaItem(BaseModel):
+    topic: str
     duration_minutes: Optional[int] = None
-    offered_rate: Optional[float] = None
-    status: Optional[str] = None
+    notes: Optional[str] = None
 
 
-class TutoringRequestResponse(TutoringRequestBase):
-    id: int
-    institution_id: int
+class ConferenceActionItem(BaseModel):
+    action: str
+    assigned_to: str
+    due_date: Optional[date] = None
+    completed: bool = False
+
+
+class ParentTeacherConferenceCreate(BaseModel):
     student_id: int
-    tutor_id: Optional[int] = None
-    status: str
-    created_at: datetime
-    matched_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-class TutoringSessionBase(BaseModel):
+    teacher_id: int
+    parent_id: int
+    title: str = Field(..., max_length=255)
+    description: Optional[str] = None
     scheduled_start: datetime
     scheduled_end: datetime
-    meeting_link: Optional[str] = None
-    session_notes: Optional[str] = None
-    payment_amount: Optional[float] = None
+    location: Optional[str] = None
+    meeting_type: str = Field(..., description="in_person, video_conference, phone")
+    video_conference_platform: Optional[str] = None
+    agenda: Optional[List[ConferenceAgendaItem]] = None
 
 
-class TutoringSessionCreate(BaseModel):
-    request_id: int
-    tutor_id: int
-    scheduled_start: datetime
-    scheduled_end: datetime
-    meeting_link: Optional[str] = None
-    payment_amount: Optional[float] = None
-
-
-class TutoringSessionUpdate(BaseModel):
+class ParentTeacherConferenceUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
     scheduled_start: Optional[datetime] = None
     scheduled_end: Optional[datetime] = None
-    meeting_link: Optional[str] = None
-    session_notes: Optional[str] = None
-    payment_amount: Optional[float] = None
+    location: Optional[str] = None
+    meeting_type: Optional[str] = None
+    video_conference_platform: Optional[str] = None
+    agenda: Optional[List[ConferenceAgendaItem]] = None
+    meeting_notes: Optional[str] = None
+    action_items: Optional[List[ConferenceActionItem]] = None
     status: Optional[str] = None
+    parent_attended: Optional[bool] = None
+    teacher_attended: Optional[bool] = None
 
 
-class TutoringSessionResponse(TutoringSessionBase):
+class ParentTeacherConferenceResponse(BaseModel):
     id: int
     institution_id: int
-    request_id: int
-    tutor_id: int
     student_id: int
-    actual_start: Optional[datetime] = None
-    actual_end: Optional[datetime] = None
-    payment_status: str
-    student_rating: Optional[int] = None
-    student_feedback: Optional[str] = None
-    tutor_notes: Optional[str] = None
+    teacher_id: int
+    parent_id: int
+    title: str
+    description: Optional[str]
+    scheduled_start: datetime
+    scheduled_end: datetime
+    location: Optional[str]
+    meeting_type: str
+    video_conference_url: Optional[str]
+    video_conference_id: Optional[str]
+    video_conference_password: Optional[str]
+    video_conference_platform: Optional[str]
+    agenda: Optional[List[Dict[str, Any]]]
+    meeting_notes: Optional[str]
+    action_items: Optional[List[Dict[str, Any]]]
     status: str
+    actual_start: Optional[datetime]
+    actual_end: Optional[datetime]
+    parent_attended: bool
+    teacher_attended: bool
+    recording_url: Optional[str]
+    attachments: Optional[List[Dict[str, Any]]]
     created_at: datetime
     updated_at: datetime
 
@@ -337,26 +167,165 @@ class TutoringSessionResponse(TutoringSessionBase):
         from_attributes = True
 
 
-class TutoringSessionRatingRequest(BaseModel):
-    rating: int = Field(..., ge=1, le=5)
-    feedback: Optional[str] = None
+class TeacherCommitmentCreate(BaseModel):
+    commitment: str
+    target_date: Optional[date] = None
 
 
-class GroupPerformanceAnalyticsResponse(BaseModel):
+class TeacherCommitmentUpdate(BaseModel):
+    commitment: Optional[str] = None
+    target_date: Optional[date] = None
+    status: Optional[str] = None
+    progress_notes: Optional[str] = None
+
+
+class TeacherCommitmentResponse(BaseModel):
+    id: int
+    action_plan_id: int
+    commitment: str
+    target_date: Optional[date]
+    status: str
+    progress_notes: Optional[str]
+    completed_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ParentCommitmentCreate(BaseModel):
+    commitment: str
+    target_date: Optional[date] = None
+
+
+class ParentCommitmentUpdate(BaseModel):
+    commitment: Optional[str] = None
+    target_date: Optional[date] = None
+    status: Optional[str] = None
+    progress_notes: Optional[str] = None
+
+
+class ParentCommitmentResponse(BaseModel):
+    id: int
+    action_plan_id: int
+    commitment: str
+    target_date: Optional[date]
+    status: str
+    progress_notes: Optional[str]
+    completed_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SharedActionPlanCreate(BaseModel):
+    student_id: int
+    teacher_id: int
+    parent_id: int
+    conference_id: Optional[int] = None
+    title: str = Field(..., max_length=255)
+    description: Optional[str] = None
+    focus_area: Optional[str] = None
+    start_date: date
+    end_date: date
+    teacher_commitments: List[TeacherCommitmentCreate] = []
+    parent_commitments: List[ParentCommitmentCreate] = []
+
+
+class SharedActionPlanUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    focus_area: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: Optional[str] = None
+    review_notes: Optional[str] = None
+
+
+class SharedActionPlanResponse(BaseModel):
     id: int
     institution_id: int
-    group_id: int
-    period_start: datetime
-    period_end: datetime
-    total_study_hours: float
-    total_sessions: int
-    average_attendance: float
-    member_performance: Optional[Dict[str, Any]] = None
-    subject_distribution: Optional[Dict[str, Any]] = None
-    activity_metrics: Optional[Dict[str, Any]] = None
-    engagement_score: float
-    collaboration_score: float
-    overall_performance: float
+    student_id: int
+    teacher_id: int
+    parent_id: int
+    conference_id: Optional[int]
+    title: str
+    description: Optional[str]
+    focus_area: Optional[str]
+    start_date: date
+    end_date: date
+    status: str
+    overall_progress_percentage: Decimal
+    review_notes: Optional[str]
+    last_reviewed_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+    teacher_commitments: List[TeacherCommitmentResponse] = []
+    parent_commitments: List[ParentCommitmentResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class HomeLearningActivityCreate(BaseModel):
+    student_id: int
+    teacher_id: int
+    parent_id: int
+    subject_id: Optional[int] = None
+    title: str = Field(..., max_length=255)
+    description: str
+    learning_objectives: Optional[List[str]] = None
+    classroom_topic: Optional[str] = None
+    classroom_alignment_notes: Optional[str] = None
+    instructions: Optional[str] = None
+    materials_needed: Optional[List[str]] = None
+    estimated_duration_minutes: Optional[int] = None
+    difficulty_level: Optional[str] = None
+    resources: Optional[List[Dict[str, str]]] = None
+    suggested_date: Optional[date] = None
+
+
+class HomeLearningActivityUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    learning_objectives: Optional[List[str]] = None
+    classroom_topic: Optional[str] = None
+    classroom_alignment_notes: Optional[str] = None
+    instructions: Optional[str] = None
+    materials_needed: Optional[List[str]] = None
+    estimated_duration_minutes: Optional[int] = None
+    difficulty_level: Optional[str] = None
+    resources: Optional[List[Dict[str, str]]] = None
+    suggested_date: Optional[date] = None
+    parent_feedback: Optional[str] = None
+    student_completed: Optional[bool] = None
+
+
+class HomeLearningActivityResponse(BaseModel):
+    id: int
+    institution_id: int
+    student_id: int
+    teacher_id: int
+    parent_id: int
+    subject_id: Optional[int]
+    title: str
+    description: str
+    learning_objectives: Optional[List[str]]
+    classroom_topic: Optional[str]
+    classroom_alignment_notes: Optional[str]
+    instructions: Optional[str]
+    materials_needed: Optional[List[str]]
+    estimated_duration_minutes: Optional[int]
+    difficulty_level: Optional[str]
+    resources: Optional[List[Dict[str, str]]]
+    suggested_date: Optional[date]
+    parent_feedback: Optional[str]
+    parent_feedback_at: Optional[datetime]
+    student_completed: bool
+    student_completed_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
 
@@ -364,14 +333,106 @@ class GroupPerformanceAnalyticsResponse(BaseModel):
         from_attributes = True
 
 
-class GenerateAnalyticsRequest(BaseModel):
-    group_id: int
-    period_start: datetime
-    period_end: datetime
+class ParentTeacherMessageThreadCreate(BaseModel):
+    student_id: int
+    teacher_id: int
+    parent_id: int
+    subject: str = Field(..., max_length=255)
+    translation_enabled: bool = False
+    parent_preferred_language: Optional[str] = None
 
 
-class TutorSearchRequest(BaseModel):
-    subject_id: Optional[int] = None
-    min_rating: Optional[float] = Field(None, ge=0, le=5)
-    max_rate: Optional[float] = Field(None, ge=0)
-    availability_day: Optional[str] = None
+class ParentTeacherMessageThreadResponse(BaseModel):
+    id: int
+    institution_id: int
+    student_id: int
+    teacher_id: int
+    parent_id: int
+    subject: str
+    status: str
+    translation_enabled: bool
+    parent_preferred_language: Optional[str]
+    last_message_at: Optional[datetime]
+    last_message_by_user_id: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ParentTeacherMessageCreate(BaseModel):
+    thread_id: int
+    content: str
+    original_language: Optional[str] = None
+    attachments: Optional[List[Dict[str, str]]] = None
+
+
+class ParentTeacherMessageResponse(BaseModel):
+    id: int
+    thread_id: int
+    sender_user_id: int
+    content: str
+    original_language: Optional[str]
+    translated_content: Optional[Dict[str, str]]
+    attachments: Optional[List[Dict[str, str]]]
+    is_read: bool
+    read_at: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CollaborationDocumentCreate(BaseModel):
+    student_id: int
+    teacher_id: int
+    parent_id: int
+    document_type: str
+    title: str = Field(..., max_length=255)
+    description: Optional[str] = None
+    document_url: str
+    requires_parent_signature: bool = True
+    requires_teacher_signature: bool = True
+    expires_at: Optional[datetime] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class CollaborationDocumentSignature(BaseModel):
+    signature_url: str
+
+
+class CollaborationDocumentReject(BaseModel):
+    rejection_reason: str
+
+
+class CollaborationDocumentResponse(BaseModel):
+    id: int
+    institution_id: int
+    student_id: int
+    teacher_id: int
+    parent_id: int
+    document_type: str
+    title: str
+    description: Optional[str]
+    document_url: str
+    document_version: int
+    requires_parent_signature: bool
+    requires_teacher_signature: bool
+    parent_signature_url: Optional[str]
+    parent_signed_at: Optional[datetime]
+    parent_signed_by_user_id: Optional[int]
+    teacher_signature_url: Optional[str]
+    teacher_signed_at: Optional[datetime]
+    teacher_signed_by_user_id: Optional[int]
+    status: str
+    rejection_reason: Optional[str]
+    rejected_by_user_id: Optional[int]
+    rejected_at: Optional[datetime]
+    expires_at: Optional[datetime]
+    metadata: Optional[Dict[str, Any]]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
