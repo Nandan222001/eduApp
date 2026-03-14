@@ -27,6 +27,7 @@ import {
   ChapterMasteryGauges,
 } from '@/components/analytics';
 import { analyticsApi } from '@/api/analytics';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 import type { StudentPerformanceAnalytics } from '@/types/analytics';
 import { useAuth } from '@/hooks/useAuth';
 import { subDays, subMonths } from 'date-fns';
@@ -63,11 +64,17 @@ export default function StudentPerformanceAnalytics() {
             break;
         }
 
-        const data = await analyticsApi.getStudentPerformanceAnalytics(
-          studentId,
-          startDate.toISOString(),
-          endDate.toISOString()
-        );
+        const data = isDemoUser()
+          ? await demoDataApi.analytics.getStudentPerformanceAnalytics(
+              studentId,
+              startDate.toISOString(),
+              endDate.toISOString()
+            )
+          : await analyticsApi.getStudentPerformanceAnalytics(
+              studentId,
+              startDate.toISOString(),
+              endDate.toISOString()
+            );
         setAnalytics(data);
         setError(null);
       } catch (err: unknown) {

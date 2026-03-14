@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isDemoUser, demoDataApi } from './demoDataApi';
 import {
   Badge,
   UserBadge,
@@ -37,6 +38,9 @@ api.interceptors.request.use((config) => {
 export const gamificationAPI = {
   // User Points
   getUserPoints: async (userId: number, institutionId: number): Promise<UserPoints> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getUserPoints(userId, institutionId);
+    }
     const response = await api.get(`/api/v1/gamification/users/${userId}/points`, {
       params: { institution_id: institutionId },
     });
@@ -48,6 +52,9 @@ export const gamificationAPI = {
     institutionId: number,
     limit = 50
   ): Promise<PointHistory[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getPointHistory(userId, institutionId, limit);
+    }
     const response = await api.get(`/api/v1/gamification/users/${userId}/point-history`, {
       params: { institution_id: institutionId, limit },
     });
@@ -56,6 +63,9 @@ export const gamificationAPI = {
 
   // Badges
   getUserBadges: async (userId: number, institutionId: number): Promise<UserBadge[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getUserBadges(userId, institutionId);
+    }
     const response = await api.get(`/api/v1/gamification/users/${userId}/badges`, {
       params: { institution_id: institutionId },
     });
@@ -63,6 +73,9 @@ export const gamificationAPI = {
   },
 
   getBadges: async (institutionId: number): Promise<Badge[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getBadges(institutionId);
+    }
     const response = await api.get('/api/v1/gamification/badges', {
       params: { institution_id: institutionId },
     });
@@ -74,6 +87,9 @@ export const gamificationAPI = {
     userId: number,
     institutionId: number
   ): Promise<UserAchievement[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getUserAchievements(userId, institutionId);
+    }
     const response = await api.get(`/api/v1/gamification/users/${userId}/achievements`, {
       params: { institution_id: institutionId },
     });
@@ -81,6 +97,9 @@ export const gamificationAPI = {
   },
 
   getAchievements: async (institutionId: number): Promise<Achievement[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getAchievements(institutionId);
+    }
     const response = await api.get('/api/v1/gamification/achievements', {
       params: { institution_id: institutionId },
     });
@@ -89,6 +108,9 @@ export const gamificationAPI = {
 
   // Leaderboards
   getLeaderboards: async (institutionId: number): Promise<Leaderboard[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getLeaderboards(institutionId);
+    }
     const response = await api.get('/api/v1/gamification/leaderboards', {
       params: { institution_id: institutionId },
     });
@@ -96,6 +118,9 @@ export const gamificationAPI = {
   },
 
   getLeaderboardWithEntries: async (leaderboardId: number): Promise<LeaderboardWithEntries> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getLeaderboardWithEntries(leaderboardId);
+    }
     const response = await api.get(`/api/v1/gamification/leaderboards/${leaderboardId}`);
     return response.data;
   },
@@ -106,6 +131,14 @@ export const gamificationAPI = {
     currentUserId?: number,
     limit = 50
   ): Promise<LeaderboardEntry[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getDynamicLeaderboard(
+        institutionId,
+        filter,
+        currentUserId,
+        limit
+      );
+    }
     const response = await api.get('/api/v1/gamification/leaderboard', {
       params: {
         institution_id: institutionId,
@@ -119,6 +152,9 @@ export const gamificationAPI = {
 
   // Streaks
   getUserStreaks: async (userId: number, institutionId: number): Promise<StreakTracker[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getUserStreaks(userId, institutionId);
+    }
     const response = await api.get(`/api/v1/gamification/users/${userId}/streaks`, {
       params: { institution_id: institutionId },
     });
@@ -129,6 +165,9 @@ export const gamificationAPI = {
     userId: number,
     institutionId: number
   ): Promise<{ message: string; streak: number; points_earned: number }> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.recordDailyLogin(userId, institutionId);
+    }
     const response = await api.post(
       `/api/v1/gamification/users/${userId}/daily-login`,
       {},
@@ -141,6 +180,9 @@ export const gamificationAPI = {
 
   // User Stats
   getUserStats: async (userId: number, institutionId: number): Promise<UserGamificationStats> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getUserStats(userId, institutionId);
+    }
     const response = await api.get(`/api/v1/gamification/users/${userId}/stats`, {
       params: { institution_id: institutionId },
     });
@@ -148,6 +190,9 @@ export const gamificationAPI = {
   },
 
   getUserShowcase: async (userId: number, institutionId: number): Promise<UserShowcase> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getUserShowcase(userId, institutionId);
+    }
     const response = await api.get(`/api/v1/gamification/users/${userId}/showcase`, {
       params: { institution_id: institutionId },
     });
@@ -156,6 +201,9 @@ export const gamificationAPI = {
 
   // Rewards
   getRewards: async (institutionId: number): Promise<Reward[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getRewards(institutionId);
+    }
     const response = await api.get('/api/v1/gamification/rewards', {
       params: { institution_id: institutionId },
     });
@@ -163,6 +211,9 @@ export const gamificationAPI = {
   },
 
   getUserRedemptions: async (userId: number, institutionId: number): Promise<UserRedemption[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.getUserRedemptions(userId, institutionId);
+    }
     const response = await api.get(`/api/v1/gamification/users/${userId}/redemptions`, {
       params: { institution_id: institutionId },
     });
@@ -174,6 +225,9 @@ export const gamificationAPI = {
     rewardId: number,
     institutionId: number
   ): Promise<UserRedemption> => {
+    if (isDemoUser()) {
+      return demoDataApi.gamification.redeemReward(userId, rewardId, institutionId);
+    }
     const response = await api.post(
       '/api/v1/gamification/rewards/redeem',
       {

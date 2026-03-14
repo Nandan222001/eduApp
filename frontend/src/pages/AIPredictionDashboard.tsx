@@ -27,6 +27,7 @@ import {
 import aiPredictionDashboardApi, {
   AIPredictionDashboardResponse,
 } from '@/api/aiPredictionDashboard';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 import TopicProbabilityRankingTable from '@/components/aiPrediction/TopicProbabilityRankingTable';
 import PredictedBlueprintViewer from '@/components/aiPrediction/PredictedBlueprintViewer';
 import MarksDistributionChart from '@/components/aiPrediction/MarksDistributionChart';
@@ -78,7 +79,9 @@ export default function AIPredictionDashboard() {
   const fetchDashboard = async () => {
     try {
       setLoading(true);
-      const data = await aiPredictionDashboardApi.getDashboard(board, gradeId, subjectId);
+      const data = isDemoUser()
+        ? await demoDataApi.aiPredictionDashboard.getDashboard(board, gradeId, subjectId)
+        : await aiPredictionDashboardApi.getDashboard(board, gradeId, subjectId);
       setDashboardData(data);
       setError(null);
     } catch (err) {

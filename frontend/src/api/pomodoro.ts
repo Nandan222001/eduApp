@@ -1,10 +1,14 @@
 import axios from 'axios';
+import { isDemoUser, demoDataApi } from './demoDataApi';
 import { PomodoroSession, PomodoroSettings, PomodoroAnalytics, Subject } from '@/types/pomodoro';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 export const pomodoroApi = {
   getSettings: async (studentId: number): Promise<PomodoroSettings> => {
+    if (isDemoUser()) {
+      return demoDataApi.pomodoro.getSettings(studentId);
+    }
     const response = await axios.get(`${API_BASE_URL}/students/${studentId}/pomodoro/settings`);
     return response.data;
   },
@@ -13,6 +17,9 @@ export const pomodoroApi = {
     studentId: number,
     settings: Partial<PomodoroSettings>
   ): Promise<PomodoroSettings> => {
+    if (isDemoUser()) {
+      return demoDataApi.pomodoro.updateSettings(studentId, settings);
+    }
     const response = await axios.put(
       `${API_BASE_URL}/students/${studentId}/pomodoro/settings`,
       settings
@@ -28,6 +35,9 @@ export const pomodoroApi = {
       subject_id?: number;
     }
   ): Promise<PomodoroSession> => {
+    if (isDemoUser()) {
+      return demoDataApi.pomodoro.startSession(studentId, data);
+    }
     const response = await axios.post(
       `${API_BASE_URL}/students/${studentId}/pomodoro/sessions/start`,
       data
@@ -36,6 +46,9 @@ export const pomodoroApi = {
   },
 
   completeSession: async (studentId: number, sessionId: number): Promise<PomodoroSession> => {
+    if (isDemoUser()) {
+      return demoDataApi.pomodoro.completeSession(studentId, sessionId);
+    }
     const response = await axios.post(
       `${API_BASE_URL}/students/${studentId}/pomodoro/sessions/${sessionId}/complete`
     );
@@ -43,6 +56,9 @@ export const pomodoroApi = {
   },
 
   interruptSession: async (studentId: number, sessionId: number): Promise<PomodoroSession> => {
+    if (isDemoUser()) {
+      return demoDataApi.pomodoro.interruptSession(studentId, sessionId);
+    }
     const response = await axios.post(
       `${API_BASE_URL}/students/${studentId}/pomodoro/sessions/${sessionId}/interrupt`
     );
@@ -58,6 +74,9 @@ export const pomodoroApi = {
       limit?: number;
     }
   ): Promise<PomodoroSession[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.pomodoro.getSessions(studentId, params);
+    }
     const response = await axios.get(`${API_BASE_URL}/students/${studentId}/pomodoro/sessions`, {
       params,
     });
@@ -71,6 +90,9 @@ export const pomodoroApi = {
       end_date?: string;
     }
   ): Promise<PomodoroAnalytics> => {
+    if (isDemoUser()) {
+      return demoDataApi.pomodoro.getAnalytics(studentId, params);
+    }
     const response = await axios.get(`${API_BASE_URL}/students/${studentId}/pomodoro/analytics`, {
       params,
     });
@@ -78,6 +100,9 @@ export const pomodoroApi = {
   },
 
   getSubjects: async (studentId: number): Promise<Subject[]> => {
+    if (isDemoUser()) {
+      return demoDataApi.pomodoro.getSubjects(studentId);
+    }
     const response = await axios.get(`${API_BASE_URL}/students/${studentId}/subjects`);
     return response.data;
   },

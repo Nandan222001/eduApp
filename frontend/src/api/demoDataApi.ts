@@ -100,22 +100,24 @@ export const demoStudentsApi = {
       study_streak: {
         current_streak: demoData.gamification.userPoints.current_streak,
         longest_streak: demoData.gamification.userPoints.longest_streak,
-        last_activity: demoData.gamification.userPoints.last_activity_date,
+        last_activity: demoData.gamification.userPoints.last_activity_date || undefined,
       },
       points_and_rank: {
         total_points: demoData.gamification.userPoints.total_points,
         level: demoData.gamification.userPoints.level,
         rank: 3,
       },
-      badges: demoData.gamification.userBadges.map((ub) => ({
-        id: ub.badge.id,
-        name: ub.badge.name,
-        description: ub.badge.description,
-        icon_url: ub.badge.icon_url,
-        badge_type: ub.badge.badge_type,
-        rarity: ub.badge.rarity,
-        earned_at: ub.earned_at,
-      })),
+      badges: demoData.gamification.userBadges
+        .filter((ub) => ub.badge)
+        .map((ub) => ({
+          id: ub.badge!.id,
+          name: ub.badge!.name,
+          description: ub.badge!.description,
+          icon_url: ub.badge!.icon_url,
+          badge_type: ub.badge!.badge_type,
+          rarity: ub.badge!.rarity,
+          earned_at: ub.earned_at,
+        })),
       todays_tasks: [],
       quick_links: [],
     });
@@ -465,9 +467,9 @@ export const demoAIPredictionDashboardApi = {
   },
 
   activateCrashCourseMode: async (
-    board: string,
-    gradeId: number,
-    subjectId: number,
+    _board: string,
+    _gradeId: number,
+    _subjectId: number,
     daysUntilExam: number
   ) => {
     return Promise.resolve({
@@ -667,9 +669,7 @@ export const demoGoalsApi = {
     const totalGoals = demoData.goals.length;
     const completedGoals = demoData.goals.filter((g) => g.status === 'completed').length;
     const inProgressGoals = demoData.goals.filter((g) => g.status === 'in_progress').length;
-    const notStartedGoals = demoData.goals.filter(
-      (g) => g.status === 'not_started' || g.status === 'pending'
-    ).length;
+    const notStartedGoals = demoData.goals.filter((g) => g.status === 'not_started').length;
 
     return Promise.resolve({
       totalGoals,
