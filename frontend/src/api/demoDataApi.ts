@@ -12,7 +12,7 @@ import {
   superadminDashboardData,
 } from '@/data/dummyData';
 import type { StudentProfile, StudentDashboardData } from './students';
-import type { AssignmentListParams } from '@/types/assignment';
+import type { AssignmentListParams, Assignment } from '@/types/assignment';
 import type { AttendanceListResponse, StudentAttendanceDetail } from './attendance';
 import type { ExamListParams, ExamListResponse } from './examinations';
 import type { ExamResult } from '@/types/examination';
@@ -30,6 +30,34 @@ import type { Teacher, TeacherMyDashboardData, ClassAssignment } from './teacher
 import type { ParentDashboard, ChildOverview, TodayAttendance, RecentGrade } from '@/types/parent';
 import type { DashboardResponse as InstitutionAdminDashboardResponse } from './institutionAdmin';
 import type { SuperAdminDashboardResponse } from './superAdmin';
+import type {
+  FlashcardDeck,
+  Flashcard,
+  FlashcardDeckStats,
+  FlashcardStudyProgress,
+  FlashcardDeckShare,
+} from '@/types/flashcard';
+import type {
+  Quiz,
+  QuizQuestion,
+  QuizAttempt,
+  QuizLeaderboardEntry,
+  QuizDetailedAnalytics,
+} from '@/types/quiz';
+import type {
+  PomodoroSession,
+  PomodoroSettings,
+  PomodoroAnalytics,
+  Subject as PomodoroSubject,
+} from '@/types/pomodoro';
+import type {
+  UserProfile,
+  NotificationPreferences,
+  ThemeSettings,
+  PrivacySettings,
+  UserSettings,
+  ConnectedDevice,
+} from '@/types/settings';
 
 export const isDemoUser = (email?: string): boolean => {
   const userEmail = email || useAuthStore.getState().user?.email;
@@ -95,16 +123,46 @@ export const demoStudentsApi = {
 };
 
 export const demoAssignmentsApi = {
-  list: async (_params?: AssignmentListParams) => {
+  list: async (params?: AssignmentListParams) => {
+    let filteredAssignments = [...demoData.academics.assignments];
+
+    if (params?.grade_id) {
+      filteredAssignments = filteredAssignments.filter((a) => a.grade_id === params.grade_id);
+    }
+    if (params?.section_id) {
+      filteredAssignments = filteredAssignments.filter((a) => a.section_id === params.section_id);
+    }
+    if (params?.subject_id) {
+      filteredAssignments = filteredAssignments.filter((a) => a.subject_id === params.subject_id);
+    }
+    if (params?.teacher_id) {
+      filteredAssignments = filteredAssignments.filter((a) => a.teacher_id === params.teacher_id);
+    }
+    if (params?.status) {
+      filteredAssignments = filteredAssignments.filter((a) => a.status === params.status);
+    }
+    if (params?.search) {
+      const searchLower = params.search.toLowerCase();
+      filteredAssignments = filteredAssignments.filter(
+        (a) =>
+          a.title.toLowerCase().includes(searchLower) ||
+          a.description?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedAssignments = filteredAssignments.slice(skip, skip + limit);
+
     return Promise.resolve({
-      items: demoData.academics.assignments,
-      total: demoData.academics.assignments.length,
-      skip: 0,
-      limit: 50,
+      items: paginatedAssignments,
+      total: filteredAssignments.length,
+      skip,
+      limit,
     });
   },
 
-  get: async (id: number) => {
+  get: async (id: number): Promise<Assignment> => {
     const assignment = demoData.academics.assignments.find((a) => a.id === id);
     return Promise.resolve(assignment || demoData.academics.assignments[0]);
   },
@@ -117,15 +175,67 @@ export const demoAssignmentsApi = {
     });
   },
 
-  listSubmissions: async (assignmentId: number, _params?: Record<string, unknown>) => {
-    const submissions = demoData.academics.submissions.filter(
+  create: async (data: Record<string, unknown>): Promise<Assignment> => {
+    const newAssignment: Assignment = {
+      id: demoData.academics.assignments.length + 1,
+      institution_id: data.institution_id as number,
+      teacher_id: data.teacher_id as number,
+      grade_id: data.grade_id as number,
+      section_id: data.section_id as number | undefined,
+      subject_id: data.subject_id as number,
+      title: data.title as string,
+      description: data.description as string | undefined,
+      instructions: data.instructions as string | undefined,
+      due_date: data.due_date as string | undefined,
+      publish_date: data.publish_date as string | undefined,
+      max_marks: data.max_marks as number,
+      passing_marks: data.passing_marks as number | undefined,
+      allow_late_submission: data.allow_late_submission as boolean,
+      late_penalty_percentage: data.late_penalty_percentage as number | undefined,
+      max_file_size_mb: data.max_file_size_mb as number,
+      allowed_file_types: data.allowed_file_types as string | undefined,
+      status: data.status as Assignment['status'],
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return Promise.resolve(newAssignment);
+  },
+
+  update: async (id: number, data: Record<string, unknown>): Promise<Assignment> => {
+    const assignment = demoData.academics.assignments.find((a) => a.id === id);
+    return Promise.resolve({
+      ...(assignment || demoData.academics.assignments[0]),
+      ...data,
+      updated_at: new Date().toISOString(),
+    } as Assignment);
+  },
+
+  delete: async (_id: number): Promise<void> => {
+    return Promise.resolve();
+  },
+
+  listSubmissions: async (assignmentId: number, params?: Record<string, unknown>) => {
+    let submissions = demoData.academics.submissions.filter(
       (s) => s.assignment_id === assignmentId
     );
+
+    if (params?.status) {
+      submissions = submissions.filter((s) => s.status === params.status);
+    }
+    if (params?.is_late !== undefined) {
+      submissions = submissions.filter((s) => s.is_late === params.is_late);
+    }
+
+    const skip = (params?.skip as number) || 0;
+    const limit = (params?.limit as number) || 50;
+    const paginatedSubmissions = submissions.slice(skip, skip + limit);
+
     return Promise.resolve({
-      items: submissions,
+      items: paginatedSubmissions,
       total: submissions.length,
-      skip: 0,
-      limit: 50,
+      skip,
+      limit,
     });
   },
 
@@ -158,6 +268,23 @@ export const demoAssignmentsApi = {
       submission_timeline: [],
       performance_by_section: [],
     });
+  },
+
+  uploadFile: async (_id: number, _file: File) => {
+    return Promise.resolve({
+      id: 1,
+      assignment_id: _id,
+      file_name: _file.name,
+      file_size: _file.size,
+      file_type: _file.type,
+      file_url: 'https://example.com/file.pdf',
+      s3_key: 'assignments/1/file.pdf',
+      uploaded_at: new Date().toISOString(),
+    });
+  },
+
+  deleteFile: async (_assignmentId: number, _fileId: number): Promise<void> => {
+    return Promise.resolve();
   },
 };
 
@@ -751,6 +878,605 @@ export const demoSuperAdminApi = {
   },
 };
 
+export const demoFlashcardsApi = {
+  listDecks: async (params?: {
+    skip?: number;
+    limit?: number;
+    institution_id?: number;
+    creator_id?: number;
+    grade_id?: number;
+    subject_id?: number;
+    visibility?: string;
+    search?: string;
+  }) => {
+    let filteredDecks = [...demoData.flashcards.decks];
+
+    if (params?.creator_id) {
+      filteredDecks = filteredDecks.filter((d) => d.creator_id === params.creator_id);
+    }
+    if (params?.grade_id) {
+      filteredDecks = filteredDecks.filter((d) => d.grade_id === params.grade_id);
+    }
+    if (params?.subject_id) {
+      filteredDecks = filteredDecks.filter((d) => d.subject_id === params.subject_id);
+    }
+    if (params?.visibility) {
+      filteredDecks = filteredDecks.filter((d) => d.visibility === params.visibility);
+    }
+    if (params?.search) {
+      const searchLower = params.search.toLowerCase();
+      filteredDecks = filteredDecks.filter(
+        (d) =>
+          d.title.toLowerCase().includes(searchLower) ||
+          d.description?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedDecks = filteredDecks.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedDecks,
+      total: filteredDecks.length,
+      skip,
+      limit,
+    });
+  },
+
+  getDeck: async (deckId: number): Promise<FlashcardDeck> => {
+    const deck = demoData.flashcards.decks.find((d) => d.id === deckId);
+    return Promise.resolve(deck || demoData.flashcards.decks[0]);
+  },
+
+  createDeck: async (data: Record<string, unknown>): Promise<FlashcardDeck> => {
+    return Promise.resolve({
+      id: demoData.flashcards.decks.length + 1,
+      ...data,
+      total_cards: 0,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as FlashcardDeck);
+  },
+
+  createDeckWithCards: async (data: Record<string, unknown>) => {
+    const flashcards = data.flashcards as Record<string, unknown>[];
+    return Promise.resolve({
+      deck: {
+        id: demoData.flashcards.decks.length + 1,
+        ...(data.deck as Record<string, unknown>),
+        total_cards: flashcards.length,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      flashcards: flashcards.map((card, index) => ({
+        id: demoData.flashcards.cards.length + index + 1,
+        ...card,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })),
+    });
+  },
+
+  updateDeck: async (deckId: number, updates: Record<string, unknown>): Promise<FlashcardDeck> => {
+    const deck = demoData.flashcards.decks.find((d) => d.id === deckId);
+    return Promise.resolve({
+      ...(deck || demoData.flashcards.decks[0]),
+      ...updates,
+      updated_at: new Date().toISOString(),
+    } as FlashcardDeck);
+  },
+
+  deleteDeck: async (_deckId: number): Promise<void> => {
+    return Promise.resolve();
+  },
+
+  listDeckCards: async (deckId: number): Promise<Flashcard[]> => {
+    const cards = demoData.flashcards.cards.filter((c) => c.deck_id === deckId);
+    return Promise.resolve(cards);
+  },
+
+  getCard: async (cardId: number): Promise<Flashcard> => {
+    const card = demoData.flashcards.cards.find((c) => c.id === cardId);
+    return Promise.resolve(card || demoData.flashcards.cards[0]);
+  },
+
+  createCard: async (data: Record<string, unknown>): Promise<Flashcard> => {
+    return Promise.resolve({
+      id: demoData.flashcards.cards.length + 1,
+      ...data,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as Flashcard);
+  },
+
+  updateCard: async (cardId: number, updates: Record<string, unknown>): Promise<Flashcard> => {
+    const card = demoData.flashcards.cards.find((c) => c.id === cardId);
+    return Promise.resolve({
+      ...(card || demoData.flashcards.cards[0]),
+      ...updates,
+      updated_at: new Date().toISOString(),
+    } as Flashcard);
+  },
+
+  deleteCard: async (_cardId: number): Promise<void> => {
+    return Promise.resolve();
+  },
+
+  shareDeck: async (deckId: number, shareData: Record<string, unknown>) => {
+    return Promise.resolve({
+      id: 1,
+      deck_id: deckId,
+      ...shareData,
+      shared_at: new Date().toISOString(),
+    });
+  },
+
+  listDeckShares: async (_deckId: number): Promise<FlashcardDeckShare[]> => {
+    return Promise.resolve([]);
+  },
+
+  unshareDeck: async (_shareId: number): Promise<void> => {
+    return Promise.resolve();
+  },
+
+  getStudyProgress: async (_deckId: number, _userId: number): Promise<FlashcardStudyProgress> => {
+    return Promise.resolve({
+      id: 1,
+      deck_id: _deckId,
+      user_id: _userId,
+      cards_studied: 12,
+      cards_mastered: 8,
+      total_study_time_minutes: 45,
+      last_studied_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  getDeckStats: async (_deckId: number, _userId: number): Promise<FlashcardDeckStats> => {
+    return Promise.resolve(demoData.flashcards.stats);
+  },
+
+  updateStudySession: async (
+    _cardId: number,
+    _userId: number,
+    _update: Record<string, unknown>
+  ) => {
+    return Promise.resolve({
+      message: 'Study session updated',
+    });
+  },
+
+  getDueCards: async (deckId: number, _userId: number): Promise<Flashcard[]> => {
+    const cards = demoData.flashcards.cards.filter((c) => c.deck_id === deckId);
+    return Promise.resolve(cards.slice(0, 5));
+  },
+};
+
+export const demoQuizzesApi = {
+  listQuizzes: async (params?: {
+    skip?: number;
+    limit?: number;
+    institution_id?: number;
+    creator_id?: number;
+    grade_id?: number;
+    subject_id?: number;
+    quiz_type?: string;
+    status?: string;
+    search?: string;
+  }) => {
+    let filteredQuizzes = [...demoData.quizzes.quizzes];
+
+    if (params?.creator_id) {
+      filteredQuizzes = filteredQuizzes.filter((q) => q.creator_id === params.creator_id);
+    }
+    if (params?.grade_id) {
+      filteredQuizzes = filteredQuizzes.filter((q) => q.grade_id === params.grade_id);
+    }
+    if (params?.subject_id) {
+      filteredQuizzes = filteredQuizzes.filter((q) => q.subject_id === params.subject_id);
+    }
+    if (params?.quiz_type) {
+      filteredQuizzes = filteredQuizzes.filter((q) => q.quiz_type === params.quiz_type);
+    }
+    if (params?.status) {
+      filteredQuizzes = filteredQuizzes.filter((q) => q.status === params.status);
+    }
+    if (params?.search) {
+      const searchLower = params.search.toLowerCase();
+      filteredQuizzes = filteredQuizzes.filter(
+        (q) =>
+          q.title.toLowerCase().includes(searchLower) ||
+          q.description?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedQuizzes = filteredQuizzes.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedQuizzes,
+      total: filteredQuizzes.length,
+      skip,
+      limit,
+    });
+  },
+
+  getQuiz: async (quizId: number): Promise<Quiz> => {
+    const quiz = demoData.quizzes.quizzes.find((q) => q.id === quizId);
+    return Promise.resolve(quiz || demoData.quizzes.quizzes[0]);
+  },
+
+  getQuizForStudent: async (quizId: number): Promise<Quiz> => {
+    const quiz = demoData.quizzes.quizzes.find((q) => q.id === quizId);
+    return Promise.resolve(quiz || demoData.quizzes.quizzes[0]);
+  },
+
+  createQuiz: async (data: Record<string, unknown>): Promise<Quiz> => {
+    return Promise.resolve({
+      id: demoData.quizzes.quizzes.length + 1,
+      ...data,
+      total_marks: 0,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as Quiz);
+  },
+
+  createQuizWithQuestions: async (data: Record<string, unknown>) => {
+    const questions = data.questions as Record<string, unknown>[];
+    const totalMarks = questions.reduce((sum, q) => sum + ((q.marks as number) || 0), 0);
+    return Promise.resolve({
+      quiz: {
+        id: demoData.quizzes.quizzes.length + 1,
+        ...(data.quiz as Record<string, unknown>),
+        total_marks: totalMarks,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      questions: questions.map((question, index) => ({
+        id: demoData.quizzes.questions.length + index + 1,
+        ...question,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })),
+    });
+  },
+
+  updateQuiz: async (quizId: number, updates: Record<string, unknown>): Promise<Quiz> => {
+    const quiz = demoData.quizzes.quizzes.find((q) => q.id === quizId);
+    return Promise.resolve({
+      ...(quiz || demoData.quizzes.quizzes[0]),
+      ...updates,
+      updated_at: new Date().toISOString(),
+    } as Quiz);
+  },
+
+  deleteQuiz: async (_quizId: number): Promise<void> => {
+    return Promise.resolve();
+  },
+
+  publishQuiz: async (quizId: number): Promise<Quiz> => {
+    const quiz = demoData.quizzes.quizzes.find((q) => q.id === quizId);
+    return Promise.resolve({
+      ...(quiz || demoData.quizzes.quizzes[0]),
+      status: 'published' as Quiz['status'],
+      updated_at: new Date().toISOString(),
+    } as Quiz);
+  },
+
+  listQuestions: async (quizId: number): Promise<QuizQuestion[]> => {
+    const questions = demoData.quizzes.questions.filter((q) => q.quiz_id === quizId);
+    return Promise.resolve(questions);
+  },
+
+  createQuestion: async (_quizId: number, question: Record<string, unknown>) => {
+    return Promise.resolve({
+      id: demoData.quizzes.questions.length + 1,
+      ...question,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  updateQuestion: async (questionId: number, updates: Record<string, unknown>) => {
+    const question = demoData.quizzes.questions.find((q) => q.id === questionId);
+    return Promise.resolve({
+      ...(question || demoData.quizzes.questions[0]),
+      ...updates,
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  deleteQuestion: async (_questionId: number): Promise<void> => {
+    return Promise.resolve();
+  },
+
+  startAttempt: async (quizId: number, userId: number): Promise<QuizAttempt> => {
+    return Promise.resolve({
+      id: demoData.quizzes.attempts.length + 1,
+      quiz_id: quizId,
+      user_id: userId,
+      attempt_number: 1,
+      status: 'in_progress' as QuizAttempt['status'],
+      score: 0,
+      percentage: 0,
+      total_questions: 10,
+      correct_answers: 0,
+      incorrect_answers: 0,
+      unanswered: 10,
+      time_taken_seconds: 0,
+      started_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  getAttempt: async (attemptId: number): Promise<QuizAttempt> => {
+    const attempt = demoData.quizzes.attempts.find((a) => a.id === attemptId);
+    return Promise.resolve(attempt || demoData.quizzes.attempts[0]);
+  },
+
+  submitQuiz: async (_submission: Record<string, unknown>): Promise<QuizAttempt> => {
+    return Promise.resolve({
+      id: _submission.attempt_id as number,
+      quiz_id: 1,
+      user_id: 1001,
+      attempt_number: 1,
+      status: 'completed' as QuizAttempt['status'],
+      score: 42,
+      percentage: 84,
+      total_questions: 10,
+      correct_answers: 8,
+      incorrect_answers: 2,
+      unanswered: 0,
+      time_taken_seconds: _submission.time_taken_seconds as number,
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  getAttemptResponses: async (_attemptId: number) => {
+    return Promise.resolve([]);
+  },
+
+  getLeaderboard: async (quizId: number, limit = 100): Promise<QuizLeaderboardEntry[]> => {
+    const leaderboard = demoData.quizzes.leaderboard.filter((l) => l.quiz_id === quizId);
+    return Promise.resolve(leaderboard.slice(0, limit));
+  },
+
+  getAnalytics: async (quizId: number): Promise<QuizDetailedAnalytics> => {
+    return Promise.resolve({
+      quiz_analytics: {
+        quiz_id: quizId,
+        total_attempts: 15,
+        completed_attempts: 12,
+        average_score: 38.5,
+        average_percentage: 77,
+        average_time_seconds: 1100,
+        highest_score: 48,
+        lowest_score: 25,
+        pass_rate: 80,
+        question_difficulty: {},
+      },
+      question_analytics: [],
+      score_distribution: {
+        'A (90-100)': 3,
+        'B (80-89)': 5,
+        'C (70-79)': 3,
+        'D (60-69)': 1,
+        'F (0-59)': 3,
+      },
+      time_distribution: {
+        '<15 min': 2,
+        '15-20 min': 8,
+        '20-25 min': 4,
+        '>25 min': 1,
+      },
+    });
+  },
+};
+
+export const demoPomodoroApi = {
+  getSettings: async (_studentId: number): Promise<PomodoroSettings> => {
+    return Promise.resolve(demoData.pomodoro.settings);
+  },
+
+  updateSettings: async (
+    _studentId: number,
+    settings: Partial<PomodoroSettings>
+  ): Promise<PomodoroSettings> => {
+    return Promise.resolve({
+      ...demoData.pomodoro.settings,
+      ...settings,
+    });
+  },
+
+  startSession: async (
+    _studentId: number,
+    data: Record<string, unknown>
+  ): Promise<PomodoroSession> => {
+    return Promise.resolve({
+      id: demoData.pomodoro.sessions.length + 1,
+      student_id: _studentId,
+      subject_id: data.subject_id as number | undefined,
+      subject_name: data.subject_name as string | undefined,
+      session_type: data.session_type as 'work' | 'short_break' | 'long_break',
+      duration_minutes: data.duration_minutes as number,
+      start_time: new Date().toISOString(),
+      completed: false,
+      interrupted: false,
+      created_at: new Date().toISOString(),
+    });
+  },
+
+  completeSession: async (_studentId: number, sessionId: number): Promise<PomodoroSession> => {
+    const session = demoData.pomodoro.sessions.find((s) => s.id === sessionId);
+    return Promise.resolve({
+      ...(session || demoData.pomodoro.sessions[0]),
+      end_time: new Date().toISOString(),
+      completed: true,
+    });
+  },
+
+  interruptSession: async (_studentId: number, sessionId: number): Promise<PomodoroSession> => {
+    const session = demoData.pomodoro.sessions.find((s) => s.id === sessionId);
+    return Promise.resolve({
+      ...(session || demoData.pomodoro.sessions[0]),
+      end_time: new Date().toISOString(),
+      interrupted: true,
+    });
+  },
+
+  getSessions: async (
+    _studentId: number,
+    params?: {
+      start_date?: string;
+      end_date?: string;
+      subject_id?: number;
+      limit?: number;
+    }
+  ): Promise<PomodoroSession[]> => {
+    let sessions = [...demoData.pomodoro.sessions];
+
+    if (params?.subject_id) {
+      sessions = sessions.filter((s) => s.subject_id === params.subject_id);
+    }
+
+    const limit = params?.limit || 50;
+    return Promise.resolve(sessions.slice(0, limit));
+  },
+
+  getAnalytics: async (
+    _studentId: number,
+    _params?: {
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<PomodoroAnalytics> => {
+    return Promise.resolve(demoData.pomodoro.analytics);
+  },
+
+  getSubjects: async (_studentId: number): Promise<PomodoroSubject[]> => {
+    return Promise.resolve(
+      demoData.academics.subjects.map((s) => ({
+        id: s.id,
+        name: s.name,
+        color: s.id === 1 ? '#3b82f6' : s.id === 2 ? '#8b5cf6' : '#10b981',
+      }))
+    );
+  },
+};
+
+export const demoSettingsApi = {
+  getProfile: async (): Promise<UserProfile> => {
+    return Promise.resolve(demoData.settings.profile);
+  },
+
+  updateProfile: async (data: Record<string, unknown>): Promise<UserProfile> => {
+    return Promise.resolve({
+      ...demoData.settings.profile,
+      ...data,
+      updatedAt: new Date().toISOString(),
+    } as UserProfile);
+  },
+
+  uploadAvatar: async (_file: File): Promise<{ avatarUrl: string }> => {
+    return Promise.resolve({
+      avatarUrl: 'https://i.pravatar.cc/150?img=12',
+    });
+  },
+
+  deleteAvatar: async (): Promise<void> => {
+    return Promise.resolve();
+  },
+
+  changePassword: async (_data: Record<string, unknown>): Promise<{ message: string }> => {
+    return Promise.resolve({
+      message: 'Password changed successfully',
+    });
+  },
+
+  getNotificationPreferences: async (): Promise<NotificationPreferences> => {
+    return Promise.resolve(demoData.settings.notifications);
+  },
+
+  updateNotificationPreferences: async (
+    preferences: NotificationPreferences
+  ): Promise<NotificationPreferences> => {
+    return Promise.resolve(preferences);
+  },
+
+  getThemeSettings: async (): Promise<ThemeSettings> => {
+    return Promise.resolve(demoData.settings.theme);
+  },
+
+  updateThemeSettings: async (settings: ThemeSettings): Promise<ThemeSettings> => {
+    return Promise.resolve(settings);
+  },
+
+  getPrivacySettings: async (): Promise<PrivacySettings> => {
+    return Promise.resolve(demoData.settings.privacy);
+  },
+
+  updatePrivacySettings: async (settings: PrivacySettings): Promise<PrivacySettings> => {
+    return Promise.resolve(settings);
+  },
+
+  getAllSettings: async (): Promise<UserSettings> => {
+    return Promise.resolve(demoData.settings.userSettings);
+  },
+
+  updateSettings: async (settings: Partial<UserSettings>): Promise<UserSettings> => {
+    return Promise.resolve({
+      ...demoData.settings.userSettings,
+      ...settings,
+    });
+  },
+
+  getConnectedDevices: async (): Promise<ConnectedDevice[]> => {
+    return Promise.resolve(demoData.settings.connectedDevices);
+  },
+
+  logoutDevice: async (_deviceId: string): Promise<{ message: string }> => {
+    return Promise.resolve({
+      message: 'Device logged out successfully',
+    });
+  },
+
+  logoutAllDevices: async (): Promise<{ message: string }> => {
+    return Promise.resolve({
+      message: 'All devices logged out successfully',
+    });
+  },
+
+  requestAccountDeletion: async (
+    _data: Record<string, unknown>
+  ): Promise<{ message: string; requestId: string }> => {
+    return Promise.resolve({
+      message: 'Account deletion request submitted',
+      requestId: '12345',
+    });
+  },
+
+  cancelAccountDeletion: async (): Promise<{ message: string }> => {
+    return Promise.resolve({
+      message: 'Account deletion request cancelled',
+    });
+  },
+};
+
 export const demoDataApi = {
   students: demoStudentsApi,
   assignments: demoAssignmentsApi,
@@ -765,4 +1491,8 @@ export const demoDataApi = {
   parents: demoParentsApi,
   institutionAdmin: demoInstitutionAdminApi,
   superAdmin: demoSuperAdminApi,
+  flashcards: demoFlashcardsApi,
+  quizzes: demoQuizzesApi,
+  pomodoro: demoPomodoroApi,
+  settings: demoSettingsApi,
 };
