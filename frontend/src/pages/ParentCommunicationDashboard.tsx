@@ -3,13 +3,14 @@ import { Container, Box, Tabs, Tab, Typography } from '@mui/material';
 import { ParentCommunicationView } from '@/components/communications';
 import { useQuery } from '@tanstack/react-query';
 import { parentsApi } from '@/api/parents';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 
 export const ParentCommunicationDashboard: React.FC = () => {
   const [selectedChildId, setSelectedChildId] = useState<number | undefined>(undefined);
 
   const { data: children } = useQuery({
     queryKey: ['parent-children'],
-    queryFn: () => parentsApi.getChildren(),
+    queryFn: () => (isDemoUser() ? demoDataApi.parents.getChildren() : parentsApi.getChildren()),
   });
 
   return (
