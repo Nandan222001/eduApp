@@ -56,7 +56,8 @@ from src.api.v1 import (
     learning_paths,
     virtual_classrooms,
     classroom_websocket,
-    plagiarism
+    plagiarism,
+    institution_health
 )
 from src.api import ml
 
@@ -112,3 +113,12 @@ api_router.include_router(data_management.router, prefix="", tags=["data-managem
 api_router.include_router(flashcards.router, prefix="", tags=["flashcards"])
 api_router.include_router(quizzes.router, prefix="", tags=["quizzes"])
 api_router.include_router(chatbot.router, prefix="/chatbot", tags=["chatbot"])
+api_router.include_router(ml_training.router, prefix="", tags=["ml-training"])
+api_router.include_router(ml_monitoring.router, prefix="", tags=["ml-monitoring"])
+api_router.include_router(ml_analytics.router, prefix="", tags=["ml-analytics"])
+api_router.include_router(doubts.router, prefix="", tags=["doubts"])
+api_router.include_router(learning_paths.router, prefix="", tags=["learning-paths"])
+api_router.include_router(virtual_classrooms.router, prefix="", tags=["virtual-classrooms"])
+api_router.include_router(classroom_websocket.router, prefix="", tags=["classroom-websocket"])
+api_router.include_router(plagiarism.router, prefix="", tags=["plagiarism"])
+api_router.include_router(institution_health.router, prefix="", tags=["institution-health"])
