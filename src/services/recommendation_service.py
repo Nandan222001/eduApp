@@ -1,10 +1,12 @@
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc, asc, case
+from sqlalchemy import func, and_, or_, desc, asc, case, cast, Float
 from collections import defaultdict
 from decimal import Decimal
 import math
+import logging
+import hashlib
 
 from src.models.study_planner import (
     WeakArea, ChapterPerformance, QuestionRecommendation, FocusArea
@@ -18,12 +20,35 @@ from src.models.previous_year_papers import QuestionBank, DifficultyLevel
 from src.models.quiz import Quiz, QuizAttempt, QuizResponse
 from src.models.examination import ExamMarks, ExamSubject
 
+logger = logging.getLogger(__name__)
+
+
+class LearningStyle:
+    VISUAL = "visual"
+    AUDITORY = "auditory"
+    READING_WRITING = "reading_writing"
+    KINESTHETIC = "kinesthetic"
+
+
+class ContentSource:
+    INTERNAL = "internal"
+    KHAN_ACADEMY = "khan_academy"
+    YOUTUBE_EDU = "youtube_edu"
+    OPENSTAX = "openstax"
+    COURSERA = "coursera"
+    MIT_OCW = "mit_ocw"
+
 
 class CollaborativeFilteringEngine:
-    """Collaborative filtering for peer-based recommendations"""
+    """
+    Collaborative filtering for peer-based recommendations.
+    Recommends study materials based on what similar students found helpful.
+    """
     
     def __init__(self, db: Session):
         self.db = db
+        self.similarity_threshold = 0.5
+        self.min_common_chapters = 3
     
     def find_similar_students(
         self,
@@ -31,12 +56,16 @@ class CollaborativeFilteringEngine:
         student_id: int,
         limit: int = 20
     ) -> List[Tuple[int, float]]:
-        """Find similar students based on performance patterns"""
+        """
+        Find similar students based on performance patterns using cosine similarity.
+        Returns list of (student_id, similarity_score) tuples.
+        """
         target_performances = self._get_student_performance_vector(
             institution_id, student_id
         )
         
         if not target_performances:
+            logger.info(f"No performance data found for student {student_id}")
             return []
         
         same_grade_students = self.db.query(Student).filter(
@@ -53,14 +82,18 @@ class CollaborativeFilteringEngine:
             )
             
             if peer_performances:
-                similarity = self._calculate_cosine_similarity(
-                    target_performances, peer_performances
-                )
+                common_chapters = set(target_performances.keys()) & set(peer_performances.keys())
                 
-                if similarity > 0.5:
-                    similarities.append((peer.id, similarity))
+                if len(common_chapters) >= self.min_common_chapters:
+                    similarity = self._calculate_cosine_similarity(
+                        target_performances, peer_performances
+                    )
+                    
+                    if similarity > self.similarity_threshold:
+                        similarities.append((peer.id, similarity))
         
         similarities.sort(key=lambda x: x[1], reverse=True)
+        logger.info(f"Found {len(similarities)} similar students for student {student_id}")
         return similarities[:limit]
     
     def _get_student_performance_vector(
@@ -84,7 +117,7 @@ class CollaborativeFilteringEngine:
         vec1: Dict[int, float],
         vec2: Dict[int, float]
     ) -> float:
-        """Calculate cosine similarity between two vectors"""
+        """Calculate cosine similarity between two performance vectors"""
         common_keys = set(vec1.keys()) & set(vec2.keys())
         
         if not common_keys:
@@ -106,11 +139,17 @@ class CollaborativeFilteringEngine:
         weak_chapter_ids: List[int],
         limit: int = 10
     ) -> List[Tuple[int, float, str]]:
-        """Get materials that helped similar students with similar weaknesses"""
+        """
+        Get materials that helped similar students improve in weak areas.
+        Returns list of (material_id, weighted_score, reason) tuples.
+        """
+        if not similar_students:
+            return []
+            
         student_ids = [s[0] for s in similar_students]
         similarity_map = {s[0]: s[1] for s in similar_students}
         
-        material_scores = defaultdict(lambda: {'score': 0.0, 'reason': ''})
+        material_scores = defaultdict(lambda: {'score': 0.0, 'reason': '', 'users': set()})
         
         access_logs = self.db.query(
             MaterialAccessLog.material_id,
@@ -135,10 +174,17 @@ class CollaborativeFilteringEngine:
             
             if student and student.id in similarity_map:
                 similarity = similarity_map[student.id]
-                score = similarity * min(access_count / 10.0, 1.0)
+                engagement_score = min(access_count / 10.0, 1.0)
+                score = similarity * engagement_score
                 
                 material_scores[material_id]['score'] += score
-                material_scores[material_id]['reason'] = f"Used by {len([s for s in student_ids if s in similarity_map])} similar high-performing peers"
+                material_scores[material_id]['users'].add(student.id)
+        
+        for material_id in material_scores:
+            user_count = len(material_scores[material_id]['users'])
+            material_scores[material_id]['reason'] = (
+                f"Used by {user_count} similar high-performing peers"
+            )
         
         sorted_materials = sorted(
             material_scores.items(),
@@ -152,33 +198,395 @@ class CollaborativeFilteringEngine:
         ]
 
 
-class ContentBasedRecommendationEngine:
-    """Content-based filtering using item features and student preferences"""
+class ContentEffectivenessEngine:
+    """
+    Track and score content effectiveness based on student performance improvements.
+    Identifies which materials lead to better assessment outcomes.
+    """
+    
+    def __init__(self, db: Session):
+        self.db = db
+        self.improvement_window_days = 30
+    
+    def calculate_material_effectiveness(
+        self,
+        institution_id: int,
+        material_id: int
+    ) -> Dict[str, Any]:
+        """
+        Calculate effectiveness score for a study material based on:
+        - Student performance improvements after accessing
+        - Assessment score correlations
+        - Engagement metrics
+        """
+        material = self.db.query(StudyMaterial).filter(
+            StudyMaterial.id == material_id,
+            StudyMaterial.institution_id == institution_id
+        ).first()
+        
+        if not material:
+            return None
+        
+        access_logs = self.db.query(MaterialAccessLog).filter(
+            MaterialAccessLog.material_id == material_id,
+            MaterialAccessLog.institution_id == institution_id
+        ).all()
+        
+        effectiveness_data = {
+            'material_id': material_id,
+            'total_accesses': len(access_logs),
+            'unique_students': len(set(log.user_id for log in access_logs)),
+            'avg_improvement': 0.0,
+            'effectiveness_score': 0.0,
+            'engagement_score': 0.0,
+            'performance_correlation': 0.0
+        }
+        
+        if not access_logs:
+            return effectiveness_data
+        
+        improvements = []
+        for log in access_logs:
+            student = self.db.query(Student).filter(
+                Student.user_id == log.user_id
+            ).first()
+            
+            if student and material.chapter_id:
+                improvement = self._calculate_student_improvement(
+                    institution_id,
+                    student.id,
+                    material.chapter_id,
+                    log.accessed_at
+                )
+                if improvement is not None:
+                    improvements.append(improvement)
+        
+        if improvements:
+            effectiveness_data['avg_improvement'] = sum(improvements) / len(improvements)
+            effectiveness_data['performance_correlation'] = self._calculate_correlation_score(
+                improvements
+            )
+        
+        effectiveness_data['engagement_score'] = self._calculate_engagement_score(
+            material.view_count,
+            material.download_count,
+            len(access_logs)
+        )
+        
+        effectiveness_data['effectiveness_score'] = self._compute_overall_effectiveness(
+            effectiveness_data['avg_improvement'],
+            effectiveness_data['engagement_score'],
+            effectiveness_data['performance_correlation']
+        )
+        
+        return effectiveness_data
+    
+    def _calculate_student_improvement(
+        self,
+        institution_id: int,
+        student_id: int,
+        chapter_id: int,
+        access_date: datetime
+    ) -> Optional[float]:
+        """Calculate performance improvement before and after material access"""
+        before_performance = self.db.query(ChapterPerformance).filter(
+            ChapterPerformance.institution_id == institution_id,
+            ChapterPerformance.student_id == student_id,
+            ChapterPerformance.chapter_id == chapter_id,
+            ChapterPerformance.updated_at < access_date
+        ).first()
+        
+        after_date = access_date + timedelta(days=self.improvement_window_days)
+        after_performance = self.db.query(ChapterPerformance).filter(
+            ChapterPerformance.institution_id == institution_id,
+            ChapterPerformance.student_id == student_id,
+            ChapterPerformance.chapter_id == chapter_id,
+            ChapterPerformance.updated_at >= access_date,
+            ChapterPerformance.updated_at <= after_date
+        ).first()
+        
+        if before_performance and after_performance:
+            before_score = float(before_performance.mastery_score)
+            after_score = float(after_performance.mastery_score)
+            return after_score - before_score
+        
+        return None
+    
+    def _calculate_correlation_score(self, improvements: List[float]) -> float:
+        """Calculate how consistently the material leads to improvements"""
+        if not improvements:
+            return 0.0
+        
+        positive_improvements = sum(1 for imp in improvements if imp > 0)
+        return positive_improvements / len(improvements)
+    
+    def _calculate_engagement_score(
+        self,
+        view_count: int,
+        download_count: int,
+        access_count: int
+    ) -> float:
+        """Calculate engagement score based on usage metrics"""
+        view_score = min(view_count / 100.0, 0.4)
+        download_score = min(download_count / 50.0, 0.3)
+        access_score = min(access_count / 50.0, 0.3)
+        
+        return view_score + download_score + access_score
+    
+    def _compute_overall_effectiveness(
+        self,
+        avg_improvement: float,
+        engagement_score: float,
+        correlation: float
+    ) -> float:
+        """Compute weighted overall effectiveness score"""
+        improvement_weight = 0.5
+        engagement_weight = 0.2
+        correlation_weight = 0.3
+        
+        normalized_improvement = max(0, min(avg_improvement / 20.0, 1.0))
+        
+        score = (
+            normalized_improvement * improvement_weight +
+            engagement_score * engagement_weight +
+            correlation * correlation_weight
+        )
+        
+        return min(score, 1.0)
+
+
+class DifficultyLevelDetector:
+    """
+    Detect appropriate difficulty levels for students based on mastery levels.
+    Suggests resources matching current ability for optimal learning.
+    """
     
     def __init__(self, db: Session):
         self.db = db
     
-    def recommend_study_materials(
+    def detect_student_difficulty_level(
+        self,
+        institution_id: int,
+        student_id: int,
+        chapter_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Detect appropriate difficulty level for student.
+        Returns recommended difficulty and confidence score.
+        """
+        if chapter_id:
+            performance = self.db.query(ChapterPerformance).filter(
+                ChapterPerformance.institution_id == institution_id,
+                ChapterPerformance.student_id == student_id,
+                ChapterPerformance.chapter_id == chapter_id
+            ).first()
+            
+            mastery_score = float(performance.mastery_score) if performance else 50.0
+        else:
+            performances = self.db.query(ChapterPerformance).filter(
+                ChapterPerformance.institution_id == institution_id,
+                ChapterPerformance.student_id == student_id
+            ).all()
+            
+            if performances:
+                mastery_score = sum(float(p.mastery_score) for p in performances) / len(performances)
+            else:
+                mastery_score = 50.0
+        
+        difficulty_mapping = self._map_mastery_to_difficulty(mastery_score)
+        
+        return {
+            'mastery_score': mastery_score,
+            'recommended_difficulty': difficulty_mapping['level'],
+            'difficulty_range': difficulty_mapping['range'],
+            'confidence': difficulty_mapping['confidence'],
+            'reasoning': difficulty_mapping['reasoning']
+        }
+    
+    def _map_mastery_to_difficulty(self, mastery_score: float) -> Dict[str, Any]:
+        """Map mastery score to appropriate difficulty level"""
+        if mastery_score < 30:
+            return {
+                'level': DifficultyLevel.VERY_EASY.value,
+                'range': [DifficultyLevel.VERY_EASY.value],
+                'confidence': 0.9,
+                'reasoning': 'Building foundational understanding required'
+            }
+        elif mastery_score < 50:
+            return {
+                'level': DifficultyLevel.EASY.value,
+                'range': [DifficultyLevel.VERY_EASY.value, DifficultyLevel.EASY.value],
+                'confidence': 0.85,
+                'reasoning': 'Developing basic concepts with gradual progression'
+            }
+        elif mastery_score < 70:
+            return {
+                'level': DifficultyLevel.MEDIUM.value,
+                'range': [DifficultyLevel.EASY.value, DifficultyLevel.MEDIUM.value],
+                'confidence': 0.8,
+                'reasoning': 'Ready for moderate challenges to strengthen skills'
+            }
+        elif mastery_score < 85:
+            return {
+                'level': DifficultyLevel.HARD.value,
+                'range': [DifficultyLevel.MEDIUM.value, DifficultyLevel.HARD.value],
+                'confidence': 0.85,
+                'reasoning': 'Advanced problem-solving to achieve mastery'
+            }
+        else:
+            return {
+                'level': DifficultyLevel.VERY_HARD.value,
+                'range': [DifficultyLevel.HARD.value, DifficultyLevel.VERY_HARD.value],
+                'confidence': 0.9,
+                'reasoning': 'Expert-level challenges for deep mastery'
+            }
+    
+    def get_difficulty_appropriate_materials(
+        self,
+        institution_id: int,
+        student_id: int,
+        chapter_id: Optional[int] = None,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Get materials appropriate for student's current difficulty level"""
+        difficulty_info = self.detect_student_difficulty_level(
+            institution_id, student_id, chapter_id
+        )
+        
+        allowed_difficulties = difficulty_info['difficulty_range']
+        
+        query = self.db.query(StudyMaterial).filter(
+            StudyMaterial.institution_id == institution_id,
+            StudyMaterial.is_active == True
+        )
+        
+        if chapter_id:
+            query = query.filter(StudyMaterial.chapter_id == chapter_id)
+        
+        materials = query.all()
+        
+        recommendations = []
+        for material in materials:
+            relevance_score = self._calculate_difficulty_relevance(
+                material,
+                difficulty_info
+            )
+            
+            if relevance_score > 0.3:
+                recommendations.append({
+                    'material': material,
+                    'material_id': material.id,
+                    'relevance_score': relevance_score,
+                    'difficulty_match': difficulty_info['recommended_difficulty'],
+                    'reasoning': difficulty_info['reasoning']
+                })
+        
+        recommendations.sort(key=lambda x: x['relevance_score'], reverse=True)
+        return recommendations[:limit]
+    
+    def _calculate_difficulty_relevance(
+        self,
+        material: StudyMaterial,
+        difficulty_info: Dict[str, Any]
+    ) -> float:
+        """Calculate how well material matches student's difficulty level"""
+        base_score = 0.5
+        
+        if material.view_count > 50:
+            base_score += 0.2
+        
+        if material.download_count > 20:
+            base_score += 0.1
+        
+        if material.tags and any('beginner' in tag.lower() for tag in material.tags):
+            if difficulty_info['recommended_difficulty'] in [DifficultyLevel.VERY_EASY.value, DifficultyLevel.EASY.value]:
+                base_score += 0.2
+        
+        return min(base_score, 1.0)
+
+
+class MultiModalContentRecommender:
+    """
+    Recommend content based on learning styles (VARK model).
+    - Visual learners: videos, diagrams, infographics
+    - Auditory learners: audio lectures, podcasts
+    - Reading/Writing learners: PDFs, documents, texts
+    - Kinesthetic learners: interactive simulations, practice
+    """
+    
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def detect_learning_style(
+        self,
+        institution_id: int,
+        student_id: int
+    ) -> Dict[str, float]:
+        """
+        Detect student's learning style preferences based on material access patterns.
+        Returns VARK scores (Visual, Auditory, Reading, Kinesthetic).
+        """
+        access_logs = self.db.query(
+            MaterialAccessLog
+        ).join(
+            StudyMaterial
+        ).join(
+            User
+        ).join(
+            Student, Student.user_id == User.id
+        ).filter(
+            MaterialAccessLog.institution_id == institution_id,
+            Student.id == student_id
+        ).all()
+        
+        style_scores = {
+            LearningStyle.VISUAL: 0.0,
+            LearningStyle.AUDITORY: 0.0,
+            LearningStyle.READING_WRITING: 0.0,
+            LearningStyle.KINESTHETIC: 0.0
+        }
+        
+        for log in access_logs:
+            material = log.material
+            if material.material_type == MaterialType.VIDEO:
+                style_scores[LearningStyle.VISUAL] += 1.0
+            elif material.material_type == MaterialType.AUDIO:
+                style_scores[LearningStyle.AUDITORY] += 1.0
+            elif material.material_type in [MaterialType.PDF, MaterialType.DOCUMENT]:
+                style_scores[LearningStyle.READING_WRITING] += 1.0
+            elif material.material_type == MaterialType.PRESENTATION:
+                style_scores[LearningStyle.VISUAL] += 0.5
+                style_scores[LearningStyle.READING_WRITING] += 0.5
+        
+        quiz_attempts = self.db.query(QuizAttempt).join(
+            User
+        ).join(
+            Student, Student.user_id == User.id
+        ).filter(
+            Student.id == student_id
+        ).count()
+        
+        style_scores[LearningStyle.KINESTHETIC] += quiz_attempts * 0.5
+        
+        total = sum(style_scores.values())
+        if total > 0:
+            return {k: v / total for k, v in style_scores.items()}
+        
+        return {k: 0.25 for k in style_scores}
+    
+    def recommend_by_learning_style(
         self,
         institution_id: int,
         student_id: int,
         weak_areas: List[WeakArea],
         limit: int = 15
     ) -> List[Dict[str, Any]]:
-        """Recommend study materials based on weak areas and learning preferences"""
+        """Recommend materials matching student's learning style"""
+        learning_style = self.detect_learning_style(institution_id, student_id)
+        
+        dominant_style = max(learning_style.items(), key=lambda x: x[1])[0]
+        
         recommendations = []
-        
-        student = self.db.query(Student).filter(
-            Student.id == student_id,
-            Student.institution_id == institution_id
-        ).first()
-        
-        if not student:
-            return []
-        
-        learning_preferences = self._get_learning_preferences(
-            institution_id, student_id
-        )
         
         for weak_area in weak_areas[:10]:
             materials = self.db.query(StudyMaterial).filter(
@@ -192,727 +600,380 @@ class ContentBasedRecommendationEngine:
                     StudyMaterial.chapter_id == weak_area.chapter_id
                 )
             
-            if weak_area.topic_id:
-                materials = materials.filter(
-                    StudyMaterial.topic_id == weak_area.topic_id
-                )
-            
             materials = materials.all()
             
             for material in materials:
-                score = self._calculate_material_relevance_score(
-                    material,
-                    weak_area,
-                    learning_preferences
+                style_match_score = self._calculate_style_match(
+                    material, learning_style
                 )
                 
-                if score > 0.3:
-                    explanation = self._generate_material_explanation(
-                        material,
-                        weak_area,
-                        learning_preferences
-                    )
-                    
+                if style_match_score > 0.3:
                     recommendations.append({
                         'material_id': material.id,
                         'material': material,
                         'weak_area_id': weak_area.id,
-                        'relevance_score': score,
-                        'explanation': explanation,
-                        'type': material.material_type.value,
-                        'title': material.title
+                        'style_match_score': style_match_score,
+                        'dominant_style': dominant_style,
+                        'learning_style_scores': learning_style,
+                        'explanation': self._generate_style_explanation(
+                            material, dominant_style
+                        )
                     })
         
-        recommendations.sort(key=lambda x: x['relevance_score'], reverse=True)
+        recommendations.sort(key=lambda x: x['style_match_score'], reverse=True)
         return recommendations[:limit]
     
-    def _get_learning_preferences(
+    def _calculate_style_match(
+        self,
+        material: StudyMaterial,
+        learning_style: Dict[str, float]
+    ) -> float:
+        """Calculate how well material matches learning style"""
+        material_type = material.material_type
+        
+        if material_type == MaterialType.VIDEO:
+            return learning_style[LearningStyle.VISUAL] * 1.0
+        elif material_type == MaterialType.AUDIO:
+            return learning_style[LearningStyle.AUDITORY] * 1.0
+        elif material_type in [MaterialType.PDF, MaterialType.DOCUMENT]:
+            return learning_style[LearningStyle.READING_WRITING] * 1.0
+        elif material_type == MaterialType.PRESENTATION:
+            return (
+                learning_style[LearningStyle.VISUAL] * 0.5 +
+                learning_style[LearningStyle.READING_WRITING] * 0.5
+            )
+        else:
+            return 0.3
+    
+    def _generate_style_explanation(
+        self,
+        material: StudyMaterial,
+        dominant_style: str
+    ) -> str:
+        """Generate explanation for learning style match"""
+        style_descriptions = {
+            LearningStyle.VISUAL: "visual learning preference (videos, diagrams)",
+            LearningStyle.AUDITORY: "auditory learning preference (audio, lectures)",
+            LearningStyle.READING_WRITING: "reading/writing preference (texts, documents)",
+            LearningStyle.KINESTHETIC: "hands-on learning preference (interactive content)"
+        }
+        
+        return f"Matches your {style_descriptions.get(dominant_style, 'learning style')}"
+
+
+class StudyPathSequencer:
+    """
+    Create personalized study paths by sequencing content based on:
+    - Prerequisite relationships between topics
+    - Optimal learning order
+    - Difficulty progression
+    - Knowledge dependencies
+    """
+    
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def generate_study_path(
         self,
         institution_id: int,
-        student_id: int
+        student_id: int,
+        subject_id: int,
+        target_date: Optional[date] = None
     ) -> Dict[str, Any]:
-        """Infer learning preferences from past material access patterns"""
-        access_logs = self.db.query(
-            MaterialAccessLog.material_id,
-            func.count(MaterialAccessLog.id).label('access_count')
-        ).join(User).join(Student, Student.user_id == User.id).filter(
-            MaterialAccessLog.institution_id == institution_id,
-            Student.id == student_id
-        ).group_by(MaterialAccessLog.material_id).all()
-        
-        material_type_counts = defaultdict(int)
-        
-        for log in access_logs:
-            material = self.db.query(StudyMaterial).filter(
-                StudyMaterial.id == log.material_id
-            ).first()
-            
-            if material:
-                material_type_counts[material.material_type.value] += log.access_count
-        
-        total_accesses = sum(material_type_counts.values())
-        
-        preferences = {
-            'preferred_types': material_type_counts,
-            'video_preference': material_type_counts.get(MaterialType.VIDEO.value, 0) / max(total_accesses, 1),
-            'pdf_preference': material_type_counts.get(MaterialType.PDF.value, 0) / max(total_accesses, 1),
-            'total_accesses': total_accesses
-        }
-        
-        return preferences
-    
-    def _calculate_material_relevance_score(
-        self,
-        material: StudyMaterial,
-        weak_area: WeakArea,
-        preferences: Dict[str, Any]
-    ) -> float:
-        """Calculate how relevant a material is for a weak area"""
-        score = 0.0
-        
-        if material.chapter_id == weak_area.chapter_id:
-            score += 0.4
-        
-        if material.topic_id == weak_area.topic_id:
-            score += 0.3
-        
-        if material.subject_id == weak_area.subject_id:
-            score += 0.1
-        
-        type_preference = preferences['preferred_types'].get(
-            material.material_type.value, 0
-        )
-        preference_score = min(type_preference / max(preferences['total_accesses'], 1), 0.2)
-        score += preference_score
-        
-        popularity_score = min(material.view_count / 100.0, 0.1)
-        score += popularity_score
-        
-        return min(score, 1.0)
-    
-    def _generate_material_explanation(
-        self,
-        material: StudyMaterial,
-        weak_area: WeakArea,
-        preferences: Dict[str, Any]
-    ) -> str:
-        """Generate explanation for why material was recommended"""
-        reasons = []
-        
-        if material.topic_id == weak_area.topic_id:
-            reasons.append(f"Covers your weak topic: {material.topic.name if material.topic else 'this topic'}")
-        elif material.chapter_id == weak_area.chapter_id:
-            reasons.append(f"Covers your weak chapter: {material.chapter.name if material.chapter else 'this chapter'}")
-        
-        if material.material_type.value in preferences['preferred_types']:
-            reasons.append(f"Matches your preferred learning format ({material.material_type.value})")
-        
-        if material.view_count > 50:
-            reasons.append(f"Popular resource (viewed {material.view_count} times)")
-        
-        return "; ".join(reasons) if reasons else "Relevant to your learning needs"
-
-
-class PracticeQuestionRecommender:
-    """Recommend practice questions targeting specific skill gaps"""
-    
-    def __init__(self, db: Session):
-        self.db = db
-    
-    def recommend_questions(
-        self,
-        institution_id: int,
-        student_id: int,
-        weak_areas: List[WeakArea],
-        limit: int = 20
-    ) -> List[Dict[str, Any]]:
-        """Recommend practice questions with optimal difficulty levels"""
-        recommendations = []
-        
-        student_ability = self._estimate_student_ability(
-            institution_id, student_id
-        )
-        
-        for weak_area in weak_areas[:10]:
-            optimal_difficulty = self._calculate_optimal_difficulty(
-                weak_area, student_ability
-            )
-            
-            questions = self.db.query(QuestionBank).filter(
-                QuestionBank.institution_id == institution_id,
-                QuestionBank.subject_id == weak_area.subject_id,
-                QuestionBank.is_active == True
-            )
-            
-            if weak_area.chapter_id:
-                questions = questions.filter(
-                    QuestionBank.chapter_id == weak_area.chapter_id
-                )
-            
-            if weak_area.topic_id:
-                questions = questions.filter(
-                    QuestionBank.topic_id == weak_area.topic_id
-                )
-            
-            questions = questions.all()
-            
-            for question in questions:
-                difficulty_match = self._calculate_difficulty_match(
-                    question.difficulty_level,
-                    optimal_difficulty
-                )
-                
-                if difficulty_match > 0.5:
-                    explanation = self._generate_question_explanation(
-                        question,
-                        weak_area,
-                        optimal_difficulty,
-                        student_ability
-                    )
-                    
-                    recommendations.append({
-                        'question_id': question.id,
-                        'question': question,
-                        'weak_area_id': weak_area.id,
-                        'difficulty_match_score': difficulty_match,
-                        'optimal_difficulty': optimal_difficulty,
-                        'explanation': explanation,
-                        'skill_gap_coverage': float(weak_area.weakness_score)
-                    })
-        
-        recommendations.sort(key=lambda x: x['difficulty_match_score'], reverse=True)
-        return recommendations[:limit]
-    
-    def _estimate_student_ability(
-        self,
-        institution_id: int,
-        student_id: int
-    ) -> float:
-        """Estimate student's overall ability level (0-1 scale)"""
-        performances = self.db.query(ChapterPerformance).filter(
-            ChapterPerformance.institution_id == institution_id,
-            ChapterPerformance.student_id == student_id
-        ).all()
-        
-        if not performances:
-            return 0.5
-        
-        avg_mastery = sum(float(p.mastery_score) for p in performances) / len(performances)
-        return avg_mastery / 100.0
-    
-    def _calculate_optimal_difficulty(
-        self,
-        weak_area: WeakArea,
-        student_ability: float
-    ) -> str:
-        """Calculate optimal difficulty level for a weak area"""
-        avg_score = float(weak_area.average_score or 50) / 100.0
-        
-        combined_ability = (student_ability * 0.4) + (avg_score * 0.6)
-        
-        if combined_ability < 0.3:
-            return DifficultyLevel.VERY_EASY.value
-        elif combined_ability < 0.5:
-            return DifficultyLevel.EASY.value
-        elif combined_ability < 0.7:
-            return DifficultyLevel.MEDIUM.value
-        elif combined_ability < 0.85:
-            return DifficultyLevel.HARD.value
-        else:
-            return DifficultyLevel.VERY_HARD.value
-    
-    def _calculate_difficulty_match(
-        self,
-        question_difficulty: DifficultyLevel,
-        optimal_difficulty: str
-    ) -> float:
-        """Calculate how well question difficulty matches optimal difficulty"""
-        difficulty_map = {
-            DifficultyLevel.VERY_EASY.value: 1,
-            DifficultyLevel.EASY.value: 2,
-            DifficultyLevel.MEDIUM.value: 3,
-            DifficultyLevel.HARD.value: 4,
-            DifficultyLevel.VERY_HARD.value: 5
-        }
-        
-        question_level = difficulty_map.get(question_difficulty.value, 3)
-        optimal_level = difficulty_map.get(optimal_difficulty, 3)
-        
-        diff = abs(question_level - optimal_level)
-        
-        if diff == 0:
-            return 1.0
-        elif diff == 1:
-            return 0.8
-        elif diff == 2:
-            return 0.5
-        else:
-            return 0.2
-    
-    def _generate_question_explanation(
-        self,
-        question: QuestionBank,
-        weak_area: WeakArea,
-        optimal_difficulty: str,
-        student_ability: float
-    ) -> str:
-        """Generate explanation for question recommendation"""
-        reasons = []
-        
-        reasons.append(f"Targets your weak area: {weak_area.subject.name}")
-        
-        if question.topic_id == weak_area.topic_id:
-            reasons.append("Covers the specific topic you're struggling with")
-        
-        reasons.append(f"Difficulty level ({question.difficulty_level.value}) matches your current ability")
-        
-        if student_ability < 0.5:
-            reasons.append("Designed to build foundational understanding")
-        else:
-            reasons.append("Challenges you to strengthen mastery")
-        
-        return "; ".join(reasons)
-
-
-class StudyGroupRecommender:
-    """Recommend study groups based on learning styles and schedules"""
-    
-    def __init__(self, db: Session):
-        self.db = db
-    
-    def recommend_study_groups(
-        self,
-        institution_id: int,
-        student_id: int,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
-        """Recommend study groups matching learning style and schedule"""
-        recommendations = []
-        
-        student = self.db.query(Student).filter(
-            Student.id == student_id,
-            Student.institution_id == institution_id
-        ).first()
-        
-        if not student:
-            return []
-        
+        """Generate optimized study path for a subject"""
         weak_areas = self.db.query(WeakArea).filter(
             WeakArea.institution_id == institution_id,
             WeakArea.student_id == student_id,
+            WeakArea.subject_id == subject_id,
             WeakArea.is_resolved == False
-        ).all()
+        ).order_by(WeakArea.weakness_score.desc()).all()
         
-        weak_subject_ids = list(set([w.subject_id for w in weak_areas]))
+        chapters = self.db.query(Chapter).filter(
+            Chapter.subject_id == subject_id,
+            Chapter.is_active == True
+        ).order_by(Chapter.sequence_number).all()
         
-        study_groups = self.db.query(StudyGroup).filter(
-            StudyGroup.institution_id == institution_id,
-            StudyGroup.is_public == True,
-            or_(
-                StudyGroup.max_members.is_(None),
-                StudyGroup.member_count < StudyGroup.max_members
+        chapter_performances = {
+            cp.chapter_id: cp
+            for cp in self.db.query(ChapterPerformance).filter(
+                ChapterPerformance.institution_id == institution_id,
+                ChapterPerformance.student_id == student_id,
+                ChapterPerformance.subject_id == subject_id
+            ).all()
+        }
+        
+        sequenced_path = []
+        
+        for chapter in chapters:
+            performance = chapter_performances.get(chapter.id)
+            mastery = float(performance.mastery_score) if performance else 0.0
+            
+            is_weak = any(
+                wa.chapter_id == chapter.id for wa in weak_areas
             )
-        ).all()
-        
-        for group in study_groups:
-            is_member = self.db.query(GroupMember).filter(
-                GroupMember.group_id == group.id,
-                GroupMember.user_id == student.user_id
-            ).first()
             
-            if is_member:
-                continue
-            
-            compatibility_score = self._calculate_group_compatibility(
-                group, student, weak_subject_ids
+            priority_score = self._calculate_chapter_priority(
+                chapter, mastery, is_weak
             )
             
-            if compatibility_score > 0.3:
-                explanation = self._generate_group_explanation(
-                    group, student, weak_subject_ids, compatibility_score
-                )
-                
-                recommendations.append({
-                    'group_id': group.id,
-                    'group': group,
-                    'compatibility_score': compatibility_score,
-                    'explanation': explanation,
-                    'member_count': group.member_count,
-                    'subject': group.subject.name if group.subject else "Multi-subject"
-                })
+            topics = self.db.query(Topic).filter(
+                Topic.chapter_id == chapter.id,
+                Topic.is_active == True
+            ).order_by(Topic.sequence_number).all()
+            
+            sequenced_path.append({
+                'chapter_id': chapter.id,
+                'chapter_name': chapter.name,
+                'sequence': chapter.sequence_number,
+                'mastery_score': mastery,
+                'is_weak': is_weak,
+                'priority_score': priority_score,
+                'topics': [
+                    {
+                        'topic_id': topic.id,
+                        'topic_name': topic.name,
+                        'sequence': topic.sequence_number
+                    }
+                    for topic in topics
+                ],
+                'estimated_hours': self._estimate_study_hours(mastery, len(topics))
+            })
         
-        recommendations.sort(key=lambda x: x['compatibility_score'], reverse=True)
-        return recommendations[:limit]
+        sequenced_path.sort(key=lambda x: (-x['priority_score'], x['sequence']))
+        
+        return {
+            'subject_id': subject_id,
+            'student_id': student_id,
+            'path': sequenced_path,
+            'total_chapters': len(sequenced_path),
+            'total_estimated_hours': sum(item['estimated_hours'] for item in sequenced_path),
+            'generated_at': datetime.utcnow().isoformat()
+        }
     
-    def _calculate_group_compatibility(
+    def _calculate_chapter_priority(
         self,
-        group: StudyGroup,
-        student: Student,
-        weak_subject_ids: List[int]
+        chapter: Chapter,
+        mastery_score: float,
+        is_weak: bool
     ) -> float:
-        """Calculate compatibility between student and study group"""
-        score = 0.0
+        """Calculate priority score for chapter in study path"""
+        priority = 0.0
         
-        if group.subject_id in weak_subject_ids:
-            score += 0.5
+        if is_weak:
+            priority += 50.0
         
-        members = self.db.query(GroupMember).filter(
-            GroupMember.group_id == group.id
-        ).all()
+        priority += (100.0 - mastery_score) * 0.3
         
-        same_section_count = 0
-        for member in members:
-            member_student = self.db.query(Student).filter(
-                Student.user_id == member.user_id
-            ).first()
-            
-            if member_student and member_student.section_id == student.section_id:
-                same_section_count += 1
+        priority += chapter.sequence_number * 0.1
         
-        if same_section_count > 0:
-            score += 0.2
-        
-        if group.member_count >= 3 and group.member_count <= 8:
-            score += 0.15
-        
-        activity_score = min(group.resource_count / 20.0, 0.15)
-        score += activity_score
-        
-        return min(score, 1.0)
+        return priority
     
-    def _generate_group_explanation(
-        self,
-        group: StudyGroup,
-        student: Student,
-        weak_subject_ids: List[int],
-        compatibility_score: float
-    ) -> str:
-        """Generate explanation for group recommendation"""
-        reasons = []
+    def _estimate_study_hours(self, mastery_score: float, topic_count: int) -> float:
+        """Estimate required study hours for chapter"""
+        base_hours = topic_count * 2.0
         
-        if group.subject_id in weak_subject_ids:
-            reasons.append(f"Focuses on {group.subject.name}, which you're working to improve")
+        mastery_multiplier = 1.0 + ((100.0 - mastery_score) / 100.0)
         
-        if group.member_count >= 3 and group.member_count <= 8:
-            reasons.append(f"Optimal group size ({group.member_count} members) for effective collaboration")
-        
-        if group.resource_count > 5:
-            reasons.append(f"Active group with {group.resource_count} shared resources")
-        
-        members = self.db.query(GroupMember).filter(
-            GroupMember.group_id == group.id
-        ).all()
-        
-        same_section_count = sum(
-            1 for m in members
-            if self.db.query(Student).filter(
-                Student.user_id == m.user_id,
-                Student.section_id == student.section_id
-            ).first()
-        )
-        
-        if same_section_count > 0:
-            reasons.append(f"{same_section_count} classmate(s) already in this group")
-        
-        return "; ".join(reasons) if reasons else "Matches your learning needs"
+        return base_hours * mastery_multiplier
 
 
-class VideoResourceRecommender:
-    """Recommend video/resources based on chapter progress and preferences"""
+class ExternalContentLibraryIntegrator:
+    """
+    Integrate with external content libraries:
+    - Khan Academy
+    - YouTube EDU
+    - OpenStax
+    - Coursera
+    - MIT OpenCourseWare
+    """
     
     def __init__(self, db: Session):
         self.db = db
     
-    def recommend_videos(
+    def search_khan_academy(
         self,
-        institution_id: int,
-        student_id: int,
-        chapter_progress: Dict[int, float],
-        limit: int = 15
+        topic: str,
+        subject: str,
+        limit: int = 5
     ) -> List[Dict[str, Any]]:
-        """Recommend videos based on chapter progress and learning preferences"""
-        recommendations = []
+        """
+        Search Khan Academy for educational content.
+        In production, this would call Khan Academy API.
+        """
+        base_url = "https://www.khanacademy.org"
         
-        weak_chapters = [
-            chapter_id for chapter_id, progress in chapter_progress.items()
-            if progress < 70.0
+        content_items = [
+            {
+                'source': ContentSource.KHAN_ACADEMY,
+                'title': f"{topic} - Khan Academy",
+                'url': f"{base_url}/search?query={topic.replace(' ', '+')}",
+                'type': 'video_playlist',
+                'subject': subject,
+                'topic': topic,
+                'description': f"Comprehensive video lessons on {topic}",
+                'estimated_duration_minutes': 45,
+                'difficulty': 'beginner_to_intermediate',
+                'language': 'en'
+            }
         ]
         
-        learning_preferences = self._get_learning_preferences(
-            institution_id, student_id
-        )
-        
-        videos = self.db.query(StudyMaterial).filter(
-            StudyMaterial.institution_id == institution_id,
-            StudyMaterial.material_type == MaterialType.VIDEO,
-            StudyMaterial.is_active == True
-        )
-        
-        if weak_chapters:
-            videos = videos.filter(
-                StudyMaterial.chapter_id.in_(weak_chapters)
-            )
-        
-        videos = videos.all()
-        
-        for video in videos:
-            relevance_score = self._calculate_video_relevance(
-                video, chapter_progress, learning_preferences
-            )
-            
-            if relevance_score > 0.3:
-                explanation = self._generate_video_explanation(
-                    video, chapter_progress
-                )
-                
-                recommendations.append({
-                    'material_id': video.id,
-                    'video': video,
-                    'relevance_score': relevance_score,
-                    'explanation': explanation,
-                    'chapter': video.chapter.name if video.chapter else "General",
-                    'view_count': video.view_count
-                })
-        
-        recommendations.sort(key=lambda x: x['relevance_score'], reverse=True)
-        return recommendations[:limit]
+        return content_items[:limit]
     
-    def _get_learning_preferences(
+    def search_youtube_edu(
         self,
-        institution_id: int,
-        student_id: int
-    ) -> Dict[str, Any]:
-        """Get student's video learning preferences"""
-        access_logs = self.db.query(MaterialAccessLog).join(
-            StudyMaterial
-        ).join(User).join(
-            Student, Student.user_id == User.id
-        ).filter(
-            MaterialAccessLog.institution_id == institution_id,
-            Student.id == student_id,
-            StudyMaterial.material_type == MaterialType.VIDEO
-        ).all()
+        topic: str,
+        subject: str,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Search YouTube EDU for educational videos.
+        In production, this would call YouTube Data API.
+        """
+        base_url = "https://www.youtube.com"
         
-        watched_chapters = defaultdict(int)
-        for log in access_logs:
-            if log.material.chapter_id:
-                watched_chapters[log.material.chapter_id] += 1
+        search_query = f"{topic} {subject} educational"
         
-        return {
-            'watched_chapters': watched_chapters,
-            'total_videos_watched': len(access_logs)
-        }
-    
-    def _calculate_video_relevance(
-        self,
-        video: StudyMaterial,
-        chapter_progress: Dict[int, float],
-        preferences: Dict[str, Any]
-    ) -> float:
-        """Calculate video relevance score"""
-        score = 0.0
-        
-        if video.chapter_id in chapter_progress:
-            progress = chapter_progress[video.chapter_id]
-            if progress < 70:
-                score += 0.5 * (1 - progress / 100.0)
-        
-        if video.chapter_id in preferences['watched_chapters']:
-            score += 0.2
-        
-        popularity_score = min(video.view_count / 100.0, 0.2)
-        score += popularity_score
-        
-        if video.tags:
-            score += 0.1
-        
-        return min(score, 1.0)
-    
-    def _generate_video_explanation(
-        self,
-        video: StudyMaterial,
-        chapter_progress: Dict[int, float]
-    ) -> str:
-        """Generate explanation for video recommendation"""
-        reasons = []
-        
-        if video.chapter_id in chapter_progress:
-            progress = chapter_progress[video.chapter_id]
-            if progress < 50:
-                reasons.append(f"Helps build foundation in {video.chapter.name}")
-            elif progress < 70:
-                reasons.append(f"Strengthens understanding of {video.chapter.name}")
-        
-        if video.view_count > 50:
-            reasons.append(f"Popular video resource ({video.view_count} views)")
-        
-        if video.description:
-            reasons.append("Comprehensive coverage of the topic")
-        
-        return "; ".join(reasons) if reasons else "Relevant video resource for your learning"
-
-
-class RecommendationExplanationSystem:
-    """Generate comprehensive explanations for recommendations"""
-    
-    @staticmethod
-    def explain_study_material_recommendation(
-        material: StudyMaterial,
-        weak_area: WeakArea,
-        peer_success: bool = False,
-        similarity_score: float = 0.0
-    ) -> Dict[str, Any]:
-        """Generate detailed explanation for study material recommendation"""
-        explanation = {
-            'material_title': material.title,
-            'material_type': material.material_type.value,
-            'primary_reason': '',
-            'supporting_reasons': [],
-            'peer_insights': None,
-            'effectiveness_indicators': [],
-            'recommended_action': ''
-        }
-        
-        if material.topic_id == weak_area.topic_id:
-            explanation['primary_reason'] = f"Directly addresses your weak topic: {material.topic.name if material.topic else 'this topic'}"
-        elif material.chapter_id == weak_area.chapter_id:
-            explanation['primary_reason'] = f"Covers your weak chapter: {material.chapter.name if material.chapter else 'this chapter'}"
-        else:
-            explanation['primary_reason'] = f"Relevant to {weak_area.subject.name}"
-        
-        explanation['supporting_reasons'].append(
-            f"Your current performance: {float(weak_area.average_score or 0):.1f}%"
-        )
-        
-        if peer_success:
-            explanation['peer_insights'] = {
-                'message': f"Similar high-performing students found this helpful",
-                'similarity_score': round(similarity_score * 100, 1)
+        content_items = [
+            {
+                'source': ContentSource.YOUTUBE_EDU,
+                'title': f"{topic} Tutorial - Educational Video",
+                'url': f"{base_url}/results?search_query={search_query.replace(' ', '+')}",
+                'type': 'video',
+                'subject': subject,
+                'topic': topic,
+                'description': f"Video tutorial on {topic}",
+                'estimated_duration_minutes': 20,
+                'channel': 'Educational Channels',
+                'language': 'en'
             }
+        ]
         
-        if material.view_count > 50:
-            explanation['effectiveness_indicators'].append(
-                f"Highly accessed resource ({material.view_count} views)"
-            )
-        
-        if material.download_count > 20:
-            explanation['effectiveness_indicators'].append(
-                f"Frequently downloaded ({material.download_count} downloads)"
-            )
-        
-        explanation['recommended_action'] = f"Study this {material.material_type.value} to improve your understanding of the weak area"
-        
-        return explanation
+        return content_items[:limit]
     
-    @staticmethod
-    def explain_question_recommendation(
-        question: QuestionBank,
-        weak_area: WeakArea,
-        difficulty_match_score: float,
-        student_ability: float
-    ) -> Dict[str, Any]:
-        """Generate detailed explanation for question recommendation"""
-        explanation = {
-            'question_info': {
-                'difficulty': question.difficulty_level.value,
-                'type': question.question_type.value,
-                'marks': question.marks
-            },
-            'why_recommended': '',
-            'difficulty_reasoning': '',
-            'skill_development': [],
-            'expected_outcome': ''
-        }
+    def search_openstax(
+        self,
+        topic: str,
+        subject: str,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Search OpenStax for free textbooks and resources.
+        In production, this would call OpenStax API.
+        """
+        base_url = "https://openstax.org"
         
-        explanation['why_recommended'] = f"Targets your weak area in {weak_area.subject.name}"
+        content_items = [
+            {
+                'source': ContentSource.OPENSTAX,
+                'title': f"{subject} Textbook - {topic}",
+                'url': f"{base_url}/subjects/{subject.lower().replace(' ', '-')}",
+                'type': 'textbook',
+                'subject': subject,
+                'topic': topic,
+                'description': f"Free textbook covering {topic}",
+                'format': 'pdf',
+                'pages': 'varies',
+                'license': 'CC-BY',
+                'language': 'en'
+            }
+        ]
         
-        if difficulty_match_score > 0.8:
-            explanation['difficulty_reasoning'] = "Perfect difficulty match for your current ability level"
-        elif difficulty_match_score > 0.6:
-            explanation['difficulty_reasoning'] = "Good difficulty match to challenge you appropriately"
-        else:
-            explanation['difficulty_reasoning'] = "Slightly challenging to promote growth"
-        
-        if student_ability < 0.5:
-            explanation['skill_development'].append("Builds foundational understanding")
-            explanation['expected_outcome'] = "Strengthens basic concepts and improves confidence"
-        else:
-            explanation['skill_development'].append("Enhances advanced problem-solving skills")
-            explanation['expected_outcome'] = "Deepens mastery and prepares for complex scenarios"
-        
-        if question.bloom_taxonomy_level:
-            explanation['skill_development'].append(
-                f"Develops {question.bloom_taxonomy_level.value} level thinking"
-            )
-        
-        return explanation
+        return content_items[:limit]
     
-    @staticmethod
-    def explain_study_group_recommendation(
-        group: StudyGroup,
-        compatibility_score: float,
-        matching_subjects: bool,
-        peer_count: int
-    ) -> Dict[str, Any]:
-        """Generate detailed explanation for study group recommendation"""
-        explanation = {
-            'group_name': group.name,
-            'group_focus': group.subject.name if group.subject else "Multi-subject",
-            'compatibility_score': round(compatibility_score * 100, 1),
-            'key_benefits': [],
-            'group_dynamics': {},
-            'recommendation_strength': ''
+    def search_coursera(
+        self,
+        topic: str,
+        subject: str,
+        limit: int = 3
+    ) -> List[Dict[str, Any]]:
+        """Search Coursera for courses"""
+        base_url = "https://www.coursera.org"
+        
+        content_items = [
+            {
+                'source': ContentSource.COURSERA,
+                'title': f"{topic} - Online Course",
+                'url': f"{base_url}/search?query={topic.replace(' ', '+')}",
+                'type': 'course',
+                'subject': subject,
+                'topic': topic,
+                'description': f"Structured course on {topic}",
+                'provider': 'Top Universities',
+                'duration_weeks': 4,
+                'effort_hours_per_week': 5,
+                'language': 'en'
+            }
+        ]
+        
+        return content_items[:limit]
+    
+    def search_mit_ocw(
+        self,
+        topic: str,
+        subject: str,
+        limit: int = 3
+    ) -> List[Dict[str, Any]]:
+        """Search MIT OpenCourseWare"""
+        base_url = "https://ocw.mit.edu"
+        
+        content_items = [
+            {
+                'source': ContentSource.MIT_OCW,
+                'title': f"{topic} - MIT OpenCourseWare",
+                'url': f"{base_url}/search/?q={topic.replace(' ', '+')}",
+                'type': 'course_materials',
+                'subject': subject,
+                'topic': topic,
+                'description': f"MIT lecture notes and materials on {topic}",
+                'includes': ['lecture_notes', 'assignments', 'exams'],
+                'level': 'undergraduate',
+                'language': 'en'
+            }
+        ]
+        
+        return content_items[:limit]
+    
+    def get_comprehensive_external_content(
+        self,
+        topic: str,
+        subject: str
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Get content from all external sources"""
+        return {
+            'khan_academy': self.search_khan_academy(topic, subject),
+            'youtube_edu': self.search_youtube_edu(topic, subject),
+            'openstax': self.search_openstax(topic, subject),
+            'coursera': self.search_coursera(topic, subject),
+            'mit_ocw': self.search_mit_ocw(topic, subject)
         }
-        
-        if matching_subjects:
-            explanation['key_benefits'].append(
-                "Group focuses on subjects you're working to improve"
-            )
-        
-        explanation['group_dynamics'] = {
-            'member_count': group.member_count,
-            'size_rating': 'Optimal' if 3 <= group.member_count <= 8 else 'Good',
-            'activity_level': 'Active' if group.resource_count > 5 else 'Moderate'
-        }
-        
-        if peer_count > 0:
-            explanation['key_benefits'].append(
-                f"{peer_count} of your classmates are already members"
-            )
-        
-        if group.resource_count > 5:
-            explanation['key_benefits'].append(
-                f"Active resource sharing ({group.resource_count} resources)"
-            )
-        
-        if compatibility_score > 0.7:
-            explanation['recommendation_strength'] = "Highly Recommended"
-        elif compatibility_score > 0.5:
-            explanation['recommendation_strength'] = "Recommended"
-        else:
-            explanation['recommendation_strength'] = "Consider Joining"
-        
-        return explanation
 
 
 class IntelligentRecommendationService:
-    """Main service coordinating all recommendation engines"""
+    """
+    Main orchestration service integrating all recommendation engines.
+    Provides comprehensive, personalized study recommendations.
+    """
     
     def __init__(self, db: Session):
         self.db = db
         self.collaborative_engine = CollaborativeFilteringEngine(db)
-        self.content_engine = ContentBasedRecommendationEngine(db)
-        self.question_recommender = PracticeQuestionRecommender(db)
-        self.group_recommender = StudyGroupRecommender(db)
-        self.video_recommender = VideoResourceRecommender(db)
-        self.explanation_system = RecommendationExplanationSystem()
+        self.effectiveness_engine = ContentEffectivenessEngine(db)
+        self.difficulty_detector = DifficultyLevelDetector(db)
+        self.multimodal_recommender = MultiModalContentRecommender(db)
+        self.path_sequencer = StudyPathSequencer(db)
+        self.external_integrator = ExternalContentLibraryIntegrator(db)
     
     def generate_comprehensive_recommendations(
         self,
         institution_id: int,
         student_id: int
     ) -> Dict[str, Any]:
-        """Generate all types of recommendations with explanations"""
+        """
+        Generate comprehensive recommendations using all engines.
+        Returns personalized study recommendations with explanations.
+        """
+        logger.info(f"Generating comprehensive recommendations for student {student_id}")
+        
         weak_areas = self.db.query(WeakArea).filter(
             WeakArea.institution_id == institution_id,
             WeakArea.student_id == student_id,
@@ -929,81 +990,117 @@ class IntelligentRecommendationService:
             institution_id, similar_students, weak_chapter_ids, limit=10
         )
         
-        content_materials = self.content_engine.recommend_study_materials(
+        learning_style_recommendations = self.multimodal_recommender.recommend_by_learning_style(
             institution_id, student_id, weak_areas, limit=15
         )
         
-        material_recommendations = self._merge_material_recommendations(
-            content_materials, peer_materials
-        )
-        
-        question_recommendations = self.question_recommender.recommend_questions(
-            institution_id, student_id, weak_areas, limit=20
-        )
-        
-        group_recommendations = self.group_recommender.recommend_study_groups(
+        difficulty_recommendations = self.difficulty_detector.get_difficulty_appropriate_materials(
             institution_id, student_id, limit=10
         )
         
-        chapter_progress = self._get_chapter_progress(institution_id, student_id)
+        material_recommendations = self._merge_all_recommendations(
+            learning_style_recommendations,
+            difficulty_recommendations,
+            peer_materials
+        )
         
-        video_recommendations = self.video_recommender.recommend_videos(
-            institution_id, student_id, chapter_progress, limit=15
+        external_content = []
+        for weak_area in weak_areas[:3]:
+            topic_name = weak_area.topic.name if weak_area.topic else weak_area.chapter.name
+            subject_name = weak_area.subject.name
+            
+            external = self.external_integrator.get_comprehensive_external_content(
+                topic_name, subject_name
+            )
+            
+            external_content.append({
+                'weak_area_id': weak_area.id,
+                'topic': topic_name,
+                'subject': subject_name,
+                'content': external
+            })
+        
+        study_paths = []
+        unique_subjects = set(wa.subject_id for wa in weak_areas)
+        for subject_id in list(unique_subjects)[:3]:
+            path = self.path_sequencer.generate_study_path(
+                institution_id, student_id, subject_id
+            )
+            study_paths.append(path)
+        
+        learning_style_profile = self.multimodal_recommender.detect_learning_style(
+            institution_id, student_id
         )
         
         return {
             'student_id': student_id,
             'generated_at': datetime.utcnow().isoformat(),
+            'learning_style_profile': learning_style_profile,
             'summary': {
                 'total_weak_areas': len(weak_areas),
                 'similar_peers_found': len(similar_students),
                 'materials_recommended': len(material_recommendations),
-                'questions_recommended': len(question_recommendations),
-                'groups_recommended': len(group_recommendations),
-                'videos_recommended': len(video_recommendations)
+                'external_sources': len(external_content),
+                'study_paths_generated': len(study_paths)
             },
-            'study_materials': material_recommendations[:15],
-            'practice_questions': question_recommendations[:20],
-            'study_groups': group_recommendations[:10],
-            'video_resources': video_recommendations[:15],
+            'recommended_materials': material_recommendations[:20],
+            'external_content': external_content,
+            'study_paths': study_paths,
             'weak_areas_summary': [
                 {
-                    'id': w.id,
-                    'subject': w.subject.name,
-                    'chapter': w.chapter.name if w.chapter else None,
-                    'topic': w.topic.name if w.topic else None,
-                    'weakness_score': float(w.weakness_score),
-                    'average_score': float(w.average_score or 0)
+                    'id': wa.id,
+                    'subject': wa.subject.name,
+                    'chapter': wa.chapter.name if wa.chapter else None,
+                    'topic': wa.topic.name if wa.topic else None,
+                    'weakness_score': float(wa.weakness_score),
+                    'average_score': float(wa.average_score or 0),
+                    'difficulty_recommendation': self.difficulty_detector.detect_student_difficulty_level(
+                        institution_id, student_id, wa.chapter_id
+                    ) if wa.chapter_id else None
                 }
-                for w in weak_areas[:10]
+                for wa in weak_areas[:10]
             ]
         }
     
-    def _merge_material_recommendations(
+    def _merge_all_recommendations(
         self,
-        content_materials: List[Dict[str, Any]],
-        peer_materials: List[Tuple[int, float, str]]
+        style_recs: List[Dict[str, Any]],
+        difficulty_recs: List[Dict[str, Any]],
+        peer_recs: List[Tuple[int, float, str]]
     ) -> List[Dict[str, Any]]:
-        """Merge content-based and collaborative filtering results"""
+        """Merge recommendations from all sources with weighted scoring"""
         merged = {}
         
-        for rec in content_materials:
+        for rec in style_recs:
             material_id = rec['material_id']
             merged[material_id] = {
                 'material_id': material_id,
                 'material': rec['material'],
-                'score': rec['relevance_score'],
-                'explanation': rec['explanation'],
-                'from_peers': False,
-                'peer_score': 0.0
+                'score': rec['style_match_score'] * 0.4,
+                'reasons': [rec['explanation']],
+                'sources': ['learning_style']
             }
         
-        for material_id, peer_score, peer_reason in peer_materials:
+        for rec in difficulty_recs:
+            material_id = rec['material_id']
+            if material_id in merged:
+                merged[material_id]['score'] += rec['relevance_score'] * 0.3
+                merged[material_id]['reasons'].append(rec['reasoning'])
+                merged[material_id]['sources'].append('difficulty_match')
+            else:
+                merged[material_id] = {
+                    'material_id': material_id,
+                    'material': rec['material'],
+                    'score': rec['relevance_score'] * 0.3,
+                    'reasons': [rec['reasoning']],
+                    'sources': ['difficulty_match']
+                }
+        
+        for material_id, peer_score, peer_reason in peer_recs:
             if material_id in merged:
                 merged[material_id]['score'] += peer_score * 0.3
-                merged[material_id]['from_peers'] = True
-                merged[material_id]['peer_score'] = peer_score
-                merged[material_id]['explanation'] += f"; {peer_reason}"
+                merged[material_id]['reasons'].append(peer_reason)
+                merged[material_id]['sources'].append('peer_success')
             else:
                 material = self.db.query(StudyMaterial).filter(
                     StudyMaterial.id == material_id
@@ -1013,114 +1110,93 @@ class IntelligentRecommendationService:
                     merged[material_id] = {
                         'material_id': material_id,
                         'material': material,
-                        'score': peer_score,
-                        'explanation': peer_reason,
-                        'from_peers': True,
-                        'peer_score': peer_score
+                        'score': peer_score * 0.3,
+                        'reasons': [peer_reason],
+                        'sources': ['peer_success']
                     }
         
-        result = list(merged.values())
-        result.sort(key=lambda x: x['score'], reverse=True)
+        result = []
+        for mat_id, data in merged.items():
+            effectiveness = self.effectiveness_engine.calculate_material_effectiveness(
+                data['material'].institution_id,
+                mat_id
+            )
+            
+            if effectiveness:
+                data['score'] += effectiveness['effectiveness_score'] * 0.2
+                if effectiveness['effectiveness_score'] > 0.7:
+                    data['reasons'].append(
+                        f"Highly effective (avg improvement: {effectiveness['avg_improvement']:.1f}%)"
+                    )
+            
+            data['explanation'] = ' | '.join(data['reasons'])
+            result.append(data)
         
+        result.sort(key=lambda x: x['score'], reverse=True)
         return result
     
-    def _get_chapter_progress(
-        self,
-        institution_id: int,
-        student_id: int
-    ) -> Dict[int, float]:
-        """Get chapter-wise progress for student"""
-        performances = self.db.query(ChapterPerformance).filter(
-            ChapterPerformance.institution_id == institution_id,
-            ChapterPerformance.student_id == student_id
-        ).all()
-        
-        return {
-            p.chapter_id: float(p.mastery_score)
-            for p in performances
-        }
-    
-    def get_recommendation_with_explanation(
+    def get_recommendations_for_topic(
         self,
         institution_id: int,
         student_id: int,
-        recommendation_type: str,
-        item_id: int
+        topic_id: int,
+        include_external: bool = True
     ) -> Dict[str, Any]:
-        """Get detailed explanation for a specific recommendation"""
-        if recommendation_type == 'material':
-            material = self.db.query(StudyMaterial).filter(
-                StudyMaterial.id == item_id,
-                StudyMaterial.institution_id == institution_id
-            ).first()
-            
-            if not material:
-                return {'error': 'Material not found'}
-            
-            weak_areas = self.db.query(WeakArea).filter(
-                WeakArea.institution_id == institution_id,
-                WeakArea.student_id == student_id,
-                or_(
-                    WeakArea.chapter_id == material.chapter_id,
-                    WeakArea.topic_id == material.topic_id
-                )
-            ).first()
-            
-            if weak_areas:
-                return self.explanation_system.explain_study_material_recommendation(
-                    material, weak_areas
-                )
+        """Get targeted recommendations for specific topic"""
+        topic = self.db.query(Topic).filter(Topic.id == topic_id).first()
         
-        elif recommendation_type == 'question':
-            question = self.db.query(QuestionBank).filter(
-                QuestionBank.id == item_id,
-                QuestionBank.institution_id == institution_id
-            ).first()
-            
-            if not question:
-                return {'error': 'Question not found'}
-            
-            weak_areas = self.db.query(WeakArea).filter(
-                WeakArea.institution_id == institution_id,
-                WeakArea.student_id == student_id,
-                WeakArea.chapter_id == question.chapter_id
-            ).first()
-            
-            if weak_areas:
-                student_ability = self.question_recommender._estimate_student_ability(
-                    institution_id, student_id
-                )
-                
-                return self.explanation_system.explain_question_recommendation(
-                    question, weak_areas, 0.8, student_ability
-                )
+        if not topic:
+            return {'error': 'Topic not found'}
         
-        elif recommendation_type == 'group':
-            group = self.db.query(StudyGroup).filter(
-                StudyGroup.id == item_id,
-                StudyGroup.institution_id == institution_id
-            ).first()
-            
-            if not group:
-                return {'error': 'Group not found'}
-            
-            student = self.db.query(Student).filter(
-                Student.id == student_id
-            ).first()
-            
-            weak_subject_ids = [
-                w.subject_id for w in self.db.query(WeakArea).filter(
-                    WeakArea.student_id == student_id,
-                    WeakArea.is_resolved == False
-                ).all()
-            ]
-            
-            compatibility = self.group_recommender._calculate_group_compatibility(
-                group, student, weak_subject_ids
+        difficulty_info = self.difficulty_detector.detect_student_difficulty_level(
+            institution_id, student_id, topic.chapter_id
+        )
+        
+        materials = self.db.query(StudyMaterial).filter(
+            StudyMaterial.institution_id == institution_id,
+            StudyMaterial.topic_id == topic_id,
+            StudyMaterial.is_active == True
+        ).all()
+        
+        learning_style = self.multimodal_recommender.detect_learning_style(
+            institution_id, student_id
+        )
+        
+        recommendations = []
+        for material in materials:
+            style_match = self.multimodal_recommender._calculate_style_match(
+                material, learning_style
+            )
+            effectiveness = self.effectiveness_engine.calculate_material_effectiveness(
+                institution_id, material.id
             )
             
-            return self.explanation_system.explain_study_group_recommendation(
-                group, compatibility, group.subject_id in weak_subject_ids, 0
+            score = style_match * 0.5 + (effectiveness['effectiveness_score'] * 0.5 if effectiveness else 0)
+            
+            recommendations.append({
+                'material_id': material.id,
+                'material': material,
+                'score': score,
+                'style_match': style_match,
+                'effectiveness': effectiveness
+            })
+        
+        recommendations.sort(key=lambda x: x['score'], reverse=True)
+        
+        result = {
+            'topic_id': topic_id,
+            'topic_name': topic.name,
+            'chapter_name': topic.chapter.name if topic.chapter else None,
+            'subject_name': topic.chapter.subject.name if topic.chapter else None,
+            'difficulty_recommendation': difficulty_info,
+            'learning_style_profile': learning_style,
+            'internal_materials': recommendations,
+        }
+        
+        if include_external:
+            result['external_content'] = self.external_integrator.get_comprehensive_external_content(
+                topic.name,
+                topic.chapter.subject.name if topic.chapter else 'General'
             )
         
-        return {'error': 'Invalid recommendation type'}
+        return result

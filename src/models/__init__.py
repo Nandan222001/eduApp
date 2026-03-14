@@ -37,7 +37,8 @@ from src.models.analytics import (
 )
 from src.models.study_material import (
     StudyMaterial, MaterialBookmark, MaterialAccessLog, MaterialShare, MaterialTag,
-    MaterialType
+    MaterialType, ExternalContent, ExternalContentSource, ExternalContentAccessLog,
+    ContentEffectivenessScore, StudentLearningPreference
 )
 from src.models.search import SearchHistory, PopularSearch
 from src.models.fee import FeeStructure, FeePayment, FeeWaiver, FeeCategory, PaymentMethod, PaymentStatus
@@ -210,6 +211,11 @@ __all__ = [
     "MaterialShare",
     "MaterialTag",
     "MaterialType",
+    "ExternalContent",
+    "ExternalContentSource",
+    "ExternalContentAccessLog",
+    "ContentEffectivenessScore",
+    "StudentLearningPreference",
     "SearchHistory",
     "PopularSearch",
     "FeeStructure",

@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, validator
-from src.models.study_material import MaterialType
+from decimal import Decimal
+from src.models.study_material import MaterialType, ExternalContentSource
 
 
 class MaterialTagBase(BaseModel):
@@ -216,3 +217,21 @@ class RecentlyAccessedResponse(BaseModel):
 
 
 MaterialHierarchyNode.model_rebuild()
+
+
+class ContentEffectivenessScoreResponse(BaseModel):
+    id: int
+    institution_id: int
+    material_id: Optional[int]
+    external_content_id: Optional[int]
+    effectiveness_score: Decimal
+    avg_improvement: Decimal
+    engagement_score: Decimal
+    performance_correlation: Decimal
+    unique_students: int
+    total_accesses: int
+    positive_outcomes: int
+    last_calculated_at: datetime
+
+    class Config:
+        from_attributes = True
