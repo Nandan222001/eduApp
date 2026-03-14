@@ -52,6 +52,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import studentsApi, { Student, StudentStatistics } from '@/api/students';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 
 export default function StudentList() {
   const navigate = useNavigate();
@@ -76,16 +77,25 @@ export default function StudentList() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await studentsApi.listStudents({
-        skip: page * rowsPerPage,
-        limit: rowsPerPage,
-        search: search || undefined,
-        is_active: activeFilter,
-        status: statusFilter || undefined,
-        gender: genderFilter || undefined,
-        grade_id: gradeFilter,
-        section_id: sectionFilter,
-      });
+      const response = isDemoUser()
+        ? await demoDataApi.institutionAdmin.getStudentList({
+            skip: page * rowsPerPage,
+            limit: rowsPerPage,
+            search: search || undefined,
+            grade_id: gradeFilter,
+            section_id: sectionFilter,
+            status: statusFilter || undefined,
+          })
+        : await studentsApi.listStudents({
+            skip: page * rowsPerPage,
+            limit: rowsPerPage,
+            search: search || undefined,
+            is_active: activeFilter,
+            status: statusFilter || undefined,
+            gender: genderFilter || undefined,
+            grade_id: gradeFilter,
+            section_id: sectionFilter,
+          });
       setStudents(response.items);
       setTotal(response.total);
       setError(null);
@@ -99,7 +109,17 @@ export default function StudentList() {
 
   const fetchStatistics = async () => {
     try {
-      const stats = await studentsApi.getStatistics();
+      const stats = isDemoUser()
+        ? {
+            total_students: 25,
+            active_students: 20,
+            inactive_students: 5,
+            male_students: 13,
+            female_students: 12,
+            students_by_grade: {},
+            students_by_status: {},
+          }
+        : await studentsApi.getStatistics();
       setStatistics(stats);
     } catch (err) {
       console.error('Failed to load statistics', err);
@@ -108,7 +128,6 @@ export default function StudentList() {
 
   useEffect(() => {
     fetchStudents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     page,
     rowsPerPage,
@@ -174,7 +193,9 @@ export default function StudentList() {
     if (!selectedStudent) return;
 
     try {
-      await studentsApi.deleteStudent(selectedStudent.id);
+      if (!isDemoUser()) {
+        await studentsApi.deleteStudent(selectedStudent.id);
+      }
       setDeleteDialogOpen(false);
       fetchStudents();
       fetchStatistics();

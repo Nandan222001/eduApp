@@ -9,6 +9,7 @@ import UsageTracking from '@/components/subscription/UsageTracking';
 import AddOnModules from '@/components/subscription/AddOnModules';
 import AutoRenewalSettings from '@/components/subscription/AutoRenewalSettings';
 import subscriptionApi, { SubscriptionData } from '@/api/subscription';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -46,7 +47,9 @@ export default function SubscriptionBilling() {
     try {
       setLoading(true);
       setError(null);
-      const data = await subscriptionApi.getInstitutionSubscription();
+      const data = isDemoUser()
+        ? await demoDataApi.institutionAdmin.getSubscriptionBilling()
+        : await subscriptionApi.getInstitutionSubscription();
       setSubscriptionData(data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };

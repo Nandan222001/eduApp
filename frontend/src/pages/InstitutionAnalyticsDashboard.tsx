@@ -29,6 +29,7 @@ import {
 import { analyticsApi } from '@/api/analytics';
 import { InstitutionAnalytics, CustomReportData, CustomReportFilter } from '@/types/analytics';
 import { subDays, subMonths } from 'date-fns';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -74,11 +75,16 @@ export default function InstitutionAnalyticsDashboard() {
             break;
         }
 
-        const data = await analyticsApi.getInstitutionAnalytics(
-          institutionId,
-          startDate.toISOString(),
-          endDate.toISOString()
-        );
+        const data = isDemoUser()
+          ? await demoDataApi.institutionAdmin.getInstitutionAnalytics({
+              start_date: startDate.toISOString(),
+              end_date: endDate.toISOString(),
+            })
+          : await analyticsApi.getInstitutionAnalytics(
+              institutionId,
+              startDate.toISOString(),
+              endDate.toISOString()
+            );
         setAnalytics(data);
         setError(null);
       } catch (err: unknown) {
@@ -93,12 +99,16 @@ export default function InstitutionAnalyticsDashboard() {
   }, [dateRange]);
 
   const handleGenerateCustomReport = async (filters: CustomReportFilter) => {
-    return await analyticsApi.generateCustomReport(filters);
+    return isDemoUser()
+      ? await demoDataApi.analytics.generateCustomReport(filters)
+      : await analyticsApi.generateCustomReport(filters);
   };
 
   const handleExportPDF = async (reportData: CustomReportData) => {
     try {
-      const blob = await analyticsApi.exportReportToPDF(reportData);
+      const blob = isDemoUser()
+        ? await demoDataApi.analytics.exportReportToPDF(reportData)
+        : await analyticsApi.exportReportToPDF(reportData);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -114,7 +124,9 @@ export default function InstitutionAnalyticsDashboard() {
 
   const handleExportExcel = async (reportData: CustomReportData) => {
     try {
-      const blob = await analyticsApi.exportReportToExcel(reportData);
+      const blob = isDemoUser()
+        ? await demoDataApi.analytics.exportReportToExcel(reportData)
+        : await analyticsApi.exportReportToExcel(reportData);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

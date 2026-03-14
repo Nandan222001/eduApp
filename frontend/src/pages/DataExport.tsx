@@ -42,6 +42,7 @@ import dataManagementApi from '@/api/dataManagement';
 import ColumnSelector from '@/components/dataManagement/ColumnSelector';
 import ExportPreviewDialog from '@/components/dataManagement/ExportPreviewDialog';
 import ScheduledExportDialog from '@/components/dataManagement/ScheduledExportDialog';
+import { isDemoUser } from '@/api/demoDataApi';
 
 export default function DataExport() {
   const [entity, setEntity] = useState<TableEntity>('students');
@@ -69,10 +70,31 @@ export default function DataExport() {
 
   const fetchEntityMetadata = async () => {
     try {
-      const metadata = await dataManagementApi.getEntityMetadata(entity);
-      if (metadata.length > 0) {
-        setAvailableColumns(metadata[0].columns);
-        setSelectedColumns(metadata[0].columns.filter((col) => col.required).map((col) => col.id));
+      if (isDemoUser()) {
+        // Use demo data for metadata
+        const demoMetadata = [
+          {
+            entity,
+            columns: [
+              { id: 'id', label: 'ID', type: 'number', required: true },
+              { id: 'name', label: 'Name', type: 'string', required: true },
+              { id: 'email', label: 'Email', type: 'string', required: true },
+              { id: 'phone', label: 'Phone', type: 'string', required: false },
+            ],
+          },
+        ];
+        setAvailableColumns(demoMetadata[0].columns);
+        setSelectedColumns(
+          demoMetadata[0].columns.filter((col) => col.required).map((col) => col.id)
+        );
+      } else {
+        const metadata = await dataManagementApi.getEntityMetadata(entity);
+        if (metadata.length > 0) {
+          setAvailableColumns(metadata[0].columns);
+          setSelectedColumns(
+            metadata[0].columns.filter((col) => col.required).map((col) => col.id)
+          );
+        }
       }
     } catch (err) {
       console.error('Failed to fetch metadata:', err);
@@ -81,8 +103,12 @@ export default function DataExport() {
 
   const fetchScheduledExports = async () => {
     try {
-      const exports = await dataManagementApi.getScheduledExports();
-      setScheduledExports(exports);
+      if (isDemoUser()) {
+        setScheduledExports([]);
+      } else {
+        const exports = await dataManagementApi.getScheduledExports();
+        setScheduledExports(exports);
+      }
     } catch (err) {
       console.error('Failed to fetch scheduled exports:', err);
     }
@@ -106,8 +132,20 @@ export default function DataExport() {
             : undefined,
       };
 
-      const preview = await dataManagementApi.getExportPreview(config);
-      setPreviewData(preview);
+      if (isDemoUser()) {
+        // Provide demo preview data
+        setPreviewData({
+          totalRecords: 25,
+          sampleData: [
+            { id: 1, name: 'Sample Student 1', email: 'student1@example.com' },
+            { id: 2, name: 'Sample Student 2', email: 'student2@example.com' },
+          ],
+          columns: selectedColumns,
+        });
+      } else {
+        const preview = await dataManagementApi.getExportPreview(config);
+        setPreviewData(preview);
+      }
     } catch (err) {
       const error = err as { response?: { data?: { detail?: string } } };
       setSnackbar({
@@ -136,15 +174,29 @@ export default function DataExport() {
             : undefined,
       };
 
-      const blob = await dataManagementApi.exportData(config);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${entity}_export_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (isDemoUser()) {
+        // Create a demo blob for demo users
+        const demoContent = 'Demo export data';
+        const blob = new Blob([demoContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${entity}_export_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const blob = await dataManagementApi.exportData(config);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${entity}_export_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
 
       setPreviewOpen(false);
       setSnackbar({
@@ -164,12 +216,20 @@ export default function DataExport() {
 
   const handleScheduleExport = async (config: Omit<ScheduledExportConfig, 'id'>) => {
     try {
-      await dataManagementApi.createScheduledExport(config);
-      setSnackbar({
-        open: true,
-        message: 'Scheduled export created successfully',
-        severity: 'success',
-      });
+      if (isDemoUser()) {
+        setSnackbar({
+          open: true,
+          message: 'Demo mode: Scheduled export created (not persisted)',
+          severity: 'success',
+        });
+      } else {
+        await dataManagementApi.createScheduledExport(config);
+        setSnackbar({
+          open: true,
+          message: 'Scheduled export created successfully',
+          severity: 'success',
+        });
+      }
       fetchScheduledExports();
     } catch (err) {
       const error = err as { response?: { data?: { detail?: string } } };
@@ -183,12 +243,20 @@ export default function DataExport() {
 
   const handleDeleteScheduledExport = async (id: string) => {
     try {
-      await dataManagementApi.deleteScheduledExport(id);
-      setSnackbar({
-        open: true,
-        message: 'Scheduled export deleted',
-        severity: 'success',
-      });
+      if (isDemoUser()) {
+        setSnackbar({
+          open: true,
+          message: 'Demo mode: Scheduled export deleted (not persisted)',
+          severity: 'success',
+        });
+      } else {
+        await dataManagementApi.deleteScheduledExport(id);
+        setSnackbar({
+          open: true,
+          message: 'Scheduled export deleted',
+          severity: 'success',
+        });
+      }
       fetchScheduledExports();
     } catch (err) {
       const error = err as { response?: { data?: { detail?: string } } };

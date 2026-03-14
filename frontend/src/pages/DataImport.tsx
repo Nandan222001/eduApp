@@ -23,6 +23,7 @@ import { TableEntity, ImportConfig, ImportResult, ImportHistory } from '@/types/
 import dataManagementApi from '@/api/dataManagement';
 import ImportWizard from '@/components/dataManagement/ImportWizard';
 import ImportHistoryList from '@/components/dataManagement/ImportHistoryList';
+import { isDemoUser } from '@/api/demoDataApi';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -65,8 +66,12 @@ export default function DataImport() {
 
   const fetchImportHistory = async () => {
     try {
-      const history = await dataManagementApi.getImportHistory();
-      setImportHistory(history);
+      if (isDemoUser()) {
+        setImportHistory([]);
+      } else {
+        const history = await dataManagementApi.getImportHistory();
+        setImportHistory(history);
+      }
     } catch (err) {
       console.error('Failed to fetch import history:', err);
     }
@@ -79,10 +84,24 @@ export default function DataImport() {
   const handleImportComplete = async (config: ImportConfig) => {
     setImporting(true);
     try {
-      const result = await dataManagementApi.importData(config);
-      setImportResult(result);
-      setResultDialogOpen(true);
-      setShowWizard(false);
+      if (isDemoUser()) {
+        // Demo mode: simulate successful import
+        const result: ImportResult = {
+          success: true,
+          importedRows: 25,
+          failedRows: 0,
+          importId: 'demo-import-' + Date.now(),
+          errors: [],
+        };
+        setImportResult(result);
+        setResultDialogOpen(true);
+        setShowWizard(false);
+      } else {
+        const result = await dataManagementApi.importData(config);
+        setImportResult(result);
+        setResultDialogOpen(true);
+        setShowWizard(false);
+      }
       fetchImportHistory();
     } catch (err) {
       const error = err as { response?: { data?: { detail?: string } } };
@@ -98,12 +117,20 @@ export default function DataImport() {
 
   const handleRollback = async (importId: string) => {
     try {
-      await dataManagementApi.rollbackImport(importId);
-      setSnackbar({
-        open: true,
-        message: 'Import rolled back successfully',
-        severity: 'success',
-      });
+      if (isDemoUser()) {
+        setSnackbar({
+          open: true,
+          message: 'Demo mode: Import rolled back (not persisted)',
+          severity: 'success',
+        });
+      } else {
+        await dataManagementApi.rollbackImport(importId);
+        setSnackbar({
+          open: true,
+          message: 'Import rolled back successfully',
+          severity: 'success',
+        });
+      }
       fetchImportHistory();
     } catch (err) {
       const error = err as { response?: { data?: { detail?: string } } };
@@ -117,15 +144,29 @@ export default function DataImport() {
 
   const handleDownloadErrors = async (importId: string) => {
     try {
-      const blob = await dataManagementApi.downloadImportErrors(importId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `import_errors_${importId}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (isDemoUser()) {
+        // Create a demo error file
+        const demoErrors = 'Row,Error\n1,Demo error example';
+        const blob = new Blob([demoErrors], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `import_errors_${importId}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const blob = await dataManagementApi.downloadImportErrors(importId);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `import_errors_${importId}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
     } catch (err) {
       const error = err as { response?: { data?: { detail?: string } } };
       setSnackbar({

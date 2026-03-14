@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import examinationsApi from '@/api/examinations';
 import { Exam, ExamStatus, ExamType } from '@/types/examination';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 
 export default function ExamListPage() {
   const theme = useTheme();
@@ -51,7 +52,9 @@ export default function ExamListPage() {
       if (filterStatus !== 'all') params.status = filterStatus;
       if (filterType !== 'all') params.exam_type = filterType;
 
-      const data = await examinationsApi.listExams(params);
+      const data = isDemoUser()
+        ? await demoDataApi.institutionAdmin.getExamList(params)
+        : await examinationsApi.listExams(params);
       setExams(data.items);
     } catch (err) {
       if ((err as { response?: { status?: number } }).response?.status === 404) {
@@ -67,7 +70,8 @@ export default function ExamListPage() {
 
   useEffect(() => {
     loadExams();
-  }, [filterStatus, filterType, loadExams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStatus, filterType]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, exam: Exam) => {
     setAnchorEl(event.currentTarget);
@@ -83,7 +87,9 @@ export default function ExamListPage() {
     if (!selectedExam) return;
 
     try {
-      await examinationsApi.deleteExam(selectedExam.id, 1);
+      if (!isDemoUser()) {
+        await examinationsApi.deleteExam(selectedExam.id, 1);
+      }
       setExams(exams.filter((e) => e.id !== selectedExam.id));
       handleMenuClose();
     } catch (err) {

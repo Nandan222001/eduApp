@@ -37,6 +37,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import teachersApi, { Teacher } from '@/api/teachers';
+import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
+
 export default function TeacherList() {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -55,12 +57,20 @@ export default function TeacherList() {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const response = await teachersApi.listTeachers({
-        skip: page * rowsPerPage,
-        limit: rowsPerPage,
-        search: search || undefined,
-        is_active: activeFilter,
-      });
+      const response = isDemoUser()
+        ? await demoDataApi.institutionAdmin.getTeacherList({
+            skip: page * rowsPerPage,
+            limit: rowsPerPage,
+            search: search || undefined,
+            status:
+              activeFilter === true ? 'active' : activeFilter === false ? 'inactive' : undefined,
+          })
+        : await teachersApi.listTeachers({
+            skip: page * rowsPerPage,
+            limit: rowsPerPage,
+            search: search || undefined,
+            is_active: activeFilter,
+          });
       setTeachers(response.items);
       setTotal(response.total);
       setError(null);
@@ -109,7 +119,9 @@ export default function TeacherList() {
     if (!selectedTeacher) return;
 
     try {
-      await teachersApi.deleteTeacher(selectedTeacher.id);
+      if (!isDemoUser()) {
+        await teachersApi.deleteTeacher(selectedTeacher.id);
+      }
       setDeleteDialogOpen(false);
       setSelectedTeacher(null);
       fetchTeachers();
