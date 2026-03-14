@@ -63,6 +63,10 @@ import ParentDashboard from './pages/ParentDashboard';
 import ParentAttendanceMonitor from './pages/ParentAttendanceMonitor';
 import ParentGradesMonitor from './pages/ParentGradesMonitor';
 import ParentCommunicationDashboard from './pages/ParentCommunicationDashboard';
+import ParentAssignmentsView from './pages/ParentAssignmentsView';
+import ParentProgressView from './pages/ParentProgressView';
+import ParentScheduleView from './pages/ParentScheduleView';
+import ParentNotifications from './pages/ParentNotifications';
 
 import {
   LoginPage,
@@ -303,12 +307,12 @@ function App() {
                   <Route path="dashboard" element={<ParentDashboard />} />
                   <Route path="attendance" element={<ParentAttendanceMonitor />} />
                   <Route path="grades" element={<ParentGradesMonitor />} />
-                  <Route path="assignments" element={<div>Parent Assignments View</div>} />
-                  <Route path="progress" element={<div>Academic Progress</div>} />
+                  <Route path="assignments" element={<ParentAssignmentsView />} />
+                  <Route path="progress" element={<ParentProgressView />} />
                   <Route path="goals" element={<GoalsManagement />} />
                   <Route path="communication" element={<ParentCommunicationDashboard />} />
-                  <Route path="schedule" element={<div>Class Schedule</div>} />
-                  <Route path="notifications" element={<div>Notifications</div>} />
+                  <Route path="schedule" element={<ParentScheduleView />} />
+                  <Route path="notifications" element={<ParentNotifications />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="profile" element={<SettingsPage />} />
                 </Route>
