@@ -32,7 +32,16 @@ import type {
 import type { Goal, GoalAnalytics } from '@/types/goals';
 import type { StudentPerformanceAnalytics } from '@/types/analytics';
 import type { Teacher, TeacherMyDashboardData, ClassAssignment } from './teachers';
-import type { ParentDashboard, ChildOverview, TodayAttendance, RecentGrade } from '@/types/parent';
+import type {
+  ParentDashboard,
+  ChildOverview,
+  TodayAttendance,
+  RecentGrade,
+  PendingAssignment,
+  WeeklyProgress,
+  PerformanceComparison,
+  GoalProgress,
+} from '@/types/parent';
 import type { DashboardResponse as InstitutionAdminDashboardResponse } from './institutionAdmin';
 import type { SuperAdminDashboardResponse } from './superAdmin';
 import type {
@@ -1344,25 +1353,265 @@ export const demoTeachersApi = {
 };
 
 export const demoParentsApi = {
-  getDashboard: async (_childId?: number): Promise<ParentDashboard> => {
+  getDashboard: async (childId?: number): Promise<ParentDashboard> => {
+    if (childId) {
+      const child = parentDashboardData.children.find((c) => c.id === childId);
+      if (child) {
+        const childKey = childId === 1101 ? 'child1' : 'child2';
+        const gradesData =
+          demoData.parent.gradesMonitor[childKey as keyof typeof demoData.parent.gradesMonitor];
+
+        return Promise.resolve({
+          ...parentDashboardData,
+          selected_child: child as ChildOverview,
+          recent_grades: gradesData.recent_grades,
+          today_attendance:
+            childId === 1101
+              ? parentDashboardData.today_attendance
+              : {
+                  date: '2024-02-15',
+                  status: 'absent',
+                  is_absent: true,
+                  is_present: false,
+                  is_late: false,
+                  is_half_day: false,
+                  alert_sent: true,
+                },
+        });
+      }
+    }
     return Promise.resolve(parentDashboardData);
   },
 
   getChildren: async (): Promise<ChildOverview[]> => {
-    return Promise.resolve(parentDashboardData.children);
+    return Promise.resolve(parentDashboardData.children as ChildOverview[]);
   },
 
   getChildOverview: async (childId: number): Promise<ChildOverview> => {
     const child = parentDashboardData.children.find((c) => c.id === childId);
-    return Promise.resolve(child || parentDashboardData.children[0]);
+    return Promise.resolve((child || parentDashboardData.children[0]) as ChildOverview);
   },
 
-  getTodayAttendance: async (_childId: number): Promise<TodayAttendance> => {
-    return Promise.resolve(parentDashboardData.today_attendance);
+  getTodayAttendance: async (childId: number): Promise<TodayAttendance> => {
+    if (childId === 1102) {
+      return Promise.resolve({
+        date: '2024-02-15',
+        status: 'absent',
+        is_absent: true,
+        is_present: false,
+        is_late: false,
+        is_half_day: false,
+        alert_sent: true,
+      });
+    }
+    return Promise.resolve(
+      parentDashboardData.today_attendance || {
+        date: '2024-02-15',
+        status: 'present',
+        is_absent: false,
+        is_present: true,
+        is_late: false,
+        is_half_day: false,
+        alert_sent: false,
+      }
+    );
   },
 
-  getRecentGrades: async (_childId: number, limit = 10): Promise<RecentGrade[]> => {
-    return Promise.resolve(parentDashboardData.recent_grades.slice(0, limit));
+  getRecentGrades: async (childId: number, limit = 10): Promise<RecentGrade[]> => {
+    const childKey = childId === 1101 ? 'child1' : 'child2';
+    const gradesData =
+      demoData.parent.gradesMonitor[childKey as keyof typeof demoData.parent.gradesMonitor];
+    return Promise.resolve(gradesData.recent_grades.slice(0, limit));
+  },
+
+  getPendingAssignments: async (childId: number): Promise<PendingAssignment[]> => {
+    if (childId === 1102) {
+      return Promise.resolve([
+        {
+          id: 211,
+          title: 'Math Homework - Fractions',
+          subject_name: 'Mathematics',
+          due_date: '2024-02-17T23:59:59Z',
+          days_remaining: 2,
+          description: 'Complete exercises 1-20 from the textbook',
+          max_marks: 50,
+          is_overdue: false,
+        },
+        {
+          id: 212,
+          title: 'Science Lab Report',
+          subject_name: 'Science',
+          due_date: '2024-02-20T23:59:59Z',
+          days_remaining: 5,
+          description: 'Write a lab report on the water cycle experiment',
+          max_marks: 75,
+          is_overdue: false,
+        },
+        {
+          id: 213,
+          title: 'English Reading Comprehension',
+          subject_name: 'English',
+          due_date: '2024-02-14T23:59:59Z',
+          days_remaining: -1,
+          description: 'Answer questions from Chapter 5',
+          max_marks: 40,
+          is_overdue: true,
+        },
+      ]);
+    }
+    return Promise.resolve(parentDashboardData.pending_assignments);
+  },
+
+  getWeeklyProgress: async (childId: number): Promise<WeeklyProgress> => {
+    if (childId === 1102) {
+      return Promise.resolve({
+        week_start: '2024-02-12',
+        week_end: '2024-02-18',
+        attendance_days: 5,
+        present_days: 3,
+        assignments_completed: 1,
+        assignments_pending: 5,
+        average_score: 70.5,
+        subject_performance: [
+          {
+            subject_name: 'Mathematics',
+            average_score: 68.5,
+            total_assignments: 3,
+            completed_assignments: 1,
+            pending_assignments: 2,
+            attendance_percentage: 60.0,
+          },
+          {
+            subject_name: 'Science',
+            average_score: 72.0,
+            total_assignments: 2,
+            completed_assignments: 1,
+            pending_assignments: 1,
+            attendance_percentage: 80.0,
+          },
+        ],
+      });
+    }
+    return Promise.resolve(
+      parentDashboardData.weekly_progress || {
+        week_start: '2024-02-12',
+        week_end: '2024-02-18',
+        attendance_days: 5,
+        present_days: 5,
+        assignments_completed: 3,
+        assignments_pending: 3,
+        average_score: 88.7,
+        subject_performance: [],
+      }
+    );
+  },
+
+  getPerformanceComparison: async (childId: number): Promise<PerformanceComparison> => {
+    if (childId === 1102) {
+      return Promise.resolve({
+        current_term: 'Term 2',
+        previous_term: 'Term 1',
+        current_term_data: [
+          {
+            term_name: 'Term 2',
+            subject_name: 'Mathematics',
+            average_marks: 68,
+            total_marks: 100,
+            percentage: 68.0,
+            grade: 'C+',
+          },
+          {
+            term_name: 'Term 2',
+            subject_name: 'Science',
+            average_marks: 72,
+            total_marks: 100,
+            percentage: 72.0,
+            grade: 'B',
+          },
+        ],
+        previous_term_data: [
+          {
+            term_name: 'Term 1',
+            subject_name: 'Mathematics',
+            average_marks: 70,
+            total_marks: 100,
+            percentage: 70.0,
+            grade: 'B',
+          },
+          {
+            term_name: 'Term 1',
+            subject_name: 'Science',
+            average_marks: 75,
+            total_marks: 100,
+            percentage: 75.0,
+            grade: 'B',
+          },
+        ],
+        improvement_subjects: [],
+        declined_subjects: ['Mathematics', 'Science'],
+        overall_improvement: -3.5,
+      });
+    }
+    return Promise.resolve(
+      parentDashboardData.performance_comparison || {
+        current_term: 'Term 2',
+        previous_term: 'Term 1',
+        current_term_data: [],
+        previous_term_data: [],
+        improvement_subjects: [],
+        declined_subjects: [],
+        overall_improvement: 0,
+      }
+    );
+  },
+
+  getChildGoals: async (
+    childId: number
+  ): Promise<{ goals: GoalProgress[]; total: number; active: number; completed: number }> => {
+    if (childId === 1102) {
+      const goals = [
+        {
+          id: 20,
+          title: 'Improve Math Grade to B',
+          description: 'Focus on homework completion and test preparation',
+          goal_type: 'academic',
+          target_value: 75,
+          current_value: 68,
+          progress_percentage: 90.7,
+          status: 'in_progress',
+          start_date: '2024-01-01',
+          end_date: '2024-03-31',
+          days_remaining: 45,
+        },
+        {
+          id: 21,
+          title: 'Improve Attendance to 85%',
+          description: 'Better attendance is critical for academic success',
+          goal_type: 'behavioral',
+          target_value: 85,
+          current_value: 78.5,
+          progress_percentage: 92.4,
+          status: 'at_risk',
+          start_date: '2024-01-01',
+          end_date: '2024-06-30',
+          days_remaining: 135,
+        },
+      ];
+      return Promise.resolve({
+        goals,
+        total: goals.length,
+        active: goals.filter((g) => g.status === 'in_progress' || g.status === 'at_risk').length,
+        completed: 0,
+      });
+    }
+
+    const goals = parentDashboardData.goals;
+    return Promise.resolve({
+      goals,
+      total: goals.length,
+      active: goals.filter((g) => g.status === 'in_progress').length,
+      completed: goals.filter((g) => g.status === 'completed').length,
+    });
   },
 };
 
