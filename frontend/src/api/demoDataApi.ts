@@ -84,6 +84,188 @@ export const isDemoUser = (email?: string): boolean => {
   );
 };
 
+const firstNames = [
+  'Emma',
+  'Liam',
+  'Olivia',
+  'Noah',
+  'Ava',
+  'Elijah',
+  'Sophia',
+  'James',
+  'Isabella',
+  'William',
+  'Mia',
+  'Benjamin',
+  'Charlotte',
+  'Lucas',
+  'Amelia',
+  'Henry',
+  'Harper',
+  'Alexander',
+  'Evelyn',
+  'Sebastian',
+  'Abigail',
+  'Michael',
+  'Emily',
+  'Ethan',
+  'Elizabeth',
+];
+
+const lastNames = [
+  'Smith',
+  'Johnson',
+  'Williams',
+  'Brown',
+  'Jones',
+  'Garcia',
+  'Miller',
+  'Davis',
+  'Rodriguez',
+  'Martinez',
+  'Wilson',
+  'Anderson',
+  'Taylor',
+  'Thomas',
+  'Jackson',
+  'White',
+  'Harris',
+  'Martin',
+  'Thompson',
+  'Moore',
+  'Lee',
+  'Walker',
+  'Hall',
+  'Allen',
+  'Young',
+];
+
+const generateDemoStudents = (count: number) => {
+  const students = [];
+  const grades = [6, 7, 8, 9, 10, 11, 12];
+  const sections = [101, 102, 103, 104, 105];
+  const statuses = ['active', 'inactive', 'graduated', 'transferred'];
+
+  for (let i = 0; i < count; i++) {
+    const firstName = firstNames[i % firstNames.length];
+    const lastName = lastNames[i % lastNames.length];
+    const gradeId = grades[i % grades.length];
+    const sectionId = sections[i % sections.length];
+    const studentId = 1000 + i;
+
+    students.push({
+      id: studentId,
+      institution_id: 1,
+      user_id: studentId,
+      section_id: sectionId,
+      grade_id: gradeId,
+      admission_number: `STD2023${String(i + 1).padStart(3, '0')}`,
+      roll_number: String((i % 45) + 1),
+      first_name: firstName,
+      last_name: lastName,
+      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@student.edu`,
+      phone: `+1-555-${String(1000 + i).padStart(4, '0')}`,
+      date_of_birth: `200${8 + (i % 5)}-0${(i % 9) + 1}-${String((i % 28) + 1).padStart(2, '0')}`,
+      gender: i % 2 === 0 ? 'Male' : 'Female',
+      blood_group: ['A+', 'B+', 'O+', 'AB+', 'A-', 'B-', 'O-', 'AB-'][i % 8],
+      address: `${i + 100} Main Street, Springfield, IL 62701`,
+      parent_name: `Parent ${lastName}`,
+      parent_email: `parent.${lastName.toLowerCase()}@example.com`,
+      parent_phone: `+1-555-${String(2000 + i).padStart(4, '0')}`,
+      admission_date: `202${2 + (i % 2)}-0${(i % 9) + 1}-01`,
+      photo_url: `https://i.pravatar.cc/150?img=${i + 1}`,
+      status: statuses[i % 10 < 8 ? 0 : i % statuses.length],
+      is_active: i % 10 < 8,
+      created_at: `202${2 + (i % 2)}-0${(i % 9) + 1}-01T09:00:00Z`,
+      updated_at: '2024-01-15T10:30:00Z',
+      section: {
+        id: sectionId,
+        name: String.fromCharCode(65 + (i % 5)),
+        grade_id: gradeId,
+        grade: {
+          id: gradeId,
+          name: `${gradeId}th Grade`,
+        },
+      },
+      attendance_percentage: 70 + (i % 30),
+      average_score: 60 + (i % 40),
+    });
+  }
+
+  return students;
+};
+
+const generateDemoTeachers = (count: number) => {
+  const teachers = [];
+  const subjects = demoData.academics.subjects;
+
+  for (let i = 0; i < count; i++) {
+    const firstName =
+      i % 2 === 0
+        ? `Dr. ${firstNames[i % firstNames.length]}`
+        : `Mr. ${firstNames[i % firstNames.length]}`;
+    const lastName = lastNames[i % lastNames.length];
+    const teacherId = 200 + i;
+
+    teachers.push({
+      id: teacherId,
+      institution_id: 1,
+      user_id: 2000 + i,
+      employee_id: `T${String(i + 1).padStart(3, '0')}`,
+      first_name: firstName,
+      last_name: lastName,
+      email: `${firstName.toLowerCase().replace('. ', '')}.${lastName.toLowerCase()}@school.edu`,
+      phone: `+1-555-${String(3000 + i).padStart(4, '0')}`,
+      gender: i % 2 === 0 ? 'Female' : 'Male',
+      qualification: i % 3 === 0 ? 'Ph.D.' : i % 3 === 1 ? 'M.Sc.' : 'M.A.',
+      specialization: subjects[i % subjects.length].name,
+      joining_date: `201${5 + (i % 5)}-0${(i % 9) + 1}-01`,
+      is_active: i % 10 < 9,
+      photo_url: `https://i.pravatar.cc/150?img=${30 + i}`,
+      created_at: `201${5 + (i % 5)}-0${(i % 9) + 1}-01T09:00:00Z`,
+      updated_at: '2024-01-10T14:00:00Z',
+      subjects: [subjects[i % subjects.length]],
+    });
+  }
+
+  return teachers;
+};
+
+const generateDemoExams = (count: number) => {
+  const exams = [];
+  const examTypes = ['Mid-Term', 'Final', 'Unit Test', 'Monthly Test', 'Quiz'];
+  const grades = [6, 7, 8, 9, 10, 11, 12];
+  const subjects = demoData.academics.subjects;
+
+  for (let i = 0; i < count; i++) {
+    const examType = examTypes[i % examTypes.length];
+    const gradeId = grades[i % grades.length];
+    const subjectId = (i % subjects.length) + 1;
+    const examId = 300 + i;
+
+    exams.push({
+      id: examId,
+      institution_id: 1,
+      exam_name: `${examType} - ${subjects[i % subjects.length].name}`,
+      exam_type: examType,
+      grade_id: gradeId,
+      subject_id: subjectId,
+      date: `2024-0${(i % 5) + 2}-${String((i % 28) + 1).padStart(2, '0')}`,
+      start_time: '09:00:00',
+      end_time: '12:00:00',
+      duration_minutes: 180,
+      total_marks: 100,
+      passing_marks: 40,
+      status: i % 4 < 3 ? 'completed' : 'scheduled',
+      is_active: true,
+      created_at: `2024-0${(i % 5) + 1}-01T09:00:00Z`,
+      updated_at: '2024-02-01T10:30:00Z',
+    });
+  }
+
+  return exams;
+};
+
 export const demoStudentsApi = {
   getStudentProfile: async (_id: number): Promise<StudentProfile> => {
     return Promise.resolve(demoData.student.profile);
@@ -1017,7 +1199,7 @@ export const demoTeachersApi = {
   },
 
   submitExamMarks: async (
-    examId: number,
+    _examId: number,
     _marks: Array<{
       student_id: number;
       theory_marks?: number;
@@ -1618,6 +1800,652 @@ export const demoParentsApi = {
 export const demoInstitutionAdminApi = {
   getDashboard: async (): Promise<InstitutionAdminDashboardResponse> => {
     return Promise.resolve(adminDashboardData);
+  },
+
+  getStudentList: async (params?: {
+    skip?: number;
+    limit?: number;
+    grade_id?: number;
+    section_id?: number;
+    search?: string;
+    status?: string;
+  }) => {
+    const demoStudents = generateDemoStudents(25);
+    let filteredStudents = [...demoStudents];
+
+    if (params?.grade_id) {
+      filteredStudents = filteredStudents.filter((s) => s.grade_id === params.grade_id);
+    }
+    if (params?.section_id) {
+      filteredStudents = filteredStudents.filter((s) => s.section_id === params.section_id);
+    }
+    if (params?.status) {
+      filteredStudents = filteredStudents.filter((s) => s.status === params.status);
+    }
+    if (params?.search) {
+      const searchLower = params.search.toLowerCase();
+      filteredStudents = filteredStudents.filter(
+        (s) =>
+          s.first_name.toLowerCase().includes(searchLower) ||
+          s.last_name.toLowerCase().includes(searchLower) ||
+          s.admission_number.toLowerCase().includes(searchLower) ||
+          s.email?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedStudents = filteredStudents.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedStudents,
+      total: filteredStudents.length,
+      skip,
+      limit,
+    });
+  },
+
+  getTeacherList: async (params?: {
+    skip?: number;
+    limit?: number;
+    subject_id?: number;
+    search?: string;
+    status?: string;
+  }) => {
+    const demoTeachers = generateDemoTeachers(10);
+    let filteredTeachers = [...demoTeachers];
+
+    if (params?.subject_id) {
+      filteredTeachers = filteredTeachers.filter((t) =>
+        t.subjects?.some((s) => s.id === params.subject_id)
+      );
+    }
+    if (params?.status) {
+      filteredTeachers = filteredTeachers.filter((t) =>
+        params.status === 'active' ? t.is_active : !t.is_active
+      );
+    }
+    if (params?.search) {
+      const searchLower = params.search.toLowerCase();
+      filteredTeachers = filteredTeachers.filter(
+        (t) =>
+          t.first_name.toLowerCase().includes(searchLower) ||
+          t.last_name.toLowerCase().includes(searchLower) ||
+          t.employee_id.toLowerCase().includes(searchLower) ||
+          t.email.toLowerCase().includes(searchLower)
+      );
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedTeachers = filteredTeachers.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedTeachers,
+      total: filteredTeachers.length,
+      skip,
+      limit,
+    });
+  },
+
+  getExamList: async (params?: {
+    skip?: number;
+    limit?: number;
+    exam_type?: string;
+    grade_id?: number;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+  }) => {
+    const demoExams = generateDemoExams(12);
+    let filteredExams = [...demoExams];
+
+    if (params?.exam_type) {
+      filteredExams = filteredExams.filter((e) => e.exam_type === params.exam_type);
+    }
+    if (params?.grade_id) {
+      filteredExams = filteredExams.filter((e) => e.grade_id === params.grade_id);
+    }
+    if (params?.search) {
+      const searchLower = params.search.toLowerCase();
+      filteredExams = filteredExams.filter((e) => e.exam_name.toLowerCase().includes(searchLower));
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedExams = filteredExams.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedExams,
+      total: filteredExams.length,
+      skip,
+      limit,
+    });
+  },
+
+  getSubscriptionBilling: async () => {
+    return Promise.resolve({
+      current_plan: {
+        plan_name: 'Professional',
+        plan_type: 'monthly',
+        price: 2500,
+        currency: 'USD',
+        billing_cycle: 'monthly',
+        next_billing_date: '2024-03-15',
+        auto_renew: true,
+        features: [
+          'Up to 2000 students',
+          'Up to 150 teachers',
+          'Unlimited assignments',
+          'Advanced analytics',
+          'API access',
+          'Priority support',
+          'Custom branding',
+        ],
+      },
+      usage: {
+        students: {
+          used: 1250,
+          limit: 2000,
+          percentage: 62.5,
+        },
+        teachers: {
+          used: 85,
+          limit: 150,
+          percentage: 56.7,
+        },
+        storage: {
+          used: 45.5,
+          limit: 100,
+          unit: 'GB',
+          percentage: 45.5,
+        },
+      },
+      billing_history: [
+        {
+          id: '1',
+          invoice_number: 'INV-2024-002',
+          date: '2024-02-15',
+          amount: 2500,
+          currency: 'USD',
+          status: 'paid',
+          payment_method: 'Credit Card',
+          description: 'Monthly subscription - February 2024',
+        },
+        {
+          id: '2',
+          invoice_number: 'INV-2024-001',
+          date: '2024-01-15',
+          amount: 2500,
+          currency: 'USD',
+          status: 'paid',
+          payment_method: 'Credit Card',
+          description: 'Monthly subscription - January 2024',
+        },
+        {
+          id: '3',
+          invoice_number: 'INV-2023-012',
+          date: '2023-12-15',
+          amount: 2500,
+          currency: 'USD',
+          status: 'paid',
+          payment_method: 'Credit Card',
+          description: 'Monthly subscription - December 2023',
+        },
+        {
+          id: '4',
+          invoice_number: 'INV-2023-011',
+          date: '2023-11-15',
+          amount: 2500,
+          currency: 'USD',
+          status: 'paid',
+          payment_method: 'Credit Card',
+          description: 'Monthly subscription - November 2023',
+        },
+        {
+          id: '5',
+          invoice_number: 'INV-2023-010',
+          date: '2023-10-15',
+          amount: 2500,
+          currency: 'USD',
+          status: 'paid',
+          payment_method: 'Credit Card',
+          description: 'Monthly subscription - October 2023',
+        },
+      ],
+      payment_methods: [
+        {
+          id: '1',
+          type: 'credit_card',
+          card_brand: 'Visa',
+          last_four: '4242',
+          expiry_month: 12,
+          expiry_year: 2025,
+          is_default: true,
+        },
+        {
+          id: '2',
+          type: 'credit_card',
+          card_brand: 'Mastercard',
+          last_four: '5555',
+          expiry_month: 8,
+          expiry_year: 2026,
+          is_default: false,
+        },
+      ],
+      available_plans: [
+        {
+          plan_name: 'Basic',
+          plan_type: 'monthly',
+          price: 999,
+          currency: 'USD',
+          student_limit: 500,
+          teacher_limit: 50,
+          features: ['Up to 500 students', 'Up to 50 teachers', 'Basic analytics', 'Email support'],
+        },
+        {
+          plan_name: 'Professional',
+          plan_type: 'monthly',
+          price: 2500,
+          currency: 'USD',
+          student_limit: 2000,
+          teacher_limit: 150,
+          features: [
+            'Up to 2000 students',
+            'Up to 150 teachers',
+            'Advanced analytics',
+            'Priority support',
+            'API access',
+          ],
+        },
+        {
+          plan_name: 'Enterprise',
+          plan_type: 'monthly',
+          price: 5000,
+          currency: 'USD',
+          student_limit: 10000,
+          teacher_limit: 500,
+          features: [
+            'Up to 10000 students',
+            'Up to 500 teachers',
+            'Advanced analytics',
+            'Dedicated support',
+            'API access',
+            'Custom integrations',
+            'White-label option',
+          ],
+        },
+      ],
+    });
+  },
+
+  getInstitutionAnalytics: async (_params?: { start_date?: string; end_date?: string }) => {
+    return Promise.resolve({
+      overview: {
+        total_students: 1250,
+        total_teachers: 85,
+        total_classes: 42,
+        average_attendance: 92.0,
+        average_performance: 82.3,
+      },
+      performance_by_grade: [
+        {
+          grade_id: 6,
+          grade_name: '6th Grade',
+          student_count: 180,
+          average_score: 79.5,
+          attendance_rate: 91.2,
+          pass_rate: 92.8,
+        },
+        {
+          grade_id: 7,
+          grade_name: '7th Grade',
+          student_count: 195,
+          average_score: 80.8,
+          attendance_rate: 90.8,
+          pass_rate: 94.1,
+        },
+        {
+          grade_id: 8,
+          grade_name: '8th Grade',
+          student_count: 205,
+          average_score: 82.3,
+          attendance_rate: 92.5,
+          pass_rate: 95.6,
+        },
+        {
+          grade_id: 9,
+          grade_name: '9th Grade',
+          student_count: 215,
+          average_score: 83.1,
+          attendance_rate: 91.9,
+          pass_rate: 93.5,
+        },
+        {
+          grade_id: 10,
+          grade_name: '10th Grade',
+          student_count: 220,
+          average_score: 84.5,
+          attendance_rate: 93.2,
+          pass_rate: 96.8,
+        },
+        {
+          grade_id: 11,
+          grade_name: '11th Grade',
+          student_count: 120,
+          average_score: 85.2,
+          attendance_rate: 94.1,
+          pass_rate: 97.5,
+        },
+        {
+          grade_id: 12,
+          grade_name: '12th Grade',
+          student_count: 115,
+          average_score: 86.8,
+          attendance_rate: 95.3,
+          pass_rate: 98.3,
+        },
+      ],
+      performance_by_subject: [
+        {
+          subject_id: 1,
+          subject_name: 'Mathematics',
+          average_score: 81.5,
+          highest_score: 98,
+          lowest_score: 45,
+          pass_rate: 92.3,
+          student_count: 1250,
+        },
+        {
+          subject_id: 2,
+          subject_name: 'Physics',
+          average_score: 79.8,
+          highest_score: 96,
+          lowest_score: 42,
+          pass_rate: 90.1,
+          student_count: 670,
+        },
+        {
+          subject_id: 3,
+          subject_name: 'Chemistry',
+          average_score: 80.5,
+          highest_score: 95,
+          lowest_score: 48,
+          pass_rate: 91.5,
+          student_count: 670,
+        },
+        {
+          subject_id: 4,
+          subject_name: 'English',
+          average_score: 84.2,
+          highest_score: 99,
+          lowest_score: 52,
+          pass_rate: 95.8,
+          student_count: 1250,
+        },
+        {
+          subject_id: 5,
+          subject_name: 'History',
+          average_score: 82.7,
+          highest_score: 97,
+          lowest_score: 50,
+          pass_rate: 93.6,
+          student_count: 1250,
+        },
+        {
+          subject_id: 6,
+          subject_name: 'Biology',
+          average_score: 83.5,
+          highest_score: 98,
+          lowest_score: 49,
+          pass_rate: 94.2,
+          student_count: 670,
+        },
+      ],
+      attendance_trends: [
+        {
+          date: '2024-02-01',
+          total_students: 1250,
+          present: 1145,
+          absent: 80,
+          late: 25,
+          percentage: 91.6,
+        },
+        {
+          date: '2024-02-02',
+          total_students: 1250,
+          present: 1155,
+          absent: 70,
+          late: 25,
+          percentage: 92.4,
+        },
+        {
+          date: '2024-02-05',
+          total_students: 1250,
+          present: 1160,
+          absent: 65,
+          late: 25,
+          percentage: 92.8,
+        },
+        {
+          date: '2024-02-06',
+          total_students: 1250,
+          present: 1150,
+          absent: 75,
+          late: 25,
+          percentage: 92.0,
+        },
+        {
+          date: '2024-02-07',
+          total_students: 1250,
+          present: 1165,
+          absent: 60,
+          late: 25,
+          percentage: 93.2,
+        },
+        {
+          date: '2024-02-08',
+          total_students: 1250,
+          present: 1155,
+          absent: 70,
+          late: 25,
+          percentage: 92.4,
+        },
+        {
+          date: '2024-02-09',
+          total_students: 1250,
+          present: 1140,
+          absent: 85,
+          late: 25,
+          percentage: 91.2,
+        },
+        {
+          date: '2024-02-12',
+          total_students: 1250,
+          present: 1150,
+          absent: 75,
+          late: 25,
+          percentage: 92.0,
+        },
+        {
+          date: '2024-02-13',
+          total_students: 1250,
+          present: 1160,
+          absent: 65,
+          late: 25,
+          percentage: 92.8,
+        },
+        {
+          date: '2024-02-14',
+          total_students: 1250,
+          present: 1155,
+          absent: 70,
+          late: 25,
+          percentage: 92.4,
+        },
+        {
+          date: '2024-02-15',
+          total_students: 1250,
+          present: 1150,
+          absent: 75,
+          late: 25,
+          percentage: 92.0,
+        },
+      ],
+      performance_trends: [
+        {
+          month: 'Sep 2023',
+          average_score: 75.5,
+          attendance_rate: 88.2,
+          pass_rate: 90.5,
+        },
+        {
+          month: 'Oct 2023',
+          average_score: 77.2,
+          attendance_rate: 89.5,
+          pass_rate: 91.8,
+        },
+        {
+          month: 'Nov 2023',
+          average_score: 78.8,
+          attendance_rate: 90.1,
+          pass_rate: 92.5,
+        },
+        {
+          month: 'Dec 2023',
+          average_score: 80.5,
+          attendance_rate: 91.3,
+          pass_rate: 93.8,
+        },
+        {
+          month: 'Jan 2024',
+          average_score: 81.2,
+          attendance_rate: 91.8,
+          pass_rate: 94.2,
+        },
+        {
+          month: 'Feb 2024',
+          average_score: 82.3,
+          attendance_rate: 92.0,
+          pass_rate: 94.5,
+        },
+      ],
+      teacher_performance: [
+        {
+          teacher_id: 201,
+          teacher_name: 'Dr. Emily Carter',
+          subject: 'Mathematics',
+          total_students: 125,
+          average_class_score: 85.5,
+          attendance_rate: 94.2,
+          student_satisfaction: 4.8,
+        },
+        {
+          teacher_id: 202,
+          teacher_name: 'Prof. James Wilson',
+          subject: 'Physics',
+          total_students: 95,
+          average_class_score: 82.3,
+          attendance_rate: 92.1,
+          student_satisfaction: 4.6,
+        },
+        {
+          teacher_id: 203,
+          teacher_name: 'Dr. Maria Rodriguez',
+          subject: 'Chemistry',
+          total_students: 98,
+          average_class_score: 83.8,
+          attendance_rate: 93.5,
+          student_satisfaction: 4.7,
+        },
+        {
+          teacher_id: 204,
+          teacher_name: 'Mr. David Thompson',
+          subject: 'English',
+          total_students: 135,
+          average_class_score: 87.2,
+          attendance_rate: 95.1,
+          student_satisfaction: 4.9,
+        },
+        {
+          teacher_id: 205,
+          teacher_name: 'Ms. Jennifer Lee',
+          subject: 'History',
+          total_students: 128,
+          average_class_score: 84.5,
+          attendance_rate: 93.8,
+          student_satisfaction: 4.7,
+        },
+      ],
+      top_performers: [
+        {
+          student_id: 1005,
+          student_name: 'Emma Wilson',
+          grade: '10th Grade',
+          average_score: 94.8,
+          attendance_percentage: 96.2,
+          rank: 1,
+        },
+        {
+          student_id: 1011,
+          student_name: 'Isabella Garcia',
+          grade: '10th Grade',
+          average_score: 92.3,
+          attendance_percentage: 95.8,
+          rank: 2,
+        },
+        {
+          student_id: 1003,
+          student_name: 'Michael Chen',
+          grade: '10th Grade',
+          average_score: 91.2,
+          attendance_percentage: 88.7,
+          rank: 3,
+        },
+        {
+          student_id: 1015,
+          student_name: 'Mia Taylor',
+          grade: '10th Grade',
+          average_score: 90.1,
+          attendance_percentage: 93.2,
+          rank: 4,
+        },
+        {
+          student_id: 1009,
+          student_name: 'Oliver Davis',
+          grade: '10th Grade',
+          average_score: 89.7,
+          attendance_percentage: 94.1,
+          rank: 5,
+        },
+      ],
+      students_needing_attention: [
+        {
+          student_id: 1050,
+          student_name: 'Jacob Anderson',
+          grade: '9th Grade',
+          average_score: 62.5,
+          attendance_percentage: 78.5,
+          concerns: ['Low attendance', 'Declining grades'],
+        },
+        {
+          student_id: 1051,
+          student_name: 'Olivia Thomas',
+          grade: '8th Grade',
+          average_score: 68.2,
+          attendance_percentage: 82.3,
+          concerns: ['Frequent absences', 'Missing assignments'],
+        },
+        {
+          student_id: 1052,
+          student_name: 'Noah Jackson',
+          grade: '7th Grade',
+          average_score: 65.8,
+          attendance_percentage: 80.1,
+          concerns: ['Low performance', 'Behavioral issues'],
+        },
+      ],
+    });
   },
 };
 
