@@ -322,3 +322,182 @@ class DataAccessLogRequest(BaseModel):
     resource_type: str
     resource_id: int
     purpose: str
+
+
+class MoodEntryBase(BaseModel):
+    mood_rating: int
+    mood_emoji: str
+    journal_entry: Optional[str] = None
+    date: str
+
+
+class MoodEntryCreate(MoodEntryBase):
+    institution_id: int
+    student_id: int
+
+
+class MoodEntryResponse(MoodEntryBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    institution_id: int
+    student_id: int
+    created_at: datetime
+
+
+class WeeklySurveyBase(BaseModel):
+    survey_type: str
+    responses: Dict[str, int]
+    total_score: int
+    severity_level: str
+    week_start_date: str
+
+
+class WeeklySurveyCreate(WeeklySurveyBase):
+    institution_id: int
+    student_id: int
+
+
+class WeeklySurveyResponse(WeeklySurveyBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    institution_id: int
+    student_id: int
+    completed_at: datetime
+
+
+class AnonymousReportBase(BaseModel):
+    report_type: str
+    description: str
+    location: Optional[str] = None
+    date_of_incident: Optional[str] = None
+    witnesses: Optional[str] = None
+    severity: str = "medium"
+
+
+class AnonymousReportCreate(AnonymousReportBase):
+    institution_id: int
+
+
+class AnonymousReportUpdate(BaseModel):
+    status: Optional[str] = None
+    severity: Optional[str] = None
+    assigned_to: Optional[int] = None
+    resolution_notes: Optional[str] = None
+
+
+class AnonymousReportResponse(AnonymousReportBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    institution_id: int
+    status: str
+    assigned_to: Optional[int] = None
+    resolution_notes: Optional[str] = None
+    resolved_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ParentNotificationBase(BaseModel):
+    notification_type: str
+    severity_level: str
+    subject: str
+    message: str
+
+
+class ParentNotificationCreate(ParentNotificationBase):
+    alert_id: int
+    student_id: int
+    parent_id: Optional[int] = None
+
+
+class ParentNotificationResponse(ParentNotificationBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    alert_id: int
+    student_id: int
+    parent_id: Optional[int] = None
+    sent_at: datetime
+    acknowledged: bool
+    acknowledged_at: Optional[datetime] = None
+
+
+class MentalHealthResourceBase(BaseModel):
+    name: str
+    type: str
+    description: str
+    contact_info: Dict[str, Any]
+    specializations: Optional[List[str]] = None
+    availability: Optional[str] = None
+    age_group: Optional[str] = None
+    cost: Optional[str] = None
+    is_emergency: bool = False
+    is_active: bool = True
+
+
+class MentalHealthResourceCreate(MentalHealthResourceBase):
+    institution_id: Optional[int] = None
+
+
+class MentalHealthResourceUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    description: Optional[str] = None
+    contact_info: Optional[Dict[str, Any]] = None
+    specializations: Optional[List[str]] = None
+    availability: Optional[str] = None
+    age_group: Optional[str] = None
+    cost: Optional[str] = None
+    is_emergency: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class MentalHealthResourceResponse(MentalHealthResourceBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    institution_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ReferralBase(BaseModel):
+    referral_reason: str
+    referral_notes: Optional[str] = None
+    priority: str
+
+
+class ReferralCreate(ReferralBase):
+    alert_id: Optional[int] = None
+    student_id: int
+    institution_id: int
+    resource_id: int
+    counselor_id: int
+
+
+class ReferralUpdate(BaseModel):
+    status: Optional[str] = None
+    appointment_date: Optional[datetime] = None
+    outcome: Optional[str] = None
+    completed_at: Optional[datetime] = None
+
+
+class ReferralResponse(ReferralBase):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    alert_id: Optional[int] = None
+    student_id: int
+    institution_id: int
+    resource_id: int
+    counselor_id: int
+    status: str
+    referred_at: datetime
+    appointment_date: Optional[datetime] = None
+    outcome: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime

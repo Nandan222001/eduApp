@@ -393,3 +393,189 @@ class StudentWellbeingProfile(Base):
         Index('idx_wellbeing_profile_risk_score', 'overall_risk_score'),
         Index('idx_wellbeing_profile_next_review', 'next_review_date'),
     )
+
+
+class MoodEntry(Base):
+    __tablename__ = "mood_entries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    mood_rating = Column(Integer, nullable=False)
+    mood_emoji = Column(String(10), nullable=False)
+    journal_entry = Column(Text, nullable=True)
+    date = Column(String(10), nullable=False, index=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    institution = relationship("Institution")
+    student = relationship("Student")
+    
+    __table_args__ = (
+        Index('idx_mood_entry_institution', 'institution_id'),
+        Index('idx_mood_entry_student', 'student_id'),
+        Index('idx_mood_entry_date', 'date'),
+        Index('idx_mood_entry_student_date', 'student_id', 'date'),
+    )
+
+
+class WeeklySurvey(Base):
+    __tablename__ = "weekly_surveys"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    survey_type = Column(String(20), nullable=False, index=True)
+    responses = Column(JSON, nullable=False)
+    total_score = Column(Integer, nullable=False)
+    severity_level = Column(String(50), nullable=False)
+    week_start_date = Column(String(10), nullable=False, index=True)
+    
+    completed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    institution = relationship("Institution")
+    student = relationship("Student")
+    
+    __table_args__ = (
+        Index('idx_weekly_survey_institution', 'institution_id'),
+        Index('idx_weekly_survey_student', 'student_id'),
+        Index('idx_weekly_survey_type', 'survey_type'),
+        Index('idx_weekly_survey_week', 'week_start_date'),
+        Index('idx_weekly_survey_student_type', 'student_id', 'survey_type'),
+    )
+
+
+class AnonymousReport(Base):
+    __tablename__ = "anonymous_reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    report_type = Column(String(50), nullable=False, index=True)
+    description = Column(Text, nullable=False)
+    location = Column(String(255), nullable=True)
+    date_of_incident = Column(String(10), nullable=True)
+    witnesses = Column(Text, nullable=True)
+    
+    status = Column(String(20), default='pending', nullable=False, index=True)
+    severity = Column(String(20), default='medium', nullable=False, index=True)
+    
+    assigned_to = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    resolution_notes = Column(Text, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    institution = relationship("Institution")
+    assigned_user = relationship("User")
+    
+    __table_args__ = (
+        Index('idx_anonymous_report_institution', 'institution_id'),
+        Index('idx_anonymous_report_type', 'report_type'),
+        Index('idx_anonymous_report_status', 'status'),
+        Index('idx_anonymous_report_severity', 'severity'),
+        Index('idx_anonymous_report_created', 'created_at'),
+    )
+
+
+class ParentNotification(Base):
+    __tablename__ = "parent_notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(Integer, ForeignKey('wellbeing_alerts.id', ondelete='CASCADE'), nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey('parents.id', ondelete='CASCADE'), nullable=True, index=True)
+    
+    notification_type = Column(String(20), nullable=False)
+    severity_level = Column(String(20), nullable=False)
+    subject = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    
+    sent_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    acknowledged = Column(Boolean, default=False, nullable=False)
+    acknowledged_at = Column(DateTime, nullable=True)
+    
+    alert = relationship("WellbeingAlert")
+    student = relationship("Student")
+    parent = relationship("Parent")
+    
+    __table_args__ = (
+        Index('idx_parent_notification_alert', 'alert_id'),
+        Index('idx_parent_notification_student', 'student_id'),
+        Index('idx_parent_notification_parent', 'parent_id'),
+        Index('idx_parent_notification_sent', 'sent_at'),
+    )
+
+
+class MentalHealthResource(Base):
+    __tablename__ = "mental_health_resources"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=True, index=True)
+    
+    name = Column(String(255), nullable=False)
+    type = Column(String(50), nullable=False, index=True)
+    description = Column(Text, nullable=False)
+    contact_info = Column(JSON, nullable=False)
+    specializations = Column(JSON, nullable=True)
+    availability = Column(String(255), nullable=True)
+    age_group = Column(String(100), nullable=True)
+    cost = Column(String(100), nullable=True)
+    
+    is_emergency = Column(Boolean, default=False, nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    institution = relationship("Institution")
+    
+    __table_args__ = (
+        Index('idx_resource_institution', 'institution_id'),
+        Index('idx_resource_type', 'type'),
+        Index('idx_resource_emergency', 'is_emergency'),
+        Index('idx_resource_active', 'is_active'),
+    )
+
+
+class Referral(Base):
+    __tablename__ = "referrals"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(Integer, ForeignKey('wellbeing_alerts.id', ondelete='SET NULL'), nullable=True, index=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    resource_id = Column(Integer, ForeignKey('mental_health_resources.id', ondelete='CASCADE'), nullable=False, index=True)
+    counselor_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    referral_reason = Column(Text, nullable=False)
+    referral_notes = Column(Text, nullable=True)
+    priority = Column(String(20), nullable=False, index=True)
+    status = Column(String(30), default='pending', nullable=False, index=True)
+    
+    referred_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    appointment_date = Column(DateTime, nullable=True)
+    outcome = Column(Text, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    alert = relationship("WellbeingAlert")
+    student = relationship("Student")
+    institution = relationship("Institution")
+    resource = relationship("MentalHealthResource")
+    counselor = relationship("User")
+    
+    __table_args__ = (
+        Index('idx_referral_alert', 'alert_id'),
+        Index('idx_referral_student', 'student_id'),
+        Index('idx_referral_institution', 'institution_id'),
+        Index('idx_referral_resource', 'resource_id'),
+        Index('idx_referral_counselor', 'counselor_id'),
+        Index('idx_referral_status', 'status'),
+        Index('idx_referral_priority', 'priority'),
+    )

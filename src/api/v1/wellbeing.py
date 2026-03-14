@@ -14,6 +14,12 @@ from src.models.wellbeing import (
     WellbeingConsent,
     CounselorProfile,
     StudentWellbeingProfile,
+    MoodEntry,
+    WeeklySurvey,
+    AnonymousReport,
+    ParentNotification,
+    MentalHealthResource,
+    Referral,
     AlertStatus,
     ConsentStatus,
 )
@@ -40,6 +46,21 @@ from src.schemas.wellbeing import (
     CounselorDashboardResponse,
     StudentRiskSummary,
     DataAccessLogRequest,
+    MoodEntryCreate,
+    MoodEntryResponse,
+    WeeklySurveyCreate,
+    WeeklySurveyResponse,
+    AnonymousReportCreate,
+    AnonymousReportUpdate,
+    AnonymousReportResponse,
+    ParentNotificationCreate,
+    ParentNotificationResponse,
+    MentalHealthResourceCreate,
+    MentalHealthResourceUpdate,
+    MentalHealthResourceResponse,
+    ReferralCreate,
+    ReferralUpdate,
+    ReferralResponse,
 )
 
 router = APIRouter(prefix="/wellbeing", tags=["Wellbeing"])
@@ -650,3 +671,357 @@ def get_student_behavioral_patterns(
     patterns = query.order_by(BehavioralPattern.created_at.desc()).all()
     
     return patterns
+
+
+@router.post("/mood-entries", response_model=MoodEntryResponse)
+def create_mood_entry(
+    mood_data: MoodEntryCreate,
+    institution_id: int,
+    db: Session = Depends(get_db)
+):
+    mood_entry = MoodEntry(**mood_data.model_dump())
+    db.add(mood_entry)
+    db.commit()
+    db.refresh(mood_entry)
+    
+    return mood_entry
+
+
+@router.get("/mood-entries", response_model=List[MoodEntryResponse])
+def get_mood_entries(
+    institution_id: int,
+    student_id: int,
+    days: int = Query(30, le=365),
+    db: Session = Depends(get_db)
+):
+    start_date = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    entries = db.query(MoodEntry).filter(
+        MoodEntry.institution_id == institution_id,
+        MoodEntry.student_id == student_id,
+        MoodEntry.date >= start_date
+    ).order_by(MoodEntry.date.desc()).all()
+    
+    return entries
+
+
+@router.post("/surveys", response_model=WeeklySurveyResponse)
+def create_survey(
+    survey_data: WeeklySurveyCreate,
+    institution_id: int,
+    db: Session = Depends(get_db)
+):
+    survey = WeeklySurvey(**survey_data.model_dump())
+    db.add(survey)
+    db.commit()
+    db.refresh(survey)
+    
+    return survey
+
+
+@router.get("/surveys", response_model=List[WeeklySurveyResponse])
+def get_surveys(
+    institution_id: int,
+    student_id: int,
+    survey_type: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(WeeklySurvey).filter(
+        WeeklySurvey.institution_id == institution_id,
+        WeeklySurvey.student_id == student_id
+    )
+    
+    if survey_type:
+        query = query.filter(WeeklySurvey.survey_type == survey_type)
+    
+    surveys = query.order_by(WeeklySurvey.completed_at.desc()).all()
+    
+    return surveys
+
+
+@router.get("/surveys/latest", response_model=WeeklySurveyResponse)
+def get_latest_survey(
+    institution_id: int,
+    student_id: int,
+    survey_type: str,
+    db: Session = Depends(get_db)
+):
+    survey = db.query(WeeklySurvey).filter(
+        WeeklySurvey.institution_id == institution_id,
+        WeeklySurvey.student_id == student_id,
+        WeeklySurvey.survey_type == survey_type
+    ).order_by(WeeklySurvey.completed_at.desc()).first()
+    
+    if not survey:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No survey found"
+        )
+    
+    return survey
+
+
+@router.post("/anonymous-reports", response_model=AnonymousReportResponse)
+def create_anonymous_report(
+    report_data: AnonymousReportCreate,
+    institution_id: int,
+    db: Session = Depends(get_db)
+):
+    report = AnonymousReport(**report_data.model_dump())
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+    
+    return report
+
+
+@router.get("/anonymous-reports", response_model=List[AnonymousReportResponse])
+def get_anonymous_reports(
+    institution_id: int,
+    status_filter: Optional[str] = None,
+    limit: int = Query(50, le=100),
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    query = db.query(AnonymousReport).filter(
+        AnonymousReport.institution_id == institution_id
+    )
+    
+    if status_filter:
+        query = query.filter(AnonymousReport.status == status_filter)
+    
+    reports = query.order_by(AnonymousReport.created_at.desc()).limit(limit).offset(offset).all()
+    
+    return reports
+
+
+@router.patch("/anonymous-reports/{report_id}", response_model=AnonymousReportResponse)
+def update_anonymous_report(
+    report_id: int,
+    institution_id: int,
+    report_update: AnonymousReportUpdate,
+    db: Session = Depends(get_db)
+):
+    report = db.query(AnonymousReport).filter(
+        AnonymousReport.id == report_id,
+        AnonymousReport.institution_id == institution_id
+    ).first()
+    
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+    
+    update_data = report_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(report, key, value)
+    
+    if 'status' in update_data and update_data['status'] == 'resolved':
+        report.resolved_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(report)
+    
+    return report
+
+
+@router.post("/parent-notifications", response_model=ParentNotificationResponse)
+def send_parent_notification(
+    notification_data: ParentNotificationCreate,
+    db: Session = Depends(get_db)
+):
+    notification = ParentNotification(**notification_data.model_dump())
+    db.add(notification)
+    db.commit()
+    db.refresh(notification)
+    
+    return notification
+
+
+@router.get("/parent-notifications", response_model=List[ParentNotificationResponse])
+def get_parent_notifications(
+    student_id: Optional[int] = None,
+    alert_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(ParentNotification)
+    
+    if student_id:
+        query = query.filter(ParentNotification.student_id == student_id)
+    
+    if alert_id:
+        query = query.filter(ParentNotification.alert_id == alert_id)
+    
+    notifications = query.order_by(ParentNotification.sent_at.desc()).all()
+    
+    return notifications
+
+
+@router.patch("/parent-notifications/{notification_id}/acknowledge", response_model=ParentNotificationResponse)
+def acknowledge_parent_notification(
+    notification_id: int,
+    db: Session = Depends(get_db)
+):
+    notification = db.query(ParentNotification).filter(
+        ParentNotification.id == notification_id
+    ).first()
+    
+    if not notification:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found"
+        )
+    
+    notification.acknowledged = True
+    notification.acknowledged_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(notification)
+    
+    return notification
+
+
+@router.post("/resources", response_model=MentalHealthResourceResponse)
+def create_resource(
+    resource_data: MentalHealthResourceCreate,
+    institution_id: int,
+    db: Session = Depends(get_db)
+):
+    resource = MentalHealthResource(**resource_data.model_dump())
+    db.add(resource)
+    db.commit()
+    db.refresh(resource)
+    
+    return resource
+
+
+@router.get("/resources", response_model=List[MentalHealthResourceResponse])
+def get_resources(
+    institution_id: int,
+    type_filter: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(MentalHealthResource).filter(
+        (MentalHealthResource.institution_id == institution_id) |
+        (MentalHealthResource.institution_id == None)
+    )
+    
+    if type_filter:
+        query = query.filter(MentalHealthResource.type == type_filter)
+    
+    resources = query.filter(MentalHealthResource.is_active == True).all()
+    
+    return resources
+
+
+@router.patch("/resources/{resource_id}", response_model=MentalHealthResourceResponse)
+def update_resource(
+    resource_id: int,
+    institution_id: int,
+    resource_update: MentalHealthResourceUpdate,
+    db: Session = Depends(get_db)
+):
+    resource = db.query(MentalHealthResource).filter(
+        MentalHealthResource.id == resource_id,
+        MentalHealthResource.institution_id == institution_id
+    ).first()
+    
+    if not resource:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resource not found"
+        )
+    
+    update_data = resource_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(resource, key, value)
+    
+    db.commit()
+    db.refresh(resource)
+    
+    return resource
+
+
+@router.delete("/resources/{resource_id}")
+def delete_resource(
+    resource_id: int,
+    institution_id: int,
+    db: Session = Depends(get_db)
+):
+    resource = db.query(MentalHealthResource).filter(
+        MentalHealthResource.id == resource_id,
+        MentalHealthResource.institution_id == institution_id
+    ).first()
+    
+    if not resource:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resource not found"
+        )
+    
+    db.delete(resource)
+    db.commit()
+    
+    return {"message": "Resource deleted successfully"}
+
+
+@router.post("/referrals", response_model=ReferralResponse)
+def create_referral(
+    referral_data: ReferralCreate,
+    db: Session = Depends(get_db)
+):
+    referral = Referral(**referral_data.model_dump())
+    db.add(referral)
+    db.commit()
+    db.refresh(referral)
+    
+    return referral
+
+
+@router.patch("/referrals/{referral_id}", response_model=ReferralResponse)
+def update_referral(
+    referral_id: int,
+    referral_update: ReferralUpdate,
+    db: Session = Depends(get_db)
+):
+    referral = db.query(Referral).filter(
+        Referral.id == referral_id
+    ).first()
+    
+    if not referral:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Referral not found"
+        )
+    
+    update_data = referral_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(referral, key, value)
+    
+    db.commit()
+    db.refresh(referral)
+    
+    return referral
+
+
+@router.get("/referrals", response_model=List[ReferralResponse])
+def get_referrals(
+    institution_id: int,
+    student_id: Optional[int] = None,
+    status_filter: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(Referral).filter(
+        Referral.institution_id == institution_id
+    )
+    
+    if student_id:
+        query = query.filter(Referral.student_id == student_id)
+    
+    if status_filter:
+        query = query.filter(Referral.status == status_filter)
+    
+    referrals = query.order_by(Referral.created_at.desc()).all()
+    
+    return referrals
