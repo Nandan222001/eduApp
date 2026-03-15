@@ -528,4 +528,11 @@ __all__ = [
     "EssayStatus",
     "ReviewStatus",
     "GrammarCheckStatus",
+    "StudentJobListing",
+    "WorkPermit",
+    "StudentEmployment",
+    "JobApplication",
+    "JobType",
+    "PermitType",
+    "AuthorizationStatus",
 ]
