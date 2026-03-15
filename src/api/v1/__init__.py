@@ -68,7 +68,8 @@ from src.api.v1 import (
     conferences,
     document_vault,
     carpools,
-    volunteer_hours
+    volunteer_hours,
+    journalism
 )
 from src.api import ml
 
@@ -145,3 +146,4 @@ api_router.include_router(conferences.router, prefix="/conferences", tags=["conf
 api_router.include_router(document_vault.router, prefix="/document-vault", tags=["document-vault"])
 api_router.include_router(carpools.router, prefix="/carpools", tags=["carpools"])
 api_router.include_router(volunteer_hours.router, prefix="/volunteer-hours", tags=["volunteer-hours"])
+api_router.include_router(journalism.router, prefix="/journalism", tags=["journalism"])

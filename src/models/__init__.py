@@ -108,6 +108,10 @@ from src.models.carpools import (
     CarpoolGroup, CarpoolRequest, CarpoolRide, EmergencyNotification, CarpoolMatch,
     CarpoolRequestType, CarpoolRequestStatus, CarpoolGroupStatus, RideStatus, EmergencyType
 )
+from src.models.journalism import (
+    NewspaperEdition, Article, ArticleReview, JournalismMember, ArticleAnalytics,
+    PublicationStatus, ArticleType, ReviewStatus, JournalismRole
+)
 
 __all__ = [
     "Institution",
@@ -400,4 +404,13 @@ __all__ = [
     "CarpoolGroupStatus",
     "RideStatus",
     "EmergencyType",
+    "NewspaperEdition",
+    "Article",
+    "ArticleReview",
+    "JournalismMember",
+    "ArticleAnalytics",
+    "PublicationStatus",
+    "ArticleType",
+    "ReviewStatus",
+    "JournalismRole",
 ]
