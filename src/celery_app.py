@@ -10,7 +10,8 @@ celery_app = Celery(
         "src.tasks.analytics_tasks",
         "src.tasks.ml_training_tasks",
         "src.tasks.super_admin_report_tasks",
-        "src.tasks.conference_tasks"
+        "src.tasks.conference_tasks",
+        "src.tasks.email_tasks"
     ]
 )
 

@@ -70,7 +70,8 @@ from src.api.v1 import (
     carpools,
     volunteer_hours,
     journalism,
-    finance_education
+    finance_education,
+    community_service
 )
 from src.api import ml
 
@@ -149,3 +150,4 @@ api_router.include_router(carpools.router, prefix="/carpools", tags=["carpools"]
 api_router.include_router(volunteer_hours.router, prefix="/volunteer-hours", tags=["volunteer-hours"])
 api_router.include_router(journalism.router, prefix="/journalism", tags=["journalism"])
 api_router.include_router(finance_education.router, prefix="/finance-education", tags=["finance-education"])
+api_router.include_router(community_service.router, prefix="/community-service", tags=["community-service"])
