@@ -1,5 +1,15 @@
 import axios from 'axios';
-import { Event, EventRSVP, EventPhoto } from '../types/event';
+import {
+  Event,
+  EventRSVP,
+  EventPhoto,
+  LiveEvent,
+  ChatMessage,
+  EventTicket,
+  EventReminder,
+  ParentNotificationPreferences,
+  ViewerAnalytics,
+} from '../types/event';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -86,5 +96,118 @@ export const eventsApi = {
 
   deletePhoto: async (eventId: number, photoId: number) => {
     await api.delete(`/events/${eventId}/photos/${photoId}`);
+  },
+
+  getLiveEvent: async (id: number): Promise<LiveEvent> => {
+    const response = await api.get(`/events/${id}/live`);
+    return response.data;
+  },
+
+  getLiveEvents: async (): Promise<LiveEvent[]> => {
+    const response = await api.get('/events/live');
+    return response.data;
+  },
+
+  getUpcomingLiveEvents: async (): Promise<LiveEvent[]> => {
+    const response = await api.get('/events/upcoming-live');
+    return response.data;
+  },
+
+  getRecordedEvents: async (): Promise<LiveEvent[]> => {
+    const response = await api.get('/events/recordings');
+    return response.data;
+  },
+
+  getChatMessages: async (eventId: number, limit = 100): Promise<ChatMessage[]> => {
+    const response = await api.get(`/events/${eventId}/chat`, { params: { limit } });
+    return response.data;
+  },
+
+  sendChatMessage: async (eventId: number, message: string): Promise<ChatMessage> => {
+    const response = await api.post(`/events/${eventId}/chat`, { message });
+    return response.data;
+  },
+
+  moderateMessage: async (eventId: number, messageId: string, action: 'delete' | 'flag') => {
+    await api.post(`/events/${eventId}/chat/${messageId}/moderate`, { action });
+  },
+
+  getStreamHealth: async (eventId: number) => {
+    const response = await api.get(`/events/${eventId}/stream-health`);
+    return response.data;
+  },
+
+  getViewerAnalytics: async (eventId: number): Promise<ViewerAnalytics> => {
+    const response = await api.get(`/events/${eventId}/analytics`);
+    return response.data;
+  },
+
+  purchaseTicket: async (
+    eventId: number,
+    paymentData: {
+      ticketTypeId: number;
+      quantity: number;
+      paymentMethod: string;
+      paymentDetails: Record<string, unknown>;
+    }
+  ): Promise<EventTicket> => {
+    const response = await api.post(`/events/${eventId}/tickets/purchase`, paymentData);
+    return response.data;
+  },
+
+  getMyTickets: async (): Promise<EventTicket[]> => {
+    const response = await api.get('/events/my-tickets');
+    return response.data;
+  },
+
+  verifyTicket: async (eventId: number, ticketNumber: string) => {
+    const response = await api.post(`/events/${eventId}/tickets/verify`, {
+      ticket_number: ticketNumber,
+    });
+    return response.data;
+  },
+
+  setReminder: async (
+    eventId: number,
+    reminderData: Partial<EventReminder>
+  ): Promise<EventReminder> => {
+    const response = await api.post(`/events/${eventId}/reminders`, reminderData);
+    return response.data;
+  },
+
+  getReminders: async (): Promise<EventReminder[]> => {
+    const response = await api.get('/events/reminders');
+    return response.data;
+  },
+
+  deleteReminder: async (eventId: number, reminderId: number) => {
+    await api.delete(`/events/${eventId}/reminders/${reminderId}`);
+  },
+
+  getNotificationPreferences: async (): Promise<ParentNotificationPreferences> => {
+    const response = await api.get('/events/notification-preferences');
+    return response.data;
+  },
+
+  updateNotificationPreferences: async (
+    preferences: Partial<ParentNotificationPreferences>
+  ): Promise<ParentNotificationPreferences> => {
+    const response = await api.put('/events/notification-preferences', preferences);
+    return response.data;
+  },
+
+  startRecording: async (eventId: number) => {
+    const response = await api.post(`/events/${eventId}/recording/start`);
+    return response.data;
+  },
+
+  stopRecording: async (eventId: number) => {
+    const response = await api.post(`/events/${eventId}/recording/stop`);
+    return response.data;
+  },
+
+  shareEvent: async (eventId: number, platform: string) => {
+    const response = await api.post(`/events/${eventId}/share`, { platform });
+    return response.data;
   },
 };

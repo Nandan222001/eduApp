@@ -16,3 +16,5 @@ export { useRealtimeChat } from './useRealtimeChat';
 export { useOnlinePresence } from './useOnlinePresence';
 export { useRealtimeAttendance } from './useRealtimeAttendance';
 export { useQuizLeaderboard } from './useQuizLeaderboard';
+export { useLiveEvent } from './useLiveEvent';
+export { useEventReminders } from './useEventReminders';
