@@ -8,13 +8,7 @@ interface InputProps extends TextInputProps {
   helperText?: string;
 }
 
-export const Input: React.FC<InputProps> = ({
-  label,
-  error,
-  helperText,
-  style,
-  ...props
-}) => {
+export const Input: React.FC<InputProps> = ({ label, error, helperText, style, ...props }) => {
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}

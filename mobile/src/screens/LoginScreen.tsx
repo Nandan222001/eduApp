@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Button, Input } from '@components';
 import { useAuthStore } from '@store';
 import { COLORS, SPACING, FONT_SIZES } from '@constants';
@@ -16,7 +9,7 @@ export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  
+
   const { login, isLoading, error } = useAuthStore();
 
   const validate = (): boolean => {

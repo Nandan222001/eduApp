@@ -12,7 +12,8 @@
       "@store/*": ["src/store/*"],
       "@types/*": ["src/types/*"],
       "@utils/*": ["src/utils/*"],
-      "@constants/*": ["src/constants/*"]
+      "@constants/*": ["src/constants/*"],
+      "@config/*": ["src/config/*"]
     },
     "skipLibCheck": true
   },

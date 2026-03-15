@@ -10,7 +10,7 @@ interface AuthStore {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  
+
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
@@ -31,10 +31,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ isLoading: true, error: null });
       const response = await authApi.login(credentials);
       const { user, token } = response.data;
-      
+
       await storage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
       await storage.setObject(STORAGE_KEYS.USER_DATA, user);
-      
+
       set({
         user,
         token,
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } finally {
       await storage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
       await storage.removeItem(STORAGE_KEYS.USER_DATA);
-      
+
       set({
         user: null,
         token: null,
@@ -73,7 +73,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ isLoading: true });
       const token = await storage.getItem(STORAGE_KEYS.AUTH_TOKEN);
       const user = await storage.getObject<User>(STORAGE_KEYS.USER_DATA);
-      
+
       if (token && user) {
         set({
           user,
@@ -91,8 +91,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   setUser: (user: User | null) => set({ user }),
-  
+
   setToken: (token: string | null) => set({ token }),
-  
+
   clearError: () => set({ error: null }),
 }));

@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "scheme": "edumobile",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -17,7 +18,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.edu.mobile",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "associatedDomains": [
+        "applinks:edu.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -25,16 +29,41 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.edu.mobile",
-      "versionCode": 1
+      "versionCode": 1,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "edu.app",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [],
+    "plugins": [
+      "expo-router"
+    ],
     "extra": {
       "eas": {
         "projectId": "your-project-id"
       }
+    },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#2089dc",
+      "androidMode": "default",
+      "androidCollapsedTitle": "EDU Mobile"
     }
   }
 }

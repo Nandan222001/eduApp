@@ -40,13 +40,9 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator
-          color={variant === 'outline' ? COLORS.primary : COLORS.background}
-        />
+        <ActivityIndicator color={variant === 'outline' ? COLORS.primary : COLORS.background} />
       ) : (
-        <Text style={[styles.text, styles[`${variant}Text`], styles[`${size}Text`]]}>
-          {title}
-        </Text>
+        <Text style={[styles.text, styles[`${variant}Text`], styles[`${size}Text`]]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
