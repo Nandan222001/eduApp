@@ -144,6 +144,10 @@ from src.models.research import (
 from src.models.study_buddy import (
     StudyBuddySession, StudyBuddyInsight, StudyBuddyPreference, InsightType
 )
+from src.models.scholarship_essays import (
+    EssayPrompt, StudentEssay, EssayPeerReview, EssayTemplate, EssayAnalytics,
+    ReviewRubric, PromptType, EssayStatus, ReviewStatus, GrammarCheckStatus
+)
 
 __all__ = [
     "Institution",
@@ -514,4 +518,14 @@ __all__ = [
     "StudyBuddyInsight",
     "StudyBuddyPreference",
     "InsightType",
+    "EssayPrompt",
+    "StudentEssay",
+    "EssayPeerReview",
+    "EssayTemplate",
+    "EssayAnalytics",
+    "ReviewRubric",
+    "PromptType",
+    "EssayStatus",
+    "ReviewStatus",
+    "GrammarCheckStatus",
 ]
