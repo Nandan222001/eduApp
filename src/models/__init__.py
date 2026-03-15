@@ -117,6 +117,12 @@ from src.models.elections import (
     ElectionAnalytics, ElectionPosition, EligibleVoters, ElectionStatus,
     CandidateStatus, VoteStatus
 )
+from src.models.finance_education import (
+    FinanceLiteracyModule, ModuleCompletion, VirtualWallet, WalletTransaction,
+    InvestmentHolding, FinanceChallenge, ChallengeParticipation,
+    FinancialLiteracyAssessment, ChallengeLeaderboard,
+    ModuleName, ChallengeType, ChallengeStatus, TransactionType, InvestmentType
+)
 
 __all__ = [
     "Institution",
@@ -430,4 +436,18 @@ __all__ = [
     "ElectionStatus",
     "CandidateStatus",
     "VoteStatus",
+    "FinanceLiteracyModule",
+    "ModuleCompletion",
+    "VirtualWallet",
+    "WalletTransaction",
+    "InvestmentHolding",
+    "FinanceChallenge",
+    "ChallengeParticipation",
+    "FinancialLiteracyAssessment",
+    "ChallengeLeaderboard",
+    "ModuleName",
+    "ChallengeType",
+    "ChallengeStatus",
+    "TransactionType",
+    "InvestmentType",
 ]
