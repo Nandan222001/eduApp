@@ -327,8 +327,15 @@ class BrandingService:
             branding.logo_s3_key,
             branding.favicon_s3_key,
             branding.email_logo_s3_key,
-            branding.login_background_s3_key
+            branding.login_background_s3_key,
+            branding.loading_screen_animation_s3_key
         ]
+        
+        # Delete notification sounds
+        if branding.branded_notification_sounds:
+            for sound_config in branding.branded_notification_sounds.values():
+                if isinstance(sound_config, dict) and sound_config.get("s3_key"):
+                    s3_keys.append(sound_config["s3_key"])
         
         for s3_key in s3_keys:
             if s3_key:
@@ -341,6 +348,34 @@ class BrandingService:
         db.commit()
         
         return True
+    
+    @staticmethod
+    def update_custom_settings(
+        db: Session,
+        institution_id: int,
+        custom_help_docs_url: Optional[str] = None,
+        merchandise_store_enabled: Optional[bool] = None
+    ) -> InstitutionBranding:
+        """Update custom help docs URL and merchandise store settings."""
+        branding = BrandingService.get_branding_by_institution_id(db, institution_id)
+        
+        if not branding:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Branding not found for this institution"
+            )
+        
+        if custom_help_docs_url is not None:
+            branding.custom_help_docs_url = custom_help_docs_url
+        
+        if merchandise_store_enabled is not None:
+            branding.merchandise_store_enabled = merchandise_store_enabled
+        
+        branding.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(branding)
+        
+        return branding
     
     @staticmethod
     def _validate_domain_uniqueness(
