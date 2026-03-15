@@ -78,7 +78,8 @@ from src.api.v1 import (
     content_marketplace,
     yearbook,
     podcasts,
-    research
+    research,
+    college_planning
 )
 from src.api import ml
 
@@ -165,3 +166,4 @@ api_router.include_router(content_marketplace.router, tags=["content-marketplace
 api_router.include_router(yearbook.router, prefix="/yearbook", tags=["yearbook"])
 api_router.include_router(podcasts.router, prefix="/podcasts", tags=["podcasts"])
 api_router.include_router(research.router, prefix="/research", tags=["research"])
+api_router.include_router(college_planning.router, prefix="/college-planning", tags=["college-planning"])
