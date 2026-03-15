@@ -12,6 +12,12 @@ import {
   Divider,
   Alert,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import {
   Timeline,
   TimelineItem,
   TimelineSeparator,
@@ -19,11 +25,7 @@ import {
   TimelineContent,
   TimelineDot,
   TimelineOppositeContent,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material';
+} from '@mui/lab';
 import {
   Close as CloseIcon,
   ExpandMore as ExpandMoreIcon,
