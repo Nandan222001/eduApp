@@ -88,26 +88,6 @@ export const navigationConfig: NavigationItem[] = [
     roles: ['admin', 'institution_admin', 'teacher', 'student'],
   },
   {
-    id: 'institutions',
-    title: 'Institutions',
-    icon: <BusinessIcon />,
-    roles: ['admin', 'institution_admin'],
-    children: [
-      {
-        id: 'institutions-list',
-        title: 'All Institutions',
-        path: '/admin/institutions',
-        icon: <BusinessIcon />,
-      },
-      {
-        id: 'institutions-add',
-        title: 'Add Institution',
-        path: '/admin/institutions/add',
-        icon: <BusinessIcon />,
-      },
-    ],
-  },
-  {
     id: 'users',
     title: 'Users',
     icon: <PeopleIcon />,
