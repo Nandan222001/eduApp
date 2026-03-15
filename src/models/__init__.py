@@ -100,6 +100,10 @@ from src.models.peer_tutoring import (
 from src.models.merchandise import (
     MerchandiseItem, MerchandiseOrder, MerchandiseOrderItem, MerchandiseCommission
 )
+from src.models.onboarding import (
+    OnboardingFlow, OnboardingStep, OnboardingProgress, OnboardingStepProgress,
+    OnboardingDocument, OnboardingSignature, StepType, UserRole
+)
 
 __all__ = [
     "Institution",
@@ -374,4 +378,12 @@ __all__ = [
     "MerchandiseOrder",
     "MerchandiseOrderItem",
     "MerchandiseCommission",
+    "OnboardingFlow",
+    "OnboardingStep",
+    "OnboardingProgress",
+    "OnboardingStepProgress",
+    "OnboardingDocument",
+    "OnboardingSignature",
+    "StepType",
+    "UserRole",
 ]
