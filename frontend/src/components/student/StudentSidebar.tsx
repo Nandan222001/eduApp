@@ -30,6 +30,7 @@ import {
   ChatBubble as ChatIcon,
   CalendarMonth as CalendarIcon,
   Flag as GoalsIcon,
+  SmartToy as StudyBuddyIcon,
 } from '@mui/icons-material';
 
 interface StudentSidebarProps {
@@ -104,6 +105,13 @@ const studentNavigation: NavItem[] = [
     title: 'AI Predictions',
     path: '/student/ai-prediction',
     icon: <AIPredictionIcon />,
+    badge: 'NEW',
+  },
+  {
+    id: 'study-buddy',
+    title: 'AI Study Buddy',
+    path: '/student/study-buddy',
+    icon: <StudyBuddyIcon />,
     badge: 'NEW',
   },
   {

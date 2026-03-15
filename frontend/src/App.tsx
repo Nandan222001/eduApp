@@ -82,6 +82,7 @@ import AppreciationWall from './pages/AppreciationWall';
 import TeacherRecognitionModeration from './pages/TeacherRecognitionModeration';
 import SchoolCultureAnalyticsDashboard from './pages/SchoolCultureAnalyticsDashboard';
 import RecognitionSettings from './pages/RecognitionSettings';
+import AIStudyBuddy from './pages/AIStudyBuddy';
 
 import {
   LoginPage,
@@ -295,6 +296,7 @@ function App() {
                   <Route path="dashboard" element={<StudentDashboard />} />
                   <Route path="analytics" element={<StudentPerformanceAnalytics />} />
                   <Route path="ai-prediction" element={<AIPredictionDashboard />} />
+                  <Route path="study-buddy" element={<AIStudyBuddy />} />
                   <Route path="pomodoro" element={<PomodoroTimer />} />
                   <Route path="goals" element={<GoalsManagement />} />
                   <Route path="gamification" element={<GamificationDashboard />} />

@@ -2,7 +2,7 @@ import { BottomNavigation, BottomNavigationAction, Paper, useTheme } from '@mui/
 import {
   Dashboard as DashboardIcon,
   Assignment as AssignmentIcon,
-  Psychology as AIPredictionIcon,
+  SmartToy as StudyBuddyIcon,
   MenuBook as StudyMaterialsIcon,
   EmojiEvents as AchievementsIcon,
 } from '@mui/icons-material';
@@ -25,9 +25,9 @@ export default function StudentBottomNav() {
       path: '/student/assignments',
     },
     {
-      label: 'AI Predict',
-      icon: <AIPredictionIcon />,
-      path: '/student/ai-prediction',
+      label: 'AI Buddy',
+      icon: <StudyBuddyIcon />,
+      path: '/student/study-buddy',
     },
     {
       label: 'Materials',
