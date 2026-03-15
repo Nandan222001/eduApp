@@ -44,6 +44,8 @@ python-socketio = "^5.11.0"
 sentry-sdk = {extras = ["fastapi"], version = "^1.40.0"}
 agora-token-builder = "^1.0.0"
 qrcode = {extras = ["pil"], version = "^7.4.0"}
+httpx = "^0.26.0"
+razorpay = "^1.4.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"

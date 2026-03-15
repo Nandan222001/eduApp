@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     agora_recording_bucket: str = Field(default="", alias="AGORA_RECORDING_BUCKET")
     agora_recording_region: str = Field(default="us-east-1", alias="AGORA_RECORDING_REGION")
 
+    printful_api_key: str = Field(default="", alias="PRINTFUL_API_KEY")
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.database_user}:{self.database_password}@{self.database_host}:{self.database_port}/{self.database_name}"

@@ -97,6 +97,9 @@ from src.models.peer_tutoring import (
     TutorStatus, SessionStatus, SessionType, ReviewStatus, EndorsementType,
     IncentiveType, BadgeCategory, ModerationActionType
 )
+from src.models.merchandise import (
+    MerchandiseItem, MerchandiseOrder, MerchandiseOrderItem, MerchandiseCommission
+)
 
 __all__ = [
     "Institution",
@@ -367,4 +370,8 @@ __all__ = [
     "IncentiveType",
     "BadgeCategory",
     "ModerationActionType",
+    "MerchandiseItem",
+    "MerchandiseOrder",
+    "MerchandiseOrderItem",
+    "MerchandiseCommission",
 ]
