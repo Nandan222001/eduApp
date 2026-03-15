@@ -65,6 +65,13 @@ import type {
   Subject as PomodoroSubject,
 } from '@/types/pomodoro';
 import type { UserSettings } from '@/types/settings';
+import type {
+  DocumentSearchFilters,
+  DocumentUploadRequest,
+  DocumentVerificationRequest,
+  DocumentShareRequest,
+  DocumentRequest,
+} from '@/types/documentVault';
 
 export const isDemoUser = (email?: string): boolean => {
   const userEmail = email || useAuthStore.getState().user?.email;
@@ -3493,6 +3500,421 @@ export const demoPomodoroApi = {
   },
 };
 
+const demoDocumentVaultApi = {
+  getVaultStats: async () => ({
+    total_documents: 24,
+    pending_verification: 3,
+    expiring_soon: 5,
+    pending_requests: 2,
+    total_children: 2,
+    storage_used_mb: 15.7,
+  }),
+
+  getFolders: async () => [
+    {
+      child_id: 1,
+      child_name: 'Emma Johnson',
+      total_documents: 12,
+      document_types: [
+        { type: 'immunization_record' as const, count: 3, last_updated: '2024-01-15T10:00:00Z' },
+        { type: 'medical_record' as const, count: 2, last_updated: '2024-02-20T14:30:00Z' },
+        { type: 'birth_certificate' as const, count: 1, last_updated: '2023-09-01T09:00:00Z' },
+        { type: 'permission_slip' as const, count: 4, last_updated: '2024-03-10T11:00:00Z' },
+        { type: 'report_card' as const, count: 2, last_updated: '2024-01-25T16:00:00Z' },
+      ],
+    },
+    {
+      child_id: 2,
+      child_name: 'Liam Johnson',
+      total_documents: 12,
+      document_types: [
+        { type: 'immunization_record' as const, count: 3, last_updated: '2024-01-15T10:00:00Z' },
+        { type: 'medical_record' as const, count: 1, last_updated: '2024-02-15T14:00:00Z' },
+        { type: 'birth_certificate' as const, count: 1, last_updated: '2023-09-01T09:00:00Z' },
+        { type: 'permission_slip' as const, count: 5, last_updated: '2024-03-12T10:00:00Z' },
+        { type: 'id_card' as const, count: 1, last_updated: '2024-01-10T13:00:00Z' },
+        { type: 'attendance_excuse' as const, count: 1, last_updated: '2024-03-05T08:00:00Z' },
+      ],
+    },
+  ],
+
+  getDocuments: async (filters?: DocumentSearchFilters) => {
+    const allDocs = [
+      {
+        id: 1,
+        child_id: 1,
+        child_name: 'Emma Johnson',
+        document_type: 'immunization_record' as const,
+        title: 'COVID-19 Vaccination Card',
+        description: 'Proof of COVID-19 vaccination',
+        file_url: 'https://via.placeholder.com/800x600/4CAF50/FFFFFF?text=Vaccination+Card',
+        thumbnail_url: 'https://via.placeholder.com/200x150/4CAF50/FFFFFF?text=Vaccine',
+        file_name: 'covid_vaccine_card.pdf',
+        file_size: 524288,
+        mime_type: 'application/pdf',
+        status: 'verified' as const,
+        upload_date: '2024-01-15T10:00:00Z',
+        expiry_date: '2025-01-15T00:00:00Z',
+        verified_by: 'School Nurse',
+        verified_date: '2024-01-16T09:00:00Z',
+        tags: ['vaccination', 'covid-19', 'required'],
+        access_log_count: 5,
+        created_at: '2024-01-15T10:00:00Z',
+        updated_at: '2024-01-16T09:00:00Z',
+      },
+      {
+        id: 2,
+        child_id: 1,
+        child_name: 'Emma Johnson',
+        document_type: 'medical_record' as const,
+        title: 'Allergy Information',
+        description: 'List of known allergies',
+        file_url: 'https://via.placeholder.com/800x600/FF9800/FFFFFF?text=Medical+Record',
+        thumbnail_url: 'https://via.placeholder.com/200x150/FF9800/FFFFFF?text=Medical',
+        file_name: 'allergy_info.pdf',
+        file_size: 342016,
+        mime_type: 'application/pdf',
+        status: 'verified' as const,
+        upload_date: '2024-02-20T14:30:00Z',
+        verified_by: 'School Nurse',
+        verified_date: '2024-02-21T10:00:00Z',
+        tags: ['medical', 'allergies', 'important'],
+        access_log_count: 8,
+        created_at: '2024-02-20T14:30:00Z',
+        updated_at: '2024-02-21T10:00:00Z',
+      },
+      {
+        id: 3,
+        child_id: 1,
+        child_name: 'Emma Johnson',
+        document_type: 'permission_slip' as const,
+        title: 'Field Trip Permission - Science Museum',
+        description: 'Permission for March 25 field trip',
+        file_url: 'https://via.placeholder.com/800x600/2196F3/FFFFFF?text=Permission+Slip',
+        thumbnail_url: 'https://via.placeholder.com/200x150/2196F3/FFFFFF?text=Permission',
+        file_name: 'field_trip_permission.pdf',
+        file_size: 256000,
+        mime_type: 'application/pdf',
+        status: 'pending' as const,
+        upload_date: '2024-03-10T11:00:00Z',
+        expiry_date: '2024-03-25T00:00:00Z',
+        tags: ['field-trip', 'permission'],
+        access_log_count: 2,
+        created_at: '2024-03-10T11:00:00Z',
+        updated_at: '2024-03-10T11:00:00Z',
+      },
+      {
+        id: 4,
+        child_id: 2,
+        child_name: 'Liam Johnson',
+        document_type: 'immunization_record' as const,
+        title: 'Flu Shot 2024',
+        description: 'Annual flu vaccination',
+        file_url: 'https://via.placeholder.com/800x600/4CAF50/FFFFFF?text=Flu+Shot',
+        thumbnail_url: 'https://via.placeholder.com/200x150/4CAF50/FFFFFF?text=Flu',
+        file_name: 'flu_shot_2024.jpg',
+        file_size: 1048576,
+        mime_type: 'image/jpeg',
+        status: 'verified' as const,
+        upload_date: '2024-01-15T10:00:00Z',
+        expiry_date: '2024-12-31T00:00:00Z',
+        verified_by: 'School Nurse',
+        verified_date: '2024-01-16T11:00:00Z',
+        tags: ['vaccination', 'flu', 'annual'],
+        access_log_count: 3,
+        created_at: '2024-01-15T10:00:00Z',
+        updated_at: '2024-01-16T11:00:00Z',
+      },
+      {
+        id: 5,
+        child_id: 2,
+        child_name: 'Liam Johnson',
+        document_type: 'attendance_excuse' as const,
+        title: 'Doctor Appointment Excuse',
+        description: 'Excused absence for dental appointment',
+        file_url: 'https://via.placeholder.com/800x600/9C27B0/FFFFFF?text=Doctor+Note',
+        thumbnail_url: 'https://via.placeholder.com/200x150/9C27B0/FFFFFF?text=Note',
+        file_name: 'doctor_excuse_march.pdf',
+        file_size: 180224,
+        mime_type: 'application/pdf',
+        status: 'verified' as const,
+        upload_date: '2024-03-05T08:00:00Z',
+        verified_by: 'Attendance Officer',
+        verified_date: '2024-03-05T14:00:00Z',
+        tags: ['absence', 'medical'],
+        access_log_count: 4,
+        created_at: '2024-03-05T08:00:00Z',
+        updated_at: '2024-03-05T14:00:00Z',
+      },
+    ];
+
+    return allDocs.filter((doc) => {
+      if (filters?.child_id && doc.child_id !== filters.child_id) return false;
+      if (filters?.document_type && doc.document_type !== filters.document_type) return false;
+      if (filters?.status && doc.status !== filters.status) return false;
+      if (filters?.search_query) {
+        const query = filters.search_query.toLowerCase();
+        return (
+          doc.title.toLowerCase().includes(query) ||
+          doc.description?.toLowerCase().includes(query) ||
+          doc.tags.some((tag) => tag.toLowerCase().includes(query))
+        );
+      }
+      return true;
+    });
+  },
+
+  getDocument: async (documentId: number) => {
+    const docs = await demoDocumentVaultApi.getDocuments();
+    return docs.find((d) => d.id === documentId)!;
+  },
+
+  uploadDocument: async (data: DocumentUploadRequest) => ({
+    id: Math.floor(Math.random() * 1000),
+    child_id: data.child_id,
+    child_name: 'Demo Child',
+    document_type: data.document_type,
+    title: data.title,
+    description: data.description,
+    file_url: 'https://via.placeholder.com/800x600',
+    file_name: data.file.name,
+    file_size: data.file.size,
+    mime_type: data.file.type,
+    status: 'pending',
+    upload_date: new Date().toISOString(),
+    expiry_date: data.expiry_date,
+    tags: data.tags || [],
+    access_log_count: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }),
+
+  performOCR: async (_file: File) => ({
+    document_type: 'immunization_record',
+    confidence: 0.92,
+    detected_text: 'Vaccination Record for COVID-19',
+    detected_dates: ['2024-01-15'],
+    detected_names: ['Emma Johnson'],
+  }),
+
+  verifyDocument: async (documentId: number, data: DocumentVerificationRequest) => {
+    const doc = await demoDocumentVaultApi.getDocument(documentId);
+    return {
+      ...doc,
+      status: data.status,
+      rejection_reason: data.rejection_reason,
+      verified_by: 'Demo Admin',
+      verified_date: new Date().toISOString(),
+    };
+  },
+
+  shareDocument: async (documentId: number, data: DocumentShareRequest) =>
+    data.recipient_ids.map((id: number) => ({
+      id: Math.floor(Math.random() * 1000),
+      document_id: documentId,
+      recipient_id: id,
+      recipient_name: 'Demo Recipient',
+      recipient_role: 'teacher',
+      shared_by: 'Parent',
+      shared_date: new Date().toISOString(),
+      expiry_date: data.expiry_date,
+      access_count: 0,
+      message: data.message,
+    })),
+
+  getDocumentShares: async (documentId: number) => [
+    {
+      id: 1,
+      document_id: documentId,
+      recipient_id: 1,
+      recipient_name: 'Ms. Sarah Smith',
+      recipient_role: 'teacher',
+      shared_by: 'Parent',
+      shared_date: '2024-03-01T10:00:00Z',
+      expiry_date: '2024-12-31T23:59:59Z',
+      access_count: 3,
+      last_accessed: '2024-03-10T14:30:00Z',
+      message: 'For reference during parent-teacher conference',
+    },
+    {
+      id: 2,
+      document_id: documentId,
+      recipient_id: 2,
+      recipient_name: 'School Nurse Johnson',
+      recipient_role: 'nurse',
+      shared_by: 'Parent',
+      shared_date: '2024-02-15T09:00:00Z',
+      access_count: 5,
+      last_accessed: '2024-03-12T11:00:00Z',
+    },
+  ],
+
+  revokeShare: async (_shareId: number) => {},
+
+  downloadDocument: async (_documentId: number) =>
+    new Blob(['Demo document content'], { type: 'application/pdf' }),
+
+  getAccessLogs: async (documentId: number) => [
+    {
+      id: 1,
+      document_id: documentId,
+      accessed_by: 'Ms. Sarah Smith',
+      accessed_by_role: 'teacher',
+      access_type: 'view',
+      accessed_date: '2024-03-10T14:30:00Z',
+      ip_address: '192.168.1.100',
+    },
+    {
+      id: 2,
+      document_id: documentId,
+      accessed_by: 'School Nurse Johnson',
+      accessed_by_role: 'nurse',
+      access_type: 'download',
+      accessed_date: '2024-03-12T11:00:00Z',
+      ip_address: '192.168.1.101',
+    },
+    {
+      id: 3,
+      document_id: documentId,
+      accessed_by: 'Admin Davis',
+      accessed_by_role: 'admin',
+      access_type: 'view',
+      accessed_date: '2024-03-13T09:15:00Z',
+      ip_address: '192.168.1.102',
+    },
+  ],
+
+  getDocumentRequests: async () => [
+    {
+      id: 1,
+      child_id: 1,
+      child_name: 'Emma Johnson',
+      document_type: 'immunization_record',
+      title: 'Updated Immunization Record',
+      description:
+        'Please upload the most recent immunization record including any new vaccinations.',
+      requested_by: 'School Nurse Johnson',
+      requested_by_role: 'nurse',
+      requested_date: '2024-03-01T10:00:00Z',
+      due_date: '2024-03-20T23:59:59Z',
+      status: 'requested',
+    },
+    {
+      id: 2,
+      child_id: 2,
+      child_name: 'Liam Johnson',
+      document_type: 'permission_slip',
+      title: 'Swimming Permission Form',
+      description: 'Permission form required for upcoming swimming lessons.',
+      requested_by: 'Coach Williams',
+      requested_by_role: 'teacher',
+      requested_date: '2024-03-05T14:00:00Z',
+      due_date: '2024-03-18T23:59:59Z',
+      status: 'requested',
+    },
+    {
+      id: 3,
+      child_id: 1,
+      child_name: 'Emma Johnson',
+      document_type: 'report_card',
+      title: 'Mid-term Report Card',
+      description: 'Mid-term progress report',
+      requested_by: 'Ms. Sarah Smith',
+      requested_by_role: 'teacher',
+      requested_date: '2024-02-10T10:00:00Z',
+      status: 'verified',
+      uploaded_document_id: 1,
+      response_date: '2024-02-15T14:00:00Z',
+    },
+  ],
+
+  createDocumentRequest: async (
+    data: Omit<DocumentRequest, 'id' | 'requested_date' | 'status'>
+  ) => ({
+    id: Math.floor(Math.random() * 1000),
+    ...data,
+    requested_date: new Date().toISOString(),
+    status: 'requested',
+  }),
+
+  respondToRequest: async (requestId: number, documentId: number, notes?: string) => ({
+    id: requestId,
+    status: 'uploaded',
+    uploaded_document_id: documentId,
+    response_date: new Date().toISOString(),
+    notes,
+  }),
+
+  getExpiryReminders: async () => [
+    {
+      id: 1,
+      document_id: 1,
+      document_title: 'COVID-19 Vaccination Card',
+      document_type: 'immunization_record',
+      child_name: 'Emma Johnson',
+      expiry_date: '2025-01-15T00:00:00Z',
+      days_until_expiry: 300,
+      reminded_date: '2024-03-10T10:00:00Z',
+    },
+    {
+      id: 2,
+      document_id: 3,
+      document_title: 'Field Trip Permission - Science Museum',
+      document_type: 'permission_slip',
+      child_name: 'Emma Johnson',
+      expiry_date: '2024-03-25T00:00:00Z',
+      days_until_expiry: 10,
+    },
+    {
+      id: 3,
+      document_id: 4,
+      document_title: 'Flu Shot 2024',
+      document_type: 'immunization_record',
+      child_name: 'Liam Johnson',
+      expiry_date: '2024-12-31T00:00:00Z',
+      days_until_expiry: 290,
+    },
+  ],
+
+  getShareRecipients: async () => [
+    {
+      id: 1,
+      name: 'Ms. Sarah Smith',
+      role: 'teacher',
+      email: 'sarah.smith@school.edu',
+      department: 'Grade 5',
+    },
+    {
+      id: 2,
+      name: 'School Nurse Johnson',
+      role: 'nurse',
+      email: 'nurse.johnson@school.edu',
+      department: 'Health Services',
+    },
+    {
+      id: 3,
+      name: 'Principal Anderson',
+      role: 'admin',
+      email: 'principal@school.edu',
+      department: 'Administration',
+    },
+    {
+      id: 4,
+      name: 'Counselor Davis',
+      role: 'counselor',
+      email: 'counselor@school.edu',
+      department: 'Guidance',
+    },
+    {
+      id: 5,
+      name: 'Coach Williams',
+      role: 'teacher',
+      email: 'coach@school.edu',
+      department: 'Physical Education',
+    },
+  ],
+};
+
 export const demoDataApi = {
   students: demoStudentsApi,
   assignments: demoAssignmentsApi,
@@ -3514,6 +3936,7 @@ export const demoDataApi = {
   search: demoSearchApi,
   communications: demoCommunicationsApi,
   studyMaterials: demoStudyMaterialsApi,
+  documentVault: demoDocumentVaultApi,
 };
 
 export type {
