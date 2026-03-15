@@ -25,6 +25,7 @@ import {
   CloudDownload as ExportIcon,
   CloudUpload as ImportIcon,
   Timer as TimerIcon,
+  Store as StoreIcon,
 } from '@mui/icons-material';
 import { NavigationItem } from '@/types/navigation';
 
@@ -358,6 +359,13 @@ export const navigationConfig: NavigationItem[] = [
     title: 'Subscription & Billing',
     path: '/admin/subscription',
     icon: <PaymentIcon />,
+    roles: ['admin', 'institution_admin'],
+  },
+  {
+    id: 'merchandise',
+    title: 'Merchandise Store',
+    path: '/admin/merchandise',
+    icon: <StoreIcon />,
     roles: ['admin', 'institution_admin'],
   },
   {

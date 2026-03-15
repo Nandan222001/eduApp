@@ -69,6 +69,9 @@ import ParentProgressView from './pages/ParentProgressView';
 import ParentScheduleView from './pages/ParentScheduleView';
 import ParentNotifications from './pages/ParentNotifications';
 import PeerTutoringMarketplace from './pages/PeerTutoringMarketplace';
+import SchoolMerchandiseStore from './pages/SchoolMerchandiseStore';
+import MerchandiseOrderTracking from './pages/MerchandiseOrderTracking';
+import AdminMerchandiseManager from './pages/AdminMerchandiseManager';
 
 import {
   LoginPage,
@@ -229,6 +232,7 @@ function App() {
                   <Route path="quizzes/:quizId/take" element={<QuizTakePage />} />
                   <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
                   <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
+                  <Route path="merchandise" element={<AdminMerchandiseManager />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="profile" element={<SettingsPage />} />
                 </Route>
@@ -256,6 +260,8 @@ function App() {
                   <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
                   <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
                   <Route path="peer-tutoring" element={<PeerTutoringMarketplace />} />
+                  <Route path="merchandise/store" element={<SchoolMerchandiseStore />} />
+                  <Route path="merchandise/orders" element={<MerchandiseOrderTracking />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
@@ -284,6 +290,8 @@ function App() {
                   <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
                   <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
                   <Route path="peer-tutoring" element={<PeerTutoringMarketplace />} />
+                  <Route path="merchandise/store" element={<SchoolMerchandiseStore />} />
+                  <Route path="merchandise/orders" element={<MerchandiseOrderTracking />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
@@ -321,6 +329,8 @@ function App() {
                   <Route path="communication" element={<ParentCommunicationDashboard />} />
                   <Route path="schedule" element={<ParentScheduleView />} />
                   <Route path="notifications" element={<ParentNotifications />} />
+                  <Route path="merchandise/store" element={<SchoolMerchandiseStore />} />
+                  <Route path="merchandise/orders" element={<MerchandiseOrderTracking />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="profile" element={<SettingsPage />} />
                 </Route>

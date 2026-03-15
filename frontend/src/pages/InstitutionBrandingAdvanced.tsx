@@ -56,6 +56,7 @@ import {
   Help as HelpIcon,
   Link as LinkIcon,
   Code as CodeIcon,
+  Store as StoreIcon,
 } from '@mui/icons-material';
 
 interface TabPanelProps {
@@ -564,6 +565,7 @@ export default function InstitutionBrandingAdvanced() {
           <Tab label="Loading Screen" icon={<LoadingIcon />} iconPosition="start" />
           <Tab label="Splash Screen (PWA)" icon={<MobileIcon />} iconPosition="start" />
           <Tab label="Help Documentation" icon={<HelpIcon />} iconPosition="start" />
+          <Tab label="Merchandise Store" icon={<StoreIcon />} iconPosition="start" />
         </Tabs>
       </Paper>
 
@@ -1587,6 +1589,201 @@ export default function InstitutionBrandingAdvanced() {
                       Providing comprehensive help documentation improves user satisfaction and
                       reduces support requests.
                     </Alert>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </TabPanel>
+
+          {/* Merchandise Store Configuration */}
+          <TabPanel value={tabValue} index={5}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} lg={8}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Merchandise Store Settings
+                    </Typography>
+                    <Divider sx={{ my: 2 }} />
+
+                    <Stack spacing={3}>
+                      <Alert severity="info" icon={<StoreIcon />}>
+                        Configure your school&apos;s merchandise store to sell branded items to
+                        students and parents. The store integrates with Stripe for secure payments.
+                      </Alert>
+
+                      <FormControlLabel
+                        control={<Switch defaultChecked />}
+                        label="Enable Merchandise Store"
+                      />
+
+                      <TextField
+                        fullWidth
+                        label="Store Welcome Message"
+                        defaultValue="Welcome to our official school store!"
+                        helperText="Message displayed at the top of the store"
+                      />
+
+                      <TextField
+                        fullWidth
+                        label="Commission Rate (%)"
+                        type="number"
+                        defaultValue="10"
+                        helperText="Percentage of each sale going to the school"
+                      />
+
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Store Logo
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                          Upload a custom logo for your merchandise store
+                        </Typography>
+                        <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="store-logo-upload"
+                          type="file"
+                        />
+                        <label htmlFor="store-logo-upload">
+                          <Button
+                            variant="outlined"
+                            component="span"
+                            startIcon={<CloudUploadIcon />}
+                          >
+                            Upload Store Logo
+                          </Button>
+                        </label>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Integration Links
+                        </Typography>
+                        <Stack spacing={2}>
+                          <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                            <Typography variant="body2" fontWeight={600} gutterBottom>
+                              Store URL
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Your merchandise store is accessible at:
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontFamily: 'monospace',
+                                  bgcolor: 'background.paper',
+                                  p: 1,
+                                  borderRadius: 1,
+                                  flex: 1,
+                                }}
+                              >
+                                /merchandise/store
+                              </Typography>
+                              <Tooltip title="Copy to clipboard">
+                                <IconButton
+                                  edge="end"
+                                  onClick={() => copyToClipboard('/merchandise/store')}
+                                >
+                                  <CopyIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </Paper>
+
+                          <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                            <Typography variant="body2" fontWeight={600} gutterBottom>
+                              Admin Panel
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Manage products and view analytics at:
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontFamily: 'monospace',
+                                  bgcolor: 'background.paper',
+                                  p: 1,
+                                  borderRadius: 1,
+                                  flex: 1,
+                                }}
+                              >
+                                /admin/merchandise
+                              </Typography>
+                              <Tooltip title="Copy to clipboard">
+                                <IconButton
+                                  edge="end"
+                                  onClick={() => copyToClipboard('/admin/merchandise')}
+                                >
+                                  <CopyIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </Paper>
+                        </Stack>
+                      </Box>
+
+                      <Alert severity="success">
+                        Merchandise store is integrated with school branding. Your logo, colors, and
+                        theme will be applied automatically.
+                      </Alert>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} lg={4}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Store Features
+                    </Typography>
+                    <Divider sx={{ my: 2 }} />
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          ✓ Product Catalog
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Manage products with images, sizes, colors, and stock levels
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          ✓ Customization
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Allow personalization with student names, graduation years, and jersey
+                          numbers
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          ✓ Secure Payments
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Stripe integration for safe and reliable transactions
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          ✓ Order Tracking
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Real-time production status and shipping updates
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          ✓ Revenue Analytics
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Track sales, popular products, and commission earnings
+                        </Typography>
+                      </Box>
+                    </Stack>
                   </CardContent>
                 </Card>
               </Grid>
