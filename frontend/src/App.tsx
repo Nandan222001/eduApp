@@ -72,6 +72,7 @@ import PeerTutoringMarketplace from './pages/PeerTutoringMarketplace';
 import SchoolMerchandiseStore from './pages/SchoolMerchandiseStore';
 import MerchandiseOrderTracking from './pages/MerchandiseOrderTracking';
 import AdminMerchandiseManager from './pages/AdminMerchandiseManager';
+import AdminOnboardingDesigner from './pages/AdminOnboardingDesigner';
 
 import {
   LoginPage,
@@ -233,6 +234,7 @@ function App() {
                   <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
                   <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
                   <Route path="merchandise" element={<AdminMerchandiseManager />} />
+                  <Route path="onboarding-designer" element={<AdminOnboardingDesigner />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="profile" element={<SettingsPage />} />
                 </Route>
