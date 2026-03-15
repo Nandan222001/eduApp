@@ -75,7 +75,8 @@ from src.api.v1 import (
     entrepreneurship,
     peer_recognition,
     learning_styles,
-    content_marketplace
+    content_marketplace,
+    yearbook
 )
 from src.api import ml
 
@@ -159,3 +160,4 @@ api_router.include_router(entrepreneurship.router, prefix="/entrepreneurship", t
 api_router.include_router(peer_recognition.router, prefix="/peer-recognition", tags=["peer-recognition"])
 api_router.include_router(learning_styles.router, prefix="", tags=["learning-styles"])
 api_router.include_router(content_marketplace.router, tags=["content-marketplace"])
+api_router.include_router(yearbook.router, prefix="/yearbook", tags=["yearbook"])

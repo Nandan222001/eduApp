@@ -1,0 +1,208 @@
+"""create yearbook tables
+
+Revision ID: XXXXX
+Revises: YYYYY
+Create Date: ZZZZ
+
+"""
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision = 'XXXXX'
+down_revision = 'YYYYY'
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    # Create yearbook_editions table
+    op.create_table(
+        'yearbook_editions',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('institution_id', sa.Integer(), nullable=False),
+        sa.Column('academic_year', sa.String(length=20), nullable=False),
+        sa.Column('theme', sa.String(length=255), nullable=True),
+        sa.Column('cover_design_url', sa.String(length=500), nullable=True),
+        sa.Column('dedication_text', sa.Text(), nullable=True),
+        sa.Column('editor_students', sa.JSON(), nullable=True),
+        sa.Column('publication_status', sa.String(length=50), nullable=False, server_default='draft'),
+        sa.Column('digital_flip_book_url', sa.String(length=500), nullable=True),
+        sa.Column('pdf_url', sa.String(length=500), nullable=True),
+        sa.Column('print_order_count', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('is_public', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('published_at', sa.DateTime(), nullable=True),
+        sa.Column('created_by', sa.Integer(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('institution_id', 'academic_year', name='uq_institution_yearbook_year')
+    )
+    op.create_index('idx_yearbook_edition_institution', 'yearbook_editions', ['institution_id'])
+    op.create_index('idx_yearbook_edition_year', 'yearbook_editions', ['academic_year'])
+    op.create_index('idx_yearbook_edition_status', 'yearbook_editions', ['publication_status'])
+
+    # Create yearbook_pages table
+    op.create_table(
+        'yearbook_pages',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('edition_id', sa.Integer(), nullable=False),
+        sa.Column('page_number', sa.Integer(), nullable=False),
+        sa.Column('section', sa.String(length=50), nullable=False),
+        sa.Column('layout_template', sa.String(length=100), nullable=True),
+        sa.Column('photos', sa.JSON(), nullable=True),
+        sa.Column('text_content', sa.JSON(), nullable=True),
+        sa.Column('background_color', sa.String(length=20), nullable=True),
+        sa.Column('background_image_url', sa.String(length=500), nullable=True),
+        sa.Column('is_double_page', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('is_locked', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('created_by', sa.Integer(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['edition_id'], ['yearbook_editions.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('edition_id', 'page_number', name='uq_edition_page_number')
+    )
+    op.create_index('idx_yearbook_page_edition', 'yearbook_pages', ['edition_id'])
+    op.create_index('idx_yearbook_page_number', 'yearbook_pages', ['page_number'])
+    op.create_index('idx_yearbook_page_section', 'yearbook_pages', ['section'])
+
+    # Create yearbook_signatures table
+    op.create_table(
+        'yearbook_signatures',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('edition_id', sa.Integer(), nullable=False),
+        sa.Column('from_student_id', sa.Integer(), nullable=False),
+        sa.Column('to_student_id', sa.Integer(), nullable=False),
+        sa.Column('message', sa.Text(), nullable=False),
+        sa.Column('stickers', sa.JSON(), nullable=True),
+        sa.Column('emojis', sa.JSON(), nullable=True),
+        sa.Column('page_location', sa.Integer(), nullable=True),
+        sa.Column('font_style', sa.String(length=50), nullable=True),
+        sa.Column('color', sa.String(length=20), nullable=True),
+        sa.Column('is_public', sa.Boolean(), nullable=False, server_default='true'),
+        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.ForeignKeyConstraint(['edition_id'], ['yearbook_editions.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['from_student_id'], ['students.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['to_student_id'], ['students.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('idx_yearbook_signature_edition', 'yearbook_signatures', ['edition_id'])
+    op.create_index('idx_yearbook_signature_from', 'yearbook_signatures', ['from_student_id'])
+    op.create_index('idx_yearbook_signature_to', 'yearbook_signatures', ['to_student_id'])
+    op.create_index('idx_yearbook_signature_public', 'yearbook_signatures', ['is_public'])
+
+    # Create yearbook_photo_submissions table
+    op.create_table(
+        'yearbook_photo_submissions',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('edition_id', sa.Integer(), nullable=False),
+        sa.Column('student_id', sa.Integer(), nullable=False),
+        sa.Column('photo_url', sa.String(length=500), nullable=False),
+        sa.Column('s3_key', sa.String(length=500), nullable=False),
+        sa.Column('caption', sa.Text(), nullable=True),
+        sa.Column('category', sa.String(length=100), nullable=True),
+        sa.Column('suggested_section', sa.String(length=50), nullable=True),
+        sa.Column('status', sa.String(length=20), nullable=False, server_default='pending'),
+        sa.Column('reviewed_by', sa.Integer(), nullable=True),
+        sa.Column('review_notes', sa.Text(), nullable=True),
+        sa.Column('page_id', sa.Integer(), nullable=True),
+        sa.Column('submitted_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.Column('reviewed_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['edition_id'], ['yearbook_editions.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['page_id'], ['yearbook_pages.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['reviewed_by'], ['users.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('idx_yearbook_photo_edition', 'yearbook_photo_submissions', ['edition_id'])
+    op.create_index('idx_yearbook_photo_student', 'yearbook_photo_submissions', ['student_id'])
+    op.create_index('idx_yearbook_photo_status', 'yearbook_photo_submissions', ['status'])
+
+    # Create yearbook_quote_submissions table
+    op.create_table(
+        'yearbook_quote_submissions',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('edition_id', sa.Integer(), nullable=False),
+        sa.Column('student_id', sa.Integer(), nullable=False),
+        sa.Column('quote_text', sa.Text(), nullable=False),
+        sa.Column('category', sa.String(length=100), nullable=True),
+        sa.Column('status', sa.String(length=20), nullable=False, server_default='pending'),
+        sa.Column('reviewed_by', sa.Integer(), nullable=True),
+        sa.Column('review_notes', sa.Text(), nullable=True),
+        sa.Column('page_id', sa.Integer(), nullable=True),
+        sa.Column('submitted_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.Column('reviewed_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['edition_id'], ['yearbook_editions.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['page_id'], ['yearbook_pages.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['reviewed_by'], ['users.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('idx_yearbook_quote_edition', 'yearbook_quote_submissions', ['edition_id'])
+    op.create_index('idx_yearbook_quote_student', 'yearbook_quote_submissions', ['student_id'])
+    op.create_index('idx_yearbook_quote_status', 'yearbook_quote_submissions', ['status'])
+
+    # Create yearbook_memory_submissions table
+    op.create_table(
+        'yearbook_memory_submissions',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('edition_id', sa.Integer(), nullable=False),
+        sa.Column('student_id', sa.Integer(), nullable=False),
+        sa.Column('title', sa.String(length=255), nullable=False),
+        sa.Column('content', sa.Text(), nullable=False),
+        sa.Column('associated_event', sa.String(length=255), nullable=True),
+        sa.Column('tags', sa.JSON(), nullable=True),
+        sa.Column('status', sa.String(length=20), nullable=False, server_default='pending'),
+        sa.Column('reviewed_by', sa.Integer(), nullable=True),
+        sa.Column('review_notes', sa.Text(), nullable=True),
+        sa.Column('page_id', sa.Integer(), nullable=True),
+        sa.Column('submitted_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
+        sa.Column('reviewed_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['edition_id'], ['yearbook_editions.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['page_id'], ['yearbook_pages.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['reviewed_by'], ['users.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('idx_yearbook_memory_edition', 'yearbook_memory_submissions', ['edition_id'])
+    op.create_index('idx_yearbook_memory_student', 'yearbook_memory_submissions', ['student_id'])
+    op.create_index('idx_yearbook_memory_status', 'yearbook_memory_submissions', ['status'])
+
+
+def downgrade():
+    op.drop_index('idx_yearbook_memory_status', table_name='yearbook_memory_submissions')
+    op.drop_index('idx_yearbook_memory_student', table_name='yearbook_memory_submissions')
+    op.drop_index('idx_yearbook_memory_edition', table_name='yearbook_memory_submissions')
+    op.drop_table('yearbook_memory_submissions')
+    
+    op.drop_index('idx_yearbook_quote_status', table_name='yearbook_quote_submissions')
+    op.drop_index('idx_yearbook_quote_student', table_name='yearbook_quote_submissions')
+    op.drop_index('idx_yearbook_quote_edition', table_name='yearbook_quote_submissions')
+    op.drop_table('yearbook_quote_submissions')
+    
+    op.drop_index('idx_yearbook_photo_status', table_name='yearbook_photo_submissions')
+    op.drop_index('idx_yearbook_photo_student', table_name='yearbook_photo_submissions')
+    op.drop_index('idx_yearbook_photo_edition', table_name='yearbook_photo_submissions')
+    op.drop_table('yearbook_photo_submissions')
+    
+    op.drop_index('idx_yearbook_signature_public', table_name='yearbook_signatures')
+    op.drop_index('idx_yearbook_signature_to', table_name='yearbook_signatures')
+    op.drop_index('idx_yearbook_signature_from', table_name='yearbook_signatures')
+    op.drop_index('idx_yearbook_signature_edition', table_name='yearbook_signatures')
+    op.drop_table('yearbook_signatures')
+    
+    op.drop_index('idx_yearbook_page_section', table_name='yearbook_pages')
+    op.drop_index('idx_yearbook_page_number', table_name='yearbook_pages')
+    op.drop_index('idx_yearbook_page_edition', table_name='yearbook_pages')
+    op.drop_table('yearbook_pages')
+    
+    op.drop_index('idx_yearbook_edition_status', table_name='yearbook_editions')
+    op.drop_index('idx_yearbook_edition_year', table_name='yearbook_editions')
+    op.drop_index('idx_yearbook_edition_institution', table_name='yearbook_editions')
+    op.drop_table('yearbook_editions')
