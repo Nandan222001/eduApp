@@ -210,3 +210,24 @@ blockchain/network/*.tx
 blockchain/scripts/log.txt
 blockchain/scripts/*.log
 *.tar.gz
+
+# Mobile (React Native/Expo)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/.expo-shared/
+mobile/coverage/
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/android/build/
+mobile/android/app/build/
+mobile/.env.local
+mobile/npm-debug.log
+mobile/yarn-error.log
+mobile/*.jks
+mobile/*.keystore
+!mobile/debug.keystore
+mobile/*.mobileprovision
+mobile/*.p12
+mobile/service-account-key.json
