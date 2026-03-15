@@ -73,6 +73,10 @@ import SchoolMerchandiseStore from './pages/SchoolMerchandiseStore';
 import MerchandiseOrderTracking from './pages/MerchandiseOrderTracking';
 import AdminMerchandiseManager from './pages/AdminMerchandiseManager';
 import AdminOnboardingDesigner from './pages/AdminOnboardingDesigner';
+import ParentVolunteerHours from './pages/ParentVolunteerHours';
+import TeacherVolunteerVerification from './pages/TeacherVolunteerVerification';
+import VolunteerLeaderboard from './pages/VolunteerLeaderboard';
+import AdminVolunteerAnalytics from './pages/AdminVolunteerAnalytics';
 
 import {
   LoginPage,
@@ -235,6 +239,8 @@ function App() {
                   <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
                   <Route path="merchandise" element={<AdminMerchandiseManager />} />
                   <Route path="onboarding-designer" element={<AdminOnboardingDesigner />} />
+                  <Route path="volunteer/analytics" element={<AdminVolunteerAnalytics />} />
+                  <Route path="volunteer/leaderboard" element={<VolunteerLeaderboard />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="profile" element={<SettingsPage />} />
                 </Route>
@@ -264,6 +270,8 @@ function App() {
                   <Route path="peer-tutoring" element={<PeerTutoringMarketplace />} />
                   <Route path="merchandise/store" element={<SchoolMerchandiseStore />} />
                   <Route path="merchandise/orders" element={<MerchandiseOrderTracking />} />
+                  <Route path="volunteer/verification" element={<TeacherVolunteerVerification />} />
+                  <Route path="volunteer/leaderboard" element={<VolunteerLeaderboard />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
@@ -292,6 +300,7 @@ function App() {
                   <Route path="quizzes/:quizId/leaderboard" element={<QuizLeaderboardPage />} />
                   <Route path="quizzes/:quizId/analytics" element={<QuizAnalyticsPage />} />
                   <Route path="peer-tutoring" element={<PeerTutoringMarketplace />} />
+                  <Route path="volunteer/leaderboard" element={<VolunteerLeaderboard />} />
                   <Route path="merchandise/store" element={<SchoolMerchandiseStore />} />
                   <Route path="merchandise/orders" element={<MerchandiseOrderTracking />} />
                   <Route path="settings" element={<SettingsPage />} />
@@ -331,6 +340,8 @@ function App() {
                   <Route path="communication" element={<ParentCommunicationDashboard />} />
                   <Route path="schedule" element={<ParentScheduleView />} />
                   <Route path="notifications" element={<ParentNotifications />} />
+                  <Route path="volunteer" element={<ParentVolunteerHours />} />
+                  <Route path="volunteer/leaderboard" element={<VolunteerLeaderboard />} />
                   <Route path="merchandise/store" element={<SchoolMerchandiseStore />} />
                   <Route path="merchandise/orders" element={<MerchandiseOrderTracking />} />
                   <Route path="settings" element={<SettingsPage />} />
