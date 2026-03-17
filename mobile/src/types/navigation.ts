@@ -20,6 +20,12 @@ export type MainTabParamList = {
   ParentChildren: undefined;
   ParentReports: undefined;
   ParentProfile: undefined;
+  AssignmentDetail: { assignmentId: number };
+  AssignmentSubmission: { assignmentId: number };
+  CameraScreen: { onPhotoTaken: (photo: any) => void };
+  StudyMaterialsScreen: undefined;
+  SubjectMaterials: { subjectId: number; subjectName: string };
+  MaterialDetail: { materialId: number };
 };
 
 export type DeepLinkConfig = {
