@@ -18,6 +18,7 @@ import { Camera, CameraType } from 'expo-camera';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { assignmentsApi, SubmitAssignmentData } from '../../api/assignments';
+import { LoadingState, ErrorState } from '../../components';
 
 interface AttachmentFile {
   uri: string;
@@ -39,13 +40,15 @@ export const AssignmentDetailScreen: React.FC = () => {
   const [cameraPermission, requestCameraPermission] = Camera.useCameraPermissions();
   const cameraRef = React.useRef<Camera>(null);
 
-  const { data: assignment, isLoading, isError, refetch } = useQuery({
+  const { data: assignment, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['assignment', assignmentId],
     queryFn: async () => {
       const response = await assignmentsApi.getAssignmentDetail(String(assignmentId));
       return response.data;
     },
     enabled: !!assignmentId,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const submitMutation = useMutation({
@@ -213,22 +216,16 @@ export const AssignmentDetailScreen: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <LoadingState message="Loading assignment..." />;
   }
 
   if (isError || !assignment) {
     return (
-      <View style={styles.centerContainer}>
-        <Icon name="alert-circle" type="feather" size={48} color={COLORS.error} />
-        <Text style={styles.errorText}>Failed to load assignment</Text>
-        <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
+      <ErrorState
+        title="Failed to load assignment"
+        message={(error as any)?.message || 'Please check your connection and try again'}
+        onRetry={() => refetch()}
+      />
     );
   }
 

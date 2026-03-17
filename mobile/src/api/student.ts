@@ -9,9 +9,46 @@ import {
   GamificationData,
 } from '../types/student';
 
+export interface DashboardData {
+  attendance: AttendanceSummary;
+  upcomingAssignments: Assignment[];
+  recentGrades: Grade[];
+  aiPredictions: AIPrediction;
+  weakAreas: WeakArea[];
+  gamification: GamificationData;
+}
+
+export interface GradesParams {
+  term?: string;
+  subject?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface TimetableEntry {
+  id: number;
+  day: string;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  subjectCode: string;
+  teacher: string;
+  room: string;
+  type: 'lecture' | 'lab' | 'tutorial' | 'exam';
+}
+
+export interface TimetableData {
+  currentDay: string;
+  entries: TimetableEntry[];
+}
+
 export const studentApi = {
   getProfile: async () => {
     return apiClient.get<Profile>('/api/v1/profile');
+  },
+
+  getDashboard: async () => {
+    return apiClient.get<DashboardData>('/api/v1/students/dashboard');
   },
 
   getAttendanceSummary: async () => {
@@ -22,8 +59,15 @@ export const studentApi = {
     return apiClient.get<Assignment[]>('/api/v1/assignments');
   },
 
-  getGrades: async () => {
-    return apiClient.get<Grade[]>('/api/v1/grades');
+  getGrades: async (params?: GradesParams) => {
+    const queryParams = new URLSearchParams();
+    if (params?.term) queryParams.append('term', params.term);
+    if (params?.subject) queryParams.append('subject', params.subject);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const url = `/api/v1/grades${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return apiClient.get<Grade[]>(url);
   },
 
   getAIPredictionDashboard: async () => {
@@ -36,5 +80,9 @@ export const studentApi = {
 
   getGamification: async () => {
     return apiClient.get<GamificationData>('/api/v1/gamification');
+  },
+
+  getTimetable: async () => {
+    return apiClient.get<TimetableData>('/api/v1/timetable');
   },
 };

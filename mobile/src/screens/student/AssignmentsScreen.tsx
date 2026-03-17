@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { Text, Card, Badge, Icon } from '@rneui/themed';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
@@ -14,6 +13,7 @@ import { format, isPast, parseISO } from 'date-fns';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
 import { StudentTabScreenProps } from '@types';
 import { assignmentsApi, AssignmentDetail } from '../../api/assignments';
+import { LoadingState, ErrorState, EmptyState } from '../../components';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -103,13 +103,15 @@ const AssignmentsList: React.FC<{
   status?: 'pending' | 'submitted' | 'graded' | 'overdue';
   navigation: any;
 }> = ({ status, navigation }) => {
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['assignments', status],
     queryFn: async () => {
       const response = await assignmentsApi.getAssignments({ status });
       return response.data;
     },
     staleTime: 2 * 60 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const [refreshing, setRefreshing] = useState(false);
@@ -125,31 +127,34 @@ const AssignmentsList: React.FC<{
   };
 
   if (isLoading && !refreshing) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <LoadingState message="Loading assignments..." />;
   }
 
   if (isError) {
     return (
-      <View style={styles.centerContainer}>
-        <Icon name="alert-circle" type="feather" size={48} color={COLORS.error} />
-        <Text style={styles.errorText}>Failed to load assignments</Text>
-        <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
+      <ErrorState
+        title="Failed to load assignments"
+        message={(error as any)?.message || 'Please check your connection and try again'}
+        onRetry={() => refetch()}
+      />
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Icon name="clipboard" type="feather" size={48} color={COLORS.textSecondary} />
-        <Text style={styles.emptyText}>No assignments found</Text>
-      </View>
+      <EmptyState
+        icon="clipboard"
+        title="No assignments found"
+        message={
+          status === 'pending'
+            ? 'You have no pending assignments'
+            : status === 'submitted'
+            ? 'You have not submitted any assignments yet'
+            : status === 'graded'
+            ? 'No graded assignments available'
+            : 'No assignments available'
+        }
+      />
     );
   }
 
@@ -235,13 +240,6 @@ const styles = StyleSheet.create({
   listContent: {
     padding: SPACING.md,
   },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.xl,
-  },
   card: {
     borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.md,
@@ -290,28 +288,5 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     lineHeight: 20,
-  },
-  errorText: {
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.error,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  emptyText: {
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.md,
-  },
-  retryButton: {
-    marginTop: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  retryButtonText: {
-    color: COLORS.background,
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
   },
 });

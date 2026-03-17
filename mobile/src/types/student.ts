@@ -47,11 +47,13 @@ export interface Grade {
   id: number;
   examName: string;
   subject: string;
+  subjectCode?: string;
   totalMarks: number;
   obtainedMarks: number;
   percentage: number;
   grade: string;
   examDate: string;
+  term?: string;
   remarks?: string;
 }
 
