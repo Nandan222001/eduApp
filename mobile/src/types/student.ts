@@ -26,10 +26,21 @@ export interface Assignment {
   description: string;
   dueDate: string;
   subject: string;
+  subjectCode?: string;
+  teacherName?: string;
   status: 'pending' | 'submitted' | 'graded' | 'overdue';
   totalMarks?: number;
   obtainedMarks?: number;
   submittedAt?: string;
+  feedback?: string;
+  attachments?: {
+    id: number;
+    fileName: string;
+    fileUrl: string;
+    fileType: string;
+    fileSize: number;
+  }[];
+  createdAt?: string;
 }
 
 export interface Grade {

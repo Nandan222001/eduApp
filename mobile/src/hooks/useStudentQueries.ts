@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { studentApi } from '../api';
+import { assignmentsApi, SubmitAssignmentData, AssignmentsListParams } from '../api/assignments';
 
 export const useProfile = () => {
   return useQuery({
@@ -75,5 +76,39 @@ export const useGamification = () => {
       return response.data;
     },
     staleTime: 1 * 60 * 1000,
+  });
+};
+
+export const useAssignmentsList = (params?: AssignmentsListParams) => {
+  return useQuery({
+    queryKey: ['assignments', params?.status],
+    queryFn: async () => {
+      const response = await assignmentsApi.getAssignments(params);
+      return response.data;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useAssignmentDetail = (assignmentId: string) => {
+  return useQuery({
+    queryKey: ['assignment', assignmentId],
+    queryFn: async () => {
+      const response = await assignmentsApi.getAssignmentDetail(assignmentId);
+      return response.data;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useSubmitAssignment = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: SubmitAssignmentData) => assignmentsApi.submitAssignment(data),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['assignment', variables.assignmentId.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['assignments'] });
+    },
   });
 };
