@@ -89,6 +89,11 @@ from src.models.conferences import (
     LocationType, AvailabilityStatus, BookingStatus, ConferenceType
 )
 from src.models.parent_roi import ParentROIReport
+from src.models.olympics import (
+    Competition, CompetitionEvent, CompetitionEntry, CompetitionTeam,
+    CompetitionLeaderboard, CompetitionType, CompetitionScope, EventType,
+    CompetitionStatus
+)
 from src.models.career import (
     CareerPathway, StudentCareerProfile, CareerRecommendation, SkillGapAnalysis,
     PersonalizedLearningPath, LaborMarketData, IndustryMentor, IndustryMentorMatch,
@@ -414,6 +419,15 @@ __all__ = [
     "BookingStatus",
     "ConferenceType",
     "ParentROIReport",
+    "Competition",
+    "CompetitionEvent",
+    "CompetitionEntry",
+    "CompetitionTeam",
+    "CompetitionLeaderboard",
+    "CompetitionType",
+    "CompetitionScope",
+    "EventType",
+    "CompetitionStatus",
     "CareerPathway",
     "StudentCareerProfile",
     "CareerRecommendation",
