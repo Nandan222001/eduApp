@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { User } from '@types';
+import { User, UserRole } from '@types';
 import { authApi, LoginRequest } from '@api/auth';
 import { secureStorage } from '@utils/secureStorage';
 import { authService } from '@utils/authService';
@@ -13,6 +13,8 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   biometricEnabled: boolean;
+  availableRoles: UserRole[];
+  activeRole: UserRole | null;
 }
 
 const initialState: AuthState = {
@@ -23,6 +25,8 @@ const initialState: AuthState = {
   isLoading: false,
   error: null,
   biometricEnabled: false,
+  availableRoles: [],
+  activeRole: null,
 };
 
 export const login = createAsyncThunk(
@@ -85,10 +89,12 @@ export const loadStoredAuth = createAsyncThunk(
       const user = await secureStorage.getObject<User>(STORAGE_KEYS.USER_DATA);
       const biometricEnabledStr = await secureStorage.getItem(STORAGE_KEYS.BIOMETRIC_ENABLED);
       const biometricEnabled = biometricEnabledStr === 'true';
+      const storedActiveRole = await secureStorage.getItem(STORAGE_KEYS.ACTIVE_ROLE);
 
       if (accessToken && refreshToken && user) {
         await authService.checkAndRefreshIfNeeded();
-        return { user, accessToken, refreshToken, biometricEnabled };
+        const activeRole = (storedActiveRole as UserRole) || user.role;
+        return { user, accessToken, refreshToken, biometricEnabled, activeRole };
       }
       return null;
     } catch (error: any) {
@@ -132,6 +138,13 @@ const authSlice = createSlice({
   reducers: {
     setUser: (state, action: PayloadAction<User | null>) => {
       state.user = action.payload;
+      if (action.payload) {
+        state.availableRoles = action.payload.roles || [action.payload.role];
+        state.activeRole = state.activeRole || action.payload.role;
+      } else {
+        state.availableRoles = [];
+        state.activeRole = null;
+      }
     },
     setTokens: (
       state,
@@ -146,6 +159,15 @@ const authSlice = createSlice({
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
+        if (action.payload.roles) {
+          state.availableRoles = action.payload.roles;
+        }
+      }
+    },
+    setActiveRole: (state, action: PayloadAction<UserRole>) => {
+      if (state.availableRoles.includes(action.payload)) {
+        state.activeRole = action.payload;
+        secureStorage.setItem(STORAGE_KEYS.ACTIVE_ROLE, action.payload);
       }
     },
   },
@@ -161,6 +183,8 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
         state.isAuthenticated = true;
+        state.availableRoles = action.payload.user.roles || [action.payload.user.role];
+        state.activeRole = action.payload.user.role;
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -173,6 +197,8 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.error = null;
         state.biometricEnabled = false;
+        state.availableRoles = [];
+        state.activeRole = null;
       })
       .addCase(refreshTokens.fulfilled, (state, action) => {
         state.accessToken = action.payload.accessToken;
@@ -184,6 +210,8 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.isAuthenticated = false;
         state.biometricEnabled = false;
+        state.availableRoles = [];
+        state.activeRole = null;
       })
       .addCase(loadStoredAuth.pending, state => {
         state.isLoading = true;
@@ -196,6 +224,8 @@ const authSlice = createSlice({
           state.refreshToken = action.payload.refreshToken;
           state.isAuthenticated = true;
           state.biometricEnabled = action.payload.biometricEnabled;
+          state.availableRoles = action.payload.user.roles || [action.payload.user.role];
+          state.activeRole = action.payload.activeRole;
         }
       })
       .addCase(loadStoredAuth.rejected, state => {
@@ -210,5 +240,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, setTokens, clearError, updateUser } = authSlice.actions;
+export const { setUser, setTokens, clearError, updateUser, setActiveRole } = authSlice.actions;
 export default authSlice.reducer;

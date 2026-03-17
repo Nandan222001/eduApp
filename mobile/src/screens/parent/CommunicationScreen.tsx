@@ -1,17 +1,14 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@rneui/themed';
-import { MainStackScreenProps } from '@types';
+import { ParentTabScreenProps } from '@types';
 
-type Props = MainStackScreenProps<'Grades'>;
+type Props = ParentTabScreenProps<'Communication'>;
 
-export const GradesScreen: React.FC<Props> = ({ navigation, route }) => {
-  const childId = route.params?.childId;
-
+export const CommunicationScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.container}>
-      <Text h3>Grades</Text>
-      {childId && <Text>Child ID: {childId}</Text>}
+      <Text h3>Communication</Text>
     </View>
   );
 };

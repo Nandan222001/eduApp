@@ -10,6 +10,7 @@ export { AssignmentsScreen } from './student/AssignmentsScreen';
 export { AssignmentDetailScreen } from './student/AssignmentDetailScreen';
 export { GradesScreen as StudentGradesScreen } from './student/GradesScreen';
 export { ScheduleScreen } from './student/ScheduleScreen';
+export { ProfileScreen as StudentProfileScreen } from './student/ProfileScreen';
 
 export { DashboardScreen as ParentDashboardScreen } from './parent/DashboardScreen';
 export { ChildrenScreen } from './parent/ChildrenScreen';
@@ -18,6 +19,9 @@ export { GradesScreen as ParentGradesScreen } from './parent/GradesScreen';
 export { AttendanceScreen } from './parent/AttendanceScreen';
 export { MessagesScreen } from './parent/MessagesScreen';
 export { MessageDetailScreen } from './parent/MessageDetailScreen';
+export { CommunicationScreen } from './parent/CommunicationScreen';
+export { ReportsScreen } from './parent/ReportsScreen';
+export { ProfileScreen as ParentProfileScreen } from './parent/ProfileScreen';
 
 export { ProfileScreen } from './common/ProfileScreen';
 export { SettingsScreen } from './common/SettingsScreen';

@@ -80,6 +80,7 @@ export const authService = {
       await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
       await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
       await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);
+      await secureStorage.removeItem(STORAGE_KEYS.ACTIVE_ROLE);
       
       this.stopAutoRefresh();
       

@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@rneui/themed';
-import { ParentTabScreenProps } from '@types';
+import { MainStackScreenProps } from '@types';
 
-type Props = ParentTabScreenProps<'Attendance'>;
+type Props = MainStackScreenProps<'Attendance'>;
 
 export const AttendanceScreen: React.FC<Props> = ({ navigation, route }) => {
   const childId = route.params?.childId;

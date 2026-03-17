@@ -22,26 +22,30 @@ export type MainStackParamList = {
   Settings: undefined;
   Notifications: undefined;
   NotificationDetail: { notificationId: string };
+  Courses: undefined;
   CourseDetail: { courseId: string };
   AssignmentDetail: { assignmentId: string };
+  Grades: { childId?: string };
+  Attendance: { childId?: string };
+  Messages: undefined;
   ChildDetail: { childId: string };
   MessageDetail: { messageId: string };
 };
 
 export type StudentTabParamList = {
-  Dashboard: undefined;
-  Courses: undefined;
+  Home: undefined;
   Assignments: undefined;
-  Grades: undefined;
   Schedule: undefined;
+  Grades: undefined;
+  Profile: undefined;
 };
 
 export type ParentTabParamList = {
   Dashboard: undefined;
   Children: undefined;
-  Grades: { childId?: string };
-  Attendance: { childId?: string };
-  Messages: undefined;
+  Communication: undefined;
+  Reports: undefined;
+  Profile: undefined;
 };
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<

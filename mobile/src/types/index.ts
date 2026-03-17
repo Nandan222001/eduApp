@@ -6,6 +6,7 @@ export interface User {
   firstName: string;
   lastName: string;
   role: UserRole;
+  roles?: UserRole[];
   institutionId?: number;
 }
 
@@ -22,6 +23,8 @@ export interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  availableRoles: UserRole[];
+  activeRole: UserRole | null;
 }
 
 export interface ApiResponse<T> {

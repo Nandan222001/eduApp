@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@rneui/themed';
-import { StudentTabScreenProps } from '@types';
+import { MainStackScreenProps } from '@types';
 
-type Props = StudentTabScreenProps<'Courses'>;
+type Props = MainStackScreenProps<'Courses'>;
 
 export const CoursesScreen: React.FC<Props> = ({ navigation }) => {
   return (

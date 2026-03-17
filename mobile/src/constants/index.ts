@@ -54,4 +54,5 @@ export const STORAGE_KEYS = {
   LANGUAGE: '@edu_language',
   BIOMETRIC_ENABLED: '@edu_biometric_enabled',
   BIOMETRIC_CREDENTIALS: '@edu_biometric_credentials',
+  ACTIVE_ROLE: '@edu_active_role',
 };

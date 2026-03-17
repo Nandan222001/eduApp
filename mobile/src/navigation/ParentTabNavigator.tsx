@@ -1,14 +1,24 @@
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Icon } from '@rneui/themed';
 import { ParentTabParamList } from '@types';
 import { DashboardScreen } from '@screens/parent/DashboardScreen';
 import { ChildrenScreen } from '@screens/parent/ChildrenScreen';
-import { GradesScreen } from '@screens/parent/GradesScreen';
-import { AttendanceScreen } from '@screens/parent/AttendanceScreen';
-import { MessagesScreen } from '@screens/parent/MessagesScreen';
+import { CommunicationScreen } from '@screens/parent/CommunicationScreen';
+import { ReportsScreen } from '@screens/parent/ReportsScreen';
+import { ProfileScreen } from '@screens/parent/ProfileScreen';
+import { RoleSwitcher } from '@components/shared/RoleSwitcher';
+import { RoleBadge } from '@components/shared/RoleBadge';
 
 const Tab = createBottomTabNavigator<ParentTabParamList>();
+
+const HeaderRight = () => (
+  <View style={styles.headerRight}>
+    <RoleBadge />
+    <RoleSwitcher showLabel={false} />
+  </View>
+);
 
 export const ParentTabNavigator: React.FC = () => {
   return (
@@ -17,15 +27,16 @@ export const ParentTabNavigator: React.FC = () => {
         headerShown: true,
         tabBarActiveTintColor: '#2089dc',
         tabBarInactiveTintColor: 'gray',
+        headerRight: () => <HeaderRight />,
       }}
     >
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: 'Dashboard',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="home" type="material" color={color} size={size} />
+            <Icon name="dashboard" type="material" color={color} size={size} />
           ),
         }}
       />
@@ -40,35 +51,42 @@ export const ParentTabNavigator: React.FC = () => {
         }}
       />
       <Tab.Screen
-        name="Grades"
-        component={GradesScreen}
+        name="Communication"
+        component={CommunicationScreen}
         options={{
-          tabBarLabel: 'Grades',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="grade" type="material" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Attendance"
-        component={AttendanceScreen}
-        options={{
-          tabBarLabel: 'Attendance',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="event-available" type="material" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{
-          tabBarLabel: 'Messages',
+          tabBarLabel: 'Communication',
           tabBarIcon: ({ color, size }) => (
             <Icon name="message" type="material" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Reports"
+        component={ReportsScreen}
+        options={{
+          tabBarLabel: 'Reports',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="assessment" type="material" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="person" type="material" color={color} size={size} />
           ),
         }}
       />
     </Tab.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+});

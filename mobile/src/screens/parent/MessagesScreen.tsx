@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@rneui/themed';
-import { ParentTabScreenProps } from '@types';
+import { MainStackScreenProps } from '@types';
 
-type Props = ParentTabScreenProps<'Messages'>;
+type Props = MainStackScreenProps<'Messages'>;
 
 export const MessagesScreen: React.FC<Props> = ({ navigation }) => {
   return (
