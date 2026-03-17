@@ -4162,6 +4162,28 @@ const demoDocumentVaultApi = {
   ],
 };
 
+const demoOlympicsApi = {
+  getCompetitions: async (_status?: string) => [],
+  getCompetition: async (_competitionId: number) => ({}) as Record<string, unknown>,
+  getCompetitionEvents: async (_competitionId: number) => [],
+  getEvent: async (_eventId: number) => ({}) as Record<string, unknown>,
+  startEvent: async (_eventId: number, _teamId?: number) => ({}) as Record<string, unknown>,
+  getSession: async (_sessionId: number) => ({}) as Record<string, unknown>,
+  getQuestions: async (_eventId: number) => [],
+  submitAnswer: async (_sessionId: number, _questionId: number, _answer: string) =>
+    ({}) as Record<string, unknown>,
+  completeSession: async (_sessionId: number) => ({}) as Record<string, unknown>,
+  getTeams: async (_competitionId: number) => [],
+  createTeam: async (_competitionId: number, _name: string, _memberIds: number[]) =>
+    ({}) as Record<string, unknown>,
+  joinTeam: async (_teamCode: string) => ({}) as Record<string, unknown>,
+  getSchoolRankings: async (_competitionId: number) => [],
+  getIndividualRankings: async (_competitionId: number) => [],
+  getTeamRankings: async (_competitionId: number) => [],
+  getPrizes: async (_competitionId: number) => [],
+  getCertificates: async (_userId: number) => [],
+};
+
 export const demoDataApi = {
   students: demoStudentsApi,
   assignments: demoAssignmentsApi,
@@ -4184,6 +4206,7 @@ export const demoDataApi = {
   communications: demoCommunicationsApi,
   studyMaterials: demoStudyMaterialsApi,
   documentVault: demoDocumentVaultApi,
+  olympics: demoOlympicsApi,
 };
 
 export type {

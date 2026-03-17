@@ -31,6 +31,7 @@ import {
   CalendarMonth as CalendarIcon,
   Flag as GoalsIcon,
   SmartToy as StudyBuddyIcon,
+  EmojiEvents as OlympicsIcon,
 } from '@mui/icons-material';
 
 interface StudentSidebarProps {
@@ -137,6 +138,13 @@ const studentNavigation: NavItem[] = [
     title: 'Achievements',
     path: '/student/gamification',
     icon: <GamificationIcon />,
+  },
+  {
+    id: 'olympics',
+    title: 'Virtual Olympics',
+    path: '/student/olympics',
+    icon: <OlympicsIcon />,
+    badge: 'NEW',
   },
   {
     id: 'doubt-forum',

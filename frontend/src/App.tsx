@@ -87,6 +87,9 @@ import AIStudyBuddy from './pages/AIStudyBuddy';
 import HomeworkScanner from './pages/HomeworkScanner';
 import AdministratorsList from './pages/AdministratorsList';
 import ClassManagement from './pages/ClassManagement';
+import VirtualOlympics from './pages/VirtualOlympics';
+import OlympicsDetailPage from './pages/OlympicsDetailPage';
+import OlympicsCompetitionPage from './pages/OlympicsCompetitionPage';
 
 import {
   LoginPage,
@@ -322,6 +325,9 @@ function App() {
                   <Route path="peer-recognition" element={<PeerRecognition />} />
                   <Route path="appreciation-wall" element={<AppreciationWall />} />
                   <Route path="recognition/settings" element={<RecognitionSettings />} />
+                  <Route path="olympics" element={<VirtualOlympics />} />
+                  <Route path="olympics/:competitionId" element={<OlympicsDetailPage />} />
+                  <Route path="olympics/event/:eventId" element={<OlympicsCompetitionPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
