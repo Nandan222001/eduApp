@@ -39,7 +39,7 @@ const AssignmentCard: React.FC<{
     if (assignment.status === 'graded' || assignment.status === 'submitted') {
       return COLORS.textSecondary;
     }
-    
+
     const dueDate = parseISO(assignment.dueDate);
     const now = new Date();
     const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -156,12 +156,9 @@ const AssignmentsList: React.FC<{
   return (
     <FlatList
       data={data}
-      keyExtractor={(item) => item.id.toString()}
+      keyExtractor={item => item.id.toString()}
       renderItem={({ item }) => (
-        <AssignmentCard
-          assignment={item}
-          onPress={() => handleAssignmentPress(item.id)}
-        />
+        <AssignmentCard assignment={item} onPress={() => handleAssignmentPress(item.id)} />
       )}
       contentContainerStyle={styles.listContent}
       refreshControl={
@@ -213,15 +210,9 @@ export const AssignmentsScreen: React.FC<Props> = ({ navigation }) => {
           },
         }}
       >
-        <Tab.Screen name="Pending">
-          {() => <PendingTab navigation={navigation} />}
-        </Tab.Screen>
-        <Tab.Screen name="Submitted">
-          {() => <SubmittedTab navigation={navigation} />}
-        </Tab.Screen>
-        <Tab.Screen name="Graded">
-          {() => <GradedTab navigation={navigation} />}
-        </Tab.Screen>
+        <Tab.Screen name="Pending">{() => <PendingTab navigation={navigation} />}</Tab.Screen>
+        <Tab.Screen name="Submitted">{() => <SubmittedTab navigation={navigation} />}</Tab.Screen>
+        <Tab.Screen name="Graded">{() => <GradedTab navigation={navigation} />}</Tab.Screen>
       </Tab.Navigator>
     </View>
   );

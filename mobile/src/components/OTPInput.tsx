@@ -16,14 +16,14 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   onComplete,
   ...props
 }) => {
-  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
   const handleChangeText = (text: string, index: number) => {
     const newValue = value.split('');
     newValue[index] = text;
     const newOTP = newValue.join('');
-    
+
     onChangeText(newOTP);
 
     if (text && index < length - 1) {

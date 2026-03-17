@@ -103,11 +103,13 @@ export const useAssignmentDetail = (assignmentId: string) => {
 
 export const useSubmitAssignment = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (data: SubmitAssignmentData) => assignmentsApi.submitAssignment(data),
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['assignment', variables.assignmentId.toString()] });
+      queryClient.invalidateQueries({
+        queryKey: ['assignment', variables.assignmentId.toString()],
+      });
       queryClient.invalidateQueries({ queryKey: ['assignments'] });
     },
   });

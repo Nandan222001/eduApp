@@ -53,15 +53,8 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ showLabel = true }) 
             size={20}
             color={COLORS.primary}
           />
-          {showLabel && (
-            <Text style={styles.label}>{currentRoleLabel}</Text>
-          )}
-          <Icon
-            name="expand-more"
-            type="material"
-            size={18}
-            color={COLORS.textSecondary}
-          />
+          {showLabel && <Text style={styles.label}>{currentRoleLabel}</Text>}
+          <Icon name="expand-more" type="material" size={18} color={COLORS.textSecondary} />
         </View>
       </TouchableOpacity>
 
@@ -88,10 +81,7 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ showLabel = true }) 
               {availableRoles.map(role => (
                 <TouchableOpacity
                   key={role}
-                  style={[
-                    styles.roleItem,
-                    activeRole === role && styles.roleItemActive,
-                  ]}
+                  style={[styles.roleItem, activeRole === role && styles.roleItemActive]}
                   onPress={() => handleRoleSwitch(role)}
                 >
                   <View style={styles.roleItemContent}>

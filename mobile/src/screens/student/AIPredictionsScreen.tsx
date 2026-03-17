@@ -61,7 +61,7 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
   }, [fetchData]);
 
   const toggleSection = (section: string) => {
-    setExpandedSections((prev) => ({
+    setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section],
     }));
@@ -149,16 +149,16 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
                       dashboard.trend === 'improving'
                         ? COLORS.success
                         : dashboard.trend === 'declining'
-                        ? COLORS.error
-                        : COLORS.textSecondary,
+                          ? COLORS.error
+                          : COLORS.textSecondary,
                   },
                 ]}
               >
                 {dashboard.trend === 'improving'
                   ? '📈 Improving'
                   : dashboard.trend === 'declining'
-                  ? '📉 Declining'
-                  : '➡️ Stable'}
+                    ? '📉 Declining'
+                    : '➡️ Stable'}
               </Text>
             </View>
             <View style={styles.statRow}>
@@ -183,10 +183,8 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
     return (
       <Card containerStyle={styles.card}>
         <Text style={styles.cardTitle}>Topic Probability Rankings</Text>
-        <Text style={styles.cardSubtitle}>
-          Topics most likely to appear in upcoming exams
-        </Text>
-        {sortedTopics.map((topic) => (
+        <Text style={styles.cardSubtitle}>Topics most likely to appear in upcoming exams</Text>
+        {sortedTopics.map(topic => (
           <View key={topic.id} style={styles.topicItem}>
             <View style={styles.topicHeader}>
               <View style={styles.topicInfo}>
@@ -210,9 +208,7 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
               </View>
             </View>
             <View style={styles.progressBar}>
-              <View
-                style={[styles.progressFill, { width: `${topic.probability}%` }]}
-              />
+              <View style={[styles.progressFill, { width: `${topic.probability}%` }]} />
             </View>
           </View>
         ))}
@@ -224,7 +220,7 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
     if (!boardExam || !boardExam.questionBlueprint.length) return null;
 
     const groupedBySection: Record<string, QuestionBlueprint[]> = {};
-    boardExam.questionBlueprint.forEach((blueprint) => {
+    boardExam.questionBlueprint.forEach(blueprint => {
       if (!groupedBySection[blueprint.section]) {
         groupedBySection[blueprint.section] = [];
       }
@@ -239,18 +235,13 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
         </Text>
         {Object.entries(groupedBySection).map(([section, blueprints]) => (
           <View key={section} style={styles.blueprintSection}>
-            <TouchableOpacity
-              style={styles.sectionHeader}
-              onPress={() => toggleSection(section)}
-            >
+            <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection(section)}>
               <Text style={styles.sectionTitle}>{section}</Text>
-              <Text style={styles.sectionIcon}>
-                {expandedSections[section] ? '▼' : '▶'}
-              </Text>
+              <Text style={styles.sectionIcon}>{expandedSections[section] ? '▼' : '▶'}</Text>
             </TouchableOpacity>
             {expandedSections[section] && (
               <View style={styles.sectionContent}>
-                {blueprints.map((blueprint) => (
+                {blueprints.map(blueprint => (
                   <View key={blueprint.id} style={styles.blueprintItem}>
                     <View style={styles.blueprintHeader}>
                       <Text style={styles.blueprintTopic}>{blueprint.topic}</Text>
@@ -268,15 +259,9 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
                       </View>
                     </View>
                     <View style={styles.blueprintDetails}>
-                      <Text style={styles.blueprintDetail}>
-                        Type: {blueprint.questionType}
-                      </Text>
-                      <Text style={styles.blueprintDetail}>
-                        Marks: {blueprint.marks}
-                      </Text>
-                      <Text style={styles.blueprintDetail}>
-                        Count: {blueprint.expectedCount}
-                      </Text>
+                      <Text style={styles.blueprintDetail}>Type: {blueprint.questionType}</Text>
+                      <Text style={styles.blueprintDetail}>Marks: {blueprint.marks}</Text>
+                      <Text style={styles.blueprintDetail}>Count: {blueprint.expectedCount}</Text>
                     </View>
                     {blueprint.subtopics && blueprint.subtopics.length > 0 && (
                       <View style={styles.subtopicsContainer}>
@@ -309,10 +294,8 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
     return (
       <Card containerStyle={styles.card}>
         <Text style={styles.cardTitle}>Focus Area Recommendations</Text>
-        <Text style={styles.cardSubtitle}>
-          Prioritized areas to improve your performance
-        </Text>
-        {sortedAreas.map((area) => (
+        <Text style={styles.cardSubtitle}>Prioritized areas to improve your performance</Text>
+        {sortedAreas.map(area => (
           <View key={area.id} style={styles.focusAreaItem}>
             <View style={styles.focusAreaHeader}>
               <View style={styles.focusAreaInfo}>
@@ -320,14 +303,9 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
                 <Text style={styles.focusAreaSubject}>{area.subject}</Text>
               </View>
               <View
-                style={[
-                  styles.priorityBadge,
-                  { backgroundColor: getPriorityColor(area.priority) },
-                ]}
+                style={[styles.priorityBadge, { backgroundColor: getPriorityColor(area.priority) }]}
               >
-                <Text style={styles.priorityText}>
-                  {area.priority.toUpperCase()}
-                </Text>
+                <Text style={styles.priorityText}>{area.priority.toUpperCase()}</Text>
               </View>
             </View>
             <View style={styles.masteryContainer}>
@@ -336,18 +314,8 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
                 <Text style={styles.masteryValue}>{area.currentMastery}%</Text>
               </View>
               <View style={styles.masteryBar}>
-                <View
-                  style={[
-                    styles.masteryFill,
-                    { width: `${area.currentMastery}%` },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.masteryTarget,
-                    { left: `${area.targetMastery}%` },
-                  ]}
-                />
+                <View style={[styles.masteryFill, { width: `${area.currentMastery}%` }]} />
+                <View style={[styles.masteryTarget, { left: `${area.targetMastery}%` }]} />
               </View>
               <View style={styles.masteryRow}>
                 <Text style={styles.masteryLabel}>Target Mastery:</Text>
@@ -355,12 +323,8 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
               </View>
             </View>
             <View style={styles.studyHoursContainer}>
-              <Text style={styles.studyHoursLabel}>
-                ⏱️ Estimated Study Time:
-              </Text>
-              <Text style={styles.studyHoursValue}>
-                {area.estimatedStudyHours} hours
-              </Text>
+              <Text style={styles.studyHoursLabel}>⏱️ Estimated Study Time:</Text>
+              <Text style={styles.studyHoursValue}>{area.estimatedStudyHours} hours</Text>
             </View>
             {area.resources.length > 0 && (
               <View style={styles.resourcesContainer}>
@@ -382,20 +346,16 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
     if (!dashboard || !dashboard.studyPlan) return null;
 
     const { studyPlan } = dashboard;
-    const progressPercentage =
-      (studyPlan.completedHours / studyPlan.totalHours) * 100;
+    const progressPercentage = (studyPlan.completedHours / studyPlan.totalHours) * 100;
 
     const todayTasks = studyPlan.dailyTasks.filter(
-      (task) =>
-        format(new Date(task.scheduledFor), 'yyyy-MM-dd') ===
-        format(new Date(), 'yyyy-MM-dd')
+      task => format(new Date(task.scheduledFor), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
     );
 
     const upcomingTasks = studyPlan.dailyTasks.filter(
-      (task) =>
+      task =>
         new Date(task.scheduledFor) > new Date() &&
-        format(new Date(task.scheduledFor), 'yyyy-MM-dd') !==
-          format(new Date(), 'yyyy-MM-dd')
+        format(new Date(task.scheduledFor), 'yyyy-MM-dd') !== format(new Date(), 'yyyy-MM-dd')
     );
 
     return (
@@ -415,24 +375,17 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
             <Text style={styles.studyPlanStat}>
               {studyPlan.completedHours}h / {studyPlan.totalHours}h
             </Text>
-            <Text style={styles.studyPlanStatLabel}>
-              {progressPercentage.toFixed(0)}% Complete
-            </Text>
+            <Text style={styles.studyPlanStatLabel}>{progressPercentage.toFixed(0)}% Complete</Text>
           </View>
           <View style={styles.studyPlanProgressBar}>
-            <View
-              style={[
-                styles.studyPlanProgressFill,
-                { width: `${progressPercentage}%` },
-              ]}
-            />
+            <View style={[styles.studyPlanProgressFill, { width: `${progressPercentage}%` }]} />
           </View>
         </View>
 
         {todayTasks.length > 0 && (
           <>
             <Text style={styles.tasksTitle}>Today's Tasks</Text>
-            {todayTasks.map((task) => (
+            {todayTasks.map(task => (
               <View key={task.id} style={styles.taskItem}>
                 <CheckBox
                   checked={task.completed}
@@ -441,12 +394,7 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
                   checkedColor={COLORS.success}
                 />
                 <View style={styles.taskContent}>
-                  <Text
-                    style={[
-                      styles.taskTitle,
-                      task.completed && styles.taskTitleCompleted,
-                    ]}
-                  >
+                  <Text style={[styles.taskTitle, task.completed && styles.taskTitleCompleted]}>
                     {task.title}
                   </Text>
                   <Text style={styles.taskDescription}>{task.description}</Text>
@@ -461,10 +409,10 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
                             task.taskType === 'mock_test'
                               ? COLORS.error
                               : task.taskType === 'practice'
-                              ? COLORS.info
-                              : task.taskType === 'revision'
-                              ? COLORS.warning
-                              : COLORS.success,
+                                ? COLORS.info
+                                : task.taskType === 'revision'
+                                  ? COLORS.warning
+                                  : COLORS.success,
                         },
                       ]}
                     >
@@ -482,7 +430,7 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
         {upcomingTasks.length > 0 && (
           <>
             <Text style={styles.tasksTitle}>Upcoming Tasks</Text>
-            {upcomingTasks.slice(0, 5).map((task) => (
+            {upcomingTasks.slice(0, 5).map(task => (
               <View key={task.id} style={styles.taskItem}>
                 <View style={styles.taskContent}>
                   <Text style={styles.taskTitle}>{task.title}</Text>

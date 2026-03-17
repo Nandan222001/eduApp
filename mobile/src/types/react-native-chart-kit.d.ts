@@ -24,7 +24,7 @@ declare module 'react-native-chart-kit' {
   export interface Dataset {
     data: number[];
     color?: (opacity: number) => string;
-    colors?: Array<(opacity: number) => string>;
+    colors?: ((opacity: number) => string)[];
     strokeWidth?: number;
     withDots?: boolean;
   }
@@ -85,13 +85,13 @@ declare module 'react-native-chart-kit' {
 
   export class PieChart extends Component<
     Omit<AbstractChartProps, 'data'> & {
-      data: Array<{
+      data: {
         name: string;
         population: number;
         color: string;
         legendFontColor?: string;
         legendFontSize?: number;
-      }>;
+      }[];
       accessor?: string;
       backgroundColor?: string;
       paddingLeft?: string;
@@ -117,7 +117,7 @@ declare module 'react-native-chart-kit' {
 
   export class ContributionGraph extends Component<
     Omit<AbstractChartProps, 'data'> & {
-      values: Array<{ date: string; count: number }>;
+      values: { date: string; count: number }[];
       endDate: Date;
       numDays: number;
       gutterSize?: number;

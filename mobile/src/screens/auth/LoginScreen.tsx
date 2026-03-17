@@ -11,12 +11,7 @@ import {
 import { Text, Input, Button, Icon } from '@rneui/themed';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
-import {
-  login,
-  enableBiometric,
-  disableBiometric,
-  loadStoredAuth,
-} from '@store/slices/authSlice';
+import { login, enableBiometric, disableBiometric, loadStoredAuth } from '@store/slices/authSlice';
 import { secureStorage } from '@utils/secureStorage';
 import { authService } from '@utils/authService';
 import { STORAGE_KEYS, COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
@@ -52,11 +47,11 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
-      
+
       if (compatible && enrolled) {
         setBiometricAvailable(true);
         const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-        
+
         if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
           setBiometricType('Face ID');
         } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
@@ -152,10 +147,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text h2 style={styles.title}>
             Welcome Back
@@ -219,12 +211,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 color={biometricAvailable ? COLORS.primary : COLORS.disabled}
                 size={24}
               />
-              <Text
-                style={[
-                  styles.checkboxLabel,
-                  !biometricAvailable && styles.disabledText,
-                ]}
-              >
+              <Text style={[styles.checkboxLabel, !biometricAvailable && styles.disabledText]}>
                 Enable {biometricType}
               </Text>
             </TouchableOpacity>
@@ -257,9 +244,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
               setPassword('');
             }}
           >
-            <Text style={styles.linkText}>
-              {useOTP ? 'Login with Password' : 'Login with OTP'}
-            </Text>
+            <Text style={styles.linkText}>{useOTP ? 'Login with Password' : 'Login with OTP'}</Text>
           </TouchableOpacity>
 
           {biometricAvailable && biometricEnabled && (
@@ -291,9 +276,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
           {biometricAvailable && biometricEnabled && (
             <TouchableOpacity style={styles.disableBiometric} onPress={toggleBiometric}>
-              <Text style={styles.disableBiometricText}>
-                Disable {biometricType}
-              </Text>
+              <Text style={styles.disableBiometricText}>Disable {biometricType}</Text>
             </TouchableOpacity>
           )}
         </View>

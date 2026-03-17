@@ -110,9 +110,7 @@ export const gradesApi = {
     const queryParams = new URLSearchParams({ subject });
     if (term) queryParams.append('term', term);
 
-    return apiClient.get<SubjectGrades>(
-      `/api/v1/grades/by-subject?${queryParams.toString()}`
-    );
+    return apiClient.get<SubjectGrades>(`/api/v1/grades/by-subject?${queryParams.toString()}`);
   },
 
   getGradeDistribution: async (term?: string) => {

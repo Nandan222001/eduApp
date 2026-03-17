@@ -69,7 +69,7 @@ export const assignmentsApi = {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
-    
+
     const url = `/api/v1/assignments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiClient.get<AssignmentDetail[]>(url);
   },
@@ -79,17 +79,11 @@ export const assignmentsApi = {
   },
 
   submitAssignment: async (data: SubmitAssignmentData) => {
-    return apiClient.post<AssignmentSubmission>(
-      `/api/v1/submissions`,
-      data
-    );
+    return apiClient.post<AssignmentSubmission>(`/api/v1/submissions`, data);
   },
 
   updateSubmission: async (submissionId: number, data: Partial<SubmitAssignmentData>) => {
-    return apiClient.put<AssignmentSubmission>(
-      `/api/v1/submissions/${submissionId}`,
-      data
-    );
+    return apiClient.put<AssignmentSubmission>(`/api/v1/submissions/${submissionId}`, data);
   },
 
   deleteSubmission: async (submissionId: number) => {

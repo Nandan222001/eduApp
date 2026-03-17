@@ -61,7 +61,7 @@ export const refreshTokens = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const refreshToken = await secureStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-      
+
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
@@ -146,10 +146,7 @@ const authSlice = createSlice({
         state.activeRole = null;
       }
     },
-    setTokens: (
-      state,
-      action: PayloadAction<{ accessToken: string; refreshToken: string }>
-    ) => {
+    setTokens: (state, action: PayloadAction<{ accessToken: string; refreshToken: string }>) => {
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
     },

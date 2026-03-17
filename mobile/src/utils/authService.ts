@@ -46,7 +46,7 @@ export const authService = {
   async refreshTokens() {
     try {
       const refreshToken = await secureStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-      
+
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
@@ -81,9 +81,9 @@ export const authService = {
       await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
       await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);
       await secureStorage.removeItem(STORAGE_KEYS.ACTIVE_ROLE);
-      
+
       this.stopAutoRefresh();
-      
+
       store.dispatch(logout());
     } catch (error) {
       console.error('Failed to clear session:', error);
@@ -95,7 +95,7 @@ export const authService = {
       await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
       await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
       await secureStorage.setObject(STORAGE_KEYS.USER_DATA, user);
-      
+
       this.startAutoRefresh();
     } catch (error) {
       console.error('Failed to save session:', error);
@@ -109,7 +109,7 @@ export const authService = {
       const expirationTime = payload.exp * 1000;
       const currentTime = Date.now();
       const timeUntilExpiration = expirationTime - currentTime;
-      
+
       return timeUntilExpiration < 5 * 60 * 1000;
     } catch (error) {
       console.error('Failed to check token expiration:', error);
@@ -120,7 +120,7 @@ export const authService = {
   async checkAndRefreshIfNeeded() {
     try {
       const accessToken = await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-      
+
       if (accessToken && this.isTokenExpiringSoon(accessToken)) {
         await this.refreshTokens();
       }

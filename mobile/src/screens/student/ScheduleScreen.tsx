@@ -63,7 +63,7 @@ export const ScheduleScreen: React.FC<Props> = () => {
   const getDaySchedule = (date: Date) => {
     const dayOfWeek = format(date, 'EEEE');
     return timetable
-      .filter((entry) => entry.dayOfWeek === dayOfWeek)
+      .filter(entry => entry.dayOfWeek === dayOfWeek)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   };
 
@@ -81,20 +81,10 @@ export const ScheduleScreen: React.FC<Props> = () => {
         ]}
         onPress={() => setSelectedDate(date)}
       >
-        <Text
-          style={[
-            styles.dayHeaderText,
-            (isToday || isSelected) && styles.dayHeaderTextActive,
-          ]}
-        >
+        <Text style={[styles.dayHeaderText, (isToday || isSelected) && styles.dayHeaderTextActive]}>
           {format(date, 'EEE')}
         </Text>
-        <Text
-          style={[
-            styles.dayHeaderDate,
-            (isToday || isSelected) && styles.dayHeaderDateActive,
-          ]}
-        >
+        <Text style={[styles.dayHeaderDate, (isToday || isSelected) && styles.dayHeaderDateActive]}>
           {format(date, 'd')}
         </Text>
         {isToday && <View style={styles.todayDot} />}
@@ -129,9 +119,7 @@ export const ScheduleScreen: React.FC<Props> = () => {
                 </View>
               )}
             </View>
-            {entry.subjectCode && (
-              <Text style={styles.subjectCode}>{entry.subjectCode}</Text>
-            )}
+            {entry.subjectCode && <Text style={styles.subjectCode}>{entry.subjectCode}</Text>}
             <View style={styles.classDetails}>
               <View style={styles.detailRow}>
                 <Text style={styles.detailIcon}>🕒</Text>
@@ -161,19 +149,13 @@ export const ScheduleScreen: React.FC<Props> = () => {
     <GestureHandlerRootView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.weekNavigator}>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => navigateWeek('prev')}
-          >
+          <TouchableOpacity style={styles.navButton} onPress={() => navigateWeek('prev')}>
             <Text style={styles.navButtonText}>‹</Text>
           </TouchableOpacity>
           <Text style={styles.weekTitle}>
             {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
           </Text>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => navigateWeek('next')}
-          >
+          <TouchableOpacity style={styles.navButton} onPress={() => navigateWeek('next')}>
             <Text style={styles.navButtonText}>›</Text>
           </TouchableOpacity>
         </View>
@@ -207,9 +189,7 @@ export const ScheduleScreen: React.FC<Props> = () => {
           </View>
         ) : todaySchedule.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>
-              {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-            </Text>
+            <Text style={styles.sectionTitle}>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</Text>
             {todaySchedule.map(renderClassCard)}
           </>
         ) : (
@@ -217,9 +197,7 @@ export const ScheduleScreen: React.FC<Props> = () => {
             <Text style={styles.emptyIcon}>📅</Text>
             <Text style={styles.emptyText}>No classes scheduled</Text>
             <Text style={styles.emptySubtext}>
-              {isSameDay(selectedDate, new Date())
-                ? 'Enjoy your free day!'
-                : 'for this day'}
+              {isSameDay(selectedDate, new Date()) ? 'Enjoy your free day!' : 'for this day'}
             </Text>
           </View>
         )}

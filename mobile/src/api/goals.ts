@@ -93,20 +93,11 @@ export const goalsApi = {
   },
 
   completeMilestone: async (goalId: number, milestoneId: number) => {
-    return apiClient.post<Milestone>(
-      `/api/v1/goals/${goalId}/milestones/${milestoneId}/complete`
-    );
+    return apiClient.post<Milestone>(`/api/v1/goals/${goalId}/milestones/${milestoneId}/complete`);
   },
 
-  updateMilestone: async (
-    goalId: number,
-    milestoneId: number,
-    data: { completed: boolean }
-  ) => {
-    return apiClient.patch<Milestone>(
-      `/api/v1/goals/${goalId}/milestones/${milestoneId}`,
-      data
-    );
+  updateMilestone: async (goalId: number, milestoneId: number, data: { completed: boolean }) => {
+    return apiClient.patch<Milestone>(`/api/v1/goals/${goalId}/milestones/${milestoneId}`, data);
   },
 
   getAchievements: async () => {

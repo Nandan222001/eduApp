@@ -158,13 +158,10 @@ export const GoalsScreen: React.FC<Props> = () => {
 
   const renderFilterButtons = () => (
     <View style={styles.filterContainer}>
-      {['active', 'completed', 'paused', 'all'].map((status) => (
+      {['active', 'completed', 'paused', 'all'].map(status => (
         <TouchableOpacity
           key={status}
-          style={[
-            styles.filterButton,
-            filterStatus === status && styles.filterButtonActive,
-          ]}
+          style={[styles.filterButton, filterStatus === status && styles.filterButtonActive]}
           onPress={() => setFilterStatus(status)}
         >
           <Text
@@ -182,7 +179,7 @@ export const GoalsScreen: React.FC<Props> = () => {
 
   const renderGoalCard = (goal: Goal) => {
     const daysRemaining = differenceInDays(new Date(goal.targetDate), new Date());
-    const completedMilestones = goal.milestones.filter((m) => m.completed).length;
+    const completedMilestones = goal.milestones.filter(m => m.completed).length;
     const totalMilestones = goal.milestones.length;
 
     return (
@@ -198,9 +195,7 @@ export const GoalsScreen: React.FC<Props> = () => {
                     { backgroundColor: getCategoryColor(goal.category) },
                   ]}
                 >
-                  <Text style={styles.badgeText}>
-                    {goal.category.toUpperCase()}
-                  </Text>
+                  <Text style={styles.badgeText}>{goal.category.toUpperCase()}</Text>
                 </View>
                 <View
                   style={[
@@ -208,9 +203,7 @@ export const GoalsScreen: React.FC<Props> = () => {
                     { backgroundColor: getPriorityColor(goal.priority) },
                   ]}
                 >
-                  <Text style={styles.badgeText}>
-                    {goal.priority.toUpperCase()}
-                  </Text>
+                  <Text style={styles.badgeText}>{goal.priority.toUpperCase()}</Text>
                 </View>
               </View>
             </View>
@@ -226,12 +219,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               <Text style={styles.progressValue}>{goal.progress}%</Text>
             </View>
             <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${goal.progress}%` },
-                ]}
-              />
+              <View style={[styles.progressFill, { width: `${goal.progress}%` }]} />
             </View>
           </View>
 
@@ -250,16 +238,16 @@ export const GoalsScreen: React.FC<Props> = () => {
                       daysRemaining < 7
                         ? COLORS.error
                         : daysRemaining < 30
-                        ? COLORS.warning
-                        : COLORS.success,
+                          ? COLORS.warning
+                          : COLORS.success,
                   },
                 ]}
               >
                 {daysRemaining > 0
                   ? `${daysRemaining} days left`
                   : daysRemaining === 0
-                  ? 'Due today'
-                  : 'Overdue'}
+                    ? 'Due today'
+                    : 'Overdue'}
               </Text>
             </View>
           </View>
@@ -286,21 +274,19 @@ export const GoalsScreen: React.FC<Props> = () => {
 
           <ScrollView style={styles.modalBody}>
             <Text style={styles.sectionTitle}>Basic Information</Text>
-            
+
             <TextInput
               style={styles.input}
               placeholder="Goal Title"
               value={formData.title}
-              onChangeText={(text) => setFormData({ ...formData, title: text })}
+              onChangeText={text => setFormData({ ...formData, title: text })}
             />
 
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Description"
               value={formData.description}
-              onChangeText={(text) =>
-                setFormData({ ...formData, description: text })
-              }
+              onChangeText={text => setFormData({ ...formData, description: text })}
               multiline
               numberOfLines={3}
             />
@@ -309,7 +295,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               <View style={styles.pickerContainer}>
                 <Text style={styles.label}>Category</Text>
                 <View style={styles.pickerButtons}>
-                  {['academic', 'skill', 'personal', 'career'].map((cat) => (
+                  {['academic', 'skill', 'personal', 'career'].map(cat => (
                     <TouchableOpacity
                       key={cat}
                       style={[
@@ -326,8 +312,7 @@ export const GoalsScreen: React.FC<Props> = () => {
                       <Text
                         style={[
                           styles.pickerButtonText,
-                          formData.category === cat &&
-                            styles.pickerButtonTextActive,
+                          formData.category === cat && styles.pickerButtonTextActive,
                         ]}
                       >
                         {cat}
@@ -342,7 +327,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               <View style={styles.pickerContainer}>
                 <Text style={styles.label}>Priority</Text>
                 <View style={styles.pickerButtons}>
-                  {['high', 'medium', 'low'].map((pri) => (
+                  {['high', 'medium', 'low'].map(pri => (
                     <TouchableOpacity
                       key={pri}
                       style={[
@@ -359,8 +344,7 @@ export const GoalsScreen: React.FC<Props> = () => {
                       <Text
                         style={[
                           styles.pickerButtonText,
-                          formData.priority === pri &&
-                            styles.pickerButtonTextActive,
+                          formData.priority === pri && styles.pickerButtonTextActive,
                         ]}
                       >
                         {pri}
@@ -375,9 +359,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               style={styles.input}
               placeholder="Target Date (YYYY-MM-DD)"
               value={formData.targetDate}
-              onChangeText={(text) =>
-                setFormData({ ...formData, targetDate: text })
-              }
+              onChangeText={text => setFormData({ ...formData, targetDate: text })}
             />
 
             <Text style={styles.sectionTitle}>SMART Goals Framework</Text>
@@ -387,9 +369,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               style={[styles.input, styles.textArea]}
               placeholder="What exactly do you want to achieve?"
               value={formData.specific}
-              onChangeText={(text) =>
-                setFormData({ ...formData, specific: text })
-              }
+              onChangeText={text => setFormData({ ...formData, specific: text })}
               multiline
             />
 
@@ -398,9 +378,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               style={[styles.input, styles.textArea]}
               placeholder="How will you measure success?"
               value={formData.measurable}
-              onChangeText={(text) =>
-                setFormData({ ...formData, measurable: text })
-              }
+              onChangeText={text => setFormData({ ...formData, measurable: text })}
               multiline
             />
 
@@ -409,9 +387,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               style={[styles.input, styles.textArea]}
               placeholder="Is this goal realistic?"
               value={formData.achievable}
-              onChangeText={(text) =>
-                setFormData({ ...formData, achievable: text })
-              }
+              onChangeText={text => setFormData({ ...formData, achievable: text })}
               multiline
             />
 
@@ -420,9 +396,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               style={[styles.input, styles.textArea]}
               placeholder="Why is this goal important?"
               value={formData.relevant}
-              onChangeText={(text) =>
-                setFormData({ ...formData, relevant: text })
-              }
+              onChangeText={text => setFormData({ ...formData, relevant: text })}
               multiline
             />
 
@@ -431,9 +405,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               style={[styles.input, styles.textArea]}
               placeholder="What is your timeline?"
               value={formData.timeBound}
-              onChangeText={(text) =>
-                setFormData({ ...formData, timeBound: text })
-              }
+              onChangeText={text => setFormData({ ...formData, timeBound: text })}
               multiline
             />
           </ScrollView>
@@ -451,9 +423,7 @@ export const GoalsScreen: React.FC<Props> = () => {
   const renderDetailModal = () => {
     if (!selectedGoal) return null;
 
-    const completedMilestones = selectedGoal.milestones.filter(
-      (m) => m.completed
-    ).length;
+    const completedMilestones = selectedGoal.milestones.filter(m => m.completed).length;
 
     return (
       <Modal
@@ -480,9 +450,7 @@ export const GoalsScreen: React.FC<Props> = () => {
                     { backgroundColor: getCategoryColor(selectedGoal.category) },
                   ]}
                 >
-                  <Text style={styles.badgeText}>
-                    {selectedGoal.category.toUpperCase()}
-                  </Text>
+                  <Text style={styles.badgeText}>{selectedGoal.category.toUpperCase()}</Text>
                 </View>
                 <View
                   style={[
@@ -490,30 +458,19 @@ export const GoalsScreen: React.FC<Props> = () => {
                     { backgroundColor: getPriorityColor(selectedGoal.priority) },
                   ]}
                 >
-                  <Text style={styles.badgeText}>
-                    {selectedGoal.priority.toUpperCase()}
-                  </Text>
+                  <Text style={styles.badgeText}>{selectedGoal.priority.toUpperCase()}</Text>
                 </View>
               </View>
 
-              <Text style={styles.detailDescription}>
-                {selectedGoal.description}
-              </Text>
+              <Text style={styles.detailDescription}>{selectedGoal.description}</Text>
 
               <View style={styles.progressSection}>
                 <View style={styles.progressHeader}>
                   <Text style={styles.progressLabel}>Overall Progress</Text>
-                  <Text style={styles.progressValue}>
-                    {selectedGoal.progress}%
-                  </Text>
+                  <Text style={styles.progressValue}>{selectedGoal.progress}%</Text>
                 </View>
                 <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${selectedGoal.progress}%` },
-                    ]}
-                  />
+                  <View style={[styles.progressFill, { width: `${selectedGoal.progress}%` }]} />
                 </View>
               </View>
 
@@ -543,8 +500,7 @@ export const GoalsScreen: React.FC<Props> = () => {
 
               <View style={styles.timelineSection}>
                 <Text style={styles.sectionTitle}>
-                  Milestone Timeline ({completedMilestones}/
-                  {selectedGoal.milestones.length})
+                  Milestone Timeline ({completedMilestones}/{selectedGoal.milestones.length})
                 </Text>
                 {selectedGoal.milestones
                   .sort((a, b) => a.order - b.order)
@@ -568,36 +524,27 @@ export const GoalsScreen: React.FC<Props> = () => {
                         ]}
                         onPress={() =>
                           !milestone.completed &&
-                          handleCompleteMilestone(
-                            selectedGoal.id,
-                            milestone.id
-                          )
+                          handleCompleteMilestone(selectedGoal.id, milestone.id)
                         }
                       >
                         <View style={styles.milestoneHeader}>
                           <Text
                             style={[
                               styles.milestoneTitle,
-                              milestone.completed &&
-                                styles.milestoneTitleCompleted,
+                              milestone.completed && styles.milestoneTitleCompleted,
                             ]}
                           >
                             {milestone.title}
                           </Text>
-                          {milestone.completed && (
-                            <Text style={styles.completedCheckmark}>✓</Text>
-                          )}
+                          {milestone.completed && <Text style={styles.completedCheckmark}>✓</Text>}
                         </View>
-                        <Text style={styles.milestoneDescription}>
-                          {milestone.description}
-                        </Text>
+                        <Text style={styles.milestoneDescription}>{milestone.description}</Text>
                         <Text style={styles.milestoneDate}>
                           📅 {format(new Date(milestone.targetDate), 'MMM dd, yyyy')}
                         </Text>
                         {milestone.completed && milestone.completedAt && (
                           <Text style={styles.completedDate}>
-                            Completed:{' '}
-                            {format(new Date(milestone.completedAt), 'MMM dd, yyyy')}
+                            Completed: {format(new Date(milestone.completedAt), 'MMM dd, yyyy')}
                           </Text>
                         )}
                       </TouchableOpacity>
@@ -622,10 +569,7 @@ export const GoalsScreen: React.FC<Props> = () => {
                   <View style={styles.dateItem}>
                     <Text style={styles.dateLabel}>Completed:</Text>
                     <Text style={styles.dateValue}>
-                      {format(
-                        new Date(selectedGoal.completedDate),
-                        'MMM dd, yyyy'
-                      )}
+                      {format(new Date(selectedGoal.completedDate), 'MMM dd, yyyy')}
                     </Text>
                   </View>
                 )}
@@ -665,9 +609,7 @@ export const GoalsScreen: React.FC<Props> = () => {
             <Text style={styles.achievementEmoji}>🎉</Text>
             <Text style={styles.achievementTitle}>Goal Achieved!</Text>
             <Text style={styles.achievementGoalTitle}>{achievedGoal.title}</Text>
-            <Text style={styles.achievementMessage}>
-              Congratulations on completing your goal!
-            </Text>
+            <Text style={styles.achievementMessage}>Congratulations on completing your goal!</Text>
             <Button
               title="Awesome!"
               onPress={() => {
@@ -712,14 +654,12 @@ export const GoalsScreen: React.FC<Props> = () => {
             <Text style={styles.loadingText}>Loading goals...</Text>
           </View>
         ) : goals.length > 0 ? (
-          goals.map((goal) => renderGoalCard(goal))
+          goals.map(goal => renderGoalCard(goal))
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>🎯</Text>
             <Text style={styles.emptyText}>No goals yet</Text>
-            <Text style={styles.emptySubtext}>
-              Create your first goal to get started
-            </Text>
+            <Text style={styles.emptySubtext}>Create your first goal to get started</Text>
           </View>
         )}
       </ScrollView>

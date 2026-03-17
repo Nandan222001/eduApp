@@ -40,7 +40,12 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
   const [cameraPermission, requestCameraPermission] = Camera.useCameraPermissions();
   const cameraRef = React.useRef<Camera>(null);
 
-  const { data: assignment, isLoading, isError, refetch } = useQuery({
+  const {
+    data: assignment,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['assignment', assignmentId],
     queryFn: async () => {
       const response = await assignmentsApi.getAssignmentDetail(assignmentId);
@@ -50,17 +55,17 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
 
   const submitMutation = useMutation({
     mutationFn: (data: SubmitAssignmentData) => assignmentsApi.submitAssignment(data),
-    onMutate: async (newSubmission) => {
+    onMutate: async newSubmission => {
       await queryClient.cancelQueries({ queryKey: ['assignment', assignmentId] });
-      
+
       const previousAssignment = queryClient.getQueryData(['assignment', assignmentId]);
-      
+
       queryClient.setQueryData(['assignment', assignmentId], (old: any) => ({
         ...old,
         status: 'submitted',
         submittedAt: new Date().toISOString(),
       }));
-      
+
       return { previousAssignment };
     },
     onError: (err, newSubmission, context) => {
@@ -87,7 +92,7 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
       });
 
       if (!result.canceled && result.assets) {
-        const newAttachments = result.assets.map((asset) => ({
+        const newAttachments = result.assets.map(asset => ({
           uri: asset.uri,
           name: asset.name,
           type: asset.mimeType || 'application/octet-stream',
@@ -159,13 +164,13 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
         assignmentId: parseInt(assignmentId),
         comments: comments || undefined,
         attachments: await Promise.all(
-          attachments.map(async (file) => {
+          attachments.map(async file => {
             let base64Data = file.base64;
-            
+
             if (!base64Data && Platform.OS !== 'web') {
               const response = await fetch(file.uri);
               const blob = await response.blob();
-              base64Data = await new Promise((resolve) => {
+              base64Data = await new Promise(resolve => {
                 const reader = new FileReader();
                 reader.onloadend = () => {
                   const base64 = (reader.result as string).split(',')[1];
@@ -288,7 +293,7 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
         {assignment.attachments && assignment.attachments.length > 0 && (
           <Card containerStyle={styles.card}>
             <Text style={styles.sectionTitle}>Assignment Attachments</Text>
-            {assignment.attachments.map((attachment) => (
+            {assignment.attachments.map(attachment => (
               <TouchableOpacity
                 key={attachment.id}
                 style={styles.attachmentItem}
@@ -307,7 +312,8 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
             <Text style={styles.sectionTitle}>Your Submission</Text>
             <View style={styles.submissionInfo}>
               <Text style={styles.submittedAtText}>
-                Submitted on: {format(parseISO(assignment.submission.submittedAt), 'MMM dd, yyyy h:mm a')}
+                Submitted on:{' '}
+                {format(parseISO(assignment.submission.submittedAt), 'MMM dd, yyyy h:mm a')}
               </Text>
               {assignment.submission.comments && (
                 <Text style={styles.submissionComments}>{assignment.submission.comments}</Text>
@@ -317,7 +323,7 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
             {assignment.submission.attachments.length > 0 && (
               <View style={styles.submissionAttachments}>
                 <Text style={styles.subsectionTitle}>Submitted Files:</Text>
-                {assignment.submission.attachments.map((attachment) => (
+                {assignment.submission.attachments.map(attachment => (
                   <TouchableOpacity
                     key={attachment.id}
                     style={styles.attachmentItem}
@@ -325,7 +331,12 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
                   >
                     <Icon name="file-text" type="feather" size={20} color={COLORS.primary} />
                     <Text style={styles.attachmentName}>{attachment.fileName}</Text>
-                    <Icon name="external-link" type="feather" size={16} color={COLORS.textSecondary} />
+                    <Icon
+                      name="external-link"
+                      type="feather"
+                      size={16}
+                      color={COLORS.textSecondary}
+                    />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -409,16 +420,9 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
 
       <Modal visible={showCamera} animationType="slide" onRequestClose={() => setShowCamera(false)}>
         <View style={styles.cameraContainer}>
-          <Camera
-            style={styles.camera}
-            type={CameraType.back}
-            ref={cameraRef}
-          >
+          <Camera style={styles.camera} type={CameraType.back} ref={cameraRef}>
             <View style={styles.cameraControls}>
-              <TouchableOpacity
-                style={styles.captureButton}
-                onPress={handleCameraCapture}
-              >
+              <TouchableOpacity style={styles.captureButton} onPress={handleCameraCapture}>
                 <View style={styles.captureButtonInner} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.closeButton} onPress={() => setShowCamera(false)}>
@@ -440,7 +444,8 @@ export const AssignmentDetailScreen: React.FC<Props> = ({ navigation, route }) =
             <Icon name="check-circle" type="feather" size={64} color={COLORS.success} />
             <Text style={styles.modalTitle}>Assignment Submitted!</Text>
             <Text style={styles.modalText}>
-              Your assignment has been submitted successfully. You will be notified once it's graded.
+              Your assignment has been submitted successfully. You will be notified once it's
+              graded.
             </Text>
             <Button
               title="Close"

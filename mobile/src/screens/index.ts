@@ -25,7 +25,6 @@ export { CommunicationScreen } from './parent/CommunicationScreen';
 export { ReportsScreen } from './parent/ReportsScreen';
 export { ProfileScreen as ParentProfileScreen } from './parent/ProfileScreen';
 
-export { ProfileScreen } from './common/ProfileScreen';
-export { SettingsScreen } from './common/SettingsScreen';
+export { SettingsScreen } from './shared/SettingsScreen';
 export { NotificationsScreen } from './common/NotificationsScreen';
 export { NotificationDetailScreen } from './common/NotificationDetailScreen';

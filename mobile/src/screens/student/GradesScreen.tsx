@@ -49,9 +49,7 @@ export const GradesScreen: React.FC<Props> = () => {
           term: selectedTerm !== 'all' ? selectedTerm : undefined,
           subject: selectedSubject !== 'all' ? selectedSubject : undefined,
         }),
-        gradesApi.getPerformanceInsights(
-          selectedTerm !== 'all' ? selectedTerm : undefined
-        ),
+        gradesApi.getPerformanceInsights(selectedTerm !== 'all' ? selectedTerm : undefined),
         gradesApi.getGradeDistribution(selectedTerm !== 'all' ? selectedTerm : undefined),
       ]);
 
@@ -77,18 +75,18 @@ export const GradesScreen: React.FC<Props> = () => {
   }, [fetchData]);
 
   const subjects = useMemo(() => {
-    const uniqueSubjects = [...new Set(grades.map((g) => g.subject))];
+    const uniqueSubjects = [...new Set(grades.map(g => g.subject))];
     return ['all', ...uniqueSubjects];
   }, [grades]);
 
   const terms = useMemo(() => {
-    const uniqueTerms = [...new Set(grades.map((g) => g.term))];
+    const uniqueTerms = [...new Set(grades.map(g => g.term))];
     return ['all', ...uniqueTerms];
   }, [grades]);
 
   const subjectWiseGrades = useMemo(() => {
     const grouped: Record<string, GradeDetail[]> = {};
-    grades.forEach((grade) => {
+    grades.forEach(grade => {
       if (!grouped[grade.subject]) {
         grouped[grade.subject] = [];
       }
@@ -138,12 +136,7 @@ export const GradesScreen: React.FC<Props> = () => {
           </View>
           <View style={styles.overviewDivider} />
           <View style={styles.overviewItem}>
-            <Text
-              style={[
-                styles.overviewValue,
-                { color: getGradeColor(insights.overallGrade) },
-              ]}
-            >
+            <Text style={[styles.overviewValue, { color: getGradeColor(insights.overallGrade) }]}>
               {insights.overallGrade}
             </Text>
             <Text style={styles.overviewLabel}>Current Grade</Text>
@@ -164,8 +157,8 @@ export const GradesScreen: React.FC<Props> = () => {
                   insights.trend === 'improving'
                     ? COLORS.success
                     : insights.trend === 'declining'
-                    ? COLORS.error
-                    : COLORS.textSecondary,
+                      ? COLORS.error
+                      : COLORS.textSecondary,
               },
             ]}
           >
@@ -181,10 +174,10 @@ export const GradesScreen: React.FC<Props> = () => {
     if (distribution.length === 0) return null;
 
     const chartData = {
-      labels: distribution.map((d) => d.grade),
+      labels: distribution.map(d => d.grade),
       datasets: [
         {
-          data: distribution.map((d) => d.count),
+          data: distribution.map(d => d.count),
         },
       ],
     };
@@ -227,10 +220,10 @@ export const GradesScreen: React.FC<Props> = () => {
     const recentGrades = sortedGrades.slice(-6);
 
     const chartData = {
-      labels: recentGrades.map((g) => g.examName.slice(0, 8)),
+      labels: recentGrades.map(g => g.examName.slice(0, 8)),
       datasets: [
         {
-          data: recentGrades.map((g) => g.percentage),
+          data: recentGrades.map(g => g.percentage),
           color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
           strokeWidth: 2,
         },
@@ -276,13 +269,10 @@ export const GradesScreen: React.FC<Props> = () => {
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.filterGroup}>
           <Text style={styles.filterLabel}>Term:</Text>
-          {terms.map((term) => (
+          {terms.map(term => (
             <TouchableOpacity
               key={term}
-              style={[
-                styles.filterChip,
-                selectedTerm === term && styles.filterChipActive,
-              ]}
+              style={[styles.filterChip, selectedTerm === term && styles.filterChipActive]}
               onPress={() => setSelectedTerm(term)}
             >
               <Text
@@ -300,13 +290,10 @@ export const GradesScreen: React.FC<Props> = () => {
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.filterGroup}>
           <Text style={styles.filterLabel}>Subject:</Text>
-          {subjects.map((subject) => (
+          {subjects.map(subject => (
             <TouchableOpacity
               key={subject}
-              style={[
-                styles.filterChip,
-                selectedSubject === subject && styles.filterChipActive,
-              ]}
+              style={[styles.filterChip, selectedSubject === subject && styles.filterChipActive]}
               onPress={() => setSelectedSubject(subject)}
             >
               <Text
@@ -325,8 +312,7 @@ export const GradesScreen: React.FC<Props> = () => {
   );
 
   const renderSubjectGrades = (subject: string, subjectGrades: GradeDetail[]) => {
-    const average =
-      subjectGrades.reduce((sum, g) => sum + g.percentage, 0) / subjectGrades.length;
+    const average = subjectGrades.reduce((sum, g) => sum + g.percentage, 0) / subjectGrades.length;
 
     return (
       <Card key={subject} containerStyle={styles.subjectCard}>
@@ -338,7 +324,7 @@ export const GradesScreen: React.FC<Props> = () => {
           </View>
         </View>
         <View style={styles.gradesGrid}>
-          {subjectGrades.map((grade) => (
+          {subjectGrades.map(grade => (
             <TouchableOpacity
               key={grade.id}
               style={styles.gradeCard}
@@ -351,21 +337,11 @@ export const GradesScreen: React.FC<Props> = () => {
                 <Text style={styles.gradeScore}>
                   {grade.obtainedMarks}/{grade.totalMarks}
                 </Text>
-                <Text
-                  style={[
-                    styles.gradePercentage,
-                    { color: getGradeColor(grade.grade) },
-                  ]}
-                >
+                <Text style={[styles.gradePercentage, { color: getGradeColor(grade.grade) }]}>
                   {grade.percentage.toFixed(0)}%
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.gradeBadge,
-                  { backgroundColor: getGradeColor(grade.grade) },
-                ]}
-              >
+              <View style={[styles.gradeBadge, { backgroundColor: getGradeColor(grade.grade) }]}>
                 <Text style={styles.gradeBadgeText}>{grade.grade}</Text>
               </View>
             </TouchableOpacity>
@@ -411,9 +387,7 @@ export const GradesScreen: React.FC<Props> = () => {
                   <Text style={styles.modalScore}>
                     {selectedGrade.obtainedMarks} / {selectedGrade.totalMarks}
                   </Text>
-                  <Text style={styles.modalPercentage}>
-                    {selectedGrade.percentage.toFixed(1)}%
-                  </Text>
+                  <Text style={styles.modalPercentage}>{selectedGrade.percentage.toFixed(1)}%</Text>
                 </View>
 
                 {selectedGrade.rank && (
@@ -467,10 +441,9 @@ export const GradesScreen: React.FC<Props> = () => {
                           : '📉 Below Average'}
                       </Text>
                       <Text style={styles.insightDetail}>
-                        {Math.abs(selectedGrade.percentage - selectedGrade.classAverage).toFixed(
-                          1
-                        )}
-                        % {selectedGrade.percentage >= selectedGrade.classAverage ? 'above' : 'below'}{' '}
+                        {Math.abs(selectedGrade.percentage - selectedGrade.classAverage).toFixed(1)}
+                        %{' '}
+                        {selectedGrade.percentage >= selectedGrade.classAverage ? 'above' : 'below'}{' '}
                         class average
                       </Text>
                     </View>

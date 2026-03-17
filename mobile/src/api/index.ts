@@ -6,3 +6,4 @@ export * from './schedule';
 export * from './grades';
 export * from './predictions';
 export * from './goals';
+export * from './profile';

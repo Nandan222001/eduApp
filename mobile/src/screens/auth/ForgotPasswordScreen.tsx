@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { Text, Input, Button, Icon } from '@rneui/themed';
 import { authApi } from '@api/auth';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
@@ -35,21 +28,14 @@ export const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
     try {
       await authApi.forgotPassword(email.trim());
       setEmailSent(true);
-      Alert.alert(
-        'Success',
-        'Password reset instructions have been sent to your email',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      Alert.alert('Success', 'Password reset instructions have been sent to your email', [
+        {
+          text: 'OK',
+          onPress: () => navigation.goBack(),
+        },
+      ]);
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.message || 'Failed to send reset email. Please try again.'
-      );
+      Alert.alert('Error', error.message || 'Failed to send reset email. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -60,17 +46,9 @@ export const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.iconContainer}>
-          <Icon
-            name="lock-reset"
-            type="material-community"
-            color={COLORS.primary}
-            size={80}
-          />
+          <Icon name="lock-reset" type="material-community" color={COLORS.primary} size={80} />
         </View>
 
         <View style={styles.header}>
@@ -106,9 +84,7 @@ export const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
           {emailSent && (
             <View style={styles.successContainer}>
               <Icon name="check-circle" type="material" color={COLORS.success} size={20} />
-              <Text style={styles.successText}>
-                Check your email for reset instructions
-              </Text>
+              <Text style={styles.successText}>Check your email for reset instructions</Text>
             </View>
           )}
 

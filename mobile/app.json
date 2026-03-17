@@ -64,6 +64,13 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow EDU Mobile to access your photos to upload profile pictures.",
+          "cameraPermission": "Allow EDU Mobile to access your camera to take profile pictures."
+        }
       ]
     ],
     "extra": {

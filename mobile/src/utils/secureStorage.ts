@@ -67,7 +67,13 @@ export const secureStorage = {
       if (Platform.OS === 'web') {
         await asyncStorage.clear();
       } else {
-        const keys = ['@edu_access_token', '@edu_refresh_token', '@edu_user_data', '@edu_biometric_enabled', '@edu_biometric_credentials'];
+        const keys = [
+          '@edu_access_token',
+          '@edu_refresh_token',
+          '@edu_user_data',
+          '@edu_biometric_enabled',
+          '@edu_biometric_credentials',
+        ];
         for (const key of keys) {
           await SecureStore.deleteItemAsync(key);
         }
