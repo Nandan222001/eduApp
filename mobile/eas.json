@@ -1,43 +1,84 @@
 {
   "cli": {
-    "version": ">= 5.9.0"
+    "version": ">= 5.9.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "channel": "development",
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "simulator": true,
+        "buildConfiguration": "Debug",
+        "image": "latest"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug",
+        "image": "latest"
       },
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "SENTRY_ENVIRONMENT": "development"
       }
     },
     "preview": {
       "distribution": "internal",
+      "channel": "staging",
       "ios": {
         "simulator": false,
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Release",
+        "image": "latest",
+        "enterpriseProvisioning": "adhoc"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "image": "latest"
       },
       "env": {
-        "APP_ENV": "staging"
+        "APP_ENV": "staging",
+        "SENTRY_ENVIRONMENT": "staging"
+      },
+      "autoIncrement": true
+    },
+    "preview-internal": {
+      "extends": "preview",
+      "distribution": "internal",
+      "channel": "preview-internal",
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
+      "distribution": "store",
+      "channel": "production",
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Release",
+        "image": "latest",
+        "autoIncrement": "buildNumber"
       },
       "android": {
-        "buildType": "aab"
+        "buildType": "aab",
+        "gradleCommand": ":app:bundleRelease",
+        "image": "latest",
+        "autoIncrement": "versionCode"
       },
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "SENTRY_ENVIRONMENT": "production"
+      },
+      "autoIncrement": true
+    },
+    "production-android-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       }
     }
   },
@@ -46,11 +87,37 @@
       "ios": {
         "appleId": "your-apple-id@example.com",
         "ascAppId": "your-asc-app-id",
+        "appleTeamId": "your-team-id",
+        "sku": "eduplatform-ios",
+        "language": "en-US",
+        "companyName": "Your Company Name",
+        "appName": "EduPlatform"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./service-account-key.json",
+        "track": "internal",
+        "releaseStatus": "draft",
+        "changesNotSentForReview": false
+      }
+    },
+    "beta": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "your-asc-app-id",
         "appleTeamId": "your-team-id"
       },
       "android": {
         "serviceAccountKeyPath": "./service-account-key.json",
-        "track": "internal"
+        "track": "beta",
+        "releaseStatus": "completed",
+        "rollout": 0.1
+      }
+    },
+    "alpha": {
+      "android": {
+        "serviceAccountKeyPath": "./service-account-key.json",
+        "track": "alpha",
+        "releaseStatus": "completed"
       }
     }
   }
