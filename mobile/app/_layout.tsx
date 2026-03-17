@@ -10,9 +10,10 @@ import { StatusBar } from 'expo-status-bar';
 import { store, persistor } from '@store';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { loadStoredAuth } from '@store/slices/authSlice';
-import { Loading } from '@components';
+import { Loading, OfflineDataRefresher } from '@components';
 import { theme } from '@config/theme';
 import { authService } from '@utils/authService';
+import { initializeOfflineSupport } from '@utils/offlineInit';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ function RootLayoutNav() {
 
   useEffect(() => {
     dispatch(loadStoredAuth());
+    initializeOfflineSupport();
   }, [dispatch]);
 
   useEffect(() => {
@@ -57,7 +59,11 @@ function RootLayoutNav() {
     return <Loading />;
   }
 
-  return <Slot />;
+  return (
+    <OfflineDataRefresher autoRefresh={true} refreshIntervalMinutes={15}>
+      <Slot />
+    </OfflineDataRefresher>
+  );
 }
 
 export default function RootLayout() {

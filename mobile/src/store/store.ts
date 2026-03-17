@@ -13,18 +13,46 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import authReducer from './slices/authSlice';
 import userReducer from './slices/userSlice';
 import notificationReducer from './slices/notificationSlice';
+import studentDataReducer from './slices/studentDataSlice';
+import offlineReducer from './slices/offlineSlice';
 
 const persistConfig = {
   key: 'root',
   version: 1,
   storage: AsyncStorage,
-  whitelist: ['auth'],
+  whitelist: ['auth', 'studentData', 'offline'],
+  blacklist: ['user', 'notification'],
+};
+
+const studentDataPersistConfig = {
+  key: 'studentData',
+  storage: AsyncStorage,
+  whitelist: [
+    'profile',
+    'profileLastSync',
+    'dashboard',
+    'dashboardLastSync',
+    'assignments',
+    'assignmentsLastSync',
+    'grades',
+    'gradesLastSync',
+    'attendance',
+    'attendanceLastSync',
+  ],
+};
+
+const offlinePersistConfig = {
+  key: 'offline',
+  storage: AsyncStorage,
+  whitelist: ['queuedOperations', 'lastSyncTime', 'autoSyncEnabled'],
 };
 
 const rootReducer = combineReducers({
   auth: authReducer,
   user: userReducer,
   notification: notificationReducer,
+  studentData: persistReducer(studentDataPersistConfig, studentDataReducer),
+  offline: persistReducer(offlinePersistConfig, offlineReducer),
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

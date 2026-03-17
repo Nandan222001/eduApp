@@ -1,10 +1,25 @@
 // Old navigation types (deprecated - use Expo Router hooks instead)
-export * from './navigation';
+export type {
+  AuthStackParamList,
+  MainStackParamList,
+  StudentTabParamList,
+  ParentTabParamList,
+  RootStackScreenProps,
+  AuthStackScreenProps,
+  MainStackScreenProps,
+  StudentTabScreenProps,
+  ParentTabScreenProps,
+} from './navigation';
 
 // New Expo Router types
-export * from './routes';
+export type {
+  RootStackParamList,
+  StudentTabRoutes,
+  ParentTabRoutes,
+} from './routes';
 
 export * from './student';
+export * from './offline';
 
 export interface User {
   id: number;

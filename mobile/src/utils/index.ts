@@ -4,3 +4,6 @@ export * from './authService';
 export * from './validators';
 export * from './formatters';
 export * from './apiErrorHandler';
+export * from './offlineQueue';
+export * from './optimisticUpdates';
+export * from './backgroundSync';
