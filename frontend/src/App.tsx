@@ -91,6 +91,13 @@ import VirtualOlympics from './pages/VirtualOlympics';
 import OlympicsDetailPage from './pages/OlympicsDetailPage';
 import OlympicsCompetitionPage from './pages/OlympicsCompetitionPage';
 import SubjectManagement from './pages/SubjectManagement';
+import StudentJobBoard from './pages/StudentJobBoard';
+import WorkPermitManager from './pages/WorkPermitManager';
+import MyEmploymentDashboard from './pages/MyEmploymentDashboard';
+import JobDetail from './pages/JobDetail';
+import EmployerPortal from './pages/EmployerPortal';
+import CareerCounselorWorkflow from './pages/CareerCounselorWorkflow';
+import WorkHourMonitoring from './pages/WorkHourMonitoring';
 
 import {
   LoginPage,
@@ -257,6 +264,8 @@ function App() {
                     path="recognition/analytics"
                     element={<SchoolCultureAnalyticsDashboard />}
                   />
+                  <Route path="employment/employer-portal" element={<EmployerPortal />} />
+                  <Route path="employment/counselor" element={<CareerCounselorWorkflow />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="profile" element={<SettingsPage />} />
                 </Route>
@@ -290,6 +299,7 @@ function App() {
                   <Route path="volunteer/leaderboard" element={<VolunteerLeaderboard />} />
                   <Route path="recognition/moderation" element={<TeacherRecognitionModeration />} />
                   <Route path="appreciation-wall" element={<AppreciationWall />} />
+                  <Route path="employment/counselor" element={<CareerCounselorWorkflow />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
@@ -329,6 +339,11 @@ function App() {
                   <Route path="olympics" element={<VirtualOlympics />} />
                   <Route path="olympics/:competitionId" element={<OlympicsDetailPage />} />
                   <Route path="olympics/event/:eventId" element={<OlympicsCompetitionPage />} />
+                  <Route path="employment/job-board" element={<StudentJobBoard />} />
+                  <Route path="employment/jobs/:id" element={<JobDetail />} />
+                  <Route path="employment/work-permits" element={<WorkPermitManager />} />
+                  <Route path="employment/my-employment" element={<MyEmploymentDashboard />} />
+                  <Route path="employment/work-hours" element={<WorkHourMonitoring />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
