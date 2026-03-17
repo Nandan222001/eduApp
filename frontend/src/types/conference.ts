@@ -19,6 +19,16 @@ export interface Student {
   photo_url?: string;
 }
 
+export interface ChildBasicInfo {
+  id: number;
+  first_name: string;
+  last_name: string;
+  admission_number?: string;
+  grade_name?: string;
+  section_name?: string;
+  photo_url?: string;
+}
+
 export interface ConferenceSlot {
   id: string;
   teacher_id: number;

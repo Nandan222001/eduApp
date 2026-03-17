@@ -75,6 +75,7 @@ import MerchandiseOrderTracking from './pages/MerchandiseOrderTracking';
 import AdminMerchandiseManager from './pages/AdminMerchandiseManager';
 import AdminOnboardingDesigner from './pages/AdminOnboardingDesigner';
 import ParentVolunteerHours from './pages/ParentVolunteerHours';
+import ParentConferenceBooking from './pages/ParentConferenceBooking';
 import TeacherVolunteerVerification from './pages/TeacherVolunteerVerification';
 import VolunteerLeaderboard from './pages/VolunteerLeaderboard';
 import AdminVolunteerAnalytics from './pages/AdminVolunteerAnalytics';
@@ -107,6 +108,8 @@ import ReverseClassroom from './pages/ReverseClassroom';
 import AnnouncementManagement from './pages/AnnouncementManagement';
 import SubjectBattles from './pages/SubjectBattles';
 import SubjectPassport from './pages/SubjectPassport';
+import StressOMeter from './pages/StressOMeter';
+import ParentROIDashboard from './pages/ParentROIDashboard';
 
 import {
   LoginPage,
@@ -358,6 +361,7 @@ function App() {
                   <Route path="teach" element={<ReverseClassroom />} />
                   <Route path="battles" element={<SubjectBattles />} />
                   <Route path="passport" element={<SubjectPassport />} />
+                  <Route path="wellbeing/stress-meter" element={<StressOMeter />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
@@ -399,6 +403,8 @@ function App() {
                   <Route path="volunteer/leaderboard" element={<VolunteerLeaderboard />} />
                   <Route path="merchandise/store" element={<SchoolMerchandiseStore />} />
                   <Route path="merchandise/orders" element={<MerchandiseOrderTracking />} />
+                  <Route path="roi-dashboard" element={<ParentROIDashboard />} />
+                  <Route path="conferences/booking" element={<ParentConferenceBooking />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="profile" element={<SettingsPage />} />
                 </Route>

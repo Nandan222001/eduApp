@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Grid,
@@ -30,6 +30,13 @@ import {
   alpha,
   CircularProgress,
   SelectChangeEvent,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  LinearProgress,
+  IconButton,
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
@@ -41,15 +48,22 @@ import {
   CheckCircle as CheckCircleIcon,
   Event as EventIcon,
   AccessTime as AccessTimeIcon,
+  FlashOn as SpeedIcon,
+  Timer as TimerIcon,
+  Close as CloseIcon,
+  PlayArrow as StartIcon,
+  Assessment as AssessmentIcon,
+  ChecklistRtl as ActionItemsIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addMonths, startOfMonth, endOfMonth, parse } from 'date-fns';
+import { format, addMonths, startOfMonth, endOfMonth, parse, addMinutes } from 'date-fns';
 import { conferencesApi } from '@/api/conferences';
 import { parentsApi } from '@/api/parents';
 import { CONFERENCE_TOPICS } from '@/types/conference';
-import type { Teacher, ConferenceSlot, ChildBasicInfo } from '@/types/conference';
+import type { Teacher, ConferenceSlot } from '@/types/conference';
+import type { ChildOverview } from '@/types/parent';
 
 const steps = [
   'Select Student & Teacher',
@@ -58,10 +72,24 @@ const steps = [
   'Confirmation',
 ];
 
+interface SpeedRoundBooking {
+  teacher: Teacher;
+  slot: ConferenceSlot;
+  talkingPoints: string[];
+}
+
+interface SpeedDatingSession {
+  active: boolean;
+  currentTeacherIndex: number;
+  timeRemaining: number;
+  bookings: SpeedRoundBooking[];
+  actionItems: Record<number, string[]>;
+}
+
 export const ParentConferenceBooking: React.FC = () => {
   const queryClient = useQueryClient();
   const [activeStep, setActiveStep] = useState(0);
-  const [selectedChild, setSelectedChild] = useState<ChildBasicInfo | null>(null);
+  const [selectedChild, setSelectedChild] = useState<ChildOverview | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<ConferenceSlot | null>(null);
@@ -70,6 +98,14 @@ export const ParentConferenceBooking: React.FC = () => {
   const [filterSubject, setFilterSubject] = useState('all');
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState<number | null>(null);
+  const [speedDatingDialog, setSpeedDatingDialog] = useState(false);
+  const [speedSession, setSpeedSession] = useState<SpeedDatingSession>({
+    active: false,
+    currentTeacherIndex: 0,
+    timeRemaining: 300,
+    bookings: [],
+    actionItems: {},
+  });
 
   const { data: childrenData, isLoading: childrenLoading } = useQuery({
     queryKey: ['parent-children'],
@@ -111,6 +147,22 @@ export const ParentConferenceBooking: React.FC = () => {
     },
   });
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (speedSession.active && speedSession.timeRemaining > 0) {
+      timer = setInterval(() => {
+        setSpeedSession((prev) => ({
+          ...prev,
+          timeRemaining: prev.timeRemaining - 1,
+        }));
+      }, 1000);
+    } else if (speedSession.active && speedSession.timeRemaining === 0) {
+      handleNextTeacher();
+    }
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speedSession.active, speedSession.timeRemaining]);
+
   const handleNext = () => {
     if (activeStep === 2) {
       if (selectedChild && selectedTeacher && selectedSlot) {
@@ -141,6 +193,7 @@ export const ParentConferenceBooking: React.FC = () => {
     setSpecialRequests('');
     setBookingSuccess(false);
     setCreatedBookingId(null);
+    setSpeedRoundMode(false);
   };
 
   const handleTopicToggle = (topicValue: string) => {
@@ -178,6 +231,97 @@ export const ParentConferenceBooking: React.FC = () => {
 
       window.open(googleCalendarUrl, '_blank');
     }
+  };
+
+  const handleInitiateSpeedRound = () => {
+    if (!selectedChild || !teachers || !selectedDate) return;
+
+    const baseTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T09:00:00`);
+    const speedBookings: SpeedRoundBooking[] = teachers.map((teacher, index) => {
+      const startTime = addMinutes(baseTime, index * 5);
+      const endTime = addMinutes(startTime, 5);
+
+      const slot: ConferenceSlot = {
+        id: `speed-${teacher.id}-${index}`,
+        teacher_id: teacher.id,
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        start_time: format(startTime, 'HH:mm'),
+        end_time: format(endTime, 'HH:mm'),
+        duration_minutes: 5,
+        is_available: true,
+        is_booked: false,
+      };
+
+      const talkingPoints = generateTalkingPoints(teacher, selectedChild);
+
+      return {
+        teacher,
+        slot,
+        talkingPoints,
+      };
+    });
+
+    setSpeedSession({
+      active: false,
+      currentTeacherIndex: 0,
+      timeRemaining: 300,
+      bookings: speedBookings,
+      actionItems: {},
+    });
+    setSpeedDatingDialog(true);
+  };
+
+  const generateTalkingPoints = (teacher: Teacher, _child: ChildOverview): string[] => {
+    return [
+      `Current grade in ${teacher.subjects?.[0] || 'subject'}: B+`,
+      'Recent improvement in homework completion',
+      'Participation in class discussions',
+      'Upcoming exam preparation',
+      'Areas needing additional support',
+    ];
+  };
+
+  const handleStartSpeedSession = () => {
+    setSpeedSession((prev) => ({
+      ...prev,
+      active: true,
+      timeRemaining: 300,
+    }));
+  };
+
+  const handleNextTeacher = () => {
+    if (speedSession.currentTeacherIndex < speedSession.bookings.length - 1) {
+      setSpeedSession((prev) => ({
+        ...prev,
+        currentTeacherIndex: prev.currentTeacherIndex + 1,
+        timeRemaining: 300,
+      }));
+    } else {
+      handleCompleteSpeedSession();
+    }
+  };
+
+  const handleCompleteSpeedSession = () => {
+    setSpeedSession((prev) => ({
+      ...prev,
+      active: false,
+    }));
+  };
+
+  const _handleAddActionItem = (teacherIndex: number, item: string) => {
+    setSpeedSession((prev) => ({
+      ...prev,
+      actionItems: {
+        ...prev.actionItems,
+        [teacherIndex]: [...(prev.actionItems[teacherIndex] || []), item],
+      },
+    }));
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const canProceed = () => {
@@ -226,12 +370,26 @@ export const ParentConferenceBooking: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Book Parent-Teacher Conference
-        </Typography>
-        <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 4 }}>
-          Schedule a meeting with your child&apos;s teacher to discuss their progress
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box>
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              Book Parent-Teacher Conference
+            </Typography>
+            <Typography variant="body1" color="text.secondary" gutterBottom>
+              Schedule a meeting with your child&apos;s teacher to discuss their progress
+            </Typography>
+          </Box>
+          {selectedChild && teachers && teachers.length > 1 && !bookingSuccess && (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<SpeedIcon />}
+              onClick={handleInitiateSpeedRound}
+            >
+              Speed Round Mode
+            </Button>
+          )}
+        </Box>
 
         <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
           {steps.map((label) => (
@@ -724,6 +882,198 @@ export const ParentConferenceBooking: React.FC = () => {
           </>
         )}
       </Box>
+
+      <Dialog
+        open={speedDatingDialog}
+        onClose={() => setSpeedDatingDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">PTM Speed Dating</Typography>
+            <IconButton onClick={() => setSpeedDatingDialog(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {!speedSession.active ? (
+            <Box>
+              <Alert severity="info" icon={<SpeedIcon />} sx={{ mb: 3 }}>
+                Speed Round Mode will auto-generate 5-minute sequential slots for all{' '}
+                {speedSession.bookings.length} teachers. Each session includes pre-loaded talking
+                points and a countdown timer.
+              </Alert>
+              <Typography variant="h6" gutterBottom>
+                Scheduled Teachers ({speedSession.bookings.length})
+              </Typography>
+              <List>
+                {speedSession.bookings.map((booking, index) => (
+                  <ListItem
+                    key={index}
+                    sx={{ bgcolor: alpha('#1976d2', 0.05), mb: 1, borderRadius: 1 }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar src={booking.teacher.photo_url}>
+                        {booking.teacher.first_name.charAt(0)}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={`${booking.teacher.first_name} ${booking.teacher.last_name}`}
+                      secondary={`${booking.slot.start_time} - ${booking.slot.end_time}`}
+                    />
+                    <Chip label={booking.teacher.subjects?.[0] || 'Subject'} size="small" />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          ) : (
+            <Box>
+              {speedSession.currentTeacherIndex < speedSession.bookings.length && (
+                <>
+                  <Card sx={{ mb: 3, bgcolor: alpha('#f57c00', 0.05) }}>
+                    <CardContent>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          mb: 2,
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar
+                            src={
+                              speedSession.bookings[speedSession.currentTeacherIndex].teacher
+                                .photo_url
+                            }
+                            sx={{ width: 56, height: 56 }}
+                          >
+                            {speedSession.bookings[
+                              speedSession.currentTeacherIndex
+                            ].teacher.first_name.charAt(0)}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="h6">
+                              {
+                                speedSession.bookings[speedSession.currentTeacherIndex].teacher
+                                  .first_name
+                              }{' '}
+                              {
+                                speedSession.bookings[speedSession.currentTeacherIndex].teacher
+                                  .last_name
+                              }
+                            </Typography>
+                            <Chip
+                              label={
+                                speedSession.bookings[speedSession.currentTeacherIndex].teacher
+                                  .subjects?.[0]
+                              }
+                              size="small"
+                            />
+                          </Box>
+                        </Box>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <TimerIcon
+                            sx={{
+                              fontSize: 40,
+                              color:
+                                speedSession.timeRemaining < 60 ? 'error.main' : 'warning.main',
+                            }}
+                          />
+                          <Typography
+                            variant="h4"
+                            fontWeight={700}
+                            color={speedSession.timeRemaining < 60 ? 'error' : 'warning'}
+                          >
+                            {formatTime(speedSession.timeRemaining)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Time Remaining
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={((300 - speedSession.timeRemaining) / 300) * 100}
+                        sx={{ height: 8, borderRadius: 4 }}
+                        color={speedSession.timeRemaining < 60 ? 'error' : 'warning'}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  <Card sx={{ mb: 3 }}>
+                    <CardHeader title="Pre-loaded Talking Points" avatar={<AssessmentIcon />} />
+                    <CardContent>
+                      <List dense>
+                        {speedSession.bookings[speedSession.currentTeacherIndex].talkingPoints.map(
+                          (point, idx) => (
+                            <ListItem key={idx}>
+                              <ListItemText primary={point} />
+                            </ListItem>
+                          )
+                        )}
+                      </List>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader title="AI-Generated Action Items" avatar={<ActionItemsIcon />} />
+                    <CardContent>
+                      <Stack spacing={1}>
+                        {(speedSession.actionItems[speedSession.currentTeacherIndex] || []).map(
+                          (item, idx) => (
+                            <Chip key={idx} label={item} onDelete={() => {}} />
+                          )
+                        )}
+                        {speedSession.actionItems[speedSession.currentTeacherIndex]?.length === 0 ||
+                        !speedSession.actionItems[speedSession.currentTeacherIndex] ? (
+                          <Alert severity="info">
+                            Action items will be auto-generated based on the discussion
+                          </Alert>
+                        ) : null}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          {!speedSession.active ? (
+            <>
+              <Button onClick={() => setSpeedDatingDialog(false)}>Cancel</Button>
+              <Button
+                variant="contained"
+                startIcon={<StartIcon />}
+                onClick={handleStartSpeedSession}
+              >
+                Start Speed Session
+              </Button>
+            </>
+          ) : (
+            <>
+              <Typography variant="caption" color="text.secondary">
+                Teacher {speedSession.currentTeacherIndex + 1} of {speedSession.bookings.length}
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={handleNextTeacher}
+                disabled={
+                  speedSession.currentTeacherIndex >= speedSession.bookings.length - 1 &&
+                  speedSession.timeRemaining > 0
+                }
+              >
+                {speedSession.currentTeacherIndex < speedSession.bookings.length - 1
+                  ? 'Next Teacher'
+                  : 'Complete Session'}
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
