@@ -1,602 +1,522 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
+  Container,
   Typography,
-  Button,
-  TextField,
-  InputAdornment,
   Paper,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Grid,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Card,
+  CardContent,
+  Alert,
+  Snackbar,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
-  Chip,
-  IconButton,
-  Menu,
-  MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  CircularProgress,
-  Alert,
-  useTheme,
-  FormControl,
-  InputLabel,
-  Select,
-  Grid,
-  LinearProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Search as SearchIcon,
-  MoreVert as MoreVertIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  FilterList as FilterListIcon,
-  Refresh as RefreshIcon,
-  School as SchoolIcon,
+  Class as ClassIcon,
   Person as PersonIcon,
   Group as GroupIcon,
 } from '@mui/icons-material';
-import classesApi, { Class, ClassCreate, ClassUpdate } from '@/api/classes';
-import teachersApi, { Teacher } from '@/api/teachers';
-import { isDemoUser } from '@/api/demoDataApi';
+import { academicApi } from '../api/academic';
+import type { Grade, GradeCreate, Section, SectionCreate } from '../types/academic';
 
-const GRADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F'];
+interface Teacher {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
 
-export default function ClassManagement() {
-  const theme = useTheme();
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [search, setSearch] = useState('');
-  const [gradeFilter, setGradeFilter] = useState<number | undefined>(undefined);
-  const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [formDialogOpen, setFormDialogOpen] = useState(false);
-  const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
-  const [formData, setFormData] = useState<ClassCreate>({
-    institution_id: 1,
-    grade: 1,
-    section: 'A',
-    student_capacity: 30,
-    is_active: true,
+export const ClassManagement: React.FC = () => {
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [_teachers, _setTeachers] = useState<Teacher[]>([]);
+  const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
+  const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
+  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
+  const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({ open: false, message: '', severity: 'success' });
+
+  const [gradeFormData, setGradeFormData] = useState<GradeCreate>({
+    name: '',
+    description: '',
   });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
 
-  const fetchClasses = async () => {
+  const [sectionFormData, setSectionFormData] = useState<SectionCreate>({
+    grade_id: 0,
+    name: '',
+    capacity: undefined,
+    class_teacher_id: undefined,
+    description: '',
+  });
+
+  useEffect(() => {
+    loadGrades();
+    loadSections();
+  }, []);
+
+  const loadGrades = async () => {
     try {
       setLoading(true);
-      if (isDemoUser()) {
-        const mockData: ClassListResponse = {
-          items: generateMockClasses(),
-          total: 72,
-          skip: page * rowsPerPage,
-          limit: rowsPerPage,
-        };
-        setClasses(mockData.items);
-        setTotal(mockData.total);
-      } else {
-        const response = await classesApi.listClasses({
-          skip: page * rowsPerPage,
-          limit: rowsPerPage,
-          search: search || undefined,
-          grade: gradeFilter,
-          is_active: activeFilter,
-        });
-        setClasses(response.items);
-        setTotal(response.total);
-      }
-      setError(null);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
-      setError(error.response?.data?.detail || 'Failed to load classes');
+      const data = await academicApi.getGrades(true);
+      setGrades(data);
+    } catch (error) {
+      showSnackbar('Failed to load grades', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchTeachers = async () => {
+  const loadSections = async () => {
     try {
-      if (isDemoUser()) {
-        setTeachers(generateMockTeachers());
-      } else {
-        const response = await teachersApi.listTeachers({ limit: 100, is_active: true });
-        setTeachers(response.items);
-      }
-    } catch (err) {
-      console.error('Failed to load teachers:', err);
+      const data = await academicApi.getSections(undefined, true);
+      setSections(data);
+    } catch (error) {
+      showSnackbar('Failed to load sections', 'error');
     }
   };
 
-  useEffect(() => {
-    fetchClasses();
-  }, [page, rowsPerPage, search, gradeFilter, activeFilter]);
-
-  useEffect(() => {
-    fetchTeachers();
-  }, []);
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, classItem: Class) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedClass(classItem);
+  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbar({ open: true, message, severity });
   };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleEdit = () => {
-    if (selectedClass) {
-      setFormMode('edit');
-      setFormData({
-        institution_id: selectedClass.institution_id,
-        grade: selectedClass.grade,
-        section: selectedClass.section,
-        class_teacher_id: selectedClass.class_teacher_id,
-        student_capacity: selectedClass.student_capacity,
-        room_number: selectedClass.room_number,
-        academic_year: selectedClass.academic_year,
-        is_active: selectedClass.is_active,
+  const handleOpenGradeDialog = (grade?: Grade) => {
+    if (grade) {
+      setEditingGrade(grade);
+      setGradeFormData({
+        name: grade.name,
+        description: grade.description || '',
       });
-      setFormDialogOpen(true);
+    } else {
+      setEditingGrade(null);
+      setGradeFormData({
+        name: '',
+        description: '',
+      });
     }
-    handleMenuClose();
+    setGradeDialogOpen(true);
   };
 
-  const handleDeleteClick = () => {
-    setDeleteDialogOpen(true);
-    handleMenuClose();
+  const handleOpenSectionDialog = (section?: Section) => {
+    if (!selectedGrade && !section) return;
+
+    if (section) {
+      setEditingSection(section);
+      setSectionFormData({
+        grade_id: section.grade_id,
+        name: section.name,
+        capacity: section.capacity,
+        class_teacher_id: section.class_teacher_id,
+        description: section.description || '',
+      });
+    } else {
+      setEditingSection(null);
+      setSectionFormData({
+        grade_id: selectedGrade!.id,
+        name: '',
+        capacity: undefined,
+        class_teacher_id: undefined,
+        description: '',
+      });
+    }
+    setSectionDialogOpen(true);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!selectedClass) return;
-
+  const handleSaveGrade = async () => {
     try {
-      if (!isDemoUser()) {
-        await classesApi.deleteClass(selectedClass.id);
-      }
-      setDeleteDialogOpen(false);
-      setSelectedClass(null);
-      fetchClasses();
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
-      setError(error.response?.data?.detail || 'Failed to delete class');
-    }
-  };
-
-  const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleOpenCreateDialog = () => {
-    setFormMode('create');
-    setFormData({
-      institution_id: 1,
-      grade: 1,
-      section: 'A',
-      student_capacity: 30,
-      is_active: true,
-    });
-    setFormErrors({});
-    setFormDialogOpen(true);
-  };
-
-  const handleCloseFormDialog = () => {
-    setFormDialogOpen(false);
-    setFormData({
-      institution_id: 1,
-      grade: 1,
-      section: 'A',
-      student_capacity: 30,
-      is_active: true,
-    });
-    setFormErrors({});
-  };
-
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-
-    if (!formData.grade) {
-      errors.grade = 'Grade is required';
-    }
-    if (!formData.section) {
-      errors.section = 'Section is required';
-    }
-    if (!formData.student_capacity || formData.student_capacity < 1) {
-      errors.student_capacity = 'Student capacity must be at least 1';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleFormSubmit = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setSubmitting(true);
-      if (isDemoUser()) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      setLoading(true);
+      if (editingGrade) {
+        await academicApi.updateGrade(editingGrade.id, gradeFormData);
+        showSnackbar('Grade updated successfully', 'success');
       } else {
-        if (formMode === 'create') {
-          await classesApi.createClass(formData);
-        } else if (selectedClass) {
-          const updateData: ClassUpdate = {
-            grade: formData.grade,
-            section: formData.section,
-            class_teacher_id: formData.class_teacher_id,
-            student_capacity: formData.student_capacity,
-            room_number: formData.room_number,
-            academic_year: formData.academic_year,
-            is_active: formData.is_active,
-          };
-          await classesApi.updateClass(selectedClass.id, updateData);
-        }
+        await academicApi.createGrade(gradeFormData);
+        showSnackbar('Grade created successfully', 'success');
       }
-      handleCloseFormDialog();
-      fetchClasses();
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
-      setError(error.response?.data?.detail || 'Failed to save class');
+      setGradeDialogOpen(false);
+      loadGrades();
+    } catch (error) {
+      showSnackbar('Failed to save grade', 'error');
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const getStatusColor = (isActive: boolean) => {
-    return isActive ? 'success' : 'default';
+  const handleSaveSection = async () => {
+    try {
+      setLoading(true);
+      if (editingSection) {
+        await academicApi.updateSection(editingSection.id, {
+          name: sectionFormData.name,
+          capacity: sectionFormData.capacity,
+          class_teacher_id: sectionFormData.class_teacher_id,
+          description: sectionFormData.description,
+        });
+        showSnackbar('Section updated successfully', 'success');
+      } else {
+        await academicApi.createSection(sectionFormData);
+        showSnackbar('Section created successfully', 'success');
+      }
+      setSectionDialogOpen(false);
+      loadSections();
+    } catch (error) {
+      showSnackbar('Failed to save section', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getCapacityColor = (current: number, capacity: number) => {
-    const percentage = (current / capacity) * 100;
-    if (percentage >= 90) return 'error';
-    if (percentage >= 75) return 'warning';
-    return 'success';
+  const handleDeleteGrade = async (grade: Grade) => {
+    if (!window.confirm(`Are you sure you want to delete ${grade.name}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await academicApi.deleteGrade(grade.id);
+      showSnackbar('Grade deleted successfully', 'success');
+      loadGrades();
+      if (selectedGrade?.id === grade.id) {
+        setSelectedGrade(null);
+      }
+    } catch (error) {
+      showSnackbar('Failed to delete grade', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const calculateOccupancyPercentage = (current: number, capacity: number) => {
-    return (current / capacity) * 100;
+  const handleDeleteSection = async (section: Section) => {
+    if (!window.confirm(`Are you sure you want to delete Section ${section.name}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await academicApi.deleteSection(section.id);
+      showSnackbar('Section deleted successfully', 'success');
+      loadSections();
+    } catch (error) {
+      showSnackbar('Failed to delete section', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const _handleAssignClassTeacher = async (sectionId: number, teacherId: number) => {
+    try {
+      setLoading(true);
+      await academicApi.assignClassTeacher({ section_id: sectionId, teacher_id: teacherId });
+      showSnackbar('Class teacher assigned successfully', 'success');
+      loadSections();
+    } catch (error) {
+      showSnackbar('Failed to assign class teacher', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getGradeSections = (gradeId: number) => {
+    return sections.filter((s) => s.grade_id === gradeId);
   };
 
   return (
-    <Box>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" fontWeight={700} gutterBottom>
-            Class Management
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage classes, sections, teachers, and student capacity
-          </Typography>
-        </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateDialog}>
-          Add Class
-        </Button>
-      </Box>
+    <Container maxWidth="xl">
+      <Box sx={{ py: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          Class & Grade Management
+        </Typography>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+        <Grid container spacing={3} sx={{ mt: 2 }}>
+          <Grid item xs={12} md={5}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">Grades</Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenGradeDialog()}
+                size="small"
+              >
+                Add Grade
+              </Button>
+            </Box>
+            <Paper sx={{ p: 2 }}>
+              <List>
+                {grades.map((grade) => (
+                  <ListItem
+                    key={grade.id}
+                    sx={{
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'action.hover' },
+                      mb: 1,
+                      borderRadius: 1,
+                      bgcolor: selectedGrade?.id === grade.id ? 'action.selected' : 'inherit',
+                    }}
+                    onClick={() => setSelectedGrade(grade)}
+                  >
+                    <ClassIcon sx={{ mr: 1.5, color: 'primary.main' }} />
+                    <ListItemText
+                      primary={grade.name}
+                      secondary={`${getGradeSections(grade.id).length} sections`}
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenGradeDialog(grade);
+                        }}
+                        sx={{ mr: 1 }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteGrade(grade);
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+                {grades.length === 0 && (
+                  <ListItem>
+                    <ListItemText
+                      primary="No grades configured"
+                      secondary="Click 'Add Grade' to create grades"
+                    />
+                  </ListItem>
+                )}
+              </List>
+            </Paper>
+          </Grid>
 
-      <Paper elevation={0} sx={{ border: `1px solid ${theme.palette.divider}` }}>
-        <Box sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <TextField
-            placeholder="Search classes..."
-            size="small"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(0);
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ flexGrow: 1, maxWidth: 400 }}
-          />
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Grade</InputLabel>
-            <Select
-              value={gradeFilter || ''}
-              label="Grade"
-              onChange={(e) => {
-                setGradeFilter(e.target.value ? Number(e.target.value) : undefined);
-                setPage(0);
-              }}
-            >
-              <MenuItem value="">All Grades</MenuItem>
-              {GRADES.map((grade) => (
-                <MenuItem key={grade} value={grade}>
-                  Grade {grade}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button
-            variant="outlined"
-            startIcon={<FilterListIcon />}
-            onClick={() => {
-              setActiveFilter(activeFilter === true ? undefined : true);
-              setPage(0);
-            }}
-          >
-            {activeFilter === true ? 'Active Only' : 'All'}
-          </Button>
-          <IconButton onClick={fetchClasses}>
-            <RefreshIcon />
-          </IconButton>
-        </Box>
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Class</TableCell>
-                    <TableCell>Class Teacher</TableCell>
-                    <TableCell>Room</TableCell>
-                    <TableCell>Capacity</TableCell>
-                    <TableCell>Occupancy</TableCell>
-                    <TableCell>Academic Year</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {classes.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center">
-                        <Typography variant="body2" color="text.secondary" py={4}>
-                          No classes found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    classes.map((classItem) => (
-                      <TableRow key={classItem.id} hover>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <SchoolIcon color="primary" />
-                            <Box>
-                              <Typography variant="body2" fontWeight={600}>
-                                Grade {classItem.grade} - {classItem.section}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                ID: {classItem.id}
-                              </Typography>
+          <Grid item xs={12} md={7}>
+            {selectedGrade ? (
+              <>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6">Sections - {selectedGrade.name}</Typography>
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => handleOpenSectionDialog()}
+                    size="small"
+                  >
+                    Add Section
+                  </Button>
+                </Box>
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Section</TableCell>
+                        <TableCell>Class Teacher</TableCell>
+                        <TableCell>Capacity</TableCell>
+                        <TableCell>Current Strength</TableCell>
+                        <TableCell>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {getGradeSections(selectedGrade.id).map((section) => (
+                        <TableRow key={section.id}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <GroupIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                              Section {section.name}
                             </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {classItem.class_teacher_name ? (
-                              <>
-                                <PersonIcon fontSize="small" color="action" />
-                                <Typography variant="body2">
-                                  {classItem.class_teacher_name}
-                                </Typography>
-                              </>
+                          </TableCell>
+                          <TableCell>
+                            {section.class_teacher_name ? (
+                              <Chip
+                                icon={<PersonIcon />}
+                                label={section.class_teacher_name}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                              />
                             ) : (
                               <Typography variant="body2" color="text.secondary">
                                 Not assigned
                               </Typography>
                             )}
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{classItem.room_number || '-'}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <GroupIcon fontSize="small" color="action" />
-                            <Typography variant="body2">
-                              {classItem.current_students} / {classItem.student_capacity}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ minWidth: 120 }}>
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                mb: 0.5,
-                              }}
-                            >
-                              <Typography variant="caption">
-                                {calculateOccupancyPercentage(
-                                  classItem.current_students,
-                                  classItem.student_capacity
-                                ).toFixed(0)}
-                                %
+                          </TableCell>
+                          <TableCell>{section.capacity ? section.capacity : 'No limit'}</TableCell>
+                          <TableCell>
+                            {section.current_strength || 0}
+                            {section.capacity && (
+                              <Typography
+                                variant="caption"
+                                color={
+                                  (section.current_strength || 0) >= section.capacity
+                                    ? 'error'
+                                    : 'text.secondary'
+                                }
+                              >
+                                {' '}
+                                / {section.capacity}
                               </Typography>
-                            </Box>
-                            <LinearProgress
-                              variant="determinate"
-                              value={calculateOccupancyPercentage(
-                                classItem.current_students,
-                                classItem.student_capacity
-                              )}
-                              color={getCapacityColor(
-                                classItem.current_students,
-                                classItem.student_capacity
-                              )}
-                            />
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{classItem.academic_year || '-'}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={classItem.is_active ? 'Active' : 'Inactive'}
-                            color={getStatusColor(classItem.is_active)}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMenuOpen(e, classItem);
-                            }}
-                          >
-                            <MoreVertIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25, 50]}
-              component="div"
-              count={total}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-          </>
-        )}
-      </Paper>
-
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleEdit}>
-          <EditIcon sx={{ mr: 1 }} fontSize="small" />
-          Edit
-        </MenuItem>
-        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
-          <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
-          Delete
-        </MenuItem>
-      </Menu>
-
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Class</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete Grade {selectedClass?.grade} - {selectedClass?.section}?
-            This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleDeleteConfirm}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={formDialogOpen} onClose={handleCloseFormDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{formMode === 'create' ? 'Add New Class' : 'Edit Class'}</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={Boolean(formErrors.grade)}>
-                <InputLabel>Grade *</InputLabel>
-                <Select
-                  value={formData.grade}
-                  label="Grade *"
-                  onChange={(e) => setFormData({ ...formData, grade: Number(e.target.value) })}
-                >
-                  {GRADES.map((grade) => (
-                    <MenuItem key={grade} value={grade}>
-                      Grade {grade}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {formErrors.grade && (
-                  <Typography variant="caption" color="error">
-                    {formErrors.grade}
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenSectionDialog(section)}
+                              sx={{ mr: 1 }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" onClick={() => handleDeleteSection(section)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {getGradeSections(selectedGrade.id).length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center">
+                            <Typography variant="body2" color="text.secondary">
+                              No sections configured. Click &apos;Add Section&apos; to create
+                              sections.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            ) : (
+              <Card>
+                <CardContent sx={{ textAlign: 'center', py: 8 }}>
+                  <ClassIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary">
+                    Select a grade
                   </Typography>
-                )}
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={Boolean(formErrors.section)}>
-                <InputLabel>Section *</InputLabel>
-                <Select
-                  value={formData.section}
-                  label="Section *"
-                  onChange={(e) => setFormData({ ...formData, section: e.target.value as string })}
-                >
-                  {SECTIONS.map((section) => (
-                    <MenuItem key={section} value={section}>
-                      Section {section}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {formErrors.section && (
-                  <Typography variant="caption" color="error">
-                    {formErrors.section}
+                  <Typography variant="body2" color="text.secondary">
+                    Click on a grade to manage its sections
                   </Typography>
-                )}
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
+                </CardContent>
+              </Card>
+            )}
+          </Grid>
+        </Grid>
+
+        <Dialog
+          open={gradeDialogOpen}
+          onClose={() => setGradeDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>{editingGrade ? 'Edit Grade' : 'Add Grade'}</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
               <TextField
                 fullWidth
-                label="Student Capacity *"
-                type="number"
-                value={formData.student_capacity}
+                label="Grade Name"
+                value={gradeFormData.name}
+                onChange={(e) => setGradeFormData({ ...gradeFormData, name: e.target.value })}
+                placeholder="e.g., Grade 10, Class XII"
+                sx={{ mb: 2 }}
+                required
+              />
+              <TextField
+                fullWidth
+                label="Description"
+                value={gradeFormData.description}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    student_capacity: parseInt(e.target.value) || 0,
+                  setGradeFormData({ ...gradeFormData, description: e.target.value })
+                }
+                multiline
+                rows={3}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setGradeDialogOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleSaveGrade} disabled={loading}>
+              Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={sectionDialogOpen}
+          onClose={() => setSectionDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>{editingSection ? 'Edit Section' : 'Add Section'}</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <TextField
+                fullWidth
+                label="Section Name"
+                value={sectionFormData.name}
+                onChange={(e) => setSectionFormData({ ...sectionFormData, name: e.target.value })}
+                placeholder="e.g., A, B, Blue"
+                sx={{ mb: 2 }}
+                required
+              />
+              <TextField
+                fullWidth
+                label="Capacity (Optional)"
+                type="number"
+                value={sectionFormData.capacity || ''}
+                onChange={(e) =>
+                  setSectionFormData({
+                    ...sectionFormData,
+                    capacity: e.target.value ? parseInt(e.target.value) : undefined,
                   })
                 }
-                error={Boolean(formErrors.student_capacity)}
-                helperText={formErrors.student_capacity}
-                inputProps={{ min: 1 }}
+                placeholder="Maximum students"
+                sx={{ mb: 2 }}
               />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Class Teacher</InputLabel>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Class Teacher (Optional)</InputLabel>
                 <Select
-                  value={formData.class_teacher_id || ''}
-                  label="Class Teacher"
+                  value={sectionFormData.class_teacher_id || ''}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
+                    setSectionFormData({
+                      ...sectionFormData,
                       class_teacher_id: e.target.value ? Number(e.target.value) : undefined,
                     })
                   }
+                  label="Class Teacher (Optional)"
                 >
-                  <MenuItem value="">
-                    <em>None</em>
-                  </MenuItem>
+                  <MenuItem value="">None</MenuItem>
                   {teachers.map((teacher) => (
                     <MenuItem key={teacher.id} value={teacher.id}>
                       {teacher.first_name} {teacher.last_name}
@@ -604,110 +524,42 @@ export default function ClassManagement() {
                   ))}
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Room Number"
-                value={formData.room_number || ''}
-                onChange={(e) => setFormData({ ...formData, room_number: e.target.value })}
+                label="Description"
+                value={sectionFormData.description}
+                onChange={(e) =>
+                  setSectionFormData({ ...sectionFormData, description: e.target.value })
+                }
+                multiline
+                rows={2}
               />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Academic Year"
-                placeholder="e.g., 2024-2025"
-                value={formData.academic_year || ''}
-                onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={formData.is_active ? 'active' : 'inactive'}
-                  label="Status"
-                  onChange={(e) =>
-                    setFormData({ ...formData, is_active: e.target.value === 'active' })
-                  }
-                >
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="inactive">Inactive</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseFormDialog} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleFormSubmit}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={20} /> : null}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSectionDialogOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleSaveSection} disabled={loading}>
+              Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
           >
-            {formMode === 'create' ? 'Create' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </Container>
   );
-}
+};
 
-function generateMockClasses(): Class[] {
-  const mockClasses: Class[] = [];
-  for (let grade = 1; grade <= 12; grade++) {
-    const sections = grade <= 8 ? ['A', 'B', 'C'] : ['A', 'B'];
-    sections.forEach((section) => {
-      mockClasses.push({
-        id: grade * 100 + section.charCodeAt(0),
-        institution_id: 1,
-        grade,
-        section,
-        class_teacher_id: Math.random() > 0.3 ? Math.floor(Math.random() * 50) + 1 : undefined,
-        class_teacher_name:
-          Math.random() > 0.3
-            ? `${['Mr.', 'Ms.', 'Mrs.'][Math.floor(Math.random() * 3)]} ${
-                ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones'][Math.floor(Math.random() * 5)]
-              }`
-            : undefined,
-        student_capacity: grade <= 8 ? 35 : 40,
-        current_students: Math.floor(Math.random() * (grade <= 8 ? 35 : 40)),
-        room_number: `${grade}${section}${Math.floor(Math.random() * 9) + 1}`,
-        academic_year: '2024-2025',
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-15T00:00:00Z',
-      });
-    });
-  }
-  return mockClasses;
-}
-
-function generateMockTeachers(): Teacher[] {
-  const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'Robert', 'Lisa'];
-  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller'];
-
-  return Array.from({ length: 20 }, (_, i) => ({
-    id: i + 1,
-    institution_id: 1,
-    employee_id: `T${(i + 1).toString().padStart(4, '0')}`,
-    first_name: firstNames[Math.floor(Math.random() * firstNames.length)],
-    last_name: lastNames[Math.floor(Math.random() * lastNames.length)],
-    email: `teacher${i + 1}@school.com`,
-    phone: `+1-555-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-    is_active: true,
-    created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-15T00:00:00Z',
-  }));
-}
-
-interface ClassListResponse {
-  items: Class[];
-  total: number;
-  skip: number;
-  limit: number;
-}
+export default ClassManagement;
