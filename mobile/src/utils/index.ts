@@ -1,10 +1,14 @@
-export * from './storage';
-export * from './secureStorage';
-export * from './authService';
-export * from './validators';
-export * from './formatters';
-export * from './apiErrorHandler';
-export * from './offlineQueue';
-export * from './optimisticUpdates';
-export * from './backgroundSync';
-export * from './deviceFingerprint';
+export { offlineQueueManager } from './offlineQueue';
+export type { QueuedRequest } from './offlineQueue';
+
+export { backgroundSyncService } from './backgroundSync';
+
+export { networkStatusManager } from './networkStatus';
+
+export { cacheManager } from './cacheManager';
+
+export { biometricUtils } from './biometric';
+
+export { secureStorage } from './secureStorage';
+
+export { fileManager } from './fileManager';

@@ -1,5 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { offlineQueueManager } from '../utils/offlineQueue';
+import { networkStatusManager } from '../utils/networkStatus';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
 const API_VERSION = process.env.API_VERSION || 'v1';
@@ -54,9 +56,32 @@ class ApiClient {
           }
         }
 
+        if (!networkStatusManager.getIsConnected() && this.shouldQueueRequest(originalRequest)) {
+          await this.queueFailedRequest(originalRequest);
+        }
+
         return Promise.reject(error);
       }
     );
+  }
+
+  private shouldQueueRequest(config: AxiosRequestConfig): boolean {
+    const method = config.method?.toUpperCase();
+    return method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+  }
+
+  private async queueFailedRequest(config: AxiosRequestConfig) {
+    const method = config.method?.toUpperCase() as 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    const url = config.url || '';
+    const data = config.data;
+    const headers = config.headers as Record<string, string>;
+
+    await offlineQueueManager.addToQueue({
+      url,
+      method,
+      data,
+      headers,
+    });
   }
 
   private async handleTokenRefresh(): Promise<string | null> {

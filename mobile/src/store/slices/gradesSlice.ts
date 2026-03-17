@@ -1,79 +1,61 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { GradeDetail, SubjectGrades, PerformanceInsights } from '@api/grades';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { studentApi } from '../../api/studentApi';
+import { Grade } from '../../types/student';
 
-export interface GradesState {
-  grades: GradeDetail[];
-  subjectGrades: SubjectGrades[];
-  performanceInsights: PerformanceInsights | null;
+interface GradesState {
+  grades: Grade[];
   isLoading: boolean;
   error: string | null;
-  lastSynced: string | null;
-  isSyncing: boolean;
+  lastUpdated: number | null;
 }
 
 const initialState: GradesState = {
   grades: [],
-  subjectGrades: [],
-  performanceInsights: null,
   isLoading: false,
   error: null,
-  lastSynced: null,
-  isSyncing: false,
+  lastUpdated: null,
 };
+
+export const fetchGrades = createAsyncThunk(
+  'grades/fetch',
+  async (limit: number | undefined, { rejectWithValue }) => {
+    try {
+      const grades = await studentApi.getGrades(limit);
+      return grades;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch grades');
+    }
+  }
+);
 
 const gradesSlice = createSlice({
   name: 'grades',
   initialState,
   reducers: {
-    setGrades: (state, action: PayloadAction<GradeDetail[]>) => {
-      state.grades = action.payload;
-    },
-    addGrade: (state, action: PayloadAction<GradeDetail>) => {
-      const index = state.grades.findIndex(g => g.id === action.payload.id);
-      if (index >= 0) {
-        state.grades[index] = action.payload;
-      } else {
-        state.grades.unshift(action.payload);
-      }
-    },
-    setSubjectGrades: (state, action: PayloadAction<SubjectGrades[]>) => {
-      state.subjectGrades = action.payload;
-    },
-    setPerformanceInsights: (state, action: PayloadAction<PerformanceInsights>) => {
-      state.performanceInsights = action.payload;
-    },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.isLoading = action.payload;
-    },
-    setError: (state, action: PayloadAction<string | null>) => {
-      state.error = action.payload;
-    },
-    clearError: state => {
+    clearGrades: (state) => {
+      state.grades = [];
       state.error = null;
+      state.lastUpdated = null;
     },
-    setLastSynced: (state, action: PayloadAction<string>) => {
-      state.lastSynced = action.payload;
-    },
-    setSyncing: (state, action: PayloadAction<boolean>) => {
-      state.isSyncing = action.payload;
-    },
-    clearGrades: state => {
-      return initialState;
-    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchGrades.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchGrades.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.grades = action.payload;
+        state.lastUpdated = Date.now();
+        state.error = null;
+      })
+      .addCase(fetchGrades.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const {
-  setGrades,
-  addGrade,
-  setSubjectGrades,
-  setPerformanceInsights,
-  setLoading,
-  setError,
-  clearError,
-  setLastSynced,
-  setSyncing,
-  clearGrades,
-} = gradesSlice.actions;
-
+export const { clearGrades } = gradesSlice.actions;
 export default gradesSlice.reducer;

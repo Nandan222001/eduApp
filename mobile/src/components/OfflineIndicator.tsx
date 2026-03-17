@@ -1,100 +1,68 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNetworkStatus } from '@hooks/useNetworkStatus';
-import { useOfflineQueue } from '@hooks/useOfflineQueue';
-import { COLORS, SPACING, FONT_SIZES } from '@constants';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { networkStatusManager } from '../utils/networkStatus';
+import { offlineQueueManager } from '../utils/offlineQueue';
 
-interface OfflineIndicatorProps {
-  onSyncPress?: () => void;
-}
+export const OfflineIndicator: React.FC = () => {
+  const [isConnected, setIsConnected] = useState(true);
+  const [queueCount, setQueueCount] = useState(0);
 
-export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({ onSyncPress }) => {
-  const { isConnected, isInternetReachable } = useNetworkStatus();
-  const { queueSize } = useOfflineQueue();
+  useEffect(() => {
+    setIsConnected(networkStatusManager.getIsConnected());
+    setQueueCount(offlineQueueManager.getQueueCount());
 
-  const isOffline = !isConnected || !isInternetReachable;
+    const unsubscribeNetwork = networkStatusManager.subscribe(setIsConnected);
+    const unsubscribeQueue = offlineQueueManager.subscribe((queue) => {
+      setQueueCount(queue.length);
+    });
 
-  if (!isOffline && queueSize === 0) {
+    return () => {
+      unsubscribeNetwork();
+      unsubscribeQueue();
+    };
+  }, []);
+
+  if (isConnected && queueCount === 0) {
     return null;
   }
 
   return (
-    <View style={[styles.container, isOffline && styles.offlineContainer]}>
+    <View style={styles.container}>
       <View style={styles.content}>
-        <Icon
-          name={isOffline ? 'cloud-off' : 'cloud-queue'}
-          size={20}
-          color={isOffline ? COLORS.error : COLORS.warning}
-          style={styles.icon}
-        />
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>{isOffline ? 'Offline Mode' : 'Pending Sync'}</Text>
-          {queueSize > 0 && (
-            <Text style={styles.subtitle}>
-              {queueSize} operation{queueSize !== 1 ? 's' : ''} queued
-            </Text>
-          )}
-        </View>
+        {!isConnected && (
+          <Text style={styles.text}>
+            📡 Offline Mode
+          </Text>
+        )}
+        {queueCount > 0 && (
+          <Text style={styles.queueText}>
+            {queueCount} pending {queueCount === 1 ? 'request' : 'requests'}
+          </Text>
+        )}
       </View>
-      {!isOffline && queueSize > 0 && onSyncPress && (
-        <TouchableOpacity onPress={onSyncPress} style={styles.syncButton}>
-          <Icon name="sync" size={20} color={COLORS.primary} />
-          <Text style={styles.syncText}>Sync</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.warning + '20',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.warning + '40',
-  },
-  offlineContainer: {
-    backgroundColor: COLORS.error + '20',
-    borderBottomColor: COLORS.error + '40',
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   content: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
+    gap: 8,
   },
-  icon: {
-    marginRight: SPACING.sm,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: FONT_SIZES.sm,
+  text: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
   },
-  subtitle: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  syncButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    backgroundColor: COLORS.primary + '20',
-    borderRadius: 4,
-  },
-  syncText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.primary,
-    fontWeight: '600',
-    marginLeft: SPACING.xs,
+  queueText: {
+    color: '#FFFFFF',
+    fontSize: 12,
   },
 });

@@ -1,56 +1,34 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import { assignmentsApi, SubmitAssignmentData } from '@api/assignments';
-import { apiClient } from '@api/client';
+import NetInfo from '@react-native-community/netinfo';
+import { apiClient } from '../api/client';
 
-export enum QueuedOperationType {
-  ASSIGNMENT_SUBMISSION = 'ASSIGNMENT_SUBMISSION',
-  ATTENDANCE_CHECK_IN = 'ATTENDANCE_CHECK_IN',
-  PROFILE_UPDATE = 'PROFILE_UPDATE',
-}
-
-export interface QueuedOperation {
+export interface QueuedRequest {
   id: string;
-  type: QueuedOperationType;
-  data: any;
+  url: string;
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  data?: any;
+  headers?: Record<string, string>;
   timestamp: number;
   retryCount: number;
   maxRetries: number;
-  error?: string;
 }
 
-interface AttendanceCheckInData {
-  classId: number;
-  timestamp: string;
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
-}
-
-interface ProfileUpdateData {
-  phone?: string;
-  dateOfBirth?: string;
-  profilePhoto?: string;
-}
-
-const OFFLINE_QUEUE_KEY = '@offline_queue';
+const QUEUE_STORAGE_KEY = '@offline_queue';
 const MAX_RETRIES = 3;
 
 class OfflineQueueManager {
-  private queue: QueuedOperation[] = [];
-  private isOnline: boolean = true;
-  private syncInProgress: boolean = false;
-  private listeners: Set<(queue: QueuedOperation[]) => void> = new Set();
+  private queue: QueuedRequest[] = [];
+  private isProcessing = false;
+  private listeners: Array<(queue: QueuedRequest[]) => void> = [];
 
   constructor() {
-    this.initializeQueue();
+    this.loadQueue();
     this.setupNetworkListener();
   }
 
-  private async initializeQueue(): Promise<void> {
+  private async loadQueue() {
     try {
-      const storedQueue = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+      const storedQueue = await AsyncStorage.getItem(QUEUE_STORAGE_KEY);
       if (storedQueue) {
         this.queue = JSON.parse(storedQueue);
         this.notifyListeners();
@@ -60,168 +38,131 @@ class OfflineQueueManager {
     }
   }
 
-  private setupNetworkListener(): void {
-    NetInfo.addEventListener((state: NetInfoState) => {
-      const wasOnline = this.isOnline;
-      this.isOnline = state.isConnected === true && state.isInternetReachable === true;
-
-      if (!wasOnline && this.isOnline) {
-        this.syncQueue();
-      }
-    });
-
-    NetInfo.fetch().then((state: NetInfoState) => {
-      this.isOnline = state.isConnected === true && state.isInternetReachable === true;
-    });
-  }
-
-  public subscribe(listener: (queue: QueuedOperation[]) => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  private notifyListeners(): void {
-    this.listeners.forEach(listener => listener([...this.queue]));
-  }
-
-  private async saveQueue(): Promise<void> {
+  private async saveQueue() {
     try {
-      await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(this.queue));
+      await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(this.queue));
       this.notifyListeners();
     } catch (error) {
       console.error('Failed to save offline queue:', error);
     }
   }
 
-  public async addToQueue(
-    type: QueuedOperationType,
-    data: any,
-    maxRetries: number = MAX_RETRIES
-  ): Promise<string> {
-    const operation: QueuedOperation = {
-      id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type,
-      data,
+  private setupNetworkListener() {
+    NetInfo.addEventListener((state: any) => {
+      if (state.isConnected && this.queue.length > 0 && !this.isProcessing) {
+        this.processQueue();
+      }
+    });
+  }
+
+  public async addToQueue(request: Omit<QueuedRequest, 'id' | 'timestamp' | 'retryCount' | 'maxRetries'>) {
+    const queuedRequest: QueuedRequest = {
+      ...request,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),
       retryCount: 0,
-      maxRetries,
+      maxRetries: MAX_RETRIES,
     };
 
-    this.queue.push(operation);
+    this.queue.push(queuedRequest);
     await this.saveQueue();
 
-    if (this.isOnline) {
-      this.syncQueue();
+    const networkState = await NetInfo.fetch();
+    if (networkState.isConnected && !this.isProcessing) {
+      this.processQueue();
     }
 
-    return operation.id;
+    return queuedRequest.id;
   }
 
-  public async removeFromQueue(operationId: string): Promise<void> {
-    this.queue = this.queue.filter(op => op.id !== operationId);
-    await this.saveQueue();
-  }
-
-  public getQueue(): QueuedOperation[] {
-    return [...this.queue];
-  }
-
-  public getQueueSize(): number {
-    return this.queue.length;
-  }
-
-  public isConnected(): boolean {
-    return this.isOnline;
-  }
-
-  public async syncQueue(): Promise<void> {
-    if (this.syncInProgress || !this.isOnline || this.queue.length === 0) {
+  public async processQueue(): Promise<void> {
+    if (this.isProcessing || this.queue.length === 0) {
       return;
     }
 
-    this.syncInProgress = true;
+    const networkState = await NetInfo.fetch();
+    if (!networkState.isConnected) {
+      return;
+    }
 
-    const operationsToSync = [...this.queue];
+    this.isProcessing = true;
 
-    for (const operation of operationsToSync) {
+    while (this.queue.length > 0) {
+      const request = this.queue[0];
+
       try {
-        await this.executeOperation(operation);
-        await this.removeFromQueue(operation.id);
+        await this.executeRequest(request);
+        this.queue.shift();
+        await this.saveQueue();
       } catch (error) {
-        operation.retryCount++;
-        operation.error = error instanceof Error ? error.message : 'Unknown error';
-
-        if (operation.retryCount >= operation.maxRetries) {
-          console.error(
-            `Operation ${operation.id} failed after ${operation.maxRetries} retries:`,
-            error
-          );
-          await this.removeFromQueue(operation.id);
+        console.error('Failed to execute queued request:', error);
+        
+        request.retryCount++;
+        
+        if (request.retryCount >= request.maxRetries) {
+          console.error('Max retries reached for request:', request.id);
+          this.queue.shift();
+          await this.saveQueue();
         } else {
-          const index = this.queue.findIndex(op => op.id === operation.id);
-          if (index !== -1) {
-            this.queue[index] = operation;
-            await this.saveQueue();
-          }
+          break;
         }
       }
     }
 
-    this.syncInProgress = false;
+    this.isProcessing = false;
   }
 
-  private async executeOperation(operation: QueuedOperation): Promise<void> {
-    switch (operation.type) {
-      case QueuedOperationType.ASSIGNMENT_SUBMISSION:
-        await this.executeAssignmentSubmission(operation.data);
+  private async executeRequest(request: QueuedRequest): Promise<void> {
+    const { method, url, data, headers } = request;
+
+    switch (method) {
+      case 'GET':
+        await apiClient.get(url, { headers });
         break;
-      case QueuedOperationType.ATTENDANCE_CHECK_IN:
-        await this.executeAttendanceCheckIn(operation.data);
+      case 'POST':
+        await apiClient.post(url, data, { headers });
         break;
-      case QueuedOperationType.PROFILE_UPDATE:
-        await this.executeProfileUpdate(operation.data);
+      case 'PUT':
+        await apiClient.put(url, data, { headers });
+        break;
+      case 'PATCH':
+        await apiClient.patch(url, data, { headers });
+        break;
+      case 'DELETE':
+        await apiClient.delete(url, { headers });
         break;
       default:
-        throw new Error(`Unknown operation type: ${operation.type}`);
+        throw new Error(`Unsupported method: ${method}`);
     }
-  }
-
-  private async executeAssignmentSubmission(data: SubmitAssignmentData): Promise<void> {
-    await assignmentsApi.submitAssignment(data);
-  }
-
-  private async executeAttendanceCheckIn(data: AttendanceCheckInData): Promise<void> {
-    await apiClient.post('/api/v1/attendance/check-in', data);
-  }
-
-  private async executeProfileUpdate(data: ProfileUpdateData): Promise<void> {
-    await apiClient.put('/api/v1/profile', data);
   }
 
   public async clearQueue(): Promise<void> {
     this.queue = [];
-    await AsyncStorage.removeItem(OFFLINE_QUEUE_KEY);
-    this.notifyListeners();
+    await this.saveQueue();
   }
 
-  public async manualSync(): Promise<{
-    success: boolean;
-    syncedCount: number;
-    failedCount: number;
-  }> {
-    const initialQueueSize = this.queue.length;
-    await this.syncQueue();
-    const finalQueueSize = this.queue.length;
-    const syncedCount = initialQueueSize - finalQueueSize;
-    const failedCount = finalQueueSize;
+  public getQueue(): QueuedRequest[] {
+    return [...this.queue];
+  }
 
-    return {
-      success: failedCount === 0,
-      syncedCount,
-      failedCount,
+  public getQueueCount(): number {
+    return this.queue.length;
+  }
+
+  public async removeFromQueue(id: string): Promise<void> {
+    this.queue = this.queue.filter(req => req.id !== id);
+    await this.saveQueue();
+  }
+
+  public subscribe(listener: (queue: QueuedRequest[]) => void): () => void {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
     };
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener([...this.queue]));
   }
 }
 

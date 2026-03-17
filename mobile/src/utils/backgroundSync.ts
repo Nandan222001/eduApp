@@ -1,83 +1,75 @@
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { offlineQueueManager } from './offlineQueue';
 
 const BACKGROUND_SYNC_TASK = 'background-sync-task';
+const LAST_SYNC_KEY = '@last_sync_timestamp';
 
 TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
   try {
-    console.log('Background sync task started');
-
-    if (offlineQueueManager.isConnected()) {
-      await offlineQueueManager.syncQueue();
-      console.log('Background sync completed successfully');
-      return BackgroundFetch.BackgroundFetchResult.NewData;
-    }
-
-    console.log('Device offline, skipping sync');
-    return BackgroundFetch.BackgroundFetchResult.NoData;
+    console.log('Background sync task running...');
+    
+    await offlineQueueManager.processQueue();
+    
+    await AsyncStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
+    
+    return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
     console.error('Background sync failed:', error);
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
 
-export class BackgroundSyncService {
-  private static isRegistered: boolean = false;
-
-  static async register(): Promise<void> {
-    if (this.isRegistered) {
-      console.log('Background sync already registered');
-      return;
-    }
-
+export const backgroundSyncService = {
+  async register(): Promise<void> {
     try {
-      const status = await BackgroundFetch.getStatusAsync();
-
-      if (status === BackgroundFetch.BackgroundFetchStatus.Available) {
-        await BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
-          minimumInterval: 15 * 60,
-          stopOnTerminate: false,
-          startOnBoot: true,
-        });
-
-        this.isRegistered = true;
-        console.log('Background sync registered successfully');
-      } else {
-        console.warn('Background fetch not available:', status);
-      }
+      await BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
+        minimumInterval: 15 * 60,
+        stopOnTerminate: false,
+        startOnBoot: true,
+      });
+      console.log('Background sync registered successfully');
     } catch (error) {
       console.error('Failed to register background sync:', error);
     }
-  }
+  },
 
-  static async unregister(): Promise<void> {
+  async unregister(): Promise<void> {
     try {
       await BackgroundFetch.unregisterTaskAsync(BACKGROUND_SYNC_TASK);
-      this.isRegistered = false;
-      console.log('Background sync unregistered');
+      console.log('Background sync unregistered successfully');
     } catch (error) {
       console.error('Failed to unregister background sync:', error);
     }
-  }
+  },
 
-  static async isTaskRegistered(): Promise<boolean> {
+  async getStatus(): Promise<BackgroundFetch.BackgroundFetchStatus | null> {
     try {
-      const tasks = await TaskManager.getRegisteredTasksAsync();
-      return tasks.some(task => task.taskName === BACKGROUND_SYNC_TASK);
+      return await BackgroundFetch.getStatusAsync();
     } catch (error) {
-      console.error('Failed to check task registration:', error);
-      return false;
+      console.error('Failed to get background sync status:', error);
+      return null;
     }
-  }
+  },
 
-  static async triggerManualSync(): Promise<void> {
+  async getLastSyncTimestamp(): Promise<number | null> {
     try {
-      await offlineQueueManager.syncQueue();
-      console.log('Manual sync completed');
+      const timestamp = await AsyncStorage.getItem(LAST_SYNC_KEY);
+      return timestamp ? parseInt(timestamp, 10) : null;
+    } catch (error) {
+      console.error('Failed to get last sync timestamp:', error);
+      return null;
+    }
+  },
+
+  async triggerManualSync(): Promise<void> {
+    try {
+      await offlineQueueManager.processQueue();
+      await AsyncStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
     } catch (error) {
       console.error('Manual sync failed:', error);
       throw error;
     }
-  }
-}
+  },
+};

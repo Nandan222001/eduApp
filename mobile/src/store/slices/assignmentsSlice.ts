@@ -1,103 +1,92 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { AssignmentDetail } from '@api/assignments';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { studentApi } from '../../api/studentApi';
+import { Assignment, AssignmentSubmission } from '../../types/student';
 
-export interface AssignmentsState {
-  assignments: AssignmentDetail[];
-  currentAssignment: AssignmentDetail | null;
+interface AssignmentsState {
+  assignments: Assignment[];
   isLoading: boolean;
   error: string | null;
-  lastSynced: string | null;
-  isSyncing: boolean;
+  lastUpdated: number | null;
 }
 
 const initialState: AssignmentsState = {
   assignments: [],
-  currentAssignment: null,
   isLoading: false,
   error: null,
-  lastSynced: null,
-  isSyncing: false,
+  lastUpdated: null,
 };
+
+export const fetchAssignments = createAsyncThunk(
+  'assignments/fetch',
+  async (status: 'pending' | 'submitted' | 'graded' | undefined, { rejectWithValue }) => {
+    try {
+      const assignments = await studentApi.getAssignments(status);
+      return assignments;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch assignments');
+    }
+  }
+);
+
+export const submitAssignment = createAsyncThunk(
+  'assignments/submit',
+  async (submission: AssignmentSubmission, { rejectWithValue, dispatch }) => {
+    try {
+      await studentApi.submitAssignment(submission);
+      dispatch(fetchAssignments(undefined));
+      return submission.assignment_id;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.detail || 'Failed to submit assignment');
+    }
+  }
+);
 
 const assignmentsSlice = createSlice({
   name: 'assignments',
   initialState,
   reducers: {
-    setAssignments: (state, action: PayloadAction<AssignmentDetail[]>) => {
-      state.assignments = action.payload;
-    },
-    addAssignment: (state, action: PayloadAction<AssignmentDetail>) => {
-      const index = state.assignments.findIndex(a => a.id === action.payload.id);
-      if (index >= 0) {
-        state.assignments[index] = action.payload;
-      } else {
-        state.assignments.unshift(action.payload);
-      }
-    },
-    updateAssignment: (state, action: PayloadAction<AssignmentDetail>) => {
-      const index = state.assignments.findIndex(a => a.id === action.payload.id);
-      if (index >= 0) {
-        state.assignments[index] = action.payload;
-      }
-    },
-    setCurrentAssignment: (state, action: PayloadAction<AssignmentDetail | null>) => {
-      state.currentAssignment = action.payload;
-    },
-    optimisticUpdateAssignment: (
-      state,
-      action: PayloadAction<{ id: number; updates: Partial<AssignmentDetail> }>
-    ) => {
-      const index = state.assignments.findIndex(a => a.id === action.payload.id);
-      if (index >= 0) {
-        state.assignments[index] = { ...state.assignments[index], ...action.payload.updates };
-      }
-      if (state.currentAssignment?.id === action.payload.id) {
-        state.currentAssignment = { ...state.currentAssignment, ...action.payload.updates };
-      }
-    },
-    rollbackAssignment: (state, action: PayloadAction<AssignmentDetail>) => {
-      const index = state.assignments.findIndex(a => a.id === action.payload.id);
-      if (index >= 0) {
-        state.assignments[index] = action.payload;
-      }
-      if (state.currentAssignment?.id === action.payload.id) {
-        state.currentAssignment = action.payload;
-      }
-    },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.isLoading = action.payload;
-    },
-    setError: (state, action: PayloadAction<string | null>) => {
-      state.error = action.payload;
-    },
-    clearError: state => {
+    clearAssignments: (state) => {
+      state.assignments = [];
       state.error = null;
+      state.lastUpdated = null;
     },
-    setLastSynced: (state, action: PayloadAction<string>) => {
-      state.lastSynced = action.payload;
+    updateAssignmentStatus: (state, action: PayloadAction<{ id: number; status: Assignment['status'] }>) => {
+      const assignment = state.assignments.find(a => a.id === action.payload.id);
+      if (assignment) {
+        assignment.status = action.payload.status;
+      }
     },
-    setSyncing: (state, action: PayloadAction<boolean>) => {
-      state.isSyncing = action.payload;
-    },
-    clearAssignments: state => {
-      return initialState;
-    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchAssignments.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchAssignments.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.assignments = action.payload;
+        state.lastUpdated = Date.now();
+        state.error = null;
+      })
+      .addCase(fetchAssignments.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(submitAssignment.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(submitAssignment.fulfilled, (state) => {
+        state.isLoading = false;
+        state.error = null;
+      })
+      .addCase(submitAssignment.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const {
-  setAssignments,
-  addAssignment,
-  updateAssignment,
-  setCurrentAssignment,
-  optimisticUpdateAssignment,
-  rollbackAssignment,
-  setLoading,
-  setError,
-  clearError,
-  setLastSynced,
-  setSyncing,
-  clearAssignments,
-} = assignmentsSlice.actions;
-
+export const { clearAssignments, updateAssignmentStatus } = assignmentsSlice.actions;
 export default assignmentsSlice.reducer;
