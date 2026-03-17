@@ -1,80 +1,182 @@
 import axios from '@/lib/axios';
-import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
-import type {
-  Document,
-  DocumentFolder,
-  DocumentRequest,
-  ShareRecipient,
-  DocumentShare,
-  AccessLog,
-  ExpiryReminder,
-  OCRSuggestion,
-  DocumentUploadRequest,
-  DocumentVerificationRequest,
-  DocumentShareRequest,
-  DocumentSearchFilters,
-  DocumentVaultStats,
-} from '@/types/documentVault';
+
+export interface DocumentFolder {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  parent_folder_id?: number;
+  institution_id: number;
+  parent_id: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FamilyDocument {
+  id: number;
+  title: string;
+  description?: string;
+  document_type: string;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  mime_type?: string;
+  encrypted_file_url: string;
+  ocr_text?: string;
+  extracted_metadata?: Record<string, unknown>;
+  tags?: string[];
+  status: string;
+  is_verified: boolean;
+  issue_date?: string;
+  expiry_date?: string;
+  created_at: string;
+  updated_at: string;
+  folder_id?: number;
+  student_id?: number;
+}
+
+export interface DocumentShare {
+  id: number;
+  document_id: number;
+  shared_with_user_id: number;
+  shared_by_id: number;
+  permission: string;
+  expires_at?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentAccessLog {
+  id: number;
+  document_id: number;
+  user_id: number;
+  action: string;
+  ip_address?: string;
+  user_agent?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface DocumentStatistics {
+  total_documents: number;
+  documents_by_type: Record<string, number>;
+  total_storage_mb: number;
+  documents_by_status: Record<string, number>;
+  recent_uploads: number;
+  expiring_soon: number;
+}
+
+export interface CreateFolderRequest {
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  parent_folder_id?: number;
+}
+
+export interface UploadDocumentRequest {
+  title: string;
+  description?: string;
+  document_type: string;
+  student_id?: number;
+  folder_id?: number;
+  tags?: string[];
+  issue_date?: string;
+  expiry_date?: string;
+}
+
+export interface ShareDocumentRequest {
+  document_id: number;
+  shared_with_user_id: number;
+  permission: string;
+  expires_at?: string;
+}
 
 export const documentVaultApi = {
-  getVaultStats: async (): Promise<DocumentVaultStats> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getVaultStats();
-    }
-    const response = await axios.get<DocumentVaultStats>('/api/v1/document-vault/stats');
+  // Folders
+  listFolders: async (parentFolderId?: number): Promise<DocumentFolder[]> => {
+    const params = parentFolderId ? `?parent_folder_id=${parentFolderId}` : '';
+    const response = await axios.get<DocumentFolder[]>(`/api/v1/document-vault/folders${params}`);
     return response.data;
   },
 
-  getFolders: async (): Promise<DocumentFolder[]> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getFolders() as Promise<DocumentFolder[]>;
-    }
-    const response = await axios.get<DocumentFolder[]>('/api/v1/document-vault/folders');
+  createFolder: async (data: CreateFolderRequest): Promise<DocumentFolder> => {
+    const response = await axios.post<DocumentFolder>('/api/v1/document-vault/folders', data);
     return response.data;
   },
 
-  getDocuments: async (filters?: DocumentSearchFilters): Promise<Document[]> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getDocuments(filters) as Promise<Document[]>;
-    }
-    const response = await axios.get<Document[]>('/api/v1/document-vault/documents', {
-      params: filters,
+  updateFolder: async (
+    folderId: number,
+    data: Partial<CreateFolderRequest>
+  ): Promise<DocumentFolder> => {
+    const response = await axios.patch<DocumentFolder>(
+      `/api/v1/document-vault/folders/${folderId}`,
+      data
+    );
+    return response.data;
+  },
+
+  deleteFolder: async (folderId: number): Promise<void> => {
+    await axios.delete(`/api/v1/document-vault/folders/${folderId}`);
+  },
+
+  // Documents
+  listDocuments: async (params?: {
+    folder_id?: number;
+    document_type?: string;
+    student_id?: number;
+    skip?: number;
+    limit?: number;
+  }): Promise<FamilyDocument[]> => {
+    const response = await axios.get<FamilyDocument[]>('/api/v1/document-vault/documents', {
+      params,
     });
     return response.data;
   },
 
-  getDocument: async (documentId: number): Promise<Document> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getDocument(documentId) as Promise<Document>;
-    }
-    const response = await axios.get<Document>(`/api/v1/document-vault/documents/${documentId}`);
+  getDocument: async (documentId: number): Promise<FamilyDocument> => {
+    const response = await axios.get<FamilyDocument>(
+      `/api/v1/document-vault/documents/${documentId}`
+    );
     return response.data;
   },
 
-  uploadDocument: async (data: DocumentUploadRequest): Promise<Document> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.uploadDocument(data) as Promise<Document>;
-    }
+  uploadDocument: async (
+    file: File,
+    data: UploadDocumentRequest
+  ): Promise<{ document_id: number; upload_url: string }> => {
     const formData = new FormData();
-    formData.append('file', data.file);
-    formData.append('child_id', data.child_id.toString());
-    formData.append('document_type', data.document_type);
-    formData.append('title', data.title);
-    if (data.description) formData.append('description', data.description);
-    if (data.expiry_date) formData.append('expiry_date', data.expiry_date);
-    if (data.tags) formData.append('tags', JSON.stringify(data.tags));
+    formData.append('file', file);
 
-    const response = await axios.post<Document>('/api/v1/document-vault/documents', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const queryParams = new URLSearchParams();
+    queryParams.append('title', data.title);
+    queryParams.append('document_type', data.document_type);
+    if (data.description) queryParams.append('description', data.description);
+    if (data.student_id) queryParams.append('student_id', data.student_id.toString());
+    if (data.folder_id) queryParams.append('folder_id', data.folder_id.toString());
+    if (data.issue_date) queryParams.append('issue_date', data.issue_date);
+    if (data.expiry_date) queryParams.append('expiry_date', data.expiry_date);
+
+    const response = await axios.post(
+      `/api/v1/document-vault/upload?${queryParams.toString()}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
     return response.data;
   },
 
   updateDocument: async (
     documentId: number,
-    data: Partial<DocumentUploadRequest>
-  ): Promise<Document> => {
-    const response = await axios.patch<Document>(
+    data: Partial<UploadDocumentRequest>
+  ): Promise<FamilyDocument> => {
+    const response = await axios.patch<FamilyDocument>(
       `/api/v1/document-vault/documents/${documentId}`,
       data
     );
@@ -85,55 +187,23 @@ export const documentVaultApi = {
     await axios.delete(`/api/v1/document-vault/documents/${documentId}`);
   },
 
-  performOCR: async (file: File): Promise<OCRSuggestion> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.performOCR(file) as Promise<OCRSuggestion>;
-    }
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await axios.post<OCRSuggestion>(
-      '/api/v1/document-vault/ocr-analyze',
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
-    );
+  downloadDocument: async (documentId: number): Promise<Blob> => {
+    const response = await axios.get(`/api/v1/document-vault/documents/${documentId}/download`, {
+      responseType: 'blob',
+    });
     return response.data;
   },
 
-  verifyDocument: async (
-    documentId: number,
-    data: DocumentVerificationRequest
-  ): Promise<Document> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.verifyDocument(documentId, data) as Promise<Document>;
-    }
-    const response = await axios.post<Document>(
-      `/api/v1/document-vault/documents/${documentId}/verify`,
+  // Sharing
+  shareDocument: async (data: ShareDocumentRequest): Promise<DocumentShare> => {
+    const response = await axios.post<DocumentShare>(
+      `/api/v1/document-vault/documents/${data.document_id}/share`,
       data
     );
     return response.data;
   },
 
-  shareDocument: async (
-    documentId: number,
-    data: DocumentShareRequest
-  ): Promise<DocumentShare[]> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.shareDocument(documentId, data) as Promise<DocumentShare[]>;
-    }
-    const response = await axios.post<DocumentShare[]>(
-      `/api/v1/document-vault/documents/${documentId}/share`,
-      data
-    );
-    return response.data;
-  },
-
-  getDocumentShares: async (documentId: number): Promise<DocumentShare[]> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getDocumentShares(documentId) as Promise<DocumentShare[]>;
-    }
+  listShares: async (documentId: number): Promise<DocumentShare[]> => {
     const response = await axios.get<DocumentShare[]>(
       `/api/v1/document-vault/documents/${documentId}/shares`
     );
@@ -141,82 +211,20 @@ export const documentVaultApi = {
   },
 
   revokeShare: async (shareId: number): Promise<void> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.revokeShare(shareId) as Promise<void>;
-    }
     await axios.delete(`/api/v1/document-vault/shares/${shareId}`);
   },
 
-  downloadDocument: async (documentId: number): Promise<Blob> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.downloadDocument(documentId) as Promise<Blob>;
-    }
-    const response = await axios.get(`/api/v1/document-vault/documents/${documentId}/download`, {
-      responseType: 'blob',
-    });
-    return response.data;
-  },
-
-  getAccessLogs: async (documentId: number): Promise<AccessLog[]> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getAccessLogs(documentId) as Promise<AccessLog[]>;
-    }
-    const response = await axios.get<AccessLog[]>(
+  // Access Logs
+  getAccessLogs: async (documentId: number): Promise<DocumentAccessLog[]> => {
+    const response = await axios.get<DocumentAccessLog[]>(
       `/api/v1/document-vault/documents/${documentId}/access-logs`
     );
     return response.data;
   },
 
-  getDocumentRequests: async (): Promise<DocumentRequest[]> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getDocumentRequests() as Promise<DocumentRequest[]>;
-    }
-    const response = await axios.get<DocumentRequest[]>('/api/v1/document-vault/requests');
-    return response.data;
-  },
-
-  createDocumentRequest: async (
-    data: Omit<DocumentRequest, 'id' | 'requested_date' | 'status'>
-  ): Promise<DocumentRequest> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.createDocumentRequest(data) as Promise<DocumentRequest>;
-    }
-    const response = await axios.post<DocumentRequest>('/api/v1/document-vault/requests', data);
-    return response.data;
-  },
-
-  respondToRequest: async (
-    requestId: number,
-    documentId: number,
-    notes?: string
-  ): Promise<DocumentRequest> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.respondToRequest(
-        requestId,
-        documentId,
-        notes
-      ) as Promise<DocumentRequest>;
-    }
-    const response = await axios.post<DocumentRequest>(
-      `/api/v1/document-vault/requests/${requestId}/respond`,
-      { document_id: documentId, notes }
-    );
-    return response.data;
-  },
-
-  getExpiryReminders: async (): Promise<ExpiryReminder[]> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getExpiryReminders() as Promise<ExpiryReminder[]>;
-    }
-    const response = await axios.get<ExpiryReminder[]>('/api/v1/document-vault/expiry-reminders');
-    return response.data;
-  },
-
-  getShareRecipients: async (): Promise<ShareRecipient[]> => {
-    if (isDemoUser()) {
-      return demoDataApi.documentVault.getShareRecipients() as Promise<ShareRecipient[]>;
-    }
-    const response = await axios.get<ShareRecipient[]>('/api/v1/document-vault/share-recipients');
+  // Statistics
+  getStatistics: async (): Promise<DocumentStatistics> => {
+    const response = await axios.get<DocumentStatistics>('/api/v1/document-vault/statistics');
     return response.data;
   },
 };

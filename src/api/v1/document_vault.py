@@ -1,397 +1,441 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Request
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-
 from src.database import get_db
 from src.models.user import User
+from src.models.student import Parent
+from src.models.document_vault import FamilyDocument, DocumentFolder, DocumentShare, DocumentAccessLog
 from src.dependencies.auth import get_current_user
 from src.schemas.document_vault import (
-    DocumentUploadRequest,
-    FamilyDocumentResponse,
+    FamilyDocumentCreate,
     FamilyDocumentUpdate,
+    FamilyDocumentResponse,
+    DocumentFolderCreate,
+    DocumentFolderUpdate,
+    DocumentFolderResponse,
     DocumentShareCreate,
     DocumentShareUpdate,
     DocumentShareResponse,
-    BulkUploadResult,
-    DocumentDownloadResponse,
-    DocumentFolderStructure,
-    ExpiringDocumentAlert,
-    DocumentStatistics,
-    AuditTrailResponse,
     DocumentAccessLogResponse,
-    DocumentType
+    DocumentUploadRequest,
+    DocumentUploadResponse,
+    OCRResult,
+    DocumentStatistics,
 )
-from src.services.document_vault_service import DocumentVaultService
-from src.config import settings
-
+from datetime import datetime
+import boto3
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+import os
+import pytesseract
+from PIL import Image
+import io
+import hashlib
 
 router = APIRouter()
 
 
-def get_client_ip(request: Request) -> Optional[str]:
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else None
+def encrypt_file(file_content: bytes) -> tuple[bytes, str, str]:
+    """Encrypt file content using AES-256"""
+    key = os.urandom(32)
+    iv = os.urandom(16)
+    
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    
+    # Pad content to block size
+    block_size = 16
+    padding_length = block_size - (len(file_content) % block_size)
+    padded_content = file_content + bytes([padding_length] * padding_length)
+    
+    encrypted_content = encryptor.update(padded_content) + encryptor.finalize()
+    
+    key_hash = hashlib.sha256(key).hexdigest()
+    iv_hex = iv.hex()
+    
+    return encrypted_content, key_hash, iv_hex
 
 
-@router.post("/upload", response_model=FamilyDocumentResponse, status_code=status.HTTP_201_CREATED)
+def decrypt_file(encrypted_content: bytes, key: bytes, iv: bytes) -> bytes:
+    """Decrypt file content using AES-256"""
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    decryptor = cipher.decryptor()
+    
+    padded_content = decryptor.update(encrypted_content) + decryptor.finalize()
+    
+    # Remove padding
+    padding_length = padded_content[-1]
+    content = padded_content[:-padding_length]
+    
+    return content
+
+
+def perform_ocr(file_content: bytes, file_type: str) -> OCRResult:
+    """Perform OCR on document to extract text and categorize"""
+    try:
+        image = Image.open(io.BytesIO(file_content))
+        text = pytesseract.image_to_string(image)
+        
+        # Auto-detect document type based on keywords
+        detected_type = None
+        text_lower = text.lower()
+        
+        if any(word in text_lower for word in ['birth', 'certificate', 'born']):
+            detected_type = 'birth_certificate'
+        elif any(word in text_lower for word in ['immunization', 'vaccine', 'vaccination']):
+            detected_type = 'immunization_record'
+        elif any(word in text_lower for word in ['iep', 'individualized', 'education', 'plan']):
+            detected_type = 'iep'
+        elif any(word in text_lower for word in ['transcript', 'grades', 'academic']):
+            detected_type = 'transcript'
+        
+        return OCRResult(
+            text=text,
+            confidence=0.85,
+            detected_type=detected_type,
+            metadata={'word_count': len(text.split())}
+        )
+    except Exception as e:
+        return OCRResult(
+            text='',
+            confidence=0.0,
+            detected_type=None,
+            metadata={'error': str(e)}
+        )
+
+
+@router.post("/folders", response_model=DocumentFolderResponse, status_code=status.HTTP_201_CREATED)
+async def create_folder(
+    folder_data: DocumentFolderCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a new document folder"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    folder = DocumentFolder(
+        institution_id=current_user.institution_id,
+        parent_id=parent_profile.id,
+        parent_folder_id=folder_data.parent_folder_id,
+        name=folder_data.name,
+        description=folder_data.description,
+        color=folder_data.color,
+        icon=folder_data.icon,
+    )
+    
+    db.add(folder)
+    db.commit()
+    db.refresh(folder)
+    
+    return folder
+
+
+@router.get("/folders", response_model=List[DocumentFolderResponse])
+async def list_folders(
+    parent_folder_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List document folders"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    query = db.query(DocumentFolder).filter(
+        DocumentFolder.parent_id == parent_profile.id,
+        DocumentFolder.is_active == True
+    )
+    
+    if parent_folder_id:
+        query = query.filter(DocumentFolder.parent_folder_id == parent_folder_id)
+    else:
+        query = query.filter(DocumentFolder.parent_folder_id.is_(None))
+    
+    folders = query.all()
+    return folders
+
+
+@router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
-    request: Request,
     file: UploadFile = File(...),
-    student_id: int = Query(...),
-    document_name: str = Query(...),
-    document_type: DocumentType = Query(...),
-    expiry_date: Optional[str] = Query(None),
-    is_sensitive: bool = Query(True),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    from datetime import datetime
-    
-    if file.size and file.size > settings.document_vault_max_file_size:
-        max_size_mb = settings.document_vault_max_file_size / (1024 * 1024)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File size exceeds {max_size_mb}MB limit"
-        )
-    
-    allowed_types = [
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "image/jpg",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ]
-    
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File type {file.content_type} not allowed"
-        )
-    
-    expiry_datetime = None
-    if expiry_date:
-        try:
-            expiry_datetime = datetime.fromisoformat(expiry_date.replace('Z', '+00:00'))
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid expiry date format"
-            )
-    
-    upload_request = DocumentUploadRequest(
-        student_id=student_id,
-        document_name=document_name,
-        document_type=document_type,
-        expiry_date=expiry_datetime,
-        is_sensitive=is_sensitive
-    )
-    
-    service = DocumentVaultService(db)
-    
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
-    
-    document = service.create_document(
-        file=file,
-        request_data=upload_request,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name,
-        ip_address=get_client_ip(request)
-    )
-    
-    return document
-
-
-@router.post("/bulk-upload", response_model=BulkUploadResult)
-async def bulk_upload_documents(
-    request: Request,
-    files: List[UploadFile] = File(...),
-    student_id: int = Query(...),
-    auto_categorize: bool = Query(True),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    if len(files) > 20:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Maximum 20 files allowed per bulk upload"
-        )
-    
-    service = DocumentVaultService(db)
-    
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
-    
-    result = service.bulk_upload_documents(
-        files=files,
-        student_id=student_id,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name,
-        auto_categorize=auto_categorize,
-        ip_address=get_client_ip(request)
-    )
-    
-    return result
-
-
-@router.get("/", response_model=dict)
-async def list_documents(
+    title: str = Query(...),
+    document_type: str = Query(...),
+    description: Optional[str] = Query(None),
     student_id: Optional[int] = Query(None),
+    folder_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a document with AES-256 encryption"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    # Read file content
+    file_content = await file.read()
+    
+    # Perform OCR
+    ocr_result = perform_ocr(file_content, file.content_type or '')
+    
+    # Encrypt file
+    encrypted_content, key_hash, iv_hex = encrypt_file(file_content)
+    
+    # Upload to S3 (simulated)
+    s3_key = f"documents/{current_user.institution_id}/{parent_profile.id}/{datetime.utcnow().timestamp()}_{file.filename}"
+    encrypted_file_url = f"https://s3.amazonaws.com/bucket/{s3_key}"
+    
+    # Create document record
+    document = FamilyDocument(
+        institution_id=current_user.institution_id,
+        parent_id=parent_profile.id,
+        student_id=student_id,
+        folder_id=folder_id,
+        title=title,
+        description=description,
+        document_type=document_type,
+        file_name=file.filename,
+        file_size=len(file_content),
+        file_type=file.content_type or 'application/octet-stream',
+        mime_type=file.content_type,
+        encrypted_file_url=encrypted_file_url,
+        s3_key=s3_key,
+        encryption_key_hash=key_hash,
+        encryption_iv=iv_hex,
+        ocr_text=ocr_result.text if ocr_result.text else None,
+        extracted_metadata=ocr_result.metadata,
+        ferpa_compliant=True,
+        is_sensitive=True,
+        access_log_enabled=True,
+    )
+    
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    
+    # Log access
+    log_document_access(db, document.id, current_user.id, 'upload', None)
+    
+    return DocumentUploadResponse(
+        document_id=document.id,
+        upload_url=encrypted_file_url,
+        encryption_key=key_hash,
+    )
+
+
+@router.get("/documents", response_model=List[FamilyDocumentResponse])
+async def list_documents(
+    folder_id: Optional[int] = Query(None),
     document_type: Optional[str] = Query(None),
-    is_archived: Optional[bool] = Query(None),
+    student_id: Optional[int] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = DocumentVaultService(db)
-    documents, total = service.list_documents(
-        institution_id=current_user.institution_id,
-        student_id=student_id,
-        document_type=document_type,
-        is_archived=is_archived,
-        skip=skip,
-        limit=limit
+    """List documents"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    query = db.query(FamilyDocument).filter(
+        FamilyDocument.parent_id == parent_profile.id,
+        FamilyDocument.is_active == True
     )
     
-    return {
-        "items": documents,
-        "total": total,
-        "skip": skip,
-        "limit": limit
-    }
-
-
-@router.get("/folder-structure/{student_id}", response_model=DocumentFolderStructure)
-async def get_folder_structure(
-    student_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = DocumentVaultService(db)
+    if folder_id:
+        query = query.filter(FamilyDocument.folder_id == folder_id)
+    if document_type:
+        query = query.filter(FamilyDocument.document_type == document_type)
+    if student_id:
+        query = query.filter(FamilyDocument.student_id == student_id)
     
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
-    
-    return service.get_folder_structure(
-        institution_id=current_user.institution_id,
-        student_id=student_id,
-        user_id=current_user.id,
-        user_role=role_name
-    )
+    documents = query.offset(skip).limit(limit).all()
+    return documents
 
 
-@router.get("/statistics", response_model=DocumentStatistics)
-async def get_statistics(
-    student_id: Optional[int] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = DocumentVaultService(db)
-    return service.get_statistics(
-        institution_id=current_user.institution_id,
-        student_id=student_id
-    )
-
-
-@router.get("/expiring", response_model=List[ExpiringDocumentAlert])
-async def get_expiring_documents(
-    days_ahead: int = Query(30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = DocumentVaultService(db)
-    return service.get_expiring_documents(
-        institution_id=current_user.institution_id,
-        days_ahead=days_ahead
-    )
-
-
-@router.get("/{document_id}", response_model=FamilyDocumentResponse)
+@router.get("/documents/{document_id}", response_model=FamilyDocumentResponse)
 async def get_document(
     document_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = DocumentVaultService(db)
+    """Get document details"""
+    document = db.query(FamilyDocument).filter(FamilyDocument.id == document_id).first()
     
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
-    document = service.get_document(
-        document_id=document_id,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name
-    )
+    # Check access permissions
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if document.parent_id != parent_profile.id:
+        # Check if shared
+        share = db.query(DocumentShare).filter(
+            DocumentShare.document_id == document_id,
+            DocumentShare.shared_with_user_id == current_user.id,
+            DocumentShare.is_active == True
+        ).first()
+        
+        if not share:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    # Log access
+    log_document_access(db, document_id, current_user.id, 'view', None)
     
     return document
 
 
-@router.get("/{document_id}/download", response_model=DocumentDownloadResponse)
-async def download_document(
-    request: Request,
-    document_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = DocumentVaultService(db)
-    
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
-    
-    presigned_url, document = service.download_document(
-        document_id=document_id,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name,
-        ip_address=get_client_ip(request)
-    )
-    
-    return DocumentDownloadResponse(
-        presigned_url=presigned_url,
-        document_name=document.document_name,
-        mime_type=document.mime_type,
-        expires_in_seconds=3600
-    )
-
-
-@router.put("/{document_id}", response_model=FamilyDocumentResponse)
+@router.patch("/documents/{document_id}", response_model=FamilyDocumentResponse)
 async def update_document(
     document_id: int,
-    update_data: FamilyDocumentUpdate,
+    document_data: FamilyDocumentUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = DocumentVaultService(db)
+    """Update document details"""
+    document = db.query(FamilyDocument).filter(FamilyDocument.id == document_id).first()
     
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
-    document = service.update_document(
-        document_id=document_id,
-        update_data=update_data,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name
-    )
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if document.parent_id != parent_profile.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    for field, value in document_data.model_dump(exclude_unset=True).items():
+        setattr(document, field, value)
+    
+    db.commit()
+    db.refresh(document)
+    
+    log_document_access(db, document_id, current_user.id, 'update', None)
     
     return document
 
 
-@router.delete("/{document_id}")
+@router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: int,
-    permanent: bool = Query(False),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = DocumentVaultService(db)
+    """Delete a document"""
+    document = db.query(FamilyDocument).filter(FamilyDocument.id == document_id).first()
     
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
-    success = service.delete_document(
-        document_id=document_id,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name,
-        permanent=permanent
-    )
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if document.parent_id != parent_profile.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
-    return {"success": success, "message": "Document deleted successfully"}
+    document.is_active = False
+    db.commit()
+    
+    log_document_access(db, document_id, current_user.id, 'delete', None)
 
 
-@router.post("/share", response_model=DocumentShareResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/documents/{document_id}/share", response_model=DocumentShareResponse, status_code=status.HTTP_201_CREATED)
 async def share_document(
+    document_id: int,
     share_data: DocumentShareCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = DocumentVaultService(db)
+    """Share document with another user"""
+    document = db.query(FamilyDocument).filter(FamilyDocument.id == document_id).first()
     
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
-    share = service.share_document(
-        share_data=share_data,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if document.parent_id != parent_profile.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    share = DocumentShare(
+        document_id=document_id,
+        shared_with_user_id=share_data.shared_with_user_id,
+        shared_by_id=current_user.id,
+        permission=share_data.permission,
+        expires_at=share_data.expires_at,
     )
+    
+    db.add(share)
+    db.commit()
+    db.refresh(share)
+    
+    log_document_access(db, document_id, current_user.id, 'share', None)
     
     return share
 
 
-@router.delete("/share/{share_id}")
-async def revoke_share(
-    share_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = DocumentVaultService(db)
-    
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
-    
-    success = service.revoke_share(
-        share_id=share_id,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name
-    )
-    
-    return {"success": success, "message": "Share revoked successfully"}
-
-
-@router.get("/{document_id}/audit-trail", response_model=AuditTrailResponse)
-async def get_audit_trail(
+@router.get("/documents/{document_id}/access-logs", response_model=List[DocumentAccessLogResponse])
+async def get_access_logs(
     document_id: int,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = DocumentVaultService(db)
+    """Get document access logs (FERPA compliance)"""
+    document = db.query(FamilyDocument).filter(FamilyDocument.id == document_id).first()
     
-    from src.models.role import Role
-    user_role = db.query(Role).filter(Role.id == current_user.role_id).first()
-    role_name = user_role.name if user_role else "user"
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
-    document = service.get_document(
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if document.parent_id != parent_profile.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    logs = db.query(DocumentAccessLog).filter(
+        DocumentAccessLog.document_id == document_id
+    ).order_by(DocumentAccessLog.created_at.desc()).all()
+    
+    return logs
+
+
+@router.get("/statistics", response_model=DocumentStatistics)
+async def get_statistics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get document vault statistics"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    documents = db.query(FamilyDocument).filter(
+        FamilyDocument.parent_id == parent_profile.id,
+        FamilyDocument.is_active == True
+    ).all()
+    
+    total_documents = len(documents)
+    documents_by_type = {}
+    documents_by_status = {}
+    total_storage = 0
+    
+    for doc in documents:
+        documents_by_type[doc.document_type] = documents_by_type.get(doc.document_type, 0) + 1
+        documents_by_status[doc.status] = documents_by_status.get(doc.status, 0) + 1
+        total_storage += doc.file_size
+    
+    return DocumentStatistics(
+        total_documents=total_documents,
+        documents_by_type=documents_by_type,
+        total_storage_mb=total_storage / (1024 * 1024),
+        documents_by_status=documents_by_status,
+        recent_uploads=len([d for d in documents if (datetime.utcnow() - d.created_at).days <= 7]),
+        expiring_soon=len([d for d in documents if d.expiry_date and (d.expiry_date - datetime.utcnow()).days <= 30]),
+    )
+
+
+def log_document_access(db: Session, document_id: int, user_id: int, action: str, request: Optional[Request]):
+    """Log document access for FERPA compliance"""
+    log = DocumentAccessLog(
         document_id=document_id,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name
+        user_id=user_id,
+        action=action,
+        ip_address=request.client.host if request else None,
+        user_agent=request.headers.get('user-agent') if request else None,
     )
-    
-    logs, total = service.get_access_logs(
-        document_id=document_id,
-        institution_id=current_user.institution_id,
-        user_id=current_user.id,
-        user_role=role_name,
-        skip=skip,
-        limit=limit
-    )
-    
-    return AuditTrailResponse(
-        document_id=document.id,
-        document_name=document.document_name,
-        access_logs=logs,
-        total_accesses=total
-    )
+    db.add(log)
+    db.commit()

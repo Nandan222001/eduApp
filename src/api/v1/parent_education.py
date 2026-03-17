@@ -1,937 +1,519 @@
-from typing import List, Optional
-from datetime import datetime
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func
 from src.database import get_db
-from src.models.parent_education import (
-    ParentCourse, ParentEnrollment, ParentCourseBadge, CourseDiscussionThread,
-    CourseDiscussionReply, CourseThreadVote, CourseReplyVote, ParentLearningActivity,
-    CourseCategory, EnrollmentStatus, CourseBadgeType
-)
 from src.models.user import User
-from src.schemas.parent_education import (
-    ParentCourseCreate, ParentCourseUpdate, ParentCourseResponse, ParentCourseListResponse,
-    ParentEnrollmentCreate, ParentEnrollmentResponse, ParentEnrollmentWithCourse,
-    LessonProgressUpdate, QuizSubmission, QuizResult, CourseReview,
-    ParentCourseBadgeResponse, CourseDiscussionThreadCreate, CourseDiscussionThreadUpdate,
-    CourseDiscussionThreadResponse, CourseDiscussionReplyCreate, CourseDiscussionReplyResponse,
-    CertificateResponse, CourseProgressSummary, LearningActivityCreate,
-    ParentLearningActivityResponse, EnrollmentStats
+from src.models.student import Parent
+from src.models.parent_education import (
+    ParentCourse, CourseModule, CourseLesson, CourseEnrollment,
+    LessonProgress, LessonQuiz, QuizAttempt, QuizResponse,
+    CourseReview, DiscussionForum, ForumPost
 )
+from src.dependencies.auth import get_current_user
+from src.schemas.parent_education import (
+    ParentCourseCreate, ParentCourseUpdate, ParentCourseResponse, ParentCourseDetailResponse,
+    CourseModuleCreate, CourseModuleUpdate, CourseModuleResponse,
+    CourseLessonCreate, CourseLessonUpdate, CourseLessonResponse,
+    CourseEnrollmentCreate, CourseEnrollmentUpdate, CourseEnrollmentResponse,
+    LessonProgressCreate, LessonProgressUpdate, LessonProgressResponse,
+    LessonQuizCreate, LessonQuizUpdate, LessonQuizResponse,
+    QuizAttemptCreate, QuizAttemptUpdate, QuizAttemptResponse,
+    QuizResponseCreate, QuizResponseUpdate, QuizResponseResponse,
+    CourseReviewCreate, CourseReviewUpdate, CourseReviewResponse,
+    DiscussionForumCreate, DiscussionForumUpdate, DiscussionForumResponse,
+    ForumPostCreate, ForumPostUpdate, ForumPostResponse,
+    CourseCatalogFilter, CourseStatistics,
+)
+from datetime import datetime
+from decimal import Decimal
 
 router = APIRouter()
 
 
-@router.post("/courses", response_model=ParentCourseResponse, status_code=status.HTTP_201_CREATED)
-def create_course(
-    course: ParentCourseCreate,
-    institution_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    lesson_count = len(course.lessons)
-    total_duration = sum(lesson.get('duration_minutes', 0) for lesson in course.lessons)
-    
-    db_course = ParentCourse(
-        institution_id=institution_id,
-        course_title=course.course_title,
-        description=course.description,
-        category=course.category,
-        thumbnail_url=course.thumbnail_url,
-        instructor_name=course.instructor_name,
-        instructor_bio=course.instructor_bio,
-        instructor_avatar_url=course.instructor_avatar_url,
-        lessons=course.lessons,
-        total_duration_minutes=total_duration,
-        lesson_count=lesson_count,
-        prerequisites=course.prerequisites,
-        learning_objectives=course.learning_objectives,
-        tags=course.tags,
-        is_published=course.is_published,
-        is_featured=course.is_featured
-    )
-    
-    db.add(db_course)
-    db.commit()
-    db.refresh(db_course)
-    return db_course
-
-
-@router.get("/courses", response_model=List[ParentCourseListResponse])
-def list_courses(
-    institution_id: int = Query(...),
-    category: Optional[CourseCategory] = Query(None),
+@router.get("/courses", response_model=List[ParentCourseResponse])
+async def list_courses(
+    category: Optional[str] = Query(None),
+    level: Optional[str] = Query(None),
+    is_free: Optional[bool] = Query(None),
+    min_rating: Optional[float] = Query(None),
     search: Optional[str] = Query(None),
-    is_featured: Optional[bool] = Query(None),
-    is_published: bool = Query(True),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db)
+    limit: int = Query(100, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
+    """List available courses with filters"""
     query = db.query(ParentCourse).filter(
-        ParentCourse.institution_id == institution_id
+        ParentCourse.institution_id == current_user.institution_id,
+        ParentCourse.status == 'published',
+        ParentCourse.is_active == True
     )
-    
-    if is_published is not None:
-        query = query.filter(ParentCourse.is_published == is_published)
     
     if category:
         query = query.filter(ParentCourse.category == category)
-    
-    if is_featured is not None:
-        query = query.filter(ParentCourse.is_featured == is_featured)
-    
+    if level:
+        query = query.filter(ParentCourse.level == level)
+    if is_free is not None:
+        query = query.filter(ParentCourse.is_free == is_free)
+    if min_rating:
+        query = query.filter(ParentCourse.average_rating >= min_rating)
     if search:
-        search_pattern = f"%{search}%"
+        search_term = f"%{search}%"
         query = query.filter(
-            or_(
-                ParentCourse.course_title.ilike(search_pattern),
-                ParentCourse.description.ilike(search_pattern)
-            )
+            (ParentCourse.title.ilike(search_term)) |
+            (ParentCourse.description.ilike(search_term))
         )
-    
-    query = query.order_by(
-        ParentCourse.is_featured.desc(),
-        ParentCourse.created_at.desc()
-    )
     
     courses = query.offset(skip).limit(limit).all()
     return courses
 
 
-@router.get("/courses/{course_id}", response_model=ParentCourseResponse)
-def get_course(
+@router.get("/courses/{course_id}", response_model=ParentCourseDetailResponse)
+async def get_course(
     course_id: int,
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    course = db.query(ParentCourse).filter(ParentCourse.id == course_id).first()
+    """Get course details with modules and lessons"""
+    course = db.query(ParentCourse).filter(
+        ParentCourse.id == course_id,
+        ParentCourse.institution_id == current_user.institution_id
+    ).first()
+    
     if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+    
     return course
 
 
-@router.put("/courses/{course_id}", response_model=ParentCourseResponse)
-def update_course(
-    course_id: int,
-    course: ParentCourseUpdate,
-    db: Session = Depends(get_db)
+@router.post("/courses", response_model=ParentCourseResponse, status_code=status.HTTP_201_CREATED)
+async def create_course(
+    course_data: ParentCourseCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    db_course = db.query(ParentCourse).filter(ParentCourse.id == course_id).first()
-    if not db_course:
-        raise HTTPException(status_code=404, detail="Course not found")
+    """Create a new course (admin/instructor only)"""
+    course = ParentCourse(
+        institution_id=current_user.institution_id,
+        instructor_id=course_data.instructor_id or current_user.id,
+        **course_data.model_dump(exclude={'instructor_id'})
+    )
     
-    update_data = course.model_dump(exclude_unset=True)
-    
-    if 'lessons' in update_data:
-        update_data['lesson_count'] = len(update_data['lessons'])
-        update_data['total_duration_minutes'] = sum(
-            lesson.get('duration_minutes', 0) for lesson in update_data['lessons']
-        )
-    
-    for field, value in update_data.items():
-        setattr(db_course, field, value)
-    
+    db.add(course)
     db.commit()
-    db.refresh(db_course)
-    return db_course
-
-
-@router.delete("/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_course(
-    course_id: int,
-    db: Session = Depends(get_db)
-):
-    db_course = db.query(ParentCourse).filter(ParentCourse.id == course_id).first()
-    if not db_course:
-        raise HTTPException(status_code=404, detail="Course not found")
+    db.refresh(course)
     
-    db.delete(db_course)
-    db.commit()
-    return None
+    return course
 
 
-@router.post("/enrollments", response_model=ParentEnrollmentResponse, status_code=status.HTTP_201_CREATED)
-def enroll_in_course(
-    enrollment: ParentEnrollmentCreate,
-    user_id: int = Query(...),
-    institution_id: int = Query(...),
-    db: Session = Depends(get_db)
+@router.patch("/courses/{course_id}", response_model=ParentCourseResponse)
+async def update_course(
+    course_id: int,
+    course_data: ParentCourseUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    course = db.query(ParentCourse).filter(
-        ParentCourse.id == enrollment.course_id,
-        ParentCourse.institution_id == institution_id
-    ).first()
+    """Update course details"""
+    course = db.query(ParentCourse).filter(ParentCourse.id == course_id).first()
     
     if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
     
-    if not course.is_published:
-        raise HTTPException(status_code=400, detail="Course is not published")
+    if course.instructor_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
-    existing = db.query(ParentEnrollment).filter(
-        ParentEnrollment.course_id == enrollment.course_id,
-        ParentEnrollment.user_id == user_id
+    for field, value in course_data.model_dump(exclude_unset=True).items():
+        setattr(course, field, value)
+    
+    db.commit()
+    db.refresh(course)
+    
+    return course
+
+
+@router.post("/enrollments", response_model=CourseEnrollmentResponse, status_code=status.HTTP_201_CREATED)
+async def enroll_in_course(
+    enrollment_data: CourseEnrollmentCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Enroll in a course"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    # Check if already enrolled
+    existing = db.query(CourseEnrollment).filter(
+        CourseEnrollment.course_id == enrollment_data.course_id,
+        CourseEnrollment.parent_id == parent_profile.id
     ).first()
     
     if existing:
-        raise HTTPException(status_code=400, detail="Already enrolled in this course")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already enrolled")
     
-    db_enrollment = ParentEnrollment(
-        institution_id=institution_id,
-        course_id=enrollment.course_id,
-        user_id=user_id,
-        status=EnrollmentStatus.ENROLLED,
-        completed_lessons=[],
-        quiz_scores={}
+    # Get course to count total lessons
+    course = db.query(ParentCourse).filter(ParentCourse.id == enrollment_data.course_id).first()
+    if not course:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+    
+    total_lessons = db.query(func.count(CourseLesson.id)).join(CourseModule).filter(
+        CourseModule.course_id == course.id
+    ).scalar()
+    
+    enrollment = CourseEnrollment(
+        course_id=enrollment_data.course_id,
+        parent_id=parent_profile.id,
+        total_lessons=total_lessons or 0,
+        enrolled_at=datetime.utcnow(),
     )
     
-    db.add(db_enrollment)
-    course.enrollment_count = course.enrollment_count + 1
+    db.add(enrollment)
+    
+    # Update course enrollment count
+    course.total_enrollments += 1
+    
     db.commit()
-    db.refresh(db_enrollment)
-    return db_enrollment
-
-
-@router.get("/enrollments", response_model=List[ParentEnrollmentWithCourse])
-def list_enrollments(
-    user_id: int = Query(...),
-    institution_id: int = Query(...),
-    status_filter: Optional[EnrollmentStatus] = Query(None),
-    db: Session = Depends(get_db)
-):
-    query = db.query(ParentEnrollment).filter(
-        ParentEnrollment.user_id == user_id,
-        ParentEnrollment.institution_id == institution_id
-    )
-    
-    if status_filter:
-        query = query.filter(ParentEnrollment.status == status_filter)
-    
-    query = query.order_by(ParentEnrollment.enrolled_at.desc())
-    enrollments = query.all()
-    
-    results = []
-    for enrollment in enrollments:
-        course = db.query(ParentCourse).filter(ParentCourse.id == enrollment.course_id).first()
-        enrollment_dict = ParentEnrollmentResponse.model_validate(enrollment).model_dump()
-        enrollment_dict['course'] = ParentCourseListResponse.model_validate(course).model_dump()
-        results.append(enrollment_dict)
-    
-    return results
-
-
-@router.get("/enrollments/{enrollment_id}", response_model=ParentEnrollmentResponse)
-def get_enrollment(
-    enrollment_id: int,
-    db: Session = Depends(get_db)
-):
-    enrollment = db.query(ParentEnrollment).filter(
-        ParentEnrollment.id == enrollment_id
-    ).first()
-    
-    if not enrollment:
-        raise HTTPException(status_code=404, detail="Enrollment not found")
+    db.refresh(enrollment)
     
     return enrollment
 
 
-@router.post("/enrollments/{enrollment_id}/progress", response_model=ParentEnrollmentResponse)
-def update_lesson_progress(
-    enrollment_id: int,
-    progress: LessonProgressUpdate,
-    db: Session = Depends(get_db)
+@router.get("/enrollments", response_model=List[CourseEnrollmentResponse])
+async def list_enrollments(
+    status: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    enrollment = db.query(ParentEnrollment).filter(
-        ParentEnrollment.id == enrollment_id
+    """List user's course enrollments"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    query = db.query(CourseEnrollment).filter(
+        CourseEnrollment.parent_id == parent_profile.id
+    )
+    
+    if status:
+        query = query.filter(CourseEnrollment.status == status)
+    
+    enrollments = query.all()
+    return enrollments
+
+
+@router.get("/enrollments/{enrollment_id}", response_model=CourseEnrollmentResponse)
+async def get_enrollment(
+    enrollment_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get enrollment details"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    enrollment = db.query(CourseEnrollment).filter(
+        CourseEnrollment.id == enrollment_id,
+        CourseEnrollment.parent_id == parent_profile.id
     ).first()
     
     if not enrollment:
-        raise HTTPException(status_code=404, detail="Enrollment not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enrollment not found")
     
-    course = db.query(ParentCourse).filter(
-        ParentCourse.id == enrollment.course_id
+    return enrollment
+
+
+@router.post("/progress", response_model=LessonProgressResponse, status_code=status.HTTP_201_CREATED)
+async def update_lesson_progress(
+    progress_data: LessonProgressCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update lesson progress"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    # Find enrollment
+    lesson = db.query(CourseLesson).filter(CourseLesson.id == progress_data.lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found")
+    
+    module = db.query(CourseModule).filter(CourseModule.id == lesson.module_id).first()
+    enrollment = db.query(CourseEnrollment).filter(
+        CourseEnrollment.course_id == module.course_id,
+        CourseEnrollment.parent_id == parent_profile.id
     ).first()
     
-    if progress.completed and progress.lesson_number not in enrollment.completed_lessons:
-        enrollment.completed_lessons = enrollment.completed_lessons + [progress.lesson_number]
-        enrollment.progress_percentage = (len(enrollment.completed_lessons) / course.lesson_count) * 100
-        
-        if enrollment.progress_percentage >= 100:
-            enrollment.status = EnrollmentStatus.COMPLETED
-            enrollment.completion_date = datetime.utcnow()
-            enrollment.certificate_earned = True
-            enrollment.certificate_url = f"/certificates/{enrollment.id}"
-            
-            course.completion_count = course.completion_count + 1
-            
-            award_badge(
-                db, enrollment.id, enrollment.user_id, enrollment.institution_id,
-                CourseBadgeType.COURSE_COMPLETION,
-                "Course Completed",
-                f"Completed {course.course_title}",
-                {"course_id": course.id, "course_title": course.course_title}
-            )
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enrollment not found")
     
-    enrollment.total_time_spent_minutes += progress.time_spent_minutes
-    enrollment.last_accessed_lesson = progress.lesson_number
+    # Update or create progress
+    progress = db.query(LessonProgress).filter(
+        LessonProgress.enrollment_id == enrollment.id,
+        LessonProgress.lesson_id == progress_data.lesson_id
+    ).first()
+    
+    if not progress:
+        progress = LessonProgress(
+            enrollment_id=enrollment.id,
+            lesson_id=progress_data.lesson_id,
+            **progress_data.model_dump(exclude={'lesson_id'})
+        )
+        db.add(progress)
+    else:
+        for field, value in progress_data.model_dump(exclude={'lesson_id'}, exclude_unset=True).items():
+            setattr(progress, field, value)
+    
+    if progress_data.is_completed and not progress.completed_at:
+        progress.completed_at = datetime.utcnow()
+        enrollment.completed_lessons += 1
+    
+    # Update enrollment progress
+    enrollment.progress_percentage = Decimal((enrollment.completed_lessons / enrollment.total_lessons * 100) if enrollment.total_lessons > 0 else 0)
     enrollment.last_accessed_at = datetime.utcnow()
     
-    if enrollment.status == EnrollmentStatus.ENROLLED:
-        enrollment.status = EnrollmentStatus.IN_PROGRESS
-    
-    activity = ParentLearningActivity(
-        institution_id=enrollment.institution_id,
-        enrollment_id=enrollment.id,
-        user_id=enrollment.user_id,
-        course_id=enrollment.course_id,
-        lesson_number=progress.lesson_number,
-        activity_type="lesson_view",
-        time_spent_minutes=progress.time_spent_minutes,
-        completed=progress.completed
-    )
-    db.add(activity)
-    
-    db.commit()
-    db.refresh(enrollment)
-    return enrollment
-
-
-@router.post("/enrollments/{enrollment_id}/quiz", response_model=QuizResult)
-def submit_quiz(
-    enrollment_id: int,
-    submission: QuizSubmission,
-    db: Session = Depends(get_db)
-):
-    enrollment = db.query(ParentEnrollment).filter(
-        ParentEnrollment.id == enrollment_id
-    ).first()
-    
-    if not enrollment:
-        raise HTTPException(status_code=404, detail="Enrollment not found")
-    
-    course = db.query(ParentCourse).filter(
-        ParentCourse.id == enrollment.course_id
-    ).first()
-    
-    if submission.lesson_number >= len(course.lessons):
-        raise HTTPException(status_code=400, detail="Invalid lesson number")
-    
-    lesson = course.lessons[submission.lesson_number]
-    quiz = lesson.get('quiz')
-    
-    if not quiz:
-        raise HTTPException(status_code=400, detail="No quiz found for this lesson")
-    
-    questions = quiz.get('questions', [])
-    total_questions = len(questions)
-    correct_answers = 0
-    
-    for question in questions:
-        question_id = question.get('id')
-        correct_answer = question.get('correct_answer')
-        user_answer = submission.answers.get(question_id)
+    # Check if course completed
+    if enrollment.completed_lessons >= enrollment.total_lessons:
+        enrollment.status = 'completed'
+        enrollment.completed_at = datetime.utcnow()
         
-        if user_answer == correct_answer:
-            correct_answers += 1
-    
-    score = (correct_answers / total_questions * 100) if total_questions > 0 else 0
-    passing_score = quiz.get('passing_score', 70)
-    passed = score >= passing_score
-    
-    enrollment.quiz_scores[str(submission.lesson_number)] = {
-        'score': score,
-        'correct_answers': correct_answers,
-        'total_questions': total_questions,
-        'passed': passed,
-        'submitted_at': datetime.utcnow().isoformat()
-    }
-    
-    if passed and score >= 90:
-        award_badge(
-            db, enrollment.id, enrollment.user_id, enrollment.institution_id,
-            CourseBadgeType.QUIZ_MASTER,
-            "Quiz Master",
-            f"Scored {score}% on lesson {submission.lesson_number + 1} quiz",
-            {"lesson_number": submission.lesson_number, "score": score}
-        )
-    
-    activity = ParentLearningActivity(
-        institution_id=enrollment.institution_id,
-        enrollment_id=enrollment.id,
-        user_id=enrollment.user_id,
-        course_id=enrollment.course_id,
-        lesson_number=submission.lesson_number,
-        activity_type="quiz_submission",
-        completed=passed,
-        metadata={'score': score, 'passed': passed}
-    )
-    db.add(activity)
-    
-    db.commit()
-    db.refresh(enrollment)
-    
-    return QuizResult(
-        lesson_number=submission.lesson_number,
-        score=score,
-        total_questions=total_questions,
-        correct_answers=correct_answers,
-        passed=passed
-    )
-
-
-@router.post("/enrollments/{enrollment_id}/review", response_model=ParentEnrollmentResponse)
-def submit_review(
-    enrollment_id: int,
-    review: CourseReview,
-    db: Session = Depends(get_db)
-):
-    enrollment = db.query(ParentEnrollment).filter(
-        ParentEnrollment.id == enrollment_id
-    ).first()
-    
-    if not enrollment:
-        raise HTTPException(status_code=404, detail="Enrollment not found")
-    
-    if enrollment.status != EnrollmentStatus.COMPLETED:
-        raise HTTPException(status_code=400, detail="Can only review completed courses")
-    
-    enrollment.rating = review.rating
-    enrollment.review = review.review
-    enrollment.reviewed_at = datetime.utcnow()
-    
-    course = db.query(ParentCourse).filter(
-        ParentCourse.id == enrollment.course_id
-    ).first()
-    
-    avg_rating = db.query(func.avg(ParentEnrollment.rating)).filter(
-        ParentEnrollment.course_id == course.id,
-        ParentEnrollment.rating.isnot(None)
-    ).scalar()
-    
-    course.average_rating = float(avg_rating) if avg_rating else 0.0
-    
-    db.commit()
-    db.refresh(enrollment)
-    return enrollment
-
-
-@router.get("/enrollments/{enrollment_id}/certificate", response_model=CertificateResponse)
-def get_certificate(
-    enrollment_id: int,
-    db: Session = Depends(get_db)
-):
-    enrollment = db.query(ParentEnrollment).filter(
-        ParentEnrollment.id == enrollment_id
-    ).first()
-    
-    if not enrollment:
-        raise HTTPException(status_code=404, detail="Enrollment not found")
-    
-    if not enrollment.certificate_earned:
-        raise HTTPException(status_code=400, detail="Certificate not earned yet")
-    
-    course = db.query(ParentCourse).filter(
-        ParentCourse.id == enrollment.course_id
-    ).first()
-    
-    user = db.query(User).filter(User.id == enrollment.user_id).first()
-    
-    user_name = f"{user.first_name} {user.last_name}" if user.first_name else user.username
-    
-    return CertificateResponse(
-        enrollment_id=enrollment.id,
-        user_id=enrollment.user_id,
-        course_id=course.id,
-        course_title=course.course_title,
-        certificate_url=enrollment.certificate_url,
-        completion_date=enrollment.completion_date,
-        user_name=user_name
-    )
-
-
-@router.get("/enrollments/{enrollment_id}/progress", response_model=CourseProgressSummary)
-def get_progress_summary(
-    enrollment_id: int,
-    db: Session = Depends(get_db)
-):
-    enrollment = db.query(ParentEnrollment).filter(
-        ParentEnrollment.id == enrollment_id
-    ).first()
-    
-    if not enrollment:
-        raise HTTPException(status_code=404, detail="Enrollment not found")
-    
-    course = db.query(ParentCourse).filter(
-        ParentCourse.id == enrollment.course_id
-    ).first()
-    
-    badges = db.query(ParentCourseBadge).filter(
-        ParentCourseBadge.enrollment_id == enrollment.id
-    ).all()
-    
-    return CourseProgressSummary(
-        enrollment_id=enrollment.id,
-        course_id=course.id,
-        course_title=course.course_title,
-        category=course.category,
-        progress_percentage=enrollment.progress_percentage,
-        completed_lessons=enrollment.completed_lessons,
-        total_lessons=course.lesson_count,
-        total_time_spent_minutes=enrollment.total_time_spent_minutes,
-        quiz_scores=enrollment.quiz_scores,
-        badges_earned=[ParentCourseBadgeResponse.model_validate(b) for b in badges],
-        status=enrollment.status,
-        enrolled_at=enrollment.enrolled_at,
-        last_accessed_at=enrollment.last_accessed_at
-    )
-
-
-@router.get("/users/{user_id}/badges", response_model=List[ParentCourseBadgeResponse])
-def get_user_badges(
-    user_id: int,
-    institution_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    badges = db.query(ParentCourseBadge).filter(
-        ParentCourseBadge.user_id == user_id,
-        ParentCourseBadge.institution_id == institution_id
-    ).order_by(ParentCourseBadge.earned_at.desc()).all()
-    
-    return badges
-
-
-@router.get("/users/{user_id}/stats", response_model=EnrollmentStats)
-def get_user_stats(
-    user_id: int,
-    institution_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    enrollments = db.query(ParentEnrollment).filter(
-        ParentEnrollment.user_id == user_id,
-        ParentEnrollment.institution_id == institution_id
-    ).all()
-    
-    total_enrollments = len(enrollments)
-    active_enrollments = sum(1 for e in enrollments if e.status == EnrollmentStatus.IN_PROGRESS)
-    completed_enrollments = sum(1 for e in enrollments if e.status == EnrollmentStatus.COMPLETED)
-    total_time_spent = sum(e.total_time_spent_minutes for e in enrollments)
-    certificates_earned = sum(1 for e in enrollments if e.certificate_earned)
-    
-    total_badges = db.query(func.count(ParentCourseBadge.id)).filter(
-        ParentCourseBadge.user_id == user_id,
-        ParentCourseBadge.institution_id == institution_id
-    ).scalar()
-    
-    courses_by_category = {}
-    for enrollment in enrollments:
-        course = db.query(ParentCourse).filter(
-            ParentCourse.id == enrollment.course_id
-        ).first()
+        # Update course completion count
+        course = db.query(ParentCourse).filter(ParentCourse.id == enrollment.course_id).first()
         if course:
-            category_name = course.category.value
-            courses_by_category[category_name] = courses_by_category.get(category_name, 0) + 1
+            course.total_completions += 1
     
-    return EnrollmentStats(
-        total_enrollments=total_enrollments,
-        active_enrollments=active_enrollments,
-        completed_enrollments=completed_enrollments,
-        total_courses_completed=completed_enrollments,
-        total_time_spent_minutes=total_time_spent,
-        total_badges_earned=total_badges or 0,
-        certificates_earned=certificates_earned,
-        courses_by_category=courses_by_category
-    )
+    db.commit()
+    db.refresh(progress)
+    
+    return progress
 
 
-@router.post("/discussions", response_model=CourseDiscussionThreadResponse, status_code=status.HTTP_201_CREATED)
-def create_discussion_thread(
-    thread: CourseDiscussionThreadCreate,
-    user_id: int = Query(...),
-    institution_id: int = Query(...),
-    db: Session = Depends(get_db)
+@router.post("/quizzes/attempts", response_model=QuizAttemptResponse, status_code=status.HTTP_201_CREATED)
+async def start_quiz_attempt(
+    attempt_data: QuizAttemptCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    enrollment = db.query(ParentEnrollment).filter(
-        ParentEnrollment.course_id == thread.course_id,
-        ParentEnrollment.user_id == user_id
+    """Start a new quiz attempt"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    # Find enrollment
+    quiz = db.query(LessonQuiz).filter(LessonQuiz.id == attempt_data.quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
+    
+    lesson = db.query(CourseLesson).filter(CourseLesson.id == quiz.lesson_id).first()
+    module = db.query(CourseModule).filter(CourseModule.id == lesson.module_id).first()
+    enrollment = db.query(CourseEnrollment).filter(
+        CourseEnrollment.course_id == module.course_id,
+        CourseEnrollment.parent_id == parent_profile.id
     ).first()
     
     if not enrollment:
-        raise HTTPException(status_code=400, detail="Must be enrolled to create discussion")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enrollment not found")
     
-    db_thread = CourseDiscussionThread(
-        institution_id=institution_id,
-        course_id=thread.course_id,
-        user_id=user_id,
-        title=thread.title,
-        content=thread.content,
-        lesson_number=thread.lesson_number,
-        tags=thread.tags
+    attempt = QuizAttempt(
+        quiz_id=attempt_data.quiz_id,
+        enrollment_id=enrollment.id,
+        status='in_progress',
+        started_at=datetime.utcnow(),
     )
     
-    db.add(db_thread)
+    db.add(attempt)
     db.commit()
-    db.refresh(db_thread)
+    db.refresh(attempt)
     
-    award_badge(
-        db, enrollment.id, user_id, institution_id,
-        CourseBadgeType.ACTIVE_PARTICIPANT,
-        "Active Participant",
-        "Started a discussion",
-        {"thread_id": db_thread.id}
+    return attempt
+
+
+@router.post("/quizzes/attempts/{attempt_id}/submit", response_model=QuizAttemptResponse)
+async def submit_quiz_attempt(
+    attempt_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Submit and grade a quiz attempt"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    attempt = db.query(QuizAttempt).filter(QuizAttempt.id == attempt_id).first()
+    if not attempt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
+    
+    enrollment = db.query(CourseEnrollment).filter(
+        CourseEnrollment.id == attempt.enrollment_id,
+        CourseEnrollment.parent_id == parent_profile.id
+    ).first()
+    
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    
+    # Calculate score
+    responses = db.query(QuizResponse).filter(QuizResponse.attempt_id == attempt_id).all()
+    total_points = sum(r.points_earned for r in responses)
+    
+    quiz = db.query(LessonQuiz).filter(LessonQuiz.id == attempt.quiz_id).first()
+    
+    attempt.status = 'completed'
+    attempt.completed_at = datetime.utcnow()
+    attempt.earned_points = total_points
+    attempt.total_points = len(responses)
+    attempt.score = Decimal((total_points / len(responses) * 100) if len(responses) > 0 else 0)
+    attempt.is_passed = attempt.score >= quiz.passing_score
+    
+    db.commit()
+    db.refresh(attempt)
+    
+    return attempt
+
+
+@router.post("/reviews", response_model=CourseReviewResponse, status_code=status.HTTP_201_CREATED)
+async def create_review(
+    review_data: CourseReviewCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a course review"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    # Check if enrolled
+    enrollment = db.query(CourseEnrollment).filter(
+        CourseEnrollment.course_id == review_data.course_id,
+        CourseEnrollment.parent_id == parent_profile.id
+    ).first()
+    
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must be enrolled to review")
+    
+    review = CourseReview(
+        course_id=review_data.course_id,
+        parent_id=parent_profile.id,
+        rating=review_data.rating,
+        review_text=review_data.review_text,
     )
     
-    return db_thread
+    db.add(review)
+    
+    # Update course rating
+    course = db.query(ParentCourse).filter(ParentCourse.id == review_data.course_id).first()
+    if course:
+        course.total_reviews += 1
+        avg_rating = db.query(func.avg(CourseReview.rating)).filter(
+            CourseReview.course_id == review_data.course_id,
+            CourseReview.is_active == True
+        ).scalar()
+        course.average_rating = Decimal(str(avg_rating)) if avg_rating else None
+    
+    db.commit()
+    db.refresh(review)
+    
+    return review
 
 
-@router.get("/discussions/course/{course_id}", response_model=List[CourseDiscussionThreadResponse])
-def list_course_discussions(
-    course_id: int,
-    lesson_number: Optional[int] = Query(None),
+@router.post("/forums/{forum_id}/posts", response_model=ForumPostResponse, status_code=status.HTTP_201_CREATED)
+async def create_forum_post(
+    forum_id: int,
+    post_data: ForumPostCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a forum post"""
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if not parent_profile:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent profile not found")
+    
+    forum = db.query(DiscussionForum).filter(DiscussionForum.id == forum_id).first()
+    if not forum:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forum not found")
+    
+    post = ForumPost(
+        forum_id=forum_id,
+        parent_id=parent_profile.id,
+        parent_post_id=post_data.parent_post_id,
+        title=post_data.title,
+        content=post_data.content,
+    )
+    
+    db.add(post)
+    db.commit()
+    db.refresh(post)
+    
+    return post
+
+
+@router.get("/forums/{forum_id}/posts", response_model=List[ForumPostResponse])
+async def list_forum_posts(
+    forum_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    query = db.query(CourseDiscussionThread).filter(
-        CourseDiscussionThread.course_id == course_id
+    """List forum posts"""
+    posts = db.query(ForumPost).filter(
+        ForumPost.forum_id == forum_id,
+        ForumPost.is_active == True,
+        ForumPost.parent_post_id.is_(None)
+    ).order_by(ForumPost.is_pinned.desc(), ForumPost.created_at.desc()).offset(skip).limit(limit).all()
+    
+    return posts
+
+
+@router.get("/statistics", response_model=CourseStatistics)
+async def get_statistics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get course statistics"""
+    total_courses = db.query(func.count(ParentCourse.id)).filter(
+        ParentCourse.institution_id == current_user.institution_id,
+        ParentCourse.is_active == True
+    ).scalar()
+    
+    published_courses = db.query(func.count(ParentCourse.id)).filter(
+        ParentCourse.institution_id == current_user.institution_id,
+        ParentCourse.status == 'published',
+        ParentCourse.is_active == True
+    ).scalar()
+    
+    total_enrollments = db.query(func.count(CourseEnrollment.id)).join(ParentCourse).filter(
+        ParentCourse.institution_id == current_user.institution_id
+    ).scalar()
+    
+    completed_enrollments = db.query(func.count(CourseEnrollment.id)).join(ParentCourse).filter(
+        ParentCourse.institution_id == current_user.institution_id,
+        CourseEnrollment.status == 'completed'
+    ).scalar()
+    
+    completion_rate = (completed_enrollments / total_enrollments * 100) if total_enrollments > 0 else 0
+    
+    avg_rating = db.query(func.avg(ParentCourse.average_rating)).filter(
+        ParentCourse.institution_id == current_user.institution_id,
+        ParentCourse.average_rating.isnot(None)
+    ).scalar()
+    
+    # Popular categories
+    category_counts = db.query(
+        ParentCourse.category,
+        func.count(ParentCourse.id)
+    ).filter(
+        ParentCourse.institution_id == current_user.institution_id,
+        ParentCourse.status == 'published'
+    ).group_by(ParentCourse.category).all()
+    
+    popular_categories = {cat: count for cat, count in category_counts}
+    
+    return CourseStatistics(
+        total_courses=total_courses or 0,
+        published_courses=published_courses or 0,
+        total_enrollments=total_enrollments or 0,
+        completion_rate=completion_rate,
+        average_rating=float(avg_rating) if avg_rating else 0.0,
+        popular_categories=popular_categories,
     )
-    
-    if lesson_number is not None:
-        query = query.filter(CourseDiscussionThread.lesson_number == lesson_number)
-    
-    query = query.order_by(
-        CourseDiscussionThread.is_pinned.desc(),
-        CourseDiscussionThread.last_activity_at.desc()
-    )
-    
-    threads = query.offset(skip).limit(limit).all()
-    return threads
-
-
-@router.get("/discussions/{thread_id}", response_model=CourseDiscussionThreadResponse)
-def get_discussion_thread(
-    thread_id: int,
-    db: Session = Depends(get_db)
-):
-    thread = db.query(CourseDiscussionThread).filter(
-        CourseDiscussionThread.id == thread_id
-    ).first()
-    
-    if not thread:
-        raise HTTPException(status_code=404, detail="Thread not found")
-    
-    thread.view_count += 1
-    db.commit()
-    db.refresh(thread)
-    
-    return thread
-
-
-@router.put("/discussions/{thread_id}", response_model=CourseDiscussionThreadResponse)
-def update_discussion_thread(
-    thread_id: int,
-    thread_update: CourseDiscussionThreadUpdate,
-    user_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    thread = db.query(CourseDiscussionThread).filter(
-        CourseDiscussionThread.id == thread_id
-    ).first()
-    
-    if not thread:
-        raise HTTPException(status_code=404, detail="Thread not found")
-    
-    if thread.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this thread")
-    
-    if thread.is_locked:
-        raise HTTPException(status_code=400, detail="Thread is locked")
-    
-    update_data = thread_update.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(thread, field, value)
-    
-    db.commit()
-    db.refresh(thread)
-    return thread
-
-
-@router.delete("/discussions/{thread_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_discussion_thread(
-    thread_id: int,
-    user_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    thread = db.query(CourseDiscussionThread).filter(
-        CourseDiscussionThread.id == thread_id
-    ).first()
-    
-    if not thread:
-        raise HTTPException(status_code=404, detail="Thread not found")
-    
-    if thread.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this thread")
-    
-    db.delete(thread)
-    db.commit()
-    return None
-
-
-@router.post("/discussions/{thread_id}/vote", status_code=status.HTTP_200_OK)
-def vote_on_thread(
-    thread_id: int,
-    user_id: int = Query(...),
-    institution_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    thread = db.query(CourseDiscussionThread).filter(
-        CourseDiscussionThread.id == thread_id
-    ).first()
-    
-    if not thread:
-        raise HTTPException(status_code=404, detail="Thread not found")
-    
-    existing_vote = db.query(CourseThreadVote).filter(
-        CourseThreadVote.thread_id == thread_id,
-        CourseThreadVote.user_id == user_id
-    ).first()
-    
-    if existing_vote:
-        db.delete(existing_vote)
-        thread.upvote_count = max(0, thread.upvote_count - 1)
-        db.commit()
-        return {"message": "Vote removed", "upvote_count": thread.upvote_count}
-    
-    vote = CourseThreadVote(
-        institution_id=institution_id,
-        thread_id=thread_id,
-        user_id=user_id
-    )
-    
-    db.add(vote)
-    thread.upvote_count += 1
-    db.commit()
-    
-    return {"message": "Vote added", "upvote_count": thread.upvote_count}
-
-
-@router.post("/replies", response_model=CourseDiscussionReplyResponse, status_code=status.HTTP_201_CREATED)
-def create_reply(
-    reply: CourseDiscussionReplyCreate,
-    user_id: int = Query(...),
-    institution_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    thread = db.query(CourseDiscussionThread).filter(
-        CourseDiscussionThread.id == reply.thread_id
-    ).first()
-    
-    if not thread:
-        raise HTTPException(status_code=404, detail="Thread not found")
-    
-    if thread.is_locked:
-        raise HTTPException(status_code=400, detail="Thread is locked")
-    
-    enrollment = db.query(ParentEnrollment).filter(
-        ParentEnrollment.course_id == thread.course_id,
-        ParentEnrollment.user_id == user_id
-    ).first()
-    
-    if not enrollment:
-        raise HTTPException(status_code=400, detail="Must be enrolled to reply")
-    
-    db_reply = CourseDiscussionReply(
-        institution_id=institution_id,
-        thread_id=reply.thread_id,
-        user_id=user_id,
-        parent_reply_id=reply.parent_reply_id,
-        content=reply.content
-    )
-    
-    db.add(db_reply)
-    thread.reply_count += 1
-    thread.last_activity_at = datetime.utcnow()
-    
-    db.commit()
-    db.refresh(db_reply)
-    
-    return db_reply
-
-
-@router.get("/discussions/{thread_id}/replies", response_model=List[CourseDiscussionReplyResponse])
-def list_thread_replies(
-    thread_id: int,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=200),
-    db: Session = Depends(get_db)
-):
-    replies = db.query(CourseDiscussionReply).filter(
-        CourseDiscussionReply.thread_id == thread_id
-    ).order_by(
-        CourseDiscussionReply.is_answer.desc(),
-        CourseDiscussionReply.upvote_count.desc(),
-        CourseDiscussionReply.created_at.asc()
-    ).offset(skip).limit(limit).all()
-    
-    return replies
-
-
-@router.put("/replies/{reply_id}", response_model=CourseDiscussionReplyResponse)
-def update_reply(
-    reply_id: int,
-    content: str,
-    user_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    reply = db.query(CourseDiscussionReply).filter(
-        CourseDiscussionReply.id == reply_id
-    ).first()
-    
-    if not reply:
-        raise HTTPException(status_code=404, detail="Reply not found")
-    
-    if reply.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this reply")
-    
-    reply.content = content
-    db.commit()
-    db.refresh(reply)
-    return reply
-
-
-@router.delete("/replies/{reply_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_reply(
-    reply_id: int,
-    user_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    reply = db.query(CourseDiscussionReply).filter(
-        CourseDiscussionReply.id == reply_id
-    ).first()
-    
-    if not reply:
-        raise HTTPException(status_code=404, detail="Reply not found")
-    
-    if reply.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this reply")
-    
-    thread = db.query(CourseDiscussionThread).filter(
-        CourseDiscussionThread.id == reply.thread_id
-    ).first()
-    
-    if thread:
-        thread.reply_count = max(0, thread.reply_count - 1)
-    
-    db.delete(reply)
-    db.commit()
-    return None
-
-
-@router.post("/replies/{reply_id}/vote", status_code=status.HTTP_200_OK)
-def vote_on_reply(
-    reply_id: int,
-    user_id: int = Query(...),
-    institution_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    reply = db.query(CourseDiscussionReply).filter(
-        CourseDiscussionReply.id == reply_id
-    ).first()
-    
-    if not reply:
-        raise HTTPException(status_code=404, detail="Reply not found")
-    
-    existing_vote = db.query(CourseReplyVote).filter(
-        CourseReplyVote.reply_id == reply_id,
-        CourseReplyVote.user_id == user_id
-    ).first()
-    
-    if existing_vote:
-        db.delete(existing_vote)
-        reply.upvote_count = max(0, reply.upvote_count - 1)
-        db.commit()
-        return {"message": "Vote removed", "upvote_count": reply.upvote_count}
-    
-    vote = CourseReplyVote(
-        institution_id=institution_id,
-        reply_id=reply_id,
-        user_id=user_id
-    )
-    
-    db.add(vote)
-    reply.upvote_count += 1
-    db.commit()
-    
-    return {"message": "Vote added", "upvote_count": reply.upvote_count}
-
-
-@router.post("/replies/{reply_id}/mark-answer", status_code=status.HTTP_200_OK)
-def mark_as_answer(
-    reply_id: int,
-    user_id: int = Query(...),
-    db: Session = Depends(get_db)
-):
-    reply = db.query(CourseDiscussionReply).filter(
-        CourseDiscussionReply.id == reply_id
-    ).first()
-    
-    if not reply:
-        raise HTTPException(status_code=404, detail="Reply not found")
-    
-    thread = db.query(CourseDiscussionThread).filter(
-        CourseDiscussionThread.id == reply.thread_id
-    ).first()
-    
-    if thread.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Only thread creator can mark answers")
-    
-    reply.is_answer = not reply.is_answer
-    db.commit()
-    
-    return {"message": "Answer status updated", "is_answer": reply.is_answer}
-
-
-def award_badge(
-    db: Session,
-    enrollment_id: int,
-    user_id: int,
-    institution_id: int,
-    badge_type: CourseBadgeType,
-    badge_name: str,
-    badge_description: str,
-    metadata: dict = None
-):
-    existing_badge = db.query(ParentCourseBadge).filter(
-        ParentCourseBadge.enrollment_id == enrollment_id,
-        ParentCourseBadge.badge_type == badge_type,
-        ParentCourseBadge.badge_name == badge_name
-    ).first()
-    
-    if existing_badge:
-        return existing_badge
-    
-    badge = ParentCourseBadge(
-        institution_id=institution_id,
-        enrollment_id=enrollment_id,
-        user_id=user_id,
-        badge_type=badge_type,
-        badge_name=badge_name,
-        badge_description=badge_description,
-        metadata=metadata
-    )
-    
-    db.add(badge)
-    db.commit()
-    db.refresh(badge)
-    return badge
-
-
-@router.get("/activities/{enrollment_id}", response_model=List[ParentLearningActivityResponse])
-def get_learning_activities(
-    enrollment_id: int,
-    db: Session = Depends(get_db)
-):
-    activities = db.query(ParentLearningActivity).filter(
-        ParentLearningActivity.enrollment_id == enrollment_id
-    ).order_by(ParentLearningActivity.created_at.desc()).all()
-    
-    return activities

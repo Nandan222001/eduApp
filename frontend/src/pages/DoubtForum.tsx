@@ -58,7 +58,6 @@ const DoubtForum: React.FC = () => {
         return newFilters;
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabValue]);
 
   const getCurrentUserId = (): number => {

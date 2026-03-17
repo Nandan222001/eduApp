@@ -1,200 +1,339 @@
-import axios from 'axios';
-import type {
-  Course,
-  CourseDetail,
-  Enrollment,
-  EnrollmentDetail,
-  Lesson,
-  CourseMaterial,
-  QuizQuestion,
-  QuizAttempt,
-  LessonProgress,
-  Note,
-  DiscussionThread,
-  DiscussionReply,
-  Certificate,
-} from '@/types/parentEducation';
+import axios from '@/lib/axios';
 
-const BASE_URL = '/api/v1/parent-education';
+export interface ParentCourse {
+  id: number;
+  title: string;
+  description: string;
+  short_description: string;
+  category: string;
+  level: string;
+  thumbnail_url?: string;
+  duration_hours: number;
+  learning_objectives: string[];
+  prerequisites: string[];
+  is_free: boolean;
+  price?: number;
+  certificate_enabled: boolean;
+  passing_score: number;
+  status: string;
+  total_enrollments: number;
+  total_completions: number;
+  average_rating?: number;
+  total_reviews: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseModule {
+  id: number;
+  course_id: number;
+  title: string;
+  description?: string;
+  order_index: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseLesson {
+  id: number;
+  module_id: number;
+  title: string;
+  description?: string;
+  order_index: number;
+  content_type: string;
+  video_url?: string;
+  video_duration_seconds?: number;
+  article_content?: string;
+  pdf_url?: string;
+  attachments?: Array<{ name: string; url: string }>;
+  external_links?: Array<{ title: string; url: string }>;
+  is_preview: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseEnrollment {
+  id: number;
+  course_id: number;
+  parent_id: number;
+  status: string;
+  progress_percentage: number;
+  completed_lessons: number;
+  total_lessons: number;
+  completed_at?: string;
+  certificate_url?: string;
+  final_score?: number;
+  last_accessed_at?: string;
+  total_time_spent_minutes: number;
+  enrolled_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LessonProgress {
+  id: number;
+  enrollment_id: number;
+  lesson_id: number;
+  is_completed: boolean;
+  completed_at?: string;
+  video_progress_seconds: number;
+  video_watched_percentage: number;
+  time_spent_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LessonQuiz {
+  id: number;
+  lesson_id: number;
+  title: string;
+  description?: string;
+  passing_score: number;
+  time_limit_minutes?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuizQuestion {
+  id: number;
+  quiz_id: number;
+  question_text: string;
+  question_type: string;
+  order_index: number;
+  options?: Array<{ id: string; text: string }>;
+  correct_answer: unknown;
+  explanation?: string;
+  points: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuizAttempt {
+  id: number;
+  quiz_id: number;
+  enrollment_id: number;
+  status: string;
+  score?: number;
+  total_points?: number;
+  earned_points?: number;
+  started_at?: string;
+  completed_at?: string;
+  time_spent_minutes: number;
+  is_passed?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseReview {
+  id: number;
+  course_id: number;
+  parent_id: number;
+  rating: number;
+  review_text?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ForumPost {
+  id: number;
+  forum_id: number;
+  parent_id: number;
+  parent_post_id?: number;
+  title?: string;
+  content: string;
+  upvotes: number;
+  downvotes: number;
+  is_pinned: boolean;
+  is_locked: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseStatistics {
+  total_courses: number;
+  published_courses: number;
+  total_enrollments: number;
+  completion_rate: number;
+  average_rating: number;
+  popular_categories: Record<string, number>;
+}
+
+export interface CourseCatalogFilter {
+  category?: string;
+  level?: string;
+  is_free?: boolean;
+  min_rating?: number;
+  search?: string;
+  skip?: number;
+  limit?: number;
+}
 
 export const parentEducationApi = {
-  // Course catalog
-  getCourses: async (params?: {
-    category_id?: number;
-    level?: string;
-    search?: string;
-  }): Promise<Course[]> => {
-    const response = await axios.get<Course[]>(`${BASE_URL}/courses`, { params });
+  // Courses
+  listCourses: async (filters?: CourseCatalogFilter): Promise<ParentCourse[]> => {
+    const response = await axios.get<ParentCourse[]>('/api/v1/parent-education/courses', {
+      params: filters,
+    });
     return response.data;
   },
 
-  getCourseDetail: async (courseId: number): Promise<CourseDetail> => {
-    const response = await axios.get<CourseDetail>(`${BASE_URL}/courses/${courseId}`);
+  getCourse: async (courseId: number): Promise<ParentCourse> => {
+    const response = await axios.get<ParentCourse>(`/api/v1/parent-education/courses/${courseId}`);
     return response.data;
   },
 
-  // Enrollment
-  enrollCourse: async (courseId: number): Promise<Enrollment> => {
-    const response = await axios.post<Enrollment>(`${BASE_URL}/courses/${courseId}/enroll`);
+  createCourse: async (data: Partial<ParentCourse>): Promise<ParentCourse> => {
+    const response = await axios.post<ParentCourse>('/api/v1/parent-education/courses', data);
     return response.data;
   },
 
-  getMyEnrollments: async (): Promise<Enrollment[]> => {
-    const response = await axios.get<Enrollment[]>(`${BASE_URL}/my-enrollments`);
-    return response.data;
-  },
-
-  getEnrollmentDetail: async (enrollmentId: number): Promise<EnrollmentDetail> => {
-    const response = await axios.get<EnrollmentDetail>(`${BASE_URL}/enrollments/${enrollmentId}`);
-    return response.data;
-  },
-
-  // Lessons
-  getLesson: async (lessonId: number): Promise<Lesson> => {
-    const response = await axios.get<Lesson>(`${BASE_URL}/lessons/${lessonId}`);
-    return response.data;
-  },
-
-  getLessonMaterials: async (lessonId: number): Promise<CourseMaterial[]> => {
-    const response = await axios.get<CourseMaterial[]>(`${BASE_URL}/lessons/${lessonId}/materials`);
-    return response.data;
-  },
-
-  // Progress tracking
-  updateLessonProgress: async (
-    enrollmentId: number,
-    lessonId: number,
-    data: {
-      is_completed?: boolean;
-      time_spent_seconds?: number;
-      last_position_seconds?: number;
-    }
-  ): Promise<LessonProgress> => {
-    const response = await axios.post<LessonProgress>(
-      `${BASE_URL}/enrollments/${enrollmentId}/lessons/${lessonId}/progress`,
+  updateCourse: async (courseId: number, data: Partial<ParentCourse>): Promise<ParentCourse> => {
+    const response = await axios.patch<ParentCourse>(
+      `/api/v1/parent-education/courses/${courseId}`,
       data
     );
     return response.data;
   },
 
-  markLessonComplete: async (enrollmentId: number, lessonId: number): Promise<void> => {
-    await axios.post(`${BASE_URL}/enrollments/${enrollmentId}/lessons/${lessonId}/complete`);
+  // Enrollments
+  enrollInCourse: async (courseId: number): Promise<CourseEnrollment> => {
+    const response = await axios.post<CourseEnrollment>('/api/v1/parent-education/enrollments', {
+      course_id: courseId,
+    });
+    return response.data;
   },
 
-  // Notes
-  getNotes: async (enrollmentId: number, lessonId?: number): Promise<Note[]> => {
-    const params = lessonId ? { lesson_id: lessonId } : {};
-    const response = await axios.get<Note[]>(`${BASE_URL}/enrollments/${enrollmentId}/notes`, {
+  listEnrollments: async (status?: string): Promise<CourseEnrollment[]> => {
+    const params = status ? { status } : {};
+    const response = await axios.get<CourseEnrollment[]>('/api/v1/parent-education/enrollments', {
       params,
     });
     return response.data;
   },
 
-  createNote: async (
-    enrollmentId: number,
-    data: {
-      lesson_id: number;
-      content: string;
-      timestamp_seconds?: number;
-    }
-  ): Promise<Note> => {
-    const response = await axios.post<Note>(`${BASE_URL}/enrollments/${enrollmentId}/notes`, data);
+  getEnrollment: async (enrollmentId: number): Promise<CourseEnrollment> => {
+    const response = await axios.get<CourseEnrollment>(
+      `/api/v1/parent-education/enrollments/${enrollmentId}`
+    );
     return response.data;
   },
 
-  updateNote: async (noteId: number, content: string): Promise<Note> => {
-    const response = await axios.patch<Note>(`${BASE_URL}/notes/${noteId}`, { content });
+  // Progress
+  updateLessonProgress: async (data: {
+    lesson_id: number;
+    is_completed?: boolean;
+    video_progress_seconds?: number;
+    video_watched_percentage?: number;
+    time_spent_minutes?: number;
+  }): Promise<LessonProgress> => {
+    const response = await axios.post<LessonProgress>('/api/v1/parent-education/progress', data);
     return response.data;
   },
 
-  deleteNote: async (noteId: number): Promise<void> => {
-    await axios.delete(`${BASE_URL}/notes/${noteId}`);
-  },
-
-  // Quiz
-  getQuizQuestions: async (lessonId: number): Promise<QuizQuestion[]> => {
-    const response = await axios.get<QuizQuestion[]>(`${BASE_URL}/lessons/${lessonId}/quiz`);
+  getLessonProgress: async (enrollmentId: number, lessonId: number): Promise<LessonProgress> => {
+    const response = await axios.get<LessonProgress>(
+      `/api/v1/parent-education/enrollments/${enrollmentId}/lessons/${lessonId}/progress`
+    );
     return response.data;
   },
 
-  submitQuiz: async (lessonId: number, answers: Record<number, string>): Promise<QuizAttempt> => {
-    const response = await axios.post<QuizAttempt>(`${BASE_URL}/lessons/${lessonId}/quiz/submit`, {
-      answers,
+  // Quizzes
+  startQuizAttempt: async (quizId: number): Promise<QuizAttempt> => {
+    const response = await axios.post<QuizAttempt>('/api/v1/parent-education/quizzes/attempts', {
+      quiz_id: quizId,
     });
     return response.data;
   },
 
-  // Discussion forums
-  getDiscussionThreads: async (
+  submitQuizAttempt: async (attemptId: number): Promise<QuizAttempt> => {
+    const response = await axios.post<QuizAttempt>(
+      `/api/v1/parent-education/quizzes/attempts/${attemptId}/submit`
+    );
+    return response.data;
+  },
+
+  submitQuizResponse: async (
+    attemptId: number,
+    questionId: number,
+    answer: unknown
+  ): Promise<void> => {
+    await axios.post('/api/v1/parent-education/quizzes/responses', {
+      attempt_id: attemptId,
+      question_id: questionId,
+      selected_answer: answer,
+    });
+  },
+
+  getQuizAttempt: async (attemptId: number): Promise<QuizAttempt> => {
+    const response = await axios.get<QuizAttempt>(
+      `/api/v1/parent-education/quizzes/attempts/${attemptId}`
+    );
+    return response.data;
+  },
+
+  // Reviews
+  createReview: async (
     courseId: number,
-    lessonId?: number
-  ): Promise<DiscussionThread[]> => {
-    const params = lessonId ? { lesson_id: lessonId } : {};
-    const response = await axios.get<DiscussionThread[]>(
-      `${BASE_URL}/courses/${courseId}/discussions`,
-      { params }
+    rating: number,
+    reviewText?: string
+  ): Promise<CourseReview> => {
+    const response = await axios.post<CourseReview>('/api/v1/parent-education/reviews', {
+      course_id: courseId,
+      rating,
+      review_text: reviewText,
+    });
+    return response.data;
+  },
+
+  listReviews: async (courseId: number): Promise<CourseReview[]> => {
+    const response = await axios.get<CourseReview[]>(
+      `/api/v1/parent-education/courses/${courseId}/reviews`
     );
     return response.data;
   },
 
-  getDiscussionThread: async (threadId: number): Promise<DiscussionThread> => {
-    const response = await axios.get<DiscussionThread>(
-      `${BASE_URL}/discussions/threads/${threadId}`
-    );
-    return response.data;
-  },
-
-  createDiscussionThread: async (
-    courseId: number,
-    data: {
-      lesson_id?: number;
-      title: string;
-      content: string;
-    }
-  ): Promise<DiscussionThread> => {
-    const response = await axios.post<DiscussionThread>(
-      `${BASE_URL}/courses/${courseId}/discussions`,
-      data
-    );
-    return response.data;
-  },
-
-  getThreadReplies: async (threadId: number): Promise<DiscussionReply[]> => {
-    const response = await axios.get<DiscussionReply[]>(
-      `${BASE_URL}/discussions/threads/${threadId}/replies`
-    );
-    return response.data;
-  },
-
-  createThreadReply: async (
-    threadId: number,
-    data: {
-      content: string;
-      parent_id?: number;
-    }
-  ): Promise<DiscussionReply> => {
-    const response = await axios.post<DiscussionReply>(
-      `${BASE_URL}/discussions/threads/${threadId}/replies`,
-      data
-    );
-    return response.data;
-  },
-
-  // Certificates
-  getCertificate: async (enrollmentId: number): Promise<Certificate> => {
-    const response = await axios.get<Certificate>(
-      `${BASE_URL}/enrollments/${enrollmentId}/certificate`
-    );
-    return response.data;
-  },
-
-  downloadCertificate: async (enrollmentId: number): Promise<Blob> => {
-    const response = await axios.get(
-      `${BASE_URL}/enrollments/${enrollmentId}/certificate/download`,
+  // Discussion Forums
+  createForumPost: async (
+    forumId: number,
+    title: string,
+    content: string,
+    parentPostId?: number
+  ): Promise<ForumPost> => {
+    const response = await axios.post<ForumPost>(
+      `/api/v1/parent-education/forums/${forumId}/posts`,
       {
-        responseType: 'blob',
+        title,
+        content,
+        parent_post_id: parentPostId,
       }
     );
+    return response.data;
+  },
+
+  listForumPosts: async (forumId: number, skip = 0, limit = 50): Promise<ForumPost[]> => {
+    const response = await axios.get<ForumPost[]>(
+      `/api/v1/parent-education/forums/${forumId}/posts`,
+      {
+        params: { skip, limit },
+      }
+    );
+    return response.data;
+  },
+
+  voteForumPost: async (postId: number, vote: 'up' | 'down'): Promise<void> => {
+    await axios.post(`/api/v1/parent-education/forums/posts/${postId}/vote`, { vote });
+  },
+
+  // Statistics
+  getStatistics: async (): Promise<CourseStatistics> => {
+    const response = await axios.get<CourseStatistics>('/api/v1/parent-education/statistics');
     return response.data;
   },
 };
