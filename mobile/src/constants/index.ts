@@ -47,7 +47,11 @@ export const API_TIMEOUT = 30000;
 
 export const STORAGE_KEYS = {
   AUTH_TOKEN: '@edu_auth_token',
+  ACCESS_TOKEN: '@edu_access_token',
+  REFRESH_TOKEN: '@edu_refresh_token',
   USER_DATA: '@edu_user_data',
   THEME: '@edu_theme',
   LANGUAGE: '@edu_language',
+  BIOMETRIC_ENABLED: '@edu_biometric_enabled',
+  BIOMETRIC_CREDENTIALS: '@edu_biometric_credentials',
 };

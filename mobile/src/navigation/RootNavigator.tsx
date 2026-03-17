@@ -1,21 +1,32 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuthStore } from '@store';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { loadStoredAuth } from '@store/slices/authSlice';
 import { Loading } from '@components';
 import { RootStackParamList } from '@types';
 import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
 import { linking } from './linking';
+import { authService } from '@utils/authService';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
-  const { isAuthenticated, isLoading, loadStoredAuth } = useAuthStore();
+  const dispatch = useAppDispatch();
+  const { isAuthenticated, isLoading } = useAppSelector(state => state.auth);
 
   useEffect(() => {
-    loadStoredAuth();
-  }, []);
+    dispatch(loadStoredAuth());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      authService.initializeAuth();
+    } else {
+      authService.stopAutoRefresh();
+    }
+  }, [isAuthenticated]);
 
   if (isLoading) {
     return <Loading />;

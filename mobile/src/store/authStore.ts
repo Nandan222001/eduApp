@@ -30,14 +30,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await authApi.login(credentials);
-      const { user, token } = response.data;
+      const { user, access_token } = response.data;
 
-      await storage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
+      await storage.setItem(STORAGE_KEYS.AUTH_TOKEN, access_token);
       await storage.setObject(STORAGE_KEYS.USER_DATA, user);
 
       set({
         user,
-        token,
+        token: access_token,
         isAuthenticated: true,
         isLoading: false,
       });

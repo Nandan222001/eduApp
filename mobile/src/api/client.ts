@@ -1,8 +1,20 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from '@env';
-import { storage } from '@utils/storage';
+import { secureStorage } from '@utils/secureStorage';
 import { STORAGE_KEYS, API_TIMEOUT } from '@constants';
 import { ApiError, ApiResponse } from '@types';
+
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+const subscribeTokenRefresh = (callback: (token: string) => void) => {
+  refreshSubscribers.push(callback);
+};
+
+const onTokenRefreshed = (token: string) => {
+  refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers = [];
+};
 
 class ApiClient {
   private instance: AxiosInstance;
@@ -21,9 +33,9 @@ class ApiClient {
 
   private setupInterceptors() {
     this.instance.interceptors.request.use(
-      async config => {
-        const token = await storage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-        if (token) {
+      async (config: InternalAxiosRequestConfig) => {
+        const token = await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+        if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -36,10 +48,60 @@ class ApiClient {
     this.instance.interceptors.response.use(
       response => response,
       async error => {
-        if (error.response?.status === 401) {
-          await storage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-          await storage.removeItem(STORAGE_KEYS.USER_DATA);
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          if (isRefreshing) {
+            return new Promise(resolve => {
+              subscribeTokenRefresh((token: string) => {
+                if (originalRequest.headers) {
+                  originalRequest.headers.Authorization = `Bearer ${token}`;
+                }
+                resolve(this.instance(originalRequest));
+              });
+            });
+          }
+
+          originalRequest._retry = true;
+          isRefreshing = true;
+
+          try {
+            const refreshToken = await secureStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+            
+            if (!refreshToken) {
+              throw new Error('No refresh token available');
+            }
+
+            const response = await this.instance.post('/auth/refresh', {
+              refresh_token: refreshToken,
+            });
+
+            const { access_token, refresh_token: newRefreshToken } = response.data.data;
+
+            await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access_token);
+            if (newRefreshToken) {
+              await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
+            }
+
+            isRefreshing = false;
+            onTokenRefreshed(access_token);
+
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${access_token}`;
+            }
+            return this.instance(originalRequest);
+          } catch (refreshError) {
+            isRefreshing = false;
+            refreshSubscribers = [];
+            
+            await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+            await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+            await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);
+
+            return Promise.reject(refreshError);
+          }
         }
+
         return Promise.reject(this.handleError(error));
       }
     );
