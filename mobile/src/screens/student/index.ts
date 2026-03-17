@@ -1,1 +1,11 @@
-export { default as NotificationPreferencesScreen } from './NotificationPreferencesScreen';
+export { StudentHomeScreen } from './StudentHomeScreen';
+export { StudentCoursesScreen } from './StudentCoursesScreen';
+export { StudentAssignmentsScreen } from './StudentAssignmentsScreen';
+export { StudentProfileScreen } from './StudentProfileScreen';
+export { AssignmentsScreen } from './AssignmentsScreen';
+export { AssignmentDetailScreen } from './AssignmentDetailScreen';
+export { AssignmentSubmissionScreen } from './AssignmentSubmissionScreen';
+export { CameraScreen } from './CameraScreen';
+export { StudyMaterialsScreen } from './StudyMaterialsScreen';
+export { SubjectMaterialsScreen } from './SubjectMaterialsScreen';
+export { MaterialDetailScreen } from './MaterialDetailScreen';

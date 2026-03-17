@@ -1,10 +1,25 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 export const StudentCoursesScreen: React.FC = () => {
+  const navigation = useNavigation();
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
+        <TouchableOpacity
+          style={styles.materialsButton}
+          onPress={() => navigation.navigate('StudyMaterialsScreen' as never)}
+        >
+          <Text style={styles.materialsButtonIcon}>📚</Text>
+          <View style={styles.materialsButtonContent}>
+            <Text style={styles.materialsButtonTitle}>Study Materials</Text>
+            <Text style={styles.materialsButtonSubtitle}>Access course materials and resources</Text>
+          </View>
+          <Text style={styles.materialsButtonArrow}>›</Text>
+        </TouchableOpacity>
+
         <Text style={styles.title}>My Courses</Text>
         <View style={styles.courseCard}>
           <Text style={styles.courseName}>Mathematics</Text>
@@ -26,6 +41,42 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  materialsButton: {
+    backgroundColor: '#007AFF',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  materialsButtonIcon: {
+    fontSize: 40,
+    marginRight: 16,
+  },
+  materialsButtonContent: {
+    flex: 1,
+  },
+  materialsButtonTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  materialsButtonSubtitle: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  materialsButtonArrow: {
+    fontSize: 32,
+    color: '#FFFFFF',
+    fontWeight: '300',
   },
   title: {
     fontSize: 24,

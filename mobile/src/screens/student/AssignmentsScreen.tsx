@@ -1,218 +1,214 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { Text, Card, Badge, Icon } from '@rneui/themed';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { useQuery } from '@tanstack/react-query';
-import { format, isPast, parseISO } from 'date-fns';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
-import { StudentTabScreenProps } from '@types';
-import { assignmentsApi, AssignmentDetail } from '../../api/assignments';
-import { LoadingState, ErrorState, EmptyState } from '../../components';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { studentApi } from '../../api/studentApi';
+import { Assignment } from '../../types/student';
+import { MainTabParamList } from '../../types/navigation';
 
-const Tab = createMaterialTopTabNavigator();
+type TabType = 'pending' | 'submitted' | 'graded';
+type NavigationProp = NativeStackNavigationProp<MainTabParamList>;
 
-type Props = StudentTabScreenProps<'Assignments'>;
-
-const AssignmentCard: React.FC<{
-  assignment: AssignmentDetail;
-  onPress: () => void;
-}> = ({ assignment, onPress }) => {
-  const getStatusBadge = () => {
-    const statusConfig = {
-      pending: { color: COLORS.warning, text: 'Pending' },
-      submitted: { color: COLORS.info, text: 'Submitted' },
-      graded: { color: COLORS.success, text: 'Graded' },
-      overdue: { color: COLORS.error, text: 'Overdue' },
-    };
-
-    const config = statusConfig[assignment.status];
-    return <Badge value={config.text} badgeStyle={{ backgroundColor: config.color }} />;
-  };
-
-  const getDueDateColor = () => {
-    if (assignment.status === 'graded' || assignment.status === 'submitted') {
-      return COLORS.textSecondary;
-    }
-
-    const dueDate = parseISO(assignment.dueDate);
-    const now = new Date();
-    const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    if (isPast(dueDate)) return COLORS.error;
-    if (hoursUntilDue < 24) return COLORS.warning;
-    return COLORS.textSecondary;
-  };
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <Card containerStyle={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <Text style={styles.assignmentTitle} numberOfLines={1}>
-              {assignment.title}
-            </Text>
-            <Text style={styles.subjectText}>{assignment.subject}</Text>
-          </View>
-          {getStatusBadge()}
-        </View>
-
-        <View style={styles.cardBody}>
-          <View style={styles.infoRow}>
-            <Icon name="calendar" type="feather" size={16} color={getDueDateColor()} />
-            <Text style={[styles.infoText, { color: getDueDateColor() }]}>
-              Due: {format(parseISO(assignment.dueDate), 'MMM dd, yyyy h:mm a')}
-            </Text>
-          </View>
-
-          {assignment.teacherName && (
-            <View style={styles.infoRow}>
-              <Icon name="user" type="feather" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.infoText}>{assignment.teacherName}</Text>
-            </View>
-          )}
-
-          {assignment.totalMarks !== undefined && (
-            <View style={styles.infoRow}>
-              <Icon name="award" type="feather" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.infoText}>
-                {assignment.obtainedMarks !== undefined
-                  ? `${assignment.obtainedMarks}/${assignment.totalMarks} marks`
-                  : `Total: ${assignment.totalMarks} marks`}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {assignment.description && (
-          <Text style={styles.descriptionText} numberOfLines={2}>
-            {assignment.description}
-          </Text>
-        )}
-      </Card>
-    </TouchableOpacity>
-  );
-};
-
-const AssignmentsList: React.FC<{
-  status?: 'pending' | 'submitted' | 'graded' | 'overdue';
-  navigation: any;
-}> = ({ status, navigation }) => {
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['assignments', status],
-    queryFn: async () => {
-      const response = await assignmentsApi.getAssignments({ status });
-      return response.data;
-    },
-    staleTime: 2 * 60 * 1000,
-    retry: 3,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-
+export const AssignmentsScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+  const [activeTab, setActiveTab] = useState<TabType>('pending');
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = async () => {
+  useEffect(() => {
+    loadAssignments();
+  }, [activeTab]);
+
+  const loadAssignments = async () => {
+    try {
+      const data = await studentApi.getAssignments(activeTab);
+      setAssignments(data);
+    } catch (error) {
+      console.error('Error loading assignments:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+    loadAssignments();
   };
 
-  const handleAssignmentPress = (assignmentId: number) => {
-    navigation.navigate('AssignmentDetail', { assignmentId: assignmentId.toString() });
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+    
+    const days = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (days > 0 && days <= 7) return `In ${days} days`;
+    if (days < 0) return `${Math.abs(days)} days overdue`;
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  if (isLoading && !refreshing) {
-    return <LoadingState message="Loading assignments..." />;
-  }
+  const getDueDateColor = (dueDate: string) => {
+    const date = new Date(dueDate);
+    const today = new Date();
+    const days = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (days < 0) return '#FF3B30';
+    if (days <= 2) return '#FF9500';
+    return '#34C759';
+  };
 
-  if (isError) {
-    return (
-      <ErrorState
-        title="Failed to load assignments"
-        message={(error as any)?.message || 'Please check your connection and try again'}
-        onRetry={() => refetch()}
-      />
-    );
-  }
+  const getScoreColor = (score: number, maxScore: number) => {
+    const percentage = (score / maxScore) * 100;
+    if (percentage >= 70) return '#34C759';
+    if (percentage >= 50) return '#FF9500';
+    return '#FF3B30';
+  };
 
-  if (!data || data.length === 0) {
-    return (
-      <EmptyState
-        icon="clipboard"
-        title="No assignments found"
-        message={
-          status === 'pending'
-            ? 'You have no pending assignments'
-            : status === 'submitted'
-              ? 'You have not submitted any assignments yet'
-              : status === 'graded'
-                ? 'No graded assignments available'
-                : 'No assignments available'
+  const renderAssignment = ({ item }: { item: Assignment }) => (
+    <TouchableOpacity
+      style={styles.assignmentCard}
+      onPress={() => {
+        if (item.status === 'pending') {
+          navigation.navigate('AssignmentSubmission', { assignmentId: item.id });
+        } else {
+          navigation.navigate('AssignmentDetail', { assignmentId: item.id });
         }
-      />
-    );
-  }
+      }}
+    >
+      <View style={styles.assignmentHeader}>
+        <View style={styles.assignmentInfo}>
+          <Text style={styles.assignmentTitle}>{item.title}</Text>
+          <Text style={styles.assignmentSubject}>{item.subject}</Text>
+        </View>
+        {item.status === 'graded' && item.score !== undefined && (
+          <View style={styles.scoreContainer}>
+            <Text style={[
+              styles.scoreText,
+              { color: getScoreColor(item.score, item.max_score) }
+            ]}>
+              {item.score}/{item.max_score}
+            </Text>
+          </View>
+        )}
+      </View>
 
-  return (
-    <FlatList
-      data={data}
-      keyExtractor={item => item.id.toString()}
-      renderItem={({ item }) => (
-        <AssignmentCard assignment={item} onPress={() => handleAssignmentPress(item.id)} />
+      {item.description && (
+        <Text style={styles.assignmentDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
       )}
-      contentContainerStyle={styles.listContent}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={COLORS.primary}
-          colors={[COLORS.primary]}
-        />
-      }
-    />
+
+      <View style={styles.assignmentFooter}>
+        {item.status === 'pending' && (
+          <View style={styles.dueDate}>
+            <Text style={[styles.dueDateText, { color: getDueDateColor(item.due_date) }]}>
+              Due: {formatDate(item.due_date)}
+            </Text>
+          </View>
+        )}
+        {item.status === 'submitted' && item.submission_date && (
+          <View style={styles.submittedInfo}>
+            <Text style={styles.submittedText}>
+              Submitted: {formatDate(item.submission_date)}
+            </Text>
+          </View>
+        )}
+        {item.status === 'graded' && item.submission_date && (
+          <View style={styles.submittedInfo}>
+            <Text style={styles.submittedText}>
+              Graded: {formatDate(item.submission_date)}
+            </Text>
+          </View>
+        )}
+        <Text style={styles.maxScore}>{item.max_score} points</Text>
+      </View>
+
+      {item.status === 'graded' && item.feedback && (
+        <View style={styles.feedbackContainer}>
+          <Text style={styles.feedbackLabel}>Feedback:</Text>
+          <Text style={styles.feedbackText} numberOfLines={2}>{item.feedback}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
-};
 
-const PendingTab: React.FC<{ navigation: any }> = ({ navigation }) => {
-  return <AssignmentsList status="pending" navigation={navigation} />;
-};
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyIcon}>
+        {activeTab === 'pending' ? '✅' : activeTab === 'submitted' ? '⏳' : '🎓'}
+      </Text>
+      <Text style={styles.emptyTitle}>
+        {activeTab === 'pending' && 'No Pending Assignments'}
+        {activeTab === 'submitted' && 'No Submitted Assignments'}
+        {activeTab === 'graded' && 'No Graded Assignments'}
+      </Text>
+      <Text style={styles.emptyText}>
+        {activeTab === 'pending' && 'You\'re all caught up!'}
+        {activeTab === 'submitted' && 'Assignments you submit will appear here'}
+        {activeTab === 'graded' && 'Graded assignments will appear here'}
+      </Text>
+    </View>
+  );
 
-const SubmittedTab: React.FC<{ navigation: any }> = ({ navigation }) => {
-  return <AssignmentsList status="submitted" navigation={navigation} />;
-};
-
-const GradedTab: React.FC<{ navigation: any }> = ({ navigation }) => {
-  return <AssignmentsList status="graded" navigation={navigation} />;
-};
-
-export const AssignmentsScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.container}>
-      <Tab.Navigator
-        screenOptions={{
-          tabBarActiveTintColor: COLORS.primary,
-          tabBarInactiveTintColor: COLORS.textSecondary,
-          tabBarLabelStyle: {
-            fontSize: FONT_SIZES.sm,
-            fontWeight: '600',
-            textTransform: 'none',
-          },
-          tabBarIndicatorStyle: {
-            backgroundColor: COLORS.primary,
-            height: 3,
-          },
-          tabBarStyle: {
-            backgroundColor: COLORS.background,
-            elevation: 0,
-            shadowOpacity: 0,
-            borderBottomWidth: 1,
-            borderBottomColor: COLORS.border,
-          },
-        }}
-      >
-        <Tab.Screen name="Pending">{() => <PendingTab navigation={navigation} />}</Tab.Screen>
-        <Tab.Screen name="Submitted">{() => <SubmittedTab navigation={navigation} />}</Tab.Screen>
-        <Tab.Screen name="Graded">{() => <GradedTab navigation={navigation} />}</Tab.Screen>
-      </Tab.Navigator>
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
+          onPress={() => setActiveTab('pending')}
+        >
+          <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>
+            Pending
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'submitted' && styles.activeTab]}
+          onPress={() => setActiveTab('submitted')}
+        >
+          <Text style={[styles.tabText, activeTab === 'submitted' && styles.activeTabText]}>
+            Submitted
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'graded' && styles.activeTab]}
+          onPress={() => setActiveTab('graded')}
+        >
+          <Text style={[styles.tabText, activeTab === 'graded' && styles.activeTabText]}>
+            Graded
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      ) : (
+        <FlatList
+          data={assignments}
+          renderItem={renderAssignment}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={renderEmptyState}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        />
+      )}
     </View>
   );
 };
@@ -220,58 +216,148 @@ export const AssignmentsScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F2F2F7',
   },
-  listContent: {
-    padding: SPACING.md,
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
   },
-  card: {
-    borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.md,
-    padding: SPACING.md,
-    elevation: 2,
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: '#007AFF',
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
+  activeTabText: {
+    color: '#007AFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContainer: {
+    padding: 16,
+  },
+  assignmentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    elevation: 3,
   },
-  cardHeader: {
+  assignmentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: SPACING.sm,
+    marginBottom: 8,
   },
-  cardHeaderLeft: {
+  assignmentInfo: {
     flex: 1,
-    marginRight: SPACING.sm,
   },
   assignmentTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1C1C1E',
     marginBottom: 4,
   },
-  subjectText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.primary,
-    fontWeight: '500',
+  assignmentSubject: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
   },
-  cardBody: {
-    marginBottom: SPACING.sm,
+  scoreContainer: {
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  infoRow: {
+  scoreText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  assignmentDescription: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  assignmentFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dueDate: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.xs,
   },
-  infoText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginLeft: SPACING.sm,
+  dueDateText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
-  descriptionText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+  submittedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  submittedText: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  maxScore: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  feedbackContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
+  feedbackLabel: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  feedbackText: {
+    fontSize: 14,
+    color: '#1C1C1E',
     lineHeight: 20,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1C1C1E',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'center',
   },
 });
