@@ -46,7 +46,9 @@ from src.api.v1 import (
     data_management,
     flashcards,
     quizzes,
-    chatbot
+    chatbot,
+    study_buddy,
+    homework_scanner
 )
 from src.api import ml
 
@@ -100,3 +102,5 @@ api_router.include_router(data_management.router, prefix="", tags=["data-managem
 api_router.include_router(flashcards.router, prefix="", tags=["flashcards"])
 api_router.include_router(quizzes.router, prefix="", tags=["quizzes"])
 api_router.include_router(chatbot.router, prefix="/chatbot", tags=["chatbot"])
+api_router.include_router(study_buddy.router, prefix="/study-buddy", tags=["study-buddy"])
+api_router.include_router(homework_scanner.router, prefix="/homework-scanner", tags=["homework-scanner"])

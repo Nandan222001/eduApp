@@ -81,6 +81,8 @@ previous_year_papers/
 question_images/
 *.pdf
 temp_uploads/
+homework_scans/
+ocr_temp/
 
 # Analytics reports
 reports/
