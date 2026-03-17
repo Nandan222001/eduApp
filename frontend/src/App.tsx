@@ -102,6 +102,7 @@ import CareerCounselorWorkflow from './pages/CareerCounselorWorkflow';
 import WorkHourMonitoring from './pages/WorkHourMonitoring';
 import MistakeReplay from './pages/MistakeReplay';
 import MistakeInsurance from './pages/MistakeInsurance';
+import ReverseClassroom from './pages/ReverseClassroom';
 
 import {
   LoginPage,
@@ -350,6 +351,7 @@ function App() {
                   <Route path="employment/work-hours" element={<WorkHourMonitoring />} />
                   <Route path="mistakes/replay" element={<MistakeReplay />} />
                   <Route path="mistakes/insurance" element={<MistakeInsurance />} />
+                  <Route path="teach" element={<ReverseClassroom />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
