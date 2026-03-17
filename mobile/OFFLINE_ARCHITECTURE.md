@@ -7,11 +7,13 @@ This mobile app implements a comprehensive offline-first architecture using Redu
 ## Key Features
 
 ### 1. Redux Persist Configuration
+
 - **Cached Data**: Authentication state, student profile, dashboard data, assignments, grades, and attendance
 - **Storage**: AsyncStorage for persistent data
 - **Selective Persistence**: Only critical data is persisted to optimize performance
 
 ### 2. Offline Queue Manager
+
 - **Location**: `src/utils/offlineQueue.ts`
 - **Purpose**: Stores failed API requests when device is offline
 - **Supported Operations**:
@@ -25,6 +27,7 @@ This mobile app implements a comprehensive offline-first architecture using Redu
   - Manual sync trigger
 
 ### 3. Network Detection
+
 - **Package**: `@react-native-community/netinfo`
 - **Hook**: `useNetworkStatus()`
 - **Capabilities**:
@@ -34,6 +37,7 @@ This mobile app implements a comprehensive offline-first architecture using Redu
   - Redux state integration
 
 ### 4. Background Sync Service
+
 - **Package**: `expo-background-fetch` and `expo-task-manager`
 - **Location**: `src/utils/backgroundSync.ts`
 - **Features**:
@@ -43,6 +47,7 @@ This mobile app implements a comprehensive offline-first architecture using Redu
   - Manual sync trigger support
 
 ### 5. Optimistic UI Updates
+
 - **Location**: `src/utils/optimisticUpdates.ts`
 - **Hook**: `useOptimisticUpdate()`
 - **Benefits**:
@@ -56,6 +61,7 @@ This mobile app implements a comprehensive offline-first architecture using Redu
 ### Redux Slices
 
 #### Student Data Slice (`studentDataSlice.ts`)
+
 ```typescript
 interface StudentDataState {
   profile: Profile | null;
@@ -72,6 +78,7 @@ interface StudentDataState {
 ```
 
 #### Offline Slice (`offlineSlice.ts`)
+
 ```typescript
 interface OfflineState {
   isOnline: boolean;
@@ -160,11 +167,11 @@ const MyScreen = () => {
 ```typescript
 import { SyncButton } from '@components';
 
-<SyncButton 
-  variant="button" 
+<SyncButton
+  variant="button"
   onSyncComplete={(success) => {
     console.log('Sync completed:', success);
-  }} 
+  }}
 />
 ```
 
@@ -199,10 +206,7 @@ if (shouldRefreshData(dashboardLastSync, 15)) {
 ```typescript
 import { offlineQueueManager, QueuedOperationType } from '@utils/offlineQueue';
 
-await offlineQueueManager.addToQueue(
-  QueuedOperationType.ASSIGNMENT_SUBMISSION,
-  submissionData
-);
+await offlineQueueManager.addToQueue(QueuedOperationType.ASSIGNMENT_SUBMISSION, submissionData);
 ```
 
 ### Manual Sync
@@ -215,7 +219,7 @@ console.log(`Synced: ${result.syncedCount}, Failed: ${result.failedCount}`);
 ### Subscribe to Queue Changes
 
 ```typescript
-const unsubscribe = offlineQueueManager.subscribe((queue) => {
+const unsubscribe = offlineQueueManager.subscribe(queue => {
   console.log('Queue updated:', queue.length);
 });
 
@@ -226,6 +230,7 @@ unsubscribe();
 ## Data Persistence Strategy
 
 ### Persisted Data
+
 - Authentication tokens and user data
 - Student profile
 - Dashboard data
@@ -236,6 +241,7 @@ unsubscribe();
 - Last sync timestamps
 
 ### Not Persisted
+
 - UI state (notifications)
 - Temporary user preferences
 - Navigation state
@@ -243,6 +249,7 @@ unsubscribe();
 ## Background Sync Configuration
 
 ### Registration
+
 ```typescript
 import { BackgroundSyncService } from '@utils/backgroundSync';
 
@@ -250,11 +257,13 @@ await BackgroundSyncService.register();
 ```
 
 ### Manual Trigger
+
 ```typescript
 await BackgroundSyncService.triggerManualSync();
 ```
 
 ### Check Registration Status
+
 ```typescript
 const isRegistered = await BackgroundSyncService.isTaskRegistered();
 ```
@@ -281,11 +290,13 @@ const isRegistered = await BackgroundSyncService.isTaskRegistered();
 ## Error Handling
 
 ### Offline Queue Errors
+
 - Failed operations are retried automatically
 - After max retries (3), operations are removed from queue
 - Error details are logged for debugging
 
 ### Network Errors
+
 - Network status changes trigger automatic sync
 - Failed API calls are queued when offline
 - Users are notified of sync failures
@@ -301,6 +312,7 @@ const isRegistered = await BackgroundSyncService.isTaskRegistered();
 ## Configuration
 
 ### Storage Keys
+
 ```typescript
 export const STORAGE_KEYS = {
   OFFLINE_QUEUE: '@edu_offline_queue',
@@ -310,6 +322,7 @@ export const STORAGE_KEYS = {
 ```
 
 ### Sync Intervals
+
 - Background sync: 15 minutes
 - Auto-refresh: 15 minutes (configurable)
 - Retry delay: Exponential backoff
@@ -335,16 +348,19 @@ npm install @react-native-community/netinfo expo-background-fetch expo-task-mana
 ## Troubleshooting
 
 ### Background Sync Not Working
+
 - Verify background fetch permissions
 - Check if task is registered: `BackgroundSyncService.isTaskRegistered()`
 - Ensure device allows background app refresh
 
 ### Queue Not Syncing
+
 - Check network connectivity
 - Verify auto-sync is enabled
 - Check for API errors in console
 
 ### Data Not Persisting
+
 - Verify Redux Persist configuration
 - Check AsyncStorage permissions
 - Clear app data and reinstall if corrupted

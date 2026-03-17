@@ -20,12 +20,14 @@ This implementation provides comprehensive mobile security features including:
 **Location**: `mobile/src/services/biometricService.ts`
 
 Features:
+
 - Face ID/Touch ID detection and setup
 - Credential encryption using expo-secure-store
 - Fallback to password authentication
 - Biometric login toggle in settings
 
 Usage:
+
 ```typescript
 import { biometricService } from '@services/biometricService';
 
@@ -44,12 +46,14 @@ const success = await biometricService.authenticate('Login');
 **Location**: `mobile/src/utils/secureStorage.ts`
 
 Features:
+
 - Uses expo-secure-store for sensitive data
 - Encryption at rest
 - Keychain/Keystore integration
 - Biometric-protected storage on Android
 
 Usage:
+
 ```typescript
 import { secureStorage } from '@utils/secureStorage';
 
@@ -65,12 +69,14 @@ const value = await secureStorage.getItem('key');
 **Location**: `mobile/src/utils/deviceFingerprint.ts`
 
 Features:
+
 - Unique device identification
 - Device info collection (model, OS, version)
 - Persistent fingerprint across app sessions
 - Security monitoring
 
 Usage:
+
 ```typescript
 import { deviceFingerprintService } from '@utils/deviceFingerprint';
 
@@ -86,6 +92,7 @@ const deviceInfo = await deviceFingerprintService.getDeviceInfo();
 **Location**: `mobile/src/services/pinService.ts`
 
 Features:
+
 - 4-6 digit PIN setup
 - PIN hashing for security
 - Failed attempt tracking
@@ -93,6 +100,7 @@ Features:
 - 30-minute lockout period
 
 Usage:
+
 ```typescript
 import { pinService } from '@services/pinService';
 
@@ -111,20 +119,19 @@ await pinService.changePin('1234', '5678');
 **Location**: `mobile/src/services/sessionService.ts`
 
 Features:
+
 - Configurable session timeout (5-1440 minutes)
 - Auto-lock after background time (1-60 minutes)
 - Session activity tracking
 - Automatic re-authentication prompts
 
 Usage:
+
 ```typescript
 import { sessionService } from '@services/sessionService';
 
 // Initialize session tracking
-await sessionService.initialize(
-  onTimeout, 
-  onLock
-);
+await sessionService.initialize(onTimeout, onLock);
 
 // Update activity
 await sessionService.updateActivity();
@@ -141,11 +148,13 @@ await sessionService.unlockSession();
 **Location**: `mobile/src/hooks/useSensitiveOperation.ts`
 
 Features:
+
 - Re-authentication for sensitive actions
 - Operation logging
 - Configurable authentication requirements
 
 Usage:
+
 ```typescript
 import { useSensitiveOperation } from '@hooks/useSensitiveOperation';
 
@@ -171,6 +180,7 @@ const result = await executeWithAuth(
 **Location**: `src/models/mobile_auth.py`
 
 Models:
+
 - `MobileAuthEvent` - Authentication event logging
 - `BiometricSession` - Active biometric sessions
 - `SensitiveOperationLog` - Sensitive operation tracking
@@ -179,6 +189,7 @@ Models:
 **Location**: `src/models/user_settings.py` (enhanced)
 
 Added fields:
+
 - `biometric_enabled`
 - `pin_enabled`
 - `pin_hash`
@@ -187,6 +198,7 @@ Added fields:
 - `require_biometric_for_sensitive`
 
 Enhanced `UserDevice`:
+
 - `device_fingerprint`
 - `device_model`
 - `os_version`
@@ -202,30 +214,36 @@ Enhanced `UserDevice`:
 Endpoints:
 
 #### Biometric
+
 - `POST /mobile-auth/biometric/setup` - Enable/disable biometric
 - `GET /mobile-auth/security-settings` - Get security settings
 - `PUT /mobile-auth/security-settings` - Update security settings
 
 #### Device Management
+
 - `POST /mobile-auth/device/register` - Register device
 - `GET /mobile-auth/devices` - List user devices
 - `DELETE /mobile-auth/devices/{id}` - Remove device
 - `POST /mobile-auth/devices/{id}/trust` - Mark device as trusted
 
 #### PIN
+
 - `POST /mobile-auth/pin/setup` - Setup/change PIN
 - `POST /mobile-auth/pin/verify` - Verify PIN
 
 #### Audit
+
 - `POST /mobile-auth/sensitive-operation/verify` - Log sensitive operation
 - `GET /mobile-auth/auth-events` - Get authentication history
 
 ## Screens
 
 ### Settings Screen
+
 **Location**: `mobile/src/screens/common/SettingsScreen.tsx`
 
 Features:
+
 - Biometric toggle
 - PIN setup link
 - Session timeout configuration
@@ -234,36 +252,44 @@ Features:
 - Auth history
 
 ### PIN Setup Screen
+
 **Location**: `mobile/src/screens/common/PinSetupScreen.tsx`
 
 Features:
+
 - PIN creation
 - PIN change
 - PIN disable
 - Security info
 
 ### Device Management Screen
+
 **Location**: `mobile/src/screens/common/DeviceManagementScreen.tsx`
 
 Features:
+
 - List all devices
 - Device details (model, OS, last active)
 - Trust/untrust devices
 - Remove devices
 
 ### Auth History Screen
+
 **Location**: `mobile/src/screens/common/AuthHistoryScreen.tsx`
 
 Features:
+
 - Authentication event list
 - Event details (type, method, success/failure)
 - IP address and location
 - Timestamp
 
 ### Session Lock Screen
+
 **Location**: `mobile/src/screens/common/SessionLockScreen.tsx`
 
 Features:
+
 - Biometric unlock
 - PIN unlock
 - Fallback authentication
@@ -296,12 +322,14 @@ Features:
 ## Configuration
 
 ### Session Timeout Options
+
 - 15 minutes
 - 30 minutes (default)
 - 60 minutes
 - 120 minutes
 
 ### Auto-Lock Options
+
 - 1 minute
 - 5 minutes (default)
 - 15 minutes
@@ -333,11 +361,13 @@ Migration file: `alembic/versions/add_mobile_auth_security.py`
 ## Dependencies
 
 Mobile (already installed):
+
 - expo-local-authentication
 - expo-secure-store
 - expo-device
 
 Backend:
+
 - passlib (for PIN hashing)
 - sqlalchemy
 - fastapi

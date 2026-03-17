@@ -18,11 +18,13 @@ npx expo start -c
 ## Navigation Basics
 
 ### Import the Router Hook
+
 ```typescript
 import { useRouter, useLocalSearchParams } from 'expo-router';
 ```
 
 ### Navigate Between Screens
+
 ```typescript
 const router = useRouter();
 
@@ -41,6 +43,7 @@ router.navigate('/notifications');
 ```
 
 ### Access Route Parameters
+
 ```typescript
 // For /courses/[id].tsx
 const { id } = useLocalSearchParams();
@@ -51,6 +54,7 @@ const { id, section } = useLocalSearchParams();
 ```
 
 ### Pass Data via Navigation
+
 ```typescript
 // Using path parameters
 router.push(`/courses/${courseId}`);
@@ -58,16 +62,18 @@ router.push(`/courses/${courseId}`);
 // Using query parameters
 router.push({
   pathname: '/courses/[id]',
-  params: { id: courseId, section: 'overview' }
+  params: { id: courseId, section: 'overview' },
 });
 ```
 
 ## Common Patterns
 
 ### Protected Routes
+
 Authentication is handled automatically in `app/_layout.tsx`. No action needed in individual screens.
 
 ### Tab Navigation
+
 ```typescript
 // Navigate to a tab
 router.push('/(tabs)/student/assignments');
@@ -77,6 +83,7 @@ router.push('/(tabs)/student/assignments');
 ```
 
 ### Modal Screens
+
 ```typescript
 // Present as modal (add this to screen options)
 // In _layout.tsx:
@@ -89,6 +96,7 @@ router.push('/(tabs)/student/assignments');
 ```
 
 ### Role-Based Navigation
+
 ```typescript
 import { useAppSelector } from '@store/hooks';
 import { UserRole } from '@types';
@@ -119,17 +127,18 @@ app/
 
 ## Route Examples
 
-| File Path | URL | Description |
-|-----------|-----|-------------|
-| `app/index.tsx` | `/` | Root redirect |
-| `app/(auth)/login.tsx` | `/login` | Login screen |
-| `app/(tabs)/student/index.tsx` | `/student` | Student home |
-| `app/courses/[id].tsx` | `/courses/123` | Course detail |
-| `app/notifications.tsx` | `/notifications` | Notifications |
+| File Path                      | URL              | Description   |
+| ------------------------------ | ---------------- | ------------- |
+| `app/index.tsx`                | `/`              | Root redirect |
+| `app/(auth)/login.tsx`         | `/login`         | Login screen  |
+| `app/(tabs)/student/index.tsx` | `/student`       | Student home  |
+| `app/courses/[id].tsx`         | `/courses/123`   | Course detail |
+| `app/notifications.tsx`        | `/notifications` | Notifications |
 
 ## Adding New Routes
 
 ### 1. Simple Route
+
 ```bash
 # Create file
 touch app/new-screen.tsx
@@ -143,6 +152,7 @@ export default function NewScreen() {
 ```
 
 ### 2. Dynamic Route
+
 ```bash
 # Create file
 touch app/items/[id].tsx
@@ -159,6 +169,7 @@ export default function ItemDetail() {
 ```
 
 ### 3. Layout with Children
+
 ```bash
 # Create layout
 touch app/section/_layout.tsx
@@ -176,6 +187,7 @@ export default function SectionLayout() {
 ## TypeScript Types
 
 ### Route Parameters
+
 ```typescript
 // Automatically typed with experiments.typedRoutes = true
 const params = useLocalSearchParams<{
@@ -185,6 +197,7 @@ const params = useLocalSearchParams<{
 ```
 
 ### Navigation
+
 ```typescript
 import type { Router } from 'expo-router';
 
@@ -195,6 +208,7 @@ const router = useRouter();
 ## Common Tasks
 
 ### Link Component
+
 ```typescript
 import { Link } from 'expo-router';
 
@@ -205,6 +219,7 @@ import { Link } from 'expo-router';
 ```
 
 ### Programmatic Navigation
+
 ```typescript
 const router = useRouter();
 
@@ -216,6 +231,7 @@ const handleSubmit = async () => {
 ```
 
 ### Get Current Route
+
 ```typescript
 import { usePathname, useSegments } from 'expo-router';
 
@@ -224,6 +240,7 @@ const segments = useSegments(); // ["courses", "123"]
 ```
 
 ### Navigation Events
+
 ```typescript
 import { useFocusEffect } from 'expo-router';
 
@@ -231,7 +248,7 @@ useFocusEffect(
   useCallback(() => {
     // Screen focused
     fetchData();
-    
+
     return () => {
       // Screen unfocused (cleanup)
     };
@@ -242,6 +259,7 @@ useFocusEffect(
 ## Debugging
 
 ### Enable Debug Mode
+
 ```typescript
 // app/_layout.tsx
 if (__DEV__) {
@@ -251,6 +269,7 @@ if (__DEV__) {
 ```
 
 ### Check Route Manifest
+
 ```bash
 # View generated routes
 npx expo customize tsconfig.json
@@ -260,32 +279,39 @@ npx expo customize tsconfig.json
 ### Common Errors
 
 **"No route named X"**
+
 - Check file exists in `app/` directory
 - Verify file exports default component
 - Restart dev server with `-c` flag
 
 **"Cannot read params"**
+
 - Use `useLocalSearchParams()` instead of `route.params`
 - Check parameter name matches file name `[paramName].tsx`
 
 **"Navigation not working"**
+
 - Verify you're using `router.push()` not `navigation.navigate()`
 - Check route path is correct (include leading `/`)
 
 ## Testing Deep Links
 
 ### iOS Simulator
+
 ```bash
 xcrun simctl openurl booted edumobile://courses/123
 ```
 
 ### Android Emulator
+
 ```bash
 adb shell am start -W -a android.intent.action.VIEW -d "edumobile://courses/123" com.edu.mobile
 ```
 
 ### Physical Device
+
 Create QR code with:
+
 ```
 edumobile://courses/123
 ```

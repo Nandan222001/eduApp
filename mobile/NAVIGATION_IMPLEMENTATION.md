@@ -1,11 +1,13 @@
 # Mobile Navigation Implementation
 
 ## Overview
+
 This document describes the React Navigation setup with role-based navigation, Redux state management, and deep linking support.
 
 ## Dependencies Installed
 
 ### Navigation
+
 - ✅ `@react-navigation/native` - Core navigation library
 - ✅ `@react-navigation/native-stack` - Native stack navigator
 - ✅ `@react-navigation/bottom-tabs` - Bottom tab navigator
@@ -15,16 +17,19 @@ This document describes the React Navigation setup with role-based navigation, R
 - ✅ `expo-linking` - Deep linking support
 
 ### State Management
+
 - ✅ `@reduxjs/toolkit` - Redux state management
 - ✅ `react-redux` - React bindings for Redux
 - ✅ `redux-persist` - State persistence
 - ✅ `@react-native-async-storage/async-storage` - AsyncStorage for persistence
 
 ### Networking
+
 - ✅ `axios` - HTTP client
 - ✅ `@tanstack/react-query` - Data fetching and caching
 
 ### UI Libraries
+
 - ✅ `@rneui/themed` - React Native Elements UI library
 - ✅ `@rneui/base` - Base components
 - ✅ `react-native-vector-icons` - Icon library
@@ -33,6 +38,7 @@ This document describes the React Navigation setup with role-based navigation, R
 ## Navigation Structure
 
 ### Root Stack Navigator
+
 ```
 RootNavigator (Stack)
 ├── Auth (Stack)
@@ -86,18 +92,21 @@ const getInitialRouteName = () => {
 ## Deep Linking Configuration
 
 ### URL Schemes
+
 - Custom scheme: `edumobile://`
 - Universal links: `https://edu.app`
 
 ### Supported Routes
 
 #### Auth Routes
+
 - `edumobile://login`
 - `edumobile://register`
 - `edumobile://forgot-password`
 - `edumobile://reset-password/:token`
 
 #### Student Routes
+
 - `edumobile://dashboard`
 - `edumobile://courses`
 - `edumobile://courses/:courseId`
@@ -107,6 +116,7 @@ const getInitialRouteName = () => {
 - `edumobile://schedule`
 
 #### Parent Routes
+
 - `edumobile://parent/dashboard`
 - `edumobile://parent/children`
 - `edumobile://parent/children/:childId`
@@ -116,6 +126,7 @@ const getInitialRouteName = () => {
 - `edumobile://parent/messages/:messageId`
 
 #### Common Routes
+
 - `edumobile://profile`
 - `edumobile://settings`
 - `edumobile://notifications`
@@ -153,6 +164,7 @@ The deep linking configuration is set in `app.json`:
 ## Redux Store Configuration
 
 ### Store Structure
+
 ```
 store/
 ├── store.ts           - Store configuration with persistence
@@ -167,18 +179,22 @@ store/
 ### Slices
 
 #### authSlice
+
 - State: user, token, isAuthenticated, isLoading, error
 - Actions: login, logout, loadStoredAuth, setUser, setToken, clearError
 
 #### userSlice
+
 - State: profile, isLoading, error
 - Actions: setProfile, updateProfile, setLoading, setError, clearError
 
 #### notificationSlice
+
 - State: notifications, unreadCount, isLoading
 - Actions: setNotifications, addNotification, markAsRead, markAllAsRead, removeNotification
 
 ### Persistence
+
 Redux Persist is configured to persist the auth slice to AsyncStorage:
 
 ```typescript
@@ -203,6 +219,7 @@ navigation.navigate('MessageDetail', { messageId: '456' });
 ```
 
 TypeScript will provide autocomplete and type checking for:
+
 - Route names
 - Route parameters
 - Navigation props
@@ -211,12 +228,14 @@ TypeScript will provide autocomplete and type checking for:
 ## Screen Structure
 
 ### Auth Screens (`src/screens/auth/`)
+
 - `LoginScreen.tsx`
 - `RegisterScreen.tsx`
 - `ForgotPasswordScreen.tsx`
 - `ResetPasswordScreen.tsx`
 
 ### Student Screens (`src/screens/student/`)
+
 - `DashboardScreen.tsx`
 - `CoursesScreen.tsx`
 - `CourseDetailScreen.tsx`
@@ -226,6 +245,7 @@ TypeScript will provide autocomplete and type checking for:
 - `ScheduleScreen.tsx`
 
 ### Parent Screens (`src/screens/parent/`)
+
 - `DashboardScreen.tsx`
 - `ChildrenScreen.tsx`
 - `ChildDetailScreen.tsx`
@@ -235,6 +255,7 @@ TypeScript will provide autocomplete and type checking for:
 - `MessageDetailScreen.tsx`
 
 ### Common Screens (`src/screens/common/`)
+
 - `ProfileScreen.tsx`
 - `SettingsScreen.tsx`
 - `NotificationsScreen.tsx`
@@ -265,7 +286,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 2,
       staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000,   // 10 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
       refetchOnWindowFocus: false,
     },
     mutations: {
@@ -288,6 +309,7 @@ const queryClient = new QueryClient({
 ## Usage Examples
 
 ### Basic Navigation
+
 ```typescript
 // Navigate to a screen
 navigation.navigate('Courses');
@@ -306,6 +328,7 @@ navigation.reset({
 ```
 
 ### Deep Linking
+
 ```typescript
 // Open from notification
 Linking.openURL('edumobile://notifications/123');
@@ -315,13 +338,14 @@ Linking.openURL('https://edu.app/courses/456');
 ```
 
 ### Using Redux
+
 ```typescript
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { login, logout } from '@store/slices/authSlice';
 
 // In component
 const dispatch = useAppDispatch();
-const { user, isAuthenticated } = useAppSelector((state) => state.auth);
+const { user, isAuthenticated } = useAppSelector(state => state.auth);
 
 // Login
 await dispatch(login({ email, password }));
@@ -331,6 +355,7 @@ await dispatch(logout());
 ```
 
 ### Using React Query
+
 ```typescript
 import { useQuery, useMutation } from '@tanstack/react-query';
 
@@ -342,7 +367,7 @@ const { data, isLoading, error } = useQuery({
 
 // Mutate data
 const mutation = useMutation({
-  mutationFn: (newCourse) => createCourse(newCourse),
+  mutationFn: newCourse => createCourse(newCourse),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['courses'] });
   },

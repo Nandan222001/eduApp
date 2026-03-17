@@ -35,6 +35,7 @@ npm start
 ```
 
 This will start the Expo development server. You can then:
+
 - Press `i` to open iOS simulator
 - Press `a` to open Android emulator
 - Scan QR code with Expo Go app on your physical device
@@ -42,6 +43,7 @@ This will start the Expo development server. You can then:
 ## Available Scripts
 
 ### Development
+
 - `npm start` - Start Expo development server
 - `npm run android` - Start on Android
 - `npm run ios` - Start on iOS
@@ -49,6 +51,7 @@ This will start the Expo development server. You can then:
 - `npm run dev` - Start with development client
 
 ### Building
+
 - `npm run build:dev:ios` - Build development iOS app
 - `npm run build:dev:android` - Build development Android app
 - `npm run build:preview:ios` - Build preview iOS app
@@ -57,10 +60,12 @@ This will start the Expo development server. You can then:
 - `npm run build:prod:android` - Build production Android app
 
 ### Submission
+
 - `npm run submit:ios` - Submit iOS app to App Store
 - `npm run submit:android` - Submit Android app to Play Store
 
 ### Code Quality
+
 - `npm run lint` - Run ESLint
 - `npm run lint:fix` - Fix ESLint errors
 - `npm run format` - Format code with Prettier

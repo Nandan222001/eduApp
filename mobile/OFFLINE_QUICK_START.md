@@ -9,6 +9,7 @@ npm install
 ```
 
 The required packages are already added to `package.json`:
+
 - `@react-native-community/netinfo`
 - `expo-background-fetch`
 - `expo-task-manager`
@@ -51,13 +52,13 @@ Add a sync button for manual data refresh:
 ```typescript
 import { SyncButton } from '@components';
 
-<SyncButton 
-  variant="button" 
+<SyncButton
+  variant="button"
   onSyncComplete={(success) => {
     if (success) {
       console.log('Sync successful!');
     }
-  }} 
+  }}
 />
 ```
 
@@ -117,11 +118,11 @@ Retrieve cached data from Redux:
 import { useAppSelector } from '@store/hooks';
 
 const MyScreen = () => {
-  const { 
-    profile, 
+  const {
+    profile,
     profileLastSync,
     assignments,
-    assignmentsLastSync 
+    assignmentsLastSync
   } = useAppSelector(state => state.studentData);
 
   return (
@@ -194,7 +195,7 @@ const MyFormScreen = () => {
     try {
       await updateProfile(formData);
       Alert.alert(
-        'Success', 
+        'Success',
         isOnline ? 'Profile updated!' : 'Saved offline. Will sync when online.'
       );
     } catch (error) {
@@ -225,20 +226,24 @@ import { OfflineDataRefresher } from '@components';
 ## Testing Offline Functionality
 
 ### 1. Simulate Offline Mode
+
 - Turn on Airplane Mode on your device/emulator
 - Observe offline indicator appears
 - Submit a form - should be queued
 
 ### 2. Verify Queue
+
 - Check offline queue status component
 - Should show pending operations
 
 ### 3. Test Sync
+
 - Turn off Airplane Mode
 - Wait for automatic sync (or trigger manual sync)
 - Verify operations complete successfully
 
 ### 4. Check Cached Data
+
 - Go offline
 - Navigate through app
 - Verify cached data is displayed with timestamps
@@ -248,6 +253,7 @@ import { OfflineDataRefresher } from '@components';
 ### Sync Intervals
 
 Edit `mobile/src/utils/backgroundSync.ts`:
+
 ```typescript
 minimumInterval: 15 * 60, // 15 minutes (in seconds)
 ```
@@ -255,6 +261,7 @@ minimumInterval: 15 * 60, // 15 minutes (in seconds)
 ### Data Refresh Threshold
 
 Edit `mobile/src/utils/optimisticUpdates.ts`:
+
 ```typescript
 export const shouldRefreshData = (
   lastSyncTime: number | null,
@@ -267,6 +274,7 @@ export const shouldRefreshData = (
 ### Retry Configuration
 
 Edit `mobile/src/utils/offlineQueue.ts`:
+
 ```typescript
 const MAX_RETRIES = 3; // Change retry count
 ```
@@ -274,16 +282,19 @@ const MAX_RETRIES = 3; // Change retry count
 ## Troubleshooting
 
 ### Queue Not Syncing
+
 1. Check network connection: `useNetworkStatus()`
 2. Verify auto-sync enabled in Redux state
 3. Check console for error logs
 
 ### Background Sync Not Working
+
 1. Verify permissions in app.json
 2. Check background fetch is registered
 3. Test on physical device (may not work in simulator)
 
 ### Data Not Persisting
+
 1. Clear app data and reinstall
 2. Check Redux DevTools for state
 3. Verify AsyncStorage permissions
@@ -308,6 +319,7 @@ const MAX_RETRIES = 3; // Change retry count
 ## Support
 
 For issues or questions:
+
 1. Check `OFFLINE_ARCHITECTURE.md` for detailed docs
 2. Review example implementations
 3. Check console logs for errors

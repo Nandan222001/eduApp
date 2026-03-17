@@ -90,6 +90,7 @@ mobile/
 ## Key Features Implemented
 
 ### 1. Authentication System
+
 - Login screen with form validation
 - JWT token-based authentication
 - Automatic token persistence
@@ -97,6 +98,7 @@ mobile/
 - Secure storage of credentials
 
 ### 2. API Integration
+
 - Centralized API client with Axios
 - Request/response interceptors
 - Automatic token injection
@@ -104,18 +106,21 @@ mobile/
 - Environment-based API endpoints
 
 ### 3. State Management
+
 - Zustand store for authentication
 - Persistent state across app restarts
 - Type-safe state updates
 - Clean separation of concerns
 
 ### 4. Navigation
+
 - Stack-based navigation
 - Conditional routing (authenticated/unauthenticated)
 - Type-safe navigation props
 - Deep linking support ready
 
 ### 5. UI Components
+
 - Reusable Button component with variants
 - Custom Input component with validation
 - Card container component
@@ -123,6 +128,7 @@ mobile/
 - Consistent design system
 
 ### 6. Design System
+
 - Centralized color palette
 - Consistent spacing scale
 - Typography system
@@ -130,6 +136,7 @@ mobile/
 - Theme-ready architecture
 
 ### 7. Developer Experience
+
 - TypeScript with strict mode
 - Path aliases for clean imports
 - ESLint and Prettier configuration
@@ -139,25 +146,32 @@ mobile/
 ## Configuration Files
 
 ### app.json
+
 Static Expo configuration:
+
 - App name: "EDU Mobile"
 - Bundle identifier: com.edu.mobile
 - Orientation, splash screen, and icon settings
 - Platform-specific configurations
 
 ### eas.json
+
 EAS Build configuration with three profiles:
+
 - **Development**: Development client, internal distribution
 - **Preview**: Internal testing, APK/IPA builds
 - **Production**: Production builds (AAB for Android, optimized for iOS)
 
 ### Environment Variables
+
 Three environment files for different stages:
+
 - `.env.development`: Local development (localhost:8000)
 - `.env.staging`: Staging environment
 - `.env.production`: Production environment
 
 Each contains:
+
 - `API_URL`: Backend API endpoint
 - `WS_URL`: WebSocket endpoint
 - `APP_ENV`: Environment identifier
@@ -165,6 +179,7 @@ Each contains:
 ## Development Workflow
 
 ### Initial Setup
+
 ```bash
 cd mobile
 npm install
@@ -174,6 +189,7 @@ npm start
 ```
 
 ### Running the App
+
 ```bash
 npm start          # Start Expo dev server
 npm run ios        # Open in iOS simulator
@@ -181,6 +197,7 @@ npm run android    # Open in Android emulator
 ```
 
 ### Code Quality
+
 ```bash
 npm run lint       # Run ESLint
 npm run lint:fix   # Auto-fix ESLint issues
@@ -189,6 +206,7 @@ npm run type-check # TypeScript type checking
 ```
 
 ### Building
+
 ```bash
 # Development builds
 npm run build:dev:ios
@@ -208,17 +226,18 @@ npm run build:prod:android
 TypeScript and Babel are configured with path aliases for clean imports:
 
 ```typescript
-import { Button } from '@components';        // instead of '../../../components'
-import { useAuthStore } from '@store';       // instead of '../../store'
-import { apiClient } from '@api';            // instead of '../api'
-import { COLORS } from '@constants';         // instead of '../../constants'
-import { validators } from '@utils';         // instead of '../utils'
-import type { User } from '@types';          // instead of '../../types'
+import { Button } from '@components'; // instead of '../../../components'
+import { useAuthStore } from '@store'; // instead of '../../store'
+import { apiClient } from '@api'; // instead of '../api'
+import { COLORS } from '@constants'; // instead of '../../constants'
+import { validators } from '@utils'; // instead of '../utils'
+import type { User } from '@types'; // instead of '../../types'
 ```
 
 ## API Client Architecture
 
 The API client (`src/api/client.ts`) provides:
+
 - Automatic JWT token injection
 - Request/response interceptors
 - Centralized error handling
@@ -236,6 +255,7 @@ const user = response.data;
 ## State Management
 
 Zustand stores provide:
+
 - Minimal boilerplate
 - Type-safe state and actions
 - React hooks integration
@@ -254,6 +274,7 @@ function MyComponent() {
 ## Next Steps for Expansion
 
 ### Immediate Additions
+
 1. Add more screens (Dashboard, Profile, Settings)
 2. Implement bottom tab navigation
 3. Add push notification support
@@ -262,6 +283,7 @@ function MyComponent() {
 6. Implement error boundaries
 
 ### Medium-term Additions
+
 1. Add biometric authentication
 2. Implement deep linking
 3. Add analytics tracking
@@ -270,6 +292,7 @@ function MyComponent() {
 6. Implement feature flags
 
 ### Advanced Features
+
 1. Offline-first architecture
 2. Background sync
 3. Advanced caching strategies
@@ -280,18 +303,21 @@ function MyComponent() {
 ## Build Profiles Explained
 
 ### Development
+
 - Development client enabled
 - Internal distribution only
 - Fast iteration
 - Debugging tools enabled
 
 ### Preview
+
 - Internal testing
 - QA distribution
 - Staging API endpoints
 - Similar to production but for testing
 
 ### Production
+
 - Optimized builds
 - Production API endpoints
 - App store ready
@@ -308,6 +334,7 @@ function MyComponent() {
 ## Testing Strategy
 
 While tests are not yet implemented, the structure supports:
+
 - Unit tests with Jest
 - Component tests with React Native Testing Library
 - E2E tests with Detox or Maestro

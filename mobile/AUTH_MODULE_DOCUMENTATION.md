@@ -18,6 +18,7 @@ The authentication module provides a complete authentication solution for the mo
 ### Components
 
 #### 1. API Client (`/mobile/src/api/client.ts`)
+
 - Axios instance configured with base URL from environment variables
 - Request interceptor for JWT token injection
 - Response interceptor for automatic token refresh on 401 errors
@@ -25,6 +26,7 @@ The authentication module provides a complete authentication solution for the mo
 - Queue mechanism to handle multiple concurrent requests during token refresh
 
 **Key Features:**
+
 - Base URL: Configured from `API_URL` environment variable
 - Timeout: 30 seconds (configurable via `API_TIMEOUT` constant)
 - Automatic Bearer token injection in Authorization header
@@ -32,6 +34,7 @@ The authentication module provides a complete authentication solution for the mo
 - Comprehensive error handling with typed error responses
 
 #### 2. Auth API (`/mobile/src/api/auth.ts`)
+
 - Login endpoint with email/password and optional OTP
 - Logout endpoint
 - Token refresh endpoint
@@ -41,6 +44,7 @@ The authentication module provides a complete authentication solution for the mo
 - Password change
 
 **Available Endpoints:**
+
 ```typescript
 authApi.login({ email, password, otp? })
 authApi.logout()
@@ -54,24 +58,27 @@ authApi.changePassword(currentPassword, newPassword)
 ```
 
 #### 3. Secure Storage (`/mobile/src/utils/secureStorage.ts`)
+
 - Wrapper around expo-secure-store for token storage
 - Platform-specific implementation (secure store for iOS/Android, AsyncStorage for web)
 - Support for storing objects and primitives
 - Error handling and logging
 
 **Methods:**
+
 ```typescript
-secureStorage.setItem(key, value)
-secureStorage.getItem(key)
-secureStorage.removeItem(key)
-secureStorage.setObject(key, object)
-secureStorage.getObject(key)
-secureStorage.clear()
+secureStorage.setItem(key, value);
+secureStorage.getItem(key);
+secureStorage.removeItem(key);
+secureStorage.setObject(key, object);
+secureStorage.getObject(key);
+secureStorage.clear();
 ```
 
 #### 4. Redux Store (`/mobile/src/store`)
 
 **Auth Slice (`slices/authSlice.ts`):**
+
 - User state management
 - Token management (access and refresh tokens)
 - Authentication status
@@ -80,19 +87,21 @@ secureStorage.clear()
 - Biometric authentication settings
 
 **State Shape:**
+
 ```typescript
 {
-  user: User | null
-  accessToken: string | null
-  refreshToken: string | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  error: string | null
-  biometricEnabled: boolean
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  biometricEnabled: boolean;
 }
 ```
 
 **Async Actions:**
+
 - `login(credentials)` - Authenticate user
 - `logout()` - Clear session and logout
 - `refreshTokens()` - Manually refresh tokens
@@ -101,12 +110,14 @@ secureStorage.clear()
 - `disableBiometric()` - Disable biometric login
 
 **Sync Actions:**
+
 - `setUser(user)` - Update user data
 - `setTokens({ accessToken, refreshToken })` - Update tokens
 - `clearError()` - Clear error state
 - `updateUser(partialUser)` - Partial user update
 
 #### 5. Auth Service (`/mobile/src/utils/authService.ts`)
+
 - Session management
 - Automatic token refresh every 14 minutes
 - Token expiration checking
@@ -114,6 +125,7 @@ secureStorage.clear()
 - Session persistence
 
 **Methods:**
+
 ```typescript
 authService.initializeAuth() - Initialize auth on app start
 authService.startAutoRefresh() - Start automatic token refresh
@@ -128,6 +140,7 @@ authService.isBiometricEnabled() - Check if biometric is enabled
 ```
 
 #### 6. Login Screen (`/mobile/src/screens/auth/LoginScreen.tsx`)
+
 - Email/password input fields
 - OTP input option
 - Biometric login support (Face ID/Fingerprint)
@@ -139,6 +152,7 @@ authService.isBiometricEnabled() - Check if biometric is enabled
 - Error display
 
 **Features:**
+
 - Detects available biometric authentication methods
 - Automatically prompts for biometric login if enabled
 - Toggle between password and OTP login
@@ -147,12 +161,14 @@ authService.isBiometricEnabled() - Check if biometric is enabled
 - Error handling with user-friendly messages
 
 #### 7. Forgot Password Screen (`/mobile/src/screens/auth/ForgotPasswordScreen.tsx`)
+
 - Email input for password reset request
 - Email validation
 - Success/error feedback
 - Navigation back to login
 
 #### 8. Reset Password Screen (`/mobile/src/screens/auth/ResetPasswordScreen.tsx`)
+
 - New password input with strength indicator
 - Password confirmation
 - Password requirements display with validation
@@ -161,6 +177,7 @@ authService.isBiometricEnabled() - Check if biometric is enabled
 ## Authentication Flow
 
 ### 1. Initial App Load
+
 ```
 App Start
   → RootNavigator loads
@@ -177,6 +194,7 @@ App Start
 ```
 
 ### 2. Login Flow
+
 ```
 User enters credentials
   → Dispatch login(credentials)
@@ -194,6 +212,7 @@ User enters credentials
 ```
 
 ### 3. Biometric Login Flow
+
 ```
 LoginScreen loads
   → Check biometric availability
@@ -207,6 +226,7 @@ LoginScreen loads
 ```
 
 ### 4. Token Refresh Flow
+
 ```
 API Request
   → Interceptor adds access token
@@ -225,6 +245,7 @@ API Request
 ```
 
 ### 5. Auto-Refresh Flow
+
 ```
 Every 14 minutes (configurable)
   → authService checks token expiration
@@ -238,6 +259,7 @@ Every 14 minutes (configurable)
 ```
 
 ### 6. Logout Flow
+
 ```
 User clicks logout
   → Dispatch logout()
@@ -288,7 +310,9 @@ STORAGE_KEYS = {
 The authentication module expects the backend to provide the following endpoints:
 
 ### POST /api/v1/auth/login
+
 **Request:**
+
 ```json
 {
   "email": "user@example.com",
@@ -298,6 +322,7 @@ The authentication module expects the backend to provide the following endpoints
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -317,7 +342,9 @@ The authentication module expects the backend to provide the following endpoints
 ```
 
 ### POST /api/v1/auth/refresh
+
 **Request:**
+
 ```json
 {
   "refresh_token": "eyJhbGc..."
@@ -325,6 +352,7 @@ The authentication module expects the backend to provide the following endpoints
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -337,9 +365,11 @@ The authentication module expects the backend to provide the following endpoints
 ```
 
 ### POST /api/v1/auth/logout
+
 **Request:** (access token in Authorization header)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -348,7 +378,9 @@ The authentication module expects the backend to provide the following endpoints
 ```
 
 ### POST /api/v1/auth/forgot-password
+
 **Request:**
+
 ```json
 {
   "email": "user@example.com"
@@ -356,6 +388,7 @@ The authentication module expects the backend to provide the following endpoints
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -364,7 +397,9 @@ The authentication module expects the backend to provide the following endpoints
 ```
 
 ### POST /api/v1/auth/reset-password
+
 **Request:**
+
 ```json
 {
   "token": "reset_token_from_email",
@@ -374,6 +409,7 @@ The authentication module expects the backend to provide the following endpoints
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -439,20 +475,26 @@ function Navigator() {
 ## Configuration
 
 ### Token Refresh Interval
+
 Edit in `/mobile/src/utils/authService.ts`:
+
 ```typescript
 const TOKEN_REFRESH_INTERVAL = 14 * 60 * 1000; // 14 minutes
 ```
 
 ### Token Expiration Check
+
 Edit in `/mobile/src/utils/authService.ts`:
+
 ```typescript
 // Refresh if token expires in less than 5 minutes
 return timeUntilExpiration < 5 * 60 * 1000;
 ```
 
 ### API Timeout
+
 Edit in `/mobile/src/constants/index.ts`:
+
 ```typescript
 export const API_TIMEOUT = 30000; // 30 seconds
 ```
@@ -460,6 +502,7 @@ export const API_TIMEOUT = 30000; // 30 seconds
 ## Testing
 
 ### Test Biometric Authentication
+
 1. Enable biometric on your device (Face ID/Touch ID)
 2. Login with credentials
 3. Enable "Remember Me"
@@ -467,12 +510,14 @@ export const API_TIMEOUT = 30000; // 30 seconds
 5. Biometric prompt should appear on next login
 
 ### Test Token Refresh
+
 1. Login to the app
 2. Wait for token to near expiration (or modify the expiration check to trigger sooner)
 3. Make an API request
 4. Token should refresh automatically
 
 ### Test Session Persistence
+
 1. Login to the app
 2. Close the app completely
 3. Reopen the app
@@ -481,21 +526,25 @@ export const API_TIMEOUT = 30000; // 30 seconds
 ## Troubleshooting
 
 ### Biometric Not Working
+
 - Ensure device has biometric hardware
 - Check if biometric is enrolled in device settings
 - Verify expo-local-authentication is properly installed
 
 ### Token Refresh Failing
+
 - Check backend /auth/refresh endpoint is working
 - Verify refresh token is being stored correctly
 - Check token expiration logic
 
 ### Auto-Login Not Working
+
 - Verify tokens are being saved to secure storage
 - Check loadStoredAuth is being called on app start
 - Ensure tokens haven't expired
 
 ### 401 Errors on API Calls
+
 - Check if access token is being sent in Authorization header
 - Verify token format (should be "Bearer {token}")
 - Check backend authentication middleware

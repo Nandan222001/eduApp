@@ -3,6 +3,7 @@
 ## Installation
 
 ### 1. Install Dependencies
+
 ```bash
 cd mobile
 npm install
@@ -13,6 +14,7 @@ yarn install
 This will install the new dependency: `react-native-confetti-cannon`
 
 ### 2. iOS Setup (if using iOS)
+
 ```bash
 cd ios
 pod install
@@ -24,6 +26,7 @@ cd ..
 ### Accessing Gamification Features
 
 #### From Dashboard
+
 The student dashboard now includes two new widgets:
 
 1. **Quick Gamification Widget**: Shows points, rank, active goals, and streak
@@ -34,6 +37,7 @@ The student dashboard now includes two new widgets:
    - Tap individual goals for quick access
 
 #### From Navigation
+
 1. Navigate to Gamification screen via app navigation
 2. Navigate to Goals screen via app navigation
 
@@ -57,6 +61,7 @@ PATCH  /api/v1/goals/:id/progress
 #### Expected Response Formats
 
 **Gamification Details** (`GET /api/v1/gamification`):
+
 ```json
 {
   "totalPoints": 1250,
@@ -111,6 +116,7 @@ PATCH  /api/v1/goals/:id/progress
 ```
 
 **Leaderboard** (`GET /api/v1/gamification/leaderboard`):
+
 ```json
 [
   {
@@ -128,6 +134,7 @@ PATCH  /api/v1/goals/:id/progress
 ```
 
 **Goals List** (`GET /api/v1/goals`):
+
 ```json
 [
   {
@@ -165,11 +172,13 @@ PATCH  /api/v1/goals/:id/progress
 For real-time updates, implement a WebSocket server:
 
 #### Connection
+
 ```
 ws://your-api.com/ws?token={jwt_token}
 ```
 
 #### Events to Emit (Server → Client)
+
 ```json
 // Gamification update
 {
@@ -221,6 +230,7 @@ ws://your-api.com/ws?token={jwt_token}
 ```
 
 #### Events to Handle (Client → Server)
+
 ```json
 // Heartbeat
 {
@@ -238,16 +248,19 @@ ws://your-api.com/ws?token={jwt_token}
 ### 1. Gamification Dashboard
 
 #### Overview Tab
+
 - **View**: Total points, level progress, rank
 - **Streak Calendar**: Visual heatmap of activity
 - **Recent Activity**: List of recent point changes
 
 #### Badges Tab
+
 - **View**: All badges organized by category
 - **Filter**: By rarity (common, rare, epic, legendary)
 - **Progress**: See progress toward locked badges
 
 #### Leaderboard Tab
+
 - **Periods**: Daily, Weekly, Monthly, All-Time
 - **Updates**: Real-time rank changes
 - **Highlight**: Your position in the list
@@ -255,6 +268,7 @@ ws://your-api.com/ws?token={jwt_token}
 ### 2. Goals Management
 
 #### Create Goal
+
 ```typescript
 // Example goal creation
 {
@@ -270,11 +284,13 @@ ws://your-api.com/ws?token={jwt_token}
 ```
 
 #### Update Progress
+
 - Tap "Update Progress" button
 - Progress increments automatically
 - Confetti celebration on completion
 
 #### Track Milestones
+
 - Visual timeline shows progress
 - Check marks for completed milestones
 - Color-coded by category
@@ -282,70 +298,92 @@ ws://your-api.com/ws?token={jwt_token}
 ## Customization
 
 ### Colors
+
 Edit `mobile/src/constants/index.ts`:
+
 ```typescript
 export const COLORS = {
-  primary: '#3B82F6',      // Main brand color
-  secondary: '#10B981',    // Success/completion
-  accent: '#F59E0B',       // Points/rewards
+  primary: '#3B82F6', // Main brand color
+  secondary: '#10B981', // Success/completion
+  accent: '#F59E0B', // Points/rewards
   // ... add your colors
 };
 ```
 
 ### Badge Rarities
+
 Edit rarity colors in components:
+
 ```typescript
 const getRarityColor = (rarity: string) => {
   switch (rarity) {
-    case 'legendary': return '#FFD700'; // Gold
-    case 'epic': return '#9B59B6';      // Purple
-    case 'rare': return '#3498DB';      // Blue
-    case 'common': return '#95A5A6';    // Gray
+    case 'legendary':
+      return '#FFD700'; // Gold
+    case 'epic':
+      return '#9B59B6'; // Purple
+    case 'rare':
+      return '#3498DB'; // Blue
+    case 'common':
+      return '#95A5A6'; // Gray
   }
 };
 ```
 
 ### Real-Time Update Intervals
+
 Edit `mobile/src/hooks/useGamificationRealtime.ts`:
+
 ```typescript
 // Gamification polling
-setInterval(() => { /* ... */ }, 30000); // 30 seconds
+setInterval(() => {
+  /* ... */
+}, 30000); // 30 seconds
 
 // Leaderboard polling
-setInterval(() => { /* ... */ }, 15000); // 15 seconds
+setInterval(() => {
+  /* ... */
+}, 15000); // 15 seconds
 
 // Goals polling
-setInterval(() => { /* ... */ }, 20000); // 20 seconds
+setInterval(() => {
+  /* ... */
+}, 20000); // 20 seconds
 ```
 
 ## Troubleshooting
 
 ### WebSocket Not Connecting
+
 1. Check server URL in `websocketService.ts`
 2. Verify JWT token is valid
 3. Check network connectivity
 4. Review server logs for connection errors
 
 ### Animations Not Smooth
+
 1. Enable Hermes engine (should be default)
 2. Check for heavy re-renders
 3. Profile using React DevTools
 4. Reduce polling frequency if needed
 
 ### Badge Animation Not Showing
+
 1. Verify badge data includes all required fields
 2. Check `unlocked` flag is properly set
 3. Ensure confetti-cannon is installed
 4. Check for animation performance issues on device
 
 ### Goals Not Updating
+
 1. Check API endpoint responses
 2. Verify mutation success callbacks
 3. Check query cache invalidation
 4. Review network tab for errors
 
 ### Missing Icons
+
 Ensure vector icons are linked:
+
 ```bash
 npx react-native link react-native-vector-icons
 ```
@@ -353,6 +391,7 @@ npx react-native link react-native-vector-icons
 ## Testing
 
 ### Manual Testing Checklist
+
 - [ ] View gamification dashboard
 - [ ] Switch between tabs
 - [ ] View badge details
@@ -365,7 +404,9 @@ npx react-native link react-native-vector-icons
 - [ ] Test offline behavior
 
 ### Test Data
+
 Use the following test accounts to verify leaderboard:
+
 ```
 Student 1: test+student1@example.com (1000 points)
 Student 2: test+student2@example.com (950 points)
@@ -400,6 +441,7 @@ A: That would require backend support - currently students create their own
 A: Points are awarded by the backend based on configured rules
 
 ### Need Help?
+
 - Review the full implementation docs: `GAMIFICATION_IMPLEMENTATION.md`
 - Check existing components for examples
 - Review the types in `src/types/student.ts`

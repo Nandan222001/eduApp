@@ -12,6 +12,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 ## Implementation ✅
 
 ### Core Setup
+
 - [x] Install `expo-router` dependency
 - [x] Update `package.json` main entry to `expo-router/entry`
 - [x] Update `app.json` with typed routes experiment
@@ -19,6 +20,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [x] Update `.gitignore` for Expo Router files
 
 ### Directory Structure
+
 - [x] Create `app/` directory
 - [x] Create `app/_layout.tsx` (root layout)
 - [x] Create `app/index.tsx` (root redirect)
@@ -28,6 +30,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [x] Create `app/(tabs)/parent/` group
 
 ### Authentication Routes
+
 - [x] Create `app/(auth)/_layout.tsx`
 - [x] Create `app/(auth)/login.tsx`
 - [x] Create `app/(auth)/register.tsx`
@@ -35,6 +38,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [x] Create `app/(auth)/reset-password.tsx`
 
 ### Student Tab Routes
+
 - [x] Create `app/(tabs)/student/_layout.tsx`
 - [x] Create `app/(tabs)/student/index.tsx` (Home)
 - [x] Create `app/(tabs)/student/assignments.tsx`
@@ -43,6 +47,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [x] Create `app/(tabs)/student/profile.tsx`
 
 ### Parent Tab Routes
+
 - [x] Create `app/(tabs)/parent/_layout.tsx`
 - [x] Create `app/(tabs)/parent/index.tsx` (Dashboard)
 - [x] Create `app/(tabs)/parent/children.tsx`
@@ -51,6 +56,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [x] Create `app/(tabs)/parent/profile.tsx`
 
 ### Detail Routes
+
 - [x] Create `app/courses/index.tsx`
 - [x] Create `app/courses/[id].tsx`
 - [x] Create `app/assignments/[id].tsx`
@@ -60,10 +66,12 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [x] Create `app/notifications/[id].tsx`
 
 ### Common Routes
+
 - [x] Create `app/profile.tsx`
 - [x] Create `app/settings.tsx`
 
 ### Screen Component Updates
+
 - [x] Update `LoginScreen.tsx`
 - [x] Update `RegisterScreen.tsx`
 - [x] Update `ForgotPasswordScreen.tsx`
@@ -81,11 +89,13 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [x] Update `NotificationsScreen.tsx`
 
 ### Type Definitions
+
 - [x] Create `src/types/routes.ts`
 - [x] Update `src/types/index.ts`
 - [x] Mark `src/types/navigation.ts` as deprecated
 
 ### Documentation
+
 - [x] Create `EXPO_ROUTER_MIGRATION.md`
 - [x] Create `EXPO_ROUTER_IMPLEMENTATION_SUMMARY.md`
 - [x] Create `EXPO_ROUTER_QUICK_START.md`
@@ -96,6 +106,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 ## Testing 🧪
 
 ### Authentication Flow
+
 - [ ] Test login flow
 - [ ] Test logout flow
 - [ ] Test registration
@@ -105,6 +116,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [ ] Verify authenticated users can't access auth screens
 
 ### Student Navigation
+
 - [ ] Navigate to Home tab
 - [ ] Navigate to Assignments tab
 - [ ] Navigate to Schedule tab
@@ -115,6 +127,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [ ] Navigate back from details
 
 ### Parent Navigation
+
 - [ ] Navigate to Dashboard tab
 - [ ] Navigate to Children tab
 - [ ] Navigate to Communication tab
@@ -125,6 +138,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [ ] Navigate back from details
 
 ### Common Features
+
 - [ ] Open notifications list
 - [ ] Open notification detail
 - [ ] Open profile screen
@@ -132,12 +146,14 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [ ] Navigate back from common screens
 
 ### Role Switching
+
 - [ ] Switch from Student to Parent
 - [ ] Switch from Parent to Student
 - [ ] Verify correct tabs shown after switch
 - [ ] Verify state persists during switch
 
 ### Deep Linking
+
 - [ ] Test custom scheme: `edumobile://login`
 - [ ] Test custom scheme: `edumobile://student`
 - [ ] Test custom scheme: `edumobile://courses/123`
@@ -146,6 +162,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [ ] Test invalid deep links (should redirect gracefully)
 
 ### Navigation Patterns
+
 - [ ] Push navigation works
 - [ ] Replace navigation works
 - [ ] Back navigation works
@@ -154,12 +171,14 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [ ] Bottom sheet works (if applicable)
 
 ### Type Safety
+
 - [ ] No TypeScript errors
 - [ ] Route autocomplete works in IDE
 - [ ] Parameter types are correct
 - [ ] Navigation methods are typed
 
 ### Performance
+
 - [ ] App starts quickly
 - [ ] Navigation is smooth
 - [ ] No memory leaks
@@ -169,6 +188,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 ## Platform Testing 📱
 
 ### iOS
+
 - [ ] Test on iOS simulator
 - [ ] Test on physical iOS device
 - [ ] Deep links work on iOS
@@ -177,6 +197,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [ ] Navigation bar displays correctly
 
 ### Android
+
 - [ ] Test on Android emulator
 - [ ] Test on physical Android device
 - [ ] Deep links work on Android
@@ -185,6 +206,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 - [ ] App bar displays correctly
 
 ### Web (if applicable)
+
 - [ ] Test in browser
 - [ ] URL bar shows correct routes
 - [ ] Browser back/forward works
@@ -193,11 +215,13 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 ## Build Testing 🏗️
 
 ### Development Build
+
 - [ ] Development build compiles successfully
 - [ ] No build warnings related to routing
 - [ ] Navigation works in dev build
 
 ### Production Build
+
 - [ ] Production build compiles successfully
 - [ ] Minification doesn't break routes
 - [ ] Navigation works in production build
@@ -205,12 +229,14 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 ## Cleanup 🧹
 
 ### Code Cleanup
+
 - [ ] Remove unused navigator files (see DEPRECATED_NAVIGATORS.md)
 - [ ] Remove unused imports
 - [ ] Remove commented-out code
 - [ ] Update component documentation
 
 ### Dependency Cleanup
+
 - [ ] Verify all React Navigation dependencies can be removed
   - `@react-navigation/native`
   - `@react-navigation/native-stack`
@@ -219,6 +245,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
   - ⚠️ Keep if still using other navigation features
 
 ### Git Cleanup
+
 - [ ] Review all changes
 - [ ] Commit with clear message
 - [ ] Create pull request
@@ -227,24 +254,28 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 ## Post-Migration 📋
 
 ### Documentation
+
 - [ ] Update README.md
 - [ ] Update onboarding docs
 - [ ] Update API documentation
 - [ ] Create team training materials
 
 ### Team Communication
+
 - [ ] Announce migration completion
 - [ ] Schedule team walkthrough
 - [ ] Share quick start guide
 - [ ] Offer support for questions
 
 ### Monitoring
+
 - [ ] Monitor error logs
 - [ ] Track navigation analytics
 - [ ] Watch for user-reported issues
 - [ ] Monitor app performance
 
 ### Known Issues
+
 - [ ] Document any known issues
 - [ ] Create tickets for fixes
 - [ ] Plan resolution timeline
@@ -254,6 +285,7 @@ Use this checklist to verify the migration from React Navigation to Expo Router 
 If critical issues are found:
 
 1. **Quick Rollback**
+
    ```bash
    git revert <commit-hash>
    git push
@@ -272,41 +304,47 @@ If critical issues are found:
 ## Sign-Off ✍️
 
 ### Developer
+
 - [ ] All implementation tasks complete
 - [ ] All tests passing
 - [ ] Documentation complete
 - [ ] Code reviewed
 
-**Developer:** _________________  
-**Date:** _________________
+**Developer:** ********\_********  
+**Date:** ********\_********
 
 ### QA
+
 - [ ] All test cases passed
 - [ ] No critical issues found
 - [ ] Regression tests passed
 - [ ] Sign-off approved
 
-**QA Engineer:** _________________  
-**Date:** _________________
+**QA Engineer:** ********\_********  
+**Date:** ********\_********
 
 ### Tech Lead
+
 - [ ] Architecture approved
 - [ ] Code quality approved
 - [ ] Documentation approved
 - [ ] Ready for production
 
-**Tech Lead:** _________________  
-**Date:** _________________
+**Tech Lead:** ********\_********  
+**Date:** ********\_********
 
 ## Notes
 
 ### Issues Found During Testing
+
 (Document any issues here)
 
 ### Performance Observations
+
 (Document performance notes here)
 
 ### Recommendations for Future
+
 (Document improvements or suggestions here)
 
 ---

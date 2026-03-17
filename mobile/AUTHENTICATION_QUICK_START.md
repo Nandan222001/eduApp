@@ -5,7 +5,8 @@
 ### Prerequisites
 
 Ensure you have the following installed:
-- Node.js 16+ 
+
+- Node.js 16+
 - npm or yarn
 - Expo CLI
 - iOS Simulator (Mac) or Android Emulator
@@ -13,12 +14,14 @@ Ensure you have the following installed:
 ### Environment Setup
 
 1. **Copy environment file**
+
    ```bash
    cd mobile
    cp .env.example .env
    ```
 
 2. **Update `.env` with your backend URL**
+
    ```env
    API_URL=http://localhost:8000/api/v1
    WS_URL=ws://localhost:8000/ws
@@ -59,7 +62,7 @@ import { login } from '@store/slices/authSlice';
 function MyLoginComponent() {
   const dispatch = useAppDispatch();
   const { isLoading, error } = useAppSelector(state => state.auth);
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -203,25 +206,33 @@ function ProfileScreen() {
 ## 🐛 Common Issues & Solutions
 
 ### Issue: "Network Error"
+
 **Solution:** Check that your backend is running and the `API_URL` in `.env` is correct
 
 ### Issue: "Cannot read property of undefined"
+
 **Solution:** Make sure Redux store is properly initialized in App.tsx
 
 ### Issue: Biometric not available
-**Solution:** 
+
+**Solution:**
+
 - Ensure device has biometric hardware
 - Enroll biometric in device settings
 - Check permissions in app.json
 
 ### Issue: Tokens not persisting
-**Solution:** 
+
+**Solution:**
+
 - Check expo-secure-store is installed
 - Verify storage permissions
 - Check console for storage errors
 
 ### Issue: Auto-refresh not working
+
 **Solution:**
+
 - Check authService is initialized in RootNavigator
 - Verify token format matches backend
 - Check token expiration time in JWT
@@ -229,6 +240,7 @@ function ProfileScreen() {
 ## 📱 Testing on Different Platforms
 
 ### iOS
+
 ```bash
 npm run ios
 # or
@@ -236,11 +248,13 @@ expo start --ios
 ```
 
 Requirements:
+
 - macOS
 - Xcode installed
 - iOS Simulator
 
 ### Android
+
 ```bash
 npm run android
 # or
@@ -248,10 +262,12 @@ expo start --android
 ```
 
 Requirements:
+
 - Android Studio installed
 - Android Emulator or physical device
 
 ### Web (Limited biometric support)
+
 ```bash
 npm run web
 # or
@@ -265,6 +281,7 @@ Note: Biometric authentication uses AsyncStorage fallback on web
 ### Change API Base URL
 
 Edit `.env`:
+
 ```env
 API_URL=https://your-api.com/api/v1
 ```
@@ -272,6 +289,7 @@ API_URL=https://your-api.com/api/v1
 ### Adjust Token Refresh Timing
 
 Edit `/mobile/src/utils/authService.ts`:
+
 ```typescript
 // Refresh every 14 minutes
 const TOKEN_REFRESH_INTERVAL = 14 * 60 * 1000;
@@ -283,6 +301,7 @@ return timeUntilExpiration < 5 * 60 * 1000;
 ### Customize Login Screen
 
 Edit `/mobile/src/screens/auth/LoginScreen.tsx` to:
+
 - Change colors/styling
 - Add/remove fields
 - Modify validation
@@ -291,6 +310,7 @@ Edit `/mobile/src/screens/auth/LoginScreen.tsx` to:
 ### Add Custom Error Messages
 
 Edit `/mobile/src/api/client.ts` in the `handleError` method:
+
 ```typescript
 private handleError(error: any): ApiError {
   if (error.response?.status === 401) {
@@ -323,17 +343,20 @@ private handleError(error: any): ApiError {
 ## 🎯 Best Practices
 
 1. **Always use `unwrap()`** when dispatching async thunks to catch errors
+
    ```typescript
    await dispatch(login(credentials)).unwrap();
    ```
 
 2. **Check authentication status** before accessing protected data
+
    ```typescript
    const { isAuthenticated } = useAppSelector(state => state.auth);
    if (!isAuthenticated) return null;
    ```
 
 3. **Handle errors gracefully**
+
    ```typescript
    try {
      await dispatch(login(credentials)).unwrap();
@@ -343,6 +366,7 @@ private handleError(error: any): ApiError {
    ```
 
 4. **Clear errors when unmounting**
+
    ```typescript
    useEffect(() => {
      return () => {

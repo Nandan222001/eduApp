@@ -1,6 +1,7 @@
 # AI-Powered Mobile Features Implementation
 
 ## Overview
+
 This document describes the implementation of three AI-powered mobile features that connect to backend ML services:
 
 1. **AI Predictions Screen** - Topic probability rankings and exam preparation insights
@@ -14,6 +15,7 @@ This document describes the implementation of three AI-powered mobile features t
 **Route:** `/(tabs)/student/ai-predictions`
 
 **Features:**
+
 - Overall readiness score display
 - Three interactive tabs:
   - **Topics Tab**: Topic probability rankings with bar chart visualization
@@ -27,6 +29,7 @@ This document describes the implementation of three AI-powered mobile features t
 **API Endpoint:** `GET /api/v1/ai-prediction-dashboard`
 
 **Key Components:**
+
 - Bar chart for topic probabilities
 - Pie chart for question distribution
 - Mastery progress bars
@@ -38,6 +41,7 @@ This document describes the implementation of three AI-powered mobile features t
 **Route:** `/(tabs)/student/homework-scanner`
 
 **Features:**
+
 - Camera integration using `expo-camera`
 - Real-time photo capture with custom camera overlay
 - Subject selection (Math, Science, English, History)
@@ -50,6 +54,7 @@ This document describes the implementation of three AI-powered mobile features t
 **API Endpoint:** `POST /api/v1/homework-scanner`
 
 **Request Format:**
+
 ```typescript
 FormData {
   image: File (JPEG)
@@ -58,6 +63,7 @@ FormData {
 ```
 
 **Key Components:**
+
 - Custom camera view with corner guides
 - Image capture and preview
 - Subject selection chips
@@ -70,6 +76,7 @@ FormData {
 **Route:** `/(tabs)/student/study-buddy`
 
 **Features:**
+
 - Three-tab interface:
   - **Chat Tab**: Real-time AI conversation
   - **Plan Tab**: Personalized study plans
@@ -86,12 +93,14 @@ FormData {
   - Motivational messages
 
 **API Endpoints:**
+
 - `POST /api/v1/study-buddy` - Send message
 - `GET /api/v1/study-buddy/history` - Get chat history
 - `GET /api/v1/study-buddy/study-plan` - Get personalized study plan
 - `GET /api/v1/study-buddy/daily-briefing` - Get daily briefing
 
 **Key Components:**
+
 - Chat interface with message bubbles
 - Voice input/output integration
 - Quick message chips
@@ -104,6 +113,7 @@ FormData {
 ### Type Definitions (`mobile/src/types/student.ts`)
 
 Added the following interfaces:
+
 - `TopicProbability` - Topic prediction data
 - `PredictedQuestionBlueprint` - Question distribution
 - `FocusArea` - Study focus recommendations
@@ -118,6 +128,7 @@ Added the following interfaces:
 ### API Integration (`mobile/src/api/student.ts`)
 
 Added API methods:
+
 ```typescript
 getAIPredictionDashboardDetails() // Get AI predictions
 scanHomework(imageUri, subject?) // Scan homework
@@ -130,6 +141,7 @@ getDailyBriefing() // Get daily briefing
 ### Navigation Configuration
 
 Updated `app/(tabs)/student/_layout.tsx` to include new routes:
+
 - Hidden from tab bar using `href: null`
 - Accessible via programmatic navigation
 - Added to dashboard via quick access component
@@ -137,6 +149,7 @@ Updated `app/(tabs)/student/_layout.tsx` to include new routes:
 ### Dashboard Integration
 
 Created `AIFeaturesQuickAccess` component:
+
 - Quick access cards for all AI features
 - Colorful icons and descriptions
 - Navigation integration using `useRouter`
@@ -145,6 +158,7 @@ Created `AIFeaturesQuickAccess` component:
 ### Dependencies
 
 Added to `package.json`:
+
 ```json
 {
   "expo-speech": "~11.7.0"
@@ -152,6 +166,7 @@ Added to `package.json`:
 ```
 
 Existing dependencies used:
+
 - `expo-camera` - Camera functionality
 - `react-native-chart-kit` - Data visualizations
 - `@tanstack/react-query` - Data fetching and caching
@@ -159,6 +174,7 @@ Existing dependencies used:
 ## User Flow
 
 ### AI Predictions Flow
+
 1. User taps "AI Predictions" from dashboard or navigation
 2. Dashboard loads with overall readiness score
 3. User switches between Topics/Blueprint/Focus tabs
@@ -166,6 +182,7 @@ Existing dependencies used:
 5. User can pull to refresh data
 
 ### Homework Scanner Flow
+
 1. User taps "Homework Scanner" from dashboard
 2. User grants camera permissions (if needed)
 3. User positions homework in camera frame
@@ -177,6 +194,7 @@ Existing dependencies used:
 9. User can scan again or explore resources
 
 ### Study Buddy Flow
+
 1. User taps "Study Buddy" from dashboard
 2. User can:
    - Chat with AI using text or voice
@@ -197,6 +215,7 @@ Existing dependencies used:
 ## Styling Approach
 
 All screens follow the existing design system:
+
 - Use `COLORS`, `SPACING`, `FONT_SIZES`, `BORDER_RADIUS` constants
 - Consistent card-based layouts
 - Material and Feather icons
@@ -207,6 +226,7 @@ All screens follow the existing design system:
 ## Error Handling
 
 Each screen includes:
+
 - Loading states with spinners
 - Error states with retry buttons
 - Empty states with helpful messages
@@ -216,6 +236,7 @@ Each screen includes:
 ## Data Caching
 
 Using React Query for:
+
 - Automatic caching with stale times
 - Background refetching
 - Optimistic updates
@@ -233,6 +254,7 @@ Using React Query for:
 ## Future Enhancements
 
 Potential improvements:
+
 - Voice-to-text for Study Buddy input
 - Homework scanner OCR accuracy improvements
 - Push notifications for daily briefings
@@ -246,6 +268,7 @@ Potential improvements:
 ## Testing Recommendations
 
 Test scenarios:
+
 1. Camera permissions denied/granted
 2. Network failures during scan/chat
 3. Empty states (no predictions, no chat history)
@@ -262,6 +285,7 @@ Test scenarios:
 The backend must implement these endpoints:
 
 ### AI Predictions
+
 ```
 GET /api/v1/ai-prediction-dashboard
 Response: {
@@ -274,6 +298,7 @@ Response: {
 ```
 
 ### Homework Scanner
+
 ```
 POST /api/v1/homework-scanner
 Content-Type: multipart/form-data
@@ -282,6 +307,7 @@ Response: HomeworkScanResult
 ```
 
 ### Study Buddy
+
 ```
 POST /api/v1/study-buddy
 Body: { message: string, isVoice?: boolean }

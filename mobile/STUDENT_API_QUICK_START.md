@@ -1,11 +1,13 @@
 # Student API Integration - Quick Start Guide
 
 ## Overview
+
 This guide helps you quickly understand and use the real API integration for student screens.
 
 ## Quick Reference
 
 ### Dashboard Screen
+
 ```typescript
 // src/screens/student/DashboardScreen.tsx
 import { studentApi } from '../../api/student';
@@ -15,13 +17,14 @@ const { data, isLoading, isError, refetch } = useQuery({
   queryFn: async () => {
     const response = await studentApi.getDashboard();
     return response.data;
-  }
+  },
 });
 ```
 
 **Endpoint**: `GET /api/v1/students/dashboard`
 
 ### Assignments Screen
+
 ```typescript
 // src/screens/student/AssignmentsScreen.tsx
 import { assignmentsApi } from '../../api/assignments';
@@ -31,13 +34,14 @@ const { data, isLoading, isError, refetch } = useQuery({
   queryFn: async () => {
     const response = await assignmentsApi.getAssignments({ status });
     return response.data;
-  }
+  },
 });
 ```
 
 **Endpoint**: `GET /api/v1/assignments?status={status}`
 
 ### Grades Screen
+
 ```typescript
 // src/screens/student/GradesScreen.tsx
 import { studentApi } from '../../api/student';
@@ -47,13 +51,14 @@ const { data, isLoading, isError, refetch } = useQuery({
   queryFn: async () => {
     const response = await studentApi.getGrades({ term });
     return response.data;
-  }
+  },
 });
 ```
 
 **Endpoint**: `GET /api/v1/grades?term={term}`
 
 ### Schedule Screen
+
 ```typescript
 // src/screens/student/ScheduleScreen.tsx
 import { studentApi } from '../../api/student';
@@ -63,7 +68,7 @@ const { data, isLoading, isError, refetch } = useQuery({
   queryFn: async () => {
     const response = await studentApi.getTimetable();
     return response.data;
-  }
+  },
 });
 ```
 
@@ -72,40 +77,46 @@ const { data, isLoading, isError, refetch } = useQuery({
 ## Using Custom Hooks
 
 ### Import Hooks
+
 ```typescript
-import { 
+import {
   useDashboard,
   useGrades,
   useTimetable,
   useAssignmentsList,
   useAssignmentDetail,
-  useSubmitAssignment
+  useSubmitAssignment,
 } from '@hooks';
 ```
 
 ### Dashboard Hook
+
 ```typescript
 const { data, isLoading, isError, refetch } = useDashboard();
 ```
 
 ### Grades Hook
+
 ```typescript
 const { data, isLoading, isError, refetch } = useGrades({ term: 'term_1' });
 ```
 
 ### Timetable Hook
+
 ```typescript
 const { data, isLoading, isError, refetch } = useTimetable();
 ```
 
 ### Assignments Hook
+
 ```typescript
-const { data, isLoading, isError, refetch } = useAssignmentsList({ 
-  status: 'pending' 
+const { data, isLoading, isError, refetch } = useAssignmentsList({
+  status: 'pending',
 });
 ```
 
 ### Submit Assignment Hook
+
 ```typescript
 const submitMutation = useSubmitAssignment();
 
@@ -119,6 +130,7 @@ submitMutation.mutate({
 ## Using Shared Components
 
 ### Loading State
+
 ```typescript
 import { LoadingState } from '@components';
 
@@ -128,6 +140,7 @@ if (isLoading) {
 ```
 
 ### Error State
+
 ```typescript
 import { ErrorState } from '@components';
 
@@ -143,6 +156,7 @@ if (isError) {
 ```
 
 ### Empty State
+
 ```typescript
 import { EmptyState } from '@components';
 
@@ -202,6 +216,7 @@ const onRefresh = async () => {
 ## File Upload Pattern (Assignments)
 
 ### Document Picker
+
 ```typescript
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -219,6 +234,7 @@ const handlePickDocument = async () => {
 ```
 
 ### Camera
+
 ```typescript
 import { Camera } from 'expo-camera';
 
@@ -235,6 +251,7 @@ const handleTakePhoto = async () => {
 ## API Response Formats
 
 ### Success Response
+
 ```json
 {
   "success": true,
@@ -244,6 +261,7 @@ const handleTakePhoto = async () => {
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -257,37 +275,42 @@ const handleTakePhoto = async () => {
 ## Environment Setup
 
 ### Required Environment Variables
+
 ```env
 API_URL=https://api.example.com
 API_TIMEOUT=30000
 ```
 
 ### Update .env files
+
 - `.env.development`
 - `.env.production`
 
 ## Testing API Integration
 
 ### 1. Mock API Responses
+
 Create mock responses in `__mocks__` directory for testing.
 
 ### 2. Test Hooks
+
 ```typescript
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { useDashboard } from '@hooks';
 
 test('should fetch dashboard data', async () => {
   const { result } = renderHook(() => useDashboard());
-  
+
   await waitFor(() => {
     expect(result.current.isSuccess).toBe(true);
   });
-  
+
   expect(result.current.data).toBeDefined();
 });
 ```
 
 ### 3. Test Components
+
 ```typescript
 import { render, screen } from '@testing-library/react-native';
 import { DashboardScreen } from './DashboardScreen';
@@ -301,18 +324,23 @@ test('renders dashboard screen', async () => {
 ## Common Issues & Solutions
 
 ### Issue: API not connecting
+
 **Solution**: Check API_URL in .env file
 
 ### Issue: 401 Unauthorized
+
 **Solution**: Ensure auth token is valid and not expired
 
 ### Issue: Network error
+
 **Solution**: Check internet connection and API availability
 
 ### Issue: Data not updating
+
 **Solution**: Invalidate queries or adjust stale time
 
 ### Issue: Slow performance
+
 **Solution**: Check query configuration and caching settings
 
 ## Performance Tips
@@ -328,6 +356,7 @@ test('renders dashboard screen', async () => {
 ## Debugging
 
 ### Enable React Query DevTools (Development)
+
 ```typescript
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -339,6 +368,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 ```
 
 ### Log API Calls
+
 ```typescript
 // src/api/client.ts
 this.instance.interceptors.request.use(config => {
@@ -350,6 +380,7 @@ this.instance.interceptors.request.use(config => {
 ```
 
 ### Monitor Query States
+
 ```typescript
 const query = useQuery({ ... });
 console.log({
@@ -371,6 +402,7 @@ console.log({
 ## Support
 
 For issues or questions:
+
 1. Check documentation files
 2. Review error logs
 3. Test with mock data

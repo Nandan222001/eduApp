@@ -26,6 +26,7 @@ This directory contains the file-based routing structure for the EDU Mobile appl
 3. The file path determines the route
 
 Example:
+
 ```
 app/
   settings.tsx  → /settings

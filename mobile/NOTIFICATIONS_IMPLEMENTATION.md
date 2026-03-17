@@ -5,6 +5,7 @@ This guide explains how the push notifications system is integrated using Expo N
 ## Overview
 
 The notification system includes:
+
 - **Expo Notifications** for push notification delivery
 - **Expo Device** for device information
 - Notification service for handling permissions, registration, and subscriptions
@@ -18,7 +19,9 @@ The notification system includes:
 ### Mobile Components
 
 #### 1. Notification Service (`src/services/notificationService.ts`)
+
 Core service handling all notification operations:
+
 - Permission requests
 - Device registration with Expo Push Token
 - Topic subscription management
@@ -27,44 +30,56 @@ Core service handling all notification operations:
 - Notification handlers
 
 #### 2. Notification Hook (`src/hooks/useNotifications.ts`)
+
 React hook for notification handling:
+
 - Listens for foreground notifications
 - Handles notification taps with deep linking
 - Automatic device registration on user login
 - Badge count updates
 
 #### 3. Notification Preferences Screen (`src/screens/student/NotificationPreferencesScreen.tsx`)
+
 UI for managing notification settings:
+
 - Channel toggles (Push, Email, SMS, In-App)
 - Topic subscriptions (Assignments, Grades, Attendance, Announcements)
 - Quiet hours configuration
 - Preferences sync with backend
 
 #### 4. Notification Handler Component (`src/components/NotificationHandler.tsx`)
+
 App-level component for notification lifecycle management.
 
 ### Backend Components
 
 #### 1. Push Device Models (`src/models/push_device.py`)
+
 - `PushDevice`: Stores device tokens and metadata
 - `PushDeviceTopic`: Manages topic subscriptions per device
 
 #### 2. Expo Push Service (`src/services/expo_push_service.py`)
+
 Service for sending notifications via Expo:
+
 - Single and bulk notification sending
 - Token validation
 - Deep linking support
 - Error handling and token cleanup
 
 #### 3. Notification Service Integration (`src/services/notification_service.py`)
+
 Enhanced notification service with:
+
 - Expo push notification support
 - Topic-based notification sending
 - Automatic device token cleanup for invalid tokens
 - Channel mapping for Android notification channels
 
 #### 4. API Endpoints (`src/api/v1/notifications.py`)
+
 New endpoints:
+
 - `POST /api/v1/notifications/register-device` - Register device for push
 - `DELETE /api/v1/notifications/register-device/{token}` - Unregister device
 - `POST /api/v1/notifications/subscribe` - Subscribe to topic
@@ -76,23 +91,27 @@ New endpoints:
 ### 1. Install Dependencies
 
 #### Mobile
+
 ```bash
 cd mobile
 npm install
 ```
 
 The following packages are included:
+
 - `expo-notifications@~0.27.6`
 - `expo-device@~5.9.3`
 - `@react-native-community/datetimepicker@^7.6.2`
 
 #### Backend
+
 ```bash
 poetry add exponent-server-sdk
 poetry install
 ```
 
 ### 2. Run Database Migration
+
 ```bash
 alembic upgrade head
 ```
@@ -102,6 +121,7 @@ This creates the `push_devices` and `push_device_topics` tables.
 ### 3. Configure app.json
 
 The `app.json` is already configured with notification settings:
+
 - Android notification channels
 - iOS notification display in foreground
 - Notification icon and color
@@ -159,7 +179,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 
 function MyComponent() {
   const { notification, isRegistered } = useNotifications(userId);
-  
+
   // Notifications are automatically handled with deep linking
   // based on the 'screen' field in notification data
 }
@@ -218,6 +238,7 @@ Notifications should include data for deep linking:
 ```
 
 ### Supported Screens
+
 - `Assignment` - Navigates to assignment detail
 - `Grade` - Navigates to grade detail
 - `Attendance` - Navigates to attendance screen
@@ -228,6 +249,7 @@ Notifications should include data for deep linking:
 ## Android Notification Channels
 
 The following channels are configured:
+
 - `default` - Default notifications (MAX importance)
 - `assignments` - Assignment notifications (HIGH importance)
 - `grades` - Grade notifications (HIGH importance)
@@ -241,6 +263,7 @@ The following channels are configured:
 1. Use a physical device (push notifications don't work on simulators)
 2. Grant notification permissions when prompted
 3. Get your Expo Push Token:
+
 ```typescript
 import { getExpoPushToken } from '@/services/notificationService';
 const token = await getExpoPushToken();
@@ -268,6 +291,7 @@ print(result)
 ## Notification Preferences
 
 Users can customize:
+
 - **Channels**: Toggle push, email, SMS, in-app notifications
 - **Topics**: Subscribe/unsubscribe from specific notification types
 - **Quiet Hours**: Set time periods to silence notifications
@@ -280,6 +304,7 @@ All preferences are synced with the backend and stored locally for offline acces
 ### Push Notifications Not Received
 
 1. Check device is registered:
+
 ```typescript
 import { getExpoPushToken } from '@/services/notificationService';
 const token = await getExpoPushToken();
@@ -287,6 +312,7 @@ console.log('Token:', token); // Should not be null
 ```
 
 2. Verify permissions:
+
 ```typescript
 import * as Notifications from 'expo-notifications';
 const { status } = await Notifications.getPermissionsAsync();
@@ -294,6 +320,7 @@ console.log('Permission status:', status);
 ```
 
 3. Check backend device registration:
+
 ```bash
 # API call
 GET /api/v1/notifications/devices
@@ -310,6 +337,7 @@ GET /api/v1/notifications/devices
 ### Badge Count Not Updating
 
 Call `scheduleBadgeUpdate()` after marking notifications as read:
+
 ```typescript
 import { scheduleBadgeUpdate } from '@/services/notificationService';
 await scheduleBadgeUpdate();
@@ -326,6 +354,7 @@ await scheduleBadgeUpdate();
 ## Future Enhancements
 
 Potential improvements:
+
 - Rich notifications with images and actions
 - Notification scheduling
 - Local notifications for reminders

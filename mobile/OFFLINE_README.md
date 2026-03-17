@@ -24,27 +24,32 @@ npm start
 ## ✨ Key Features
 
 ### 🌐 Network Awareness
+
 - Real-time connectivity detection
 - Automatic online/offline switching
 - Visual indicators throughout the app
 
 ### 💾 Data Caching
+
 - Profile, Dashboard, Assignments, Grades, Attendance
 - Timestamp tracking for data freshness
 - Works completely offline with cached data
 
 ### 📤 Offline Queue
+
 - Automatic queuing of failed operations
 - Supports: Assignment submissions, Attendance check-ins, Profile updates
 - Auto-retry with exponential backoff
 - Manual sync triggers
 
 ### 🔄 Background Sync
+
 - Syncs every 15 minutes when online
 - Persists across app restarts
 - No user interaction required
 
 ### ⚡ Optimistic UI
+
 - Instant feedback on user actions
 - Automatic rollback on failure
 - Better perceived performance
@@ -52,6 +57,7 @@ npm start
 ## 🎯 Usage Examples
 
 ### Display Offline Status
+
 ```typescript
 import { OfflineIndicator } from '@components';
 
@@ -59,6 +65,7 @@ import { OfflineIndicator } from '@components';
 ```
 
 ### Show Cached Data Age
+
 ```typescript
 import { CachedDataBadge } from '@components';
 
@@ -66,6 +73,7 @@ import { CachedDataBadge } from '@components';
 ```
 
 ### Optimistic Updates
+
 ```typescript
 import { useOptimisticUpdate } from '@hooks';
 
@@ -76,6 +84,7 @@ await submitAssignment(assignmentId, data);
 ```
 
 ### Monitor Network
+
 ```typescript
 import { useNetworkStatus } from '@hooks';
 
@@ -83,12 +92,11 @@ const { isConnected, isInternetReachable, type } = useNetworkStatus();
 ```
 
 ### Access Cached Data
+
 ```typescript
 import { useAppSelector } from '@store/hooks';
 
-const { profile, assignments, grades } = useAppSelector(
-  state => state.studentData
-);
+const { profile, assignments, grades } = useAppSelector(state => state.studentData);
 // Always available, even offline!
 ```
 
@@ -116,6 +124,7 @@ User Action → Optimistic Update → Add to Queue
 ## 📦 Components
 
 ### UI Components
+
 - `OfflineIndicator` - Shows connection status and queue size
 - `CachedDataBadge` - Displays last sync timestamp
 - `SyncButton` - Manual sync trigger
@@ -124,15 +133,18 @@ User Action → Optimistic Update → Add to Queue
 - `ScreenLayout` - Screen wrapper with offline indicator
 
 ### Hooks
+
 - `useNetworkStatus()` - Network state monitoring
 - `useOfflineQueue()` - Access offline queue
 - `useOptimisticUpdate()` - Optimistic update helpers
 
 ### Redux Slices
+
 - `studentDataSlice` - Cached student data
 - `offlineSlice` - Offline state management
 
 ### Utilities
+
 - `offlineQueueManager` - Queue management
 - `BackgroundSyncService` - Background sync
 - `optimisticUpdates` - Helper functions
@@ -140,27 +152,35 @@ User Action → Optimistic Update → Add to Queue
 ## 🎨 Example Screens
 
 ### Dashboard with Offline Support
+
 See: `src/screens/OfflineSettingsScreen.tsx`
 
 ### Form with Optimistic Updates
+
 See: `OFFLINE_INTEGRATION_EXAMPLE.md`
 
 ## ⚙️ Configuration
 
 ### Sync Interval
+
 Edit `src/utils/backgroundSync.ts`:
+
 ```typescript
 minimumInterval: 15 * 60, // 15 minutes
 ```
 
 ### Refresh Threshold
+
 Edit `src/utils/optimisticUpdates.ts`:
+
 ```typescript
-maxAgeMinutes: number = 15 // Refresh after 15 minutes
+maxAgeMinutes: number = 15; // Refresh after 15 minutes
 ```
 
 ### Retry Count
+
 Edit `src/utils/offlineQueue.ts`:
+
 ```typescript
 const MAX_RETRIES = 3;
 ```
@@ -168,6 +188,7 @@ const MAX_RETRIES = 3;
 ## 🧪 Testing
 
 ### Test Offline Mode
+
 1. Enable airplane mode
 2. Navigate through app
 3. Submit forms
@@ -176,6 +197,7 @@ const MAX_RETRIES = 3;
 6. Watch auto-sync
 
 ### Verify Caching
+
 1. Load data while online
 2. Go offline
 3. Navigate through app
@@ -185,16 +207,19 @@ const MAX_RETRIES = 3;
 ## 🔧 Troubleshooting
 
 ### Queue Not Syncing
+
 - Check network connection
 - Verify auto-sync enabled
 - Check console logs
 
 ### Background Sync Not Working
+
 - Test on physical device (not simulator)
 - Check app permissions
 - Verify task registration
 
 ### Data Not Persisting
+
 - Clear app data
 - Reinstall app
 - Check AsyncStorage permissions
@@ -236,6 +261,7 @@ Same as parent project.
 ## 🆘 Support
 
 Issues? Check these docs:
+
 1. [Quick Start](OFFLINE_QUICK_START.md)
 2. [Architecture](OFFLINE_ARCHITECTURE.md)
 3. [Examples](OFFLINE_INTEGRATION_EXAMPLE.md)
@@ -252,6 +278,6 @@ The offline-first architecture is production-ready! Key capabilities:
 ✅ Queue management  
 ✅ Comprehensive UI components  
 ✅ Developer-friendly hooks  
-✅ Full documentation  
+✅ Full documentation
 
 **Just start using the app - offline support is automatic!**

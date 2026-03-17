@@ -94,11 +94,11 @@ export const AssignmentSubmissionScreen = ({ route }) => {
     setSubmitting(true);
     try {
       await submitAssignment(assignmentId, submissionData);
-      
+
       Alert.alert(
         'Success',
-        isOnline 
-          ? 'Assignment submitted successfully!' 
+        isOnline
+          ? 'Assignment submitted successfully!'
           : 'Assignment queued. Will submit when online.',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
@@ -147,11 +147,11 @@ export const AttendanceCheckInScreen = ({ route }) => {
       const location = await getLocation(); // Implement this
 
       await checkInAttendance(classId, location);
-      
+
       Alert.alert(
         'Success',
-        isOnline 
-          ? 'Checked in successfully!' 
+        isOnline
+          ? 'Checked in successfully!'
           : 'Check-in queued. Will sync when online.'
       );
     } catch (error) {
@@ -201,11 +201,11 @@ export const ProfileEditScreen = () => {
   const handleSave = async () => {
     try {
       await updateProfile(formData);
-      
+
       Alert.alert(
         'Success',
-        isOnline 
-          ? 'Profile updated successfully!' 
+        isOnline
+          ? 'Profile updated successfully!'
           : 'Changes saved offline. Will sync when online.'
       );
     } catch (error) {
@@ -271,7 +271,7 @@ export const AssignmentsListScreen = () => {
         <Text style={styles.title}>Assignments</Text>
         <CachedDataBadge lastSyncTime={assignmentsLastSync} isOnline={isConnected} />
       </View>
-      
+
       <FlatList
         data={assignments}
         renderItem={renderAssignment}
@@ -294,10 +294,10 @@ import React from 'react';
 import { View, Switch, Text } from 'react-native';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { setAutoSyncEnabled } from '@store/slices/offlineSlice';
-import { 
-  ScreenLayout, 
-  OfflineQueueStatus, 
-  SyncButton 
+import {
+  ScreenLayout,
+  OfflineQueueStatus,
+  SyncButton
 } from '@components';
 
 export const SettingsScreen = () => {
@@ -310,7 +310,7 @@ export const SettingsScreen = () => {
     <ScreenLayout>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Offline Settings</Text>
-        
+
         <View style={styles.setting}>
           <Text>Auto Sync</Text>
           <Switch
@@ -321,7 +321,7 @@ export const SettingsScreen = () => {
 
         <OfflineQueueStatus showDetails={true} />
 
-        <SyncButton 
+        <SyncButton
           variant="button"
           onSyncComplete={success => {
             console.log('Sync completed:', success);
@@ -349,7 +349,7 @@ export const useStudentData = () => {
 
   const refreshAll = async () => {
     if (!isConnected) return;
-    
+
     setLoading(true);
     try {
       await Promise.all([

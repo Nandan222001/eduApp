@@ -70,6 +70,7 @@ Check Auth State (from AsyncStorage via Redux Persist)
 ### Add a New Screen
 
 1. Create screen file in appropriate directory:
+
 ```typescript
 // src/screens/student/NewScreen.tsx
 import React from 'react';
@@ -97,6 +98,7 @@ const styles = StyleSheet.create({
 ```
 
 2. Add route to navigation types:
+
 ```typescript
 // src/types/navigation.ts
 export type StudentTabParamList = {
@@ -106,12 +108,14 @@ export type StudentTabParamList = {
 ```
 
 3. Add screen to navigator:
+
 ```typescript
 // src/navigation/StudentTabNavigator.tsx
 <Tab.Screen name="NewScreen" component={NewScreen} />
 ```
 
 4. Export from index:
+
 ```typescript
 // src/screens/index.ts
 export * from './student/NewScreen';
@@ -205,6 +209,7 @@ import { authApi } from '@api';
 ## Debugging
 
 ### Enable Redux DevTools
+
 Redux DevTools are not configured by default. To enable:
 
 1. Install Flipper and redux-flipper plugin
@@ -223,6 +228,7 @@ Redux DevTools are not configured by default. To enable:
 ### Network Debugging
 
 React Query DevTools are available for web. For mobile, inspect network requests in:
+
 - Flipper (Network plugin)
 - React Native Debugger
 - Browser DevTools (when using Expo web)
@@ -293,6 +299,7 @@ edumobile://profile
 ## Support
 
 For implementation details, see:
+
 - `NAVIGATION_IMPLEMENTATION.md` - Complete navigation guide
 - `IMPLEMENTATION_SUMMARY.md` - What was implemented
 - `INSTALL.md` - Installation instructions

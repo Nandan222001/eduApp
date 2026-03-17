@@ -72,3 +72,12 @@ web-build/
 
 # Testing
 coverage/
+.jest/
+junit.xml
+test-results/
+e2e/artifacts/
+*.e2e.log
+.detox/
+
+# Test snapshots (optional - remove this line if you want to commit snapshots)
+**/__snapshots__/

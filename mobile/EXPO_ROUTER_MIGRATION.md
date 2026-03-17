@@ -112,6 +112,7 @@ mobile/
 ### 1. Entry Point Migration
 
 **Before (React Navigation):**
+
 ```typescript
 // App.tsx
 export default function App() {
@@ -133,6 +134,7 @@ export default function App() {
 ```
 
 **After (Expo Router):**
+
 ```typescript
 // app/_layout.tsx
 export default function RootLayout() {
@@ -156,6 +158,7 @@ export default function RootLayout() {
 ### 2. Authentication Flow
 
 **Before:**
+
 ```typescript
 // RootNavigator.tsx
 <Stack.Navigator>
@@ -168,13 +171,14 @@ export default function RootLayout() {
 ```
 
 **After:**
+
 ```typescript
 // app/_layout.tsx - RootLayoutNav
 useEffect(() => {
   if (isLoading) return;
-  
+
   const inAuthGroup = segments[0] === '(auth)';
-  
+
   if (!isAuthenticated && !inAuthGroup) {
     router.replace('/(auth)/login');
   } else if (isAuthenticated && inAuthGroup) {
@@ -186,6 +190,7 @@ useEffect(() => {
 ### 3. Screen Component Updates
 
 **Before:**
+
 ```typescript
 import { AuthStackScreenProps } from '@types';
 
@@ -200,12 +205,13 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 ```
 
 **After:**
+
 ```typescript
 import { useRouter } from 'expo-router';
 
 export const LoginScreen: React.FC = () => {
   const router = useRouter();
-  
+
   const handleRegister = () => {
     router.push('/(auth)/register');
   };
@@ -216,6 +222,7 @@ export const LoginScreen: React.FC = () => {
 ### 4. Dynamic Routes
 
 **Before:**
+
 ```typescript
 // navigation/MainNavigator.tsx
 <Stack.Screen
@@ -229,6 +236,7 @@ const { courseId } = route.params;
 ```
 
 **After:**
+
 ```typescript
 // app/courses/[id].tsx
 import { CourseDetailScreen } from '@screens/student/CourseDetailScreen';
@@ -245,6 +253,7 @@ const { id: courseId } = useLocalSearchParams();
 ### Navigation Between Screens
 
 **Navigate to a screen:**
+
 ```typescript
 import { useRouter } from 'expo-router';
 
@@ -262,6 +271,7 @@ router.back();
 ```
 
 **Navigate with parameters:**
+
 ```typescript
 // Using template strings
 router.push(`/courses/${courseId}`);
@@ -270,11 +280,12 @@ router.push(`/assignments/${assignmentId}`);
 // Using search params for complex data
 router.push({
   pathname: '/reset-password',
-  params: { token: 'abc123' }
+  params: { token: 'abc123' },
 });
 ```
 
 **Access route parameters:**
+
 ```typescript
 import { useLocalSearchParams } from 'expo-router';
 
@@ -282,6 +293,7 @@ const { id, name } = useLocalSearchParams();
 ```
 
 **Access route segments:**
+
 ```typescript
 import { useSegments } from 'expo-router';
 
@@ -368,31 +380,34 @@ Deep linking is automatically configured in `app.json`:
 
 The following URL schemes are supported:
 
-| URL | Screen |
-|-----|--------|
-| `edumobile://login` | Login screen |
-| `edumobile://student` | Student home |
-| `edumobile://parent` | Parent dashboard |
-| `edumobile://courses/123` | Course detail |
-| `edumobile://assignments/456` | Assignment detail |
-| `edumobile://notifications` | Notifications list |
-| `edumobile://profile` | Profile screen |
-| `https://edu.app/login` | Login screen |
+| URL                                   | Screen              |
+| ------------------------------------- | ------------------- |
+| `edumobile://login`                   | Login screen        |
+| `edumobile://student`                 | Student home        |
+| `edumobile://parent`                  | Parent dashboard    |
+| `edumobile://courses/123`             | Course detail       |
+| `edumobile://assignments/456`         | Assignment detail   |
+| `edumobile://notifications`           | Notifications list  |
+| `edumobile://profile`                 | Profile screen      |
+| `https://edu.app/login`               | Login screen        |
 | `https://edu.app/student/assignments` | Student assignments |
 
 ### Testing Deep Links
 
 **iOS Simulator:**
+
 ```bash
 xcrun simctl openurl booted edumobile://courses/123
 ```
 
 **Android Emulator:**
+
 ```bash
 adb shell am start -W -a android.intent.action.VIEW -d "edumobile://courses/123" com.edu.mobile
 ```
 
 **Physical Devices:**
+
 - Use a QR code generator with the deep link
 - Send via email/SMS and tap the link
 
@@ -433,9 +448,7 @@ You cannot programmatically define routes. All routes must be file-based:
 
 ```typescript
 // ❌ Not possible
-const routes = [
-  { path: '/home', component: HomeScreen }
-];
+const routes = [{ path: '/home', component: HomeScreen }];
 
 // ✅ Must use files
 // app/home.tsx
@@ -452,15 +465,17 @@ If you need to add new screens or modify routing:
 ### Adding a New Screen
 
 1. **Create the screen file:**
+
    ```bash
    # For a simple route
    touch app/new-screen.tsx
-   
+
    # For a dynamic route
    touch app/items/[id].tsx
    ```
 
 2. **Export the screen component:**
+
    ```typescript
    // app/new-screen.tsx
    import { MyNewScreen } from '@screens/MyNewScreen';
@@ -468,10 +483,11 @@ If you need to add new screens or modify routing:
    ```
 
 3. **Update the screen component:**
+
    ```typescript
    // src/screens/MyNewScreen.tsx
    import { useRouter, useLocalSearchParams } from 'expo-router';
-   
+
    export const MyNewScreen: React.FC = () => {
      const router = useRouter();
      // Use router hooks instead of props
@@ -481,6 +497,7 @@ If you need to add new screens or modify routing:
 ### Adding a New Tab
 
 1. **Create the tab file in the appropriate group:**
+
    ```bash
    touch app/(tabs)/student/new-tab.tsx
    ```
@@ -507,19 +524,21 @@ If you need to add new screens or modify routing:
    - `route.params` → `useLocalSearchParams()`
 
 2. **Update imports:**
+
    ```typescript
    // Remove
    import { XXXStackScreenProps } from '@types';
-   
+
    // Add
    import { useRouter, useLocalSearchParams } from 'expo-router';
    ```
 
 3. **Update component signature:**
+
    ```typescript
    // Before
    export const MyScreen: React.FC<Props> = ({ navigation, route }) => {
-   
+
    // After
    export const MyScreen: React.FC = () => {
      const router = useRouter();
@@ -535,6 +554,7 @@ If you need to add new screens or modify routing:
 **Problem:** Navigating to a route that doesn't exist.
 
 **Solution:**
+
 - Check the file exists in the `app` directory
 - Verify the route path matches the file structure
 - Ensure the file exports a default component
@@ -544,6 +564,7 @@ If you need to add new screens or modify routing:
 **Problem:** TypeScript doesn't recognize route types.
 
 **Solution:**
+
 ```bash
 # Clear cache and regenerate
 npx expo start -c
@@ -554,6 +575,7 @@ npx expo start -c
 **Problem:** Deep links don't open the app.
 
 **Solution:**
+
 - Rebuild the app after changing `app.json`
 - Verify URL schemes are correctly configured
 - Check iOS Associated Domains or Android Intent Filters
@@ -563,6 +585,7 @@ npx expo start -c
 **Problem:** Navigation state resets unexpectedly.
 
 **Solution:**
+
 - Use `router.replace()` instead of `router.push()` for authentication flows
 - Check `_layout.tsx` files for conflicting navigation logic
 
@@ -571,6 +594,7 @@ npx expo start -c
 **Problem:** Tabs don't appear.
 
 **Solution:**
+
 - Ensure `_layout.tsx` in the tabs folder uses `<Tabs>` component
 - Verify all tab screens are registered in the layout
 - Check `tabBarIcon` is properly defined
@@ -612,6 +636,7 @@ if (__DEV__) {
 ## Support
 
 For issues or questions about the migration:
+
 1. Check this guide's troubleshooting section
 2. Review Expo Router documentation
 3. Check the project's GitHub issues

@@ -29,14 +29,14 @@ export default function App() {
 // src/screens/auth/LoginScreen.tsx
 import { registerDevice } from '../services/notificationService';
 
-const handleLogin = async (credentials) => {
+const handleLogin = async credentials => {
   try {
     const response = await authApi.login(credentials);
     const { user, token } = response.data;
-    
+
     // Save auth data
     await saveAuthData(user, token);
-    
+
     // Register device for push notifications
     if (user.id) {
       const registered = await registerDevice(user.id);
@@ -44,7 +44,7 @@ const handleLogin = async (credentials) => {
         console.log('Device registered for push notifications');
       }
     }
-    
+
     navigation.navigate('Home');
   } catch (error) {
     console.error('Login failed:', error);
@@ -89,7 +89,7 @@ export default function NotificationsScreen({ navigation }) {
     try {
       await notificationApi.markAsRead(notification.id);
       await scheduleBadgeUpdate();
-      
+
       // Navigate based on type
       if (notification.data?.screen) {
         navigation.navigate(notification.data.screen, {
@@ -136,7 +136,7 @@ export default function NotificationsScreen({ navigation }) {
           <Text style={styles.markAllRead}>Mark All Read</Text>
         </TouchableOpacity>
       </View>
-      
+
       <FlatList
         data={notifications}
         renderItem={renderNotification}
@@ -215,7 +215,7 @@ export default function SettingsScreen({ navigation }) {
         <Text style={styles.settingLabel}>Notification Preferences</Text>
         <Text style={styles.settingArrow}>›</Text>
       </TouchableOpacity>
-      
+
       {/* Other settings items */}
     </View>
   );
@@ -282,7 +282,7 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Home</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.notificationButton}
           onPress={() => navigation.navigate('Notifications')}
         >
@@ -296,7 +296,7 @@ export default function HomeScreen({ navigation }) {
           )}
         </TouchableOpacity>
       </View>
-      
+
       {/* Rest of home screen content */}
     </View>
   );
@@ -353,10 +353,10 @@ import { apiClient } from '../api/client';
 
 export const createAssignment = async (assignmentData: AssignmentCreate) => {
   const response = await apiClient.post('/api/v1/assignments/', assignmentData);
-  
+
   // Backend automatically sends notifications to enrolled students
   // No additional client-side code needed
-  
+
   return response.data;
 };
 ```
@@ -368,10 +368,10 @@ export const createAssignment = async (assignmentData: AssignmentCreate) => {
 const handleSubmitAssignment = async (assignmentId: number) => {
   try {
     await apiClient.post(`/api/v1/assignments/${assignmentId}/submit`, submissionData);
-    
+
     // Backend will send notification to teacher
     // Client just needs to show success message
-    
+
     Alert.alert('Success', 'Assignment submitted successfully');
   } catch (error) {
     Alert.alert('Error', 'Failed to submit assignment');
@@ -388,10 +388,12 @@ const handleSubmitAssignment = async (assignmentId: number) => {
 import { Notification } from 'expo-notifications';
 import { NavigationContainerRef } from '@react-navigation/native';
 
-export function createNotificationHandler(navigationRef: React.RefObject<NavigationContainerRef<any>>) {
+export function createNotificationHandler(
+  navigationRef: React.RefObject<NavigationContainerRef<any>>
+) {
   return async (notification: Notification) => {
     const data = notification.request.content.data;
-    
+
     // Custom logic based on notification type
     switch (data.type) {
       case 'assignments':
@@ -400,34 +402,30 @@ export function createNotificationHandler(navigationRef: React.RefObject<Navigat
           params: { id: data.id },
         });
         break;
-        
+
       case 'grades':
         navigationRef.current?.navigate('Grades', {
           screen: 'GradeDetail',
           params: { id: data.id },
         });
         break;
-        
+
       case 'urgent_announcement':
         // Show immediate alert for urgent announcements
-        Alert.alert(
-          notification.request.content.title,
-          notification.request.content.body,
-          [
-            {
-              text: 'View',
-              onPress: () => {
-                navigationRef.current?.navigate('Announcements', {
-                  screen: 'AnnouncementDetail',
-                  params: { id: data.id },
-                });
-              },
+        Alert.alert(notification.request.content.title, notification.request.content.body, [
+          {
+            text: 'View',
+            onPress: () => {
+              navigationRef.current?.navigate('Announcements', {
+                screen: 'AnnouncementDetail',
+                params: { id: data.id },
+              });
             },
-            { text: 'Dismiss', style: 'cancel' },
-          ]
-        );
+          },
+          { text: 'Dismiss', style: 'cancel' },
+        ]);
         break;
-        
+
       default:
         // Default navigation
         if (data.screen) {
@@ -445,13 +443,13 @@ export function createNotificationHandler(navigationRef: React.RefObject<Navigat
 import { registerDevice, subscribeToTopic } from '../services/notificationService';
 
 export function useAuth() {
-  const login = async (credentials) => {
+  const login = async credentials => {
     const response = await authApi.login(credentials);
     const { user, token } = response.data;
-    
+
     // Register device
     await registerDevice(user.id);
-    
+
     // Subscribe to role-specific topics
     if (user.role === 'student') {
       await subscribeToTopic('assignments');
@@ -464,13 +462,13 @@ export function useAuth() {
       await subscribeToTopic('child_updates');
       await subscribeToTopic('school_announcements');
     }
-    
+
     // All roles get announcements
     await subscribeToTopic('announcements');
-    
+
     return user;
   };
-  
+
   return { login };
 }
 ```
@@ -480,7 +478,10 @@ export function useAuth() {
 ```typescript
 // src/hooks/useNotificationPreferences.ts
 import { useState, useEffect } from 'react';
-import { getNotificationPreferences, saveNotificationPreferences } from '../services/notificationService';
+import {
+  getNotificationPreferences,
+  saveNotificationPreferences,
+} from '../services/notificationService';
 
 export function useNotificationPreferences() {
   const [preferences, setPreferences] = useState(null);
@@ -502,7 +503,7 @@ export function useNotificationPreferences() {
   const updatePreference = async (key: string, value: any) => {
     const updated = { ...preferences, [key]: value };
     setPreferences(updated);
-    
+
     try {
       await saveNotificationPreferences(updated);
     } catch (error) {

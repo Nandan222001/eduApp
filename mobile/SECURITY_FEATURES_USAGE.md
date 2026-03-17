@@ -1,6 +1,7 @@
 # Security Features Usage Examples
 
 ## Table of Contents
+
 - [Biometric Authentication](#biometric-authentication)
 - [PIN Authentication](#pin-authentication)
 - [Secure Storage](#secure-storage)
@@ -20,11 +21,8 @@ const capabilities = await biometricService.checkBiometricCapabilities();
 
 if (capabilities.isAvailable) {
   // Enable biometric after successful login
-  const success = await biometricService.enableBiometric(
-    user.email,
-    password
-  );
-  
+  const success = await biometricService.enableBiometric(user.email, password);
+
   if (success) {
     console.log('Biometric authentication enabled');
   }
@@ -40,7 +38,7 @@ const authenticated = await biometricService.authenticate('Login to continue');
 if (authenticated) {
   // Get saved credentials
   const credentials = await biometricService.getCredentials();
-  
+
   if (credentials) {
     // Login with saved credentials
     await login(credentials.email, credentials.password);
@@ -111,13 +109,13 @@ import { secureStorage } from '@utils/secureStorage';
 
 // Store string
 await secureStorage.setItem('api_key', 'secret_key', {
-  requireAuthentication: true
+  requireAuthentication: true,
 });
 
 // Store object
 await secureStorage.setObject('user_preferences', {
   theme: 'dark',
-  notifications: true
+  notifications: true,
 });
 ```
 
@@ -226,7 +224,7 @@ function PaymentScreen() {
   };
 
   return (
-    <Button 
+    <Button
       onPress={handlePayment}
       loading={isAuthenticating}
     >
@@ -240,29 +238,18 @@ function PaymentScreen() {
 
 ```typescript
 // Change password
-await executeWithAuth(
-  'Change Password',
-  async () => await api.changePassword(newPassword)
-);
+await executeWithAuth('Change Password', async () => await api.changePassword(newPassword));
 
 // Update payment method
-await executeWithAuth(
-  'Update Payment Method',
-  async () => await api.updatePaymentMethod(cardData)
-);
+await executeWithAuth('Update Payment Method', async () => await api.updatePaymentMethod(cardData));
 
 // Delete account
-await executeWithAuth(
-  'Delete Account',
-  async () => await api.deleteAccount()
-);
+await executeWithAuth('Delete Account', async () => await api.deleteAccount());
 
 // Transfer funds
-await executeWithAuth(
-  'Transfer Funds',
-  async () => await api.transferFunds(recipientId, amount),
-  { operationDetails: `Transfer $${amount} to ${recipientName}` }
-);
+await executeWithAuth('Transfer Funds', async () => await api.transferFunds(recipientId, amount), {
+  operationDetails: `Transfer $${amount} to ${recipientName}`,
+});
 ```
 
 ## Device Management
@@ -381,8 +368,8 @@ function ProfileUpdateScreen() {
 import { SettingsScreen } from '@screens/common/SettingsScreen';
 
 // In your navigation
-<Stack.Screen 
-  name="settings" 
+<Stack.Screen
+  name="settings"
   component={SettingsScreen}
   options={{ title: 'Security Settings' }}
 />
@@ -403,6 +390,7 @@ function App() {
 ```
 
 This wrapper automatically handles:
+
 - Session initialization
 - Session timeout detection
 - Auto-lock when backgrounded

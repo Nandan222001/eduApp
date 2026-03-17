@@ -120,7 +120,7 @@ export const DashboardScreen = () => {
 
 ```typescript
 // Old implementation
-const handleSubmit = async (formData) => {
+const handleSubmit = async formData => {
   try {
     setSubmitting(true);
     await assignmentsApi.submitAssignment(formData);
@@ -148,11 +148,11 @@ const MyFormScreen = () => {
     setSubmitting(true);
     try {
       await submitAssignment(assignmentId, formData);
-      
+
       Alert.alert(
         'Success',
-        isOnline 
-          ? 'Assignment submitted successfully!' 
+        isOnline
+          ? 'Assignment submitted successfully!'
           : 'Assignment queued. Will sync when online.',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
@@ -234,7 +234,7 @@ export const SettingsScreen = () => {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Offline Mode</Text>
-        
+
         <View style={styles.settingRow}>
           <Text>Auto Sync</Text>
           <Switch
@@ -244,7 +244,7 @@ export const SettingsScreen = () => {
         </View>
 
         <OfflineQueueStatus showDetails={true} />
-        
+
         <SyncButton variant="button" />
       </View>
     </ScrollView>
@@ -304,11 +304,11 @@ import { offlineQueueManager } from '@utils/offlineQueue';
 const handleLogout = async () => {
   // Clear sensitive cached data
   dispatch(clearAllData());
-  
+
   // Clear offline queue
   await offlineQueueManager.clearQueue();
   dispatch(clearQueue());
-  
+
   // Proceed with normal logout
   dispatch(logout());
 };
@@ -317,11 +317,13 @@ const handleLogout = async () => {
 ## Migration Checklist
 
 ### Required Changes
+
 - [ ] Update `package.json` dependencies (already done)
 - [ ] Initialize offline support in `app/_layout.tsx` (already done)
 - [ ] Update Redux store configuration (already done)
 
 ### Screen Updates
+
 - [ ] Replace local state with Redux cached data
 - [ ] Add `OfflineIndicator` to main screens
 - [ ] Add `CachedDataBadge` to show data age
@@ -329,15 +331,18 @@ const handleLogout = async () => {
 - [ ] Use `ScreenLayout` wrapper for consistency
 
 ### Form Updates
+
 - [ ] Replace direct API calls with `useOptimisticUpdate`
 - [ ] Add offline queue messaging
 - [ ] Handle offline submissions gracefully
 
 ### Navigation Updates
+
 - [ ] Add queue badges to relevant tabs
 - [ ] Update settings screen with offline controls
 
 ### Testing
+
 - [ ] Test all screens in offline mode
 - [ ] Verify data caching works
 - [ ] Test queue functionality
@@ -364,7 +369,7 @@ useEffect(() => {
 ```typescript
 const { updateItem, isOnline } = useOptimisticUpdate();
 
-const handleUpdate = async (updates) => {
+const handleUpdate = async updates => {
   await updateItem(updates);
   Alert.alert('Success', isOnline ? 'Updated!' : 'Queued for sync');
 };
@@ -393,6 +398,7 @@ None! The offline implementation is additive and doesn't break existing function
 ## Support
 
 For detailed documentation, see:
+
 - `OFFLINE_ARCHITECTURE.md` - Complete technical details
 - `OFFLINE_QUICK_START.md` - Quick reference guide
 - `OFFLINE_INTEGRATION_EXAMPLE.md` - Code examples
