@@ -86,6 +86,7 @@ import RecognitionSettings from './pages/RecognitionSettings';
 import AIStudyBuddy from './pages/AIStudyBuddy';
 import HomeworkScanner from './pages/HomeworkScanner';
 import AdministratorsList from './pages/AdministratorsList';
+import ClassManagement from './pages/ClassManagement';
 
 import {
   LoginPage,
@@ -193,7 +194,7 @@ function App() {
                   <Route path="users/teachers/:id/roles" element={<TeacherRoleAssignment />} />
                   <Route path="users/teachers/bulk-import" element={<TeacherBulkImport />} />
                   <Route path="users/admins" element={<AdministratorsList />} />
-                  <Route path="academic/classes" element={<div>Classes</div>} />
+                  <Route path="academic/classes" element={<ClassManagement />} />
                   <Route path="academic/subjects" element={<div>Subjects</div>} />
                   <Route path="academic/syllabus" element={<div>Syllabus</div>} />
                   <Route path="assignments" element={<div>Assignments</div>} />
