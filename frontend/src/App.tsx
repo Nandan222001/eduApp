@@ -103,6 +103,7 @@ import WorkHourMonitoring from './pages/WorkHourMonitoring';
 import MistakeReplay from './pages/MistakeReplay';
 import MistakeInsurance from './pages/MistakeInsurance';
 import ReverseClassroom from './pages/ReverseClassroom';
+import AnnouncementManagement from './pages/AnnouncementManagement';
 
 import {
   LoginPage,
@@ -247,7 +248,7 @@ function App() {
                   <Route path="attendance/corrections" element={<AttendanceCorrectionPage />} />
                   <Route path="goals" element={<GoalsManagement />} />
                   <Route path="gamification" element={<GamificationDashboard />} />
-                  <Route path="communication/announcements" element={<div>Announcements</div>} />
+                  <Route path="communication/announcements" element={<AnnouncementManagement />} />
                   <Route path="communication/messages" element={<div>Messages</div>} />
                   <Route path="analytics" element={<InstitutionAnalyticsDashboard />} />
                   <Route path="analytics/class/:classId" element={<ClassPerformanceAnalytics />} />
