@@ -105,6 +105,8 @@ import MistakeReplay from './pages/MistakeReplay';
 import MistakeInsurance from './pages/MistakeInsurance';
 import ReverseClassroom from './pages/ReverseClassroom';
 import AnnouncementManagement from './pages/AnnouncementManagement';
+import SubjectBattles from './pages/SubjectBattles';
+import SubjectPassport from './pages/SubjectPassport';
 
 import {
   LoginPage,
@@ -354,6 +356,8 @@ function App() {
                   <Route path="mistakes/replay" element={<MistakeReplay />} />
                   <Route path="mistakes/insurance" element={<MistakeInsurance />} />
                   <Route path="teach" element={<ReverseClassroom />} />
+                  <Route path="battles" element={<SubjectBattles />} />
+                  <Route path="passport" element={<SubjectPassport />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Route>
