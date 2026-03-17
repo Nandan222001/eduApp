@@ -90,6 +90,7 @@ import ClassManagement from './pages/ClassManagement';
 import VirtualOlympics from './pages/VirtualOlympics';
 import OlympicsDetailPage from './pages/OlympicsDetailPage';
 import OlympicsCompetitionPage from './pages/OlympicsCompetitionPage';
+import SubjectManagement from './pages/SubjectManagement';
 
 import {
   LoginPage,
@@ -198,7 +199,7 @@ function App() {
                   <Route path="users/teachers/bulk-import" element={<TeacherBulkImport />} />
                   <Route path="users/admins" element={<AdministratorsList />} />
                   <Route path="academic/classes" element={<ClassManagement />} />
-                  <Route path="academic/subjects" element={<div>Subjects</div>} />
+                  <Route path="academic/subjects" element={<SubjectManagement />} />
                   <Route path="academic/syllabus" element={<div>Syllabus</div>} />
                   <Route path="assignments" element={<div>Assignments</div>} />
                   <Route path="examinations/list" element={<ExamListPage />} />
