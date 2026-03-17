@@ -237,3 +237,7 @@ mobile/*.keystore
 mobile/*.mobileprovision
 mobile/*.p12
 mobile/service-account-key.json
+
+# Node modules at root (if any)
+node_modules/
+package-lock.json
