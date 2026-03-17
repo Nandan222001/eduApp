@@ -7,3 +7,4 @@ export * from './apiErrorHandler';
 export * from './offlineQueue';
 export * from './optimisticUpdates';
 export * from './backgroundSync';
+export * from './deviceFingerprint';

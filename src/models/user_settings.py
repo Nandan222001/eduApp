@@ -22,6 +22,12 @@ class UserSettings(Base):
     show_online_status = Column(Boolean, default=True, nullable=False)
     language = Column(String(10), default='en', nullable=False)
     timezone = Column(String(50), default='UTC', nullable=False)
+    biometric_enabled = Column(Boolean, default=False, nullable=False)
+    pin_enabled = Column(Boolean, default=False, nullable=False)
+    pin_hash = Column(String(255), nullable=True)
+    session_timeout_minutes = Column(Integer, default=30, nullable=False)
+    auto_lock_minutes = Column(Integer, default=5, nullable=False)
+    require_biometric_for_sensitive = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -35,12 +41,19 @@ class UserDevice(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     device_name = Column(String(255), nullable=False)
     device_type = Column(String(50), nullable=False)
+    device_fingerprint = Column(String(255), nullable=True, index=True)
+    device_model = Column(String(100), nullable=True)
+    os_version = Column(String(50), nullable=True)
+    app_version = Column(String(50), nullable=True)
     browser = Column(String(100), nullable=True)
     os = Column(String(100), nullable=True)
     ip_address = Column(String(45), nullable=False)
     location = Column(String(255), nullable=True)
     last_active = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_current = Column(Boolean, default=False, nullable=False)
+    is_trusted = Column(Boolean, default=False, nullable=False)
+    biometric_enabled = Column(Boolean, default=False, nullable=False)
+    biometric_type = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     user = relationship("User", back_populates="devices")
@@ -48,6 +61,7 @@ class UserDevice(Base):
     __table_args__ = (
         Index('idx_user_device_user', 'user_id'),
         Index('idx_user_device_last_active', 'last_active'),
+        Index('idx_user_device_fingerprint', 'device_fingerprint'),
     )
 
 

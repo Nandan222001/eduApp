@@ -27,3 +27,7 @@ export { ProfileScreen } from './common/ProfileScreen';
 export { SettingsScreen } from './common/SettingsScreen';
 export { NotificationsScreen } from './common/NotificationsScreen';
 export { NotificationDetailScreen } from './common/NotificationDetailScreen';
+export { PinSetupScreen } from './common/PinSetupScreen';
+export { DeviceManagementScreen } from './common/DeviceManagementScreen';
+export { AuthHistoryScreen } from './common/AuthHistoryScreen';
+export { SessionLockScreen } from './common/SessionLockScreen';

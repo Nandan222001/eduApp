@@ -1,80 +1,139 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { storage as asyncStorage } from './storage';
 
-export const secureStorage = {
-  async setItem(key: string, value: string): Promise<void> {
+export interface SecureStorageOptions {
+  keychainAccessible?: number;
+  requireAuthentication?: boolean;
+}
+
+class SecureStorageService {
+  private prefix = '@edu_secure_';
+
+  async setItem(
+    key: string,
+    value: string,
+    options?: SecureStorageOptions
+  ): Promise<void> {
     try {
+      const fullKey = this.prefix + key;
+      
       if (Platform.OS === 'web') {
-        await asyncStorage.setItem(key, value);
-      } else {
-        await SecureStore.setItemAsync(key, value);
+        localStorage.setItem(fullKey, value);
+        return;
       }
+
+      const storeOptions: SecureStore.SecureStoreOptions = {};
+      
+      if (options?.keychainAccessible && Platform.OS === 'ios') {
+        storeOptions.keychainAccessible = options.keychainAccessible;
+      }
+
+      if (options?.requireAuthentication && Platform.OS === 'android') {
+        storeOptions.requireAuthentication = true;
+        storeOptions.authenticationPrompt = 'Authenticate to access secure data';
+      }
+
+      await SecureStore.setItemAsync(fullKey, value, storeOptions);
     } catch (error) {
       console.error('Error saving to secure storage:', error);
       throw error;
     }
-  },
+  }
 
-  async getItem(key: string): Promise<string | null> {
+  async getItem(
+    key: string,
+    options?: SecureStorageOptions
+  ): Promise<string | null> {
     try {
+      const fullKey = this.prefix + key;
+      
       if (Platform.OS === 'web') {
-        return await asyncStorage.getItem(key);
-      } else {
-        return await SecureStore.getItemAsync(key);
+        return localStorage.getItem(fullKey);
       }
+
+      const storeOptions: SecureStore.SecureStoreOptions = {};
+      
+      if (options?.requireAuthentication && Platform.OS === 'android') {
+        storeOptions.requireAuthentication = true;
+        storeOptions.authenticationPrompt = 'Authenticate to access secure data';
+      }
+
+      return await SecureStore.getItemAsync(fullKey, storeOptions);
     } catch (error) {
       console.error('Error reading from secure storage:', error);
       return null;
     }
-  },
+  }
 
   async removeItem(key: string): Promise<void> {
     try {
+      const fullKey = this.prefix + key;
+      
       if (Platform.OS === 'web') {
-        await asyncStorage.removeItem(key);
-      } else {
-        await SecureStore.deleteItemAsync(key);
+        localStorage.removeItem(fullKey);
+        return;
       }
+
+      await SecureStore.deleteItemAsync(fullKey);
     } catch (error) {
       console.error('Error removing from secure storage:', error);
       throw error;
     }
-  },
+  }
 
-  async setObject<T>(key: string, value: T): Promise<void> {
+  async setObject<T>(
+    key: string,
+    value: T,
+    options?: SecureStorageOptions
+  ): Promise<void> {
     try {
       const jsonValue = JSON.stringify(value);
-      await this.setItem(key, jsonValue);
+      await this.setItem(key, jsonValue, options);
     } catch (error) {
       console.error('Error saving object to secure storage:', error);
       throw error;
     }
-  },
+  }
 
-  async getObject<T>(key: string): Promise<T | null> {
+  async getObject<T>(
+    key: string,
+    options?: SecureStorageOptions
+  ): Promise<T | null> {
     try {
-      const jsonValue = await this.getItem(key);
+      const jsonValue = await this.getItem(key, options);
       return jsonValue != null ? JSON.parse(jsonValue) : null;
     } catch (error) {
       console.error('Error reading object from secure storage:', error);
       return null;
     }
-  },
+  }
 
   async clear(): Promise<void> {
     try {
       if (Platform.OS === 'web') {
-        await asyncStorage.clear();
-      } else {
-        const keys = ['@edu_access_token', '@edu_refresh_token', '@edu_user_data', '@edu_biometric_enabled', '@edu_biometric_credentials'];
-        for (const key of keys) {
-          await SecureStore.deleteItemAsync(key);
-        }
+        const keys = Object.keys(localStorage).filter(k => k.startsWith(this.prefix));
+        keys.forEach(key => localStorage.removeItem(key));
+        return;
       }
+
+      const keys = [
+        'auth_token',
+        'refresh_token',
+        'user_data',
+        'biometric_credentials',
+        'pin_hash',
+        'device_fingerprint',
+        'session_data',
+      ];
+
+      await Promise.all(
+        keys.map(key => this.removeItem(key))
+      );
     } catch (error) {
       console.error('Error clearing secure storage:', error);
       throw error;
     }
-  },
-};
+  }
+}
+
+export const secureStorage = new SecureStorageService();

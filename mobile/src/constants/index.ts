@@ -57,4 +57,9 @@ export const STORAGE_KEYS = {
   ACTIVE_ROLE: '@edu_active_role',
   OFFLINE_QUEUE: '@edu_offline_queue',
   LAST_SYNC_TIME: '@edu_last_sync_time',
+  PIN_ENABLED: '@edu_pin_enabled',
+  PIN_HASH: '@edu_pin_hash',
+  DEVICE_FINGERPRINT: '@edu_device_fingerprint',
+  SESSION_DATA: '@edu_session_data',
+  SECURITY_SETTINGS: '@edu_security_settings',
 };

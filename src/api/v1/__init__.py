@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from src.api.v1 import (
     users, 
     auth, 
+    mobile_auth,
     subscriptions, 
     webhooks, 
     institutions, 
@@ -96,6 +97,7 @@ from src.api import ml
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(mobile_auth.router, prefix="/mobile-auth", tags=["mobile-auth"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(subscriptions.router, prefix="/subscriptions", tags=["subscriptions"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
