@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 import { Text, Icon } from '@rneui/themed';
 import { useQuery } from '@tanstack/react-query';
 import { COLORS, SPACING } from '@constants';
@@ -12,16 +19,17 @@ import { AIPredictionWidget } from '../../components/student/AIPredictionWidget'
 import { WeakAreasPanel } from '../../components/student/WeakAreasPanel';
 import { StreakTracker } from '../../components/student/StreakTracker';
 import { GamificationWidget } from '../../components/student/GamificationWidget';
+import { AIFeaturesQuickAccess } from '../../components/student/AIFeaturesQuickAccess';
 
 export const DashboardScreen: React.FC = () => {
   const [refreshing, setRefreshing] = React.useState(false);
 
-  const { 
-    data: dashboardData, 
-    isLoading, 
-    isError, 
+  const {
+    data: dashboardData,
+    isLoading,
+    isError,
     error,
-    refetch 
+    refetch,
   } = useQuery({
     queryKey: ['student-dashboard'],
     queryFn: async () => {
@@ -30,7 +38,7 @@ export const DashboardScreen: React.FC = () => {
     },
     staleTime: 2 * 60 * 1000,
     retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const { data: profile } = useQuery({
@@ -97,23 +105,16 @@ export const DashboardScreen: React.FC = () => {
 
       <View style={styles.row}>
         <View style={styles.halfWidth}>
-          <AttendanceStatusCard
-            attendance={dashboardData?.attendance}
-            isLoading={!dashboardData}
-          />
+          <AttendanceStatusCard attendance={dashboardData?.attendance} isLoading={!dashboardData} />
         </View>
         <View style={styles.halfWidth}>
-          <StreakTracker
-            streak={dashboardData?.gamification?.streak}
-            isLoading={!dashboardData}
-          />
+          <StreakTracker streak={dashboardData?.gamification?.streak} isLoading={!dashboardData} />
         </View>
       </View>
 
-      <AIPredictionWidget 
-        prediction={dashboardData?.aiPredictions} 
-        isLoading={!dashboardData} 
-      />
+      <AIPredictionWidget prediction={dashboardData?.aiPredictions} isLoading={!dashboardData} />
+
+      <AIFeaturesQuickAccess />
 
       <UpcomingAssignmentsCard
         assignments={dashboardData?.upcomingAssignments}
@@ -127,15 +128,9 @@ export const DashboardScreen: React.FC = () => {
         onViewAll={() => {}}
       />
 
-      <WeakAreasPanel 
-        weakAreas={dashboardData?.weakAreas} 
-        isLoading={!dashboardData} 
-      />
+      <WeakAreasPanel weakAreas={dashboardData?.weakAreas} isLoading={!dashboardData} />
 
-      <GamificationWidget
-        gamification={dashboardData?.gamification}
-        isLoading={!dashboardData}
-      />
+      <GamificationWidget gamification={dashboardData?.gamification} isLoading={!dashboardData} />
     </ScrollView>
   );
 };

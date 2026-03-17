@@ -16,7 +16,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
 export const ResetPasswordScreen: React.FC = () => {
   const router = useRouter();
   const { token } = useLocalSearchParams();
-  
+
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -60,21 +60,14 @@ export const ResetPasswordScreen: React.FC = () => {
         confirm_password: confirmPassword,
       });
 
-      Alert.alert(
-        'Success',
-        'Your password has been reset successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(auth)/login'),
-          },
-        ]
-      );
+      Alert.alert('Success', 'Your password has been reset successfully', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/(auth)/login'),
+        },
+      ]);
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.message || 'Failed to reset password. Please try again.'
-      );
+      Alert.alert('Error', error.message || 'Failed to reset password. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +75,7 @@ export const ResetPasswordScreen: React.FC = () => {
 
   const getPasswordStrength = () => {
     if (!password) return null;
-    
+
     let strength = 0;
     if (password.length >= 8) strength++;
     if (password.length >= 12) strength++;
@@ -102,26 +95,16 @@ export const ResetPasswordScreen: React.FC = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.iconContainer}>
-          <Icon
-            name="lock-open"
-            type="material"
-            color={COLORS.primary}
-            size={80}
-          />
+          <Icon name="lock-open" type="material" color={COLORS.primary} size={80} />
         </View>
 
         <View style={styles.header}>
           <Text h2 style={styles.title}>
             Reset Password
           </Text>
-          <Text style={styles.subtitle}>
-            Enter your new password below
-          </Text>
+          <Text style={styles.subtitle}>Enter your new password below</Text>
         </View>
 
         <View style={styles.form}>
@@ -159,9 +142,7 @@ export const ResetPasswordScreen: React.FC = () => {
             secureTextEntry={!showConfirmPassword}
             leftIcon={<Icon name="lock" type="material" color={COLORS.textSecondary} />}
             rightIcon={
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
+              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
                 <Icon
                   name={showConfirmPassword ? 'visibility' : 'visibility-off'}
                   type="material"
@@ -170,9 +151,7 @@ export const ResetPasswordScreen: React.FC = () => {
               </TouchableOpacity>
             }
             errorMessage={
-              confirmPassword && password !== confirmPassword
-                ? 'Passwords do not match'
-                : ''
+              confirmPassword && password !== confirmPassword ? 'Passwords do not match' : ''
             }
             containerStyle={styles.inputContainer}
           />
@@ -190,11 +169,7 @@ export const ResetPasswordScreen: React.FC = () => {
             </View>
             <View style={styles.requirement}>
               <Icon
-                name={
-                  /[a-z]/.test(password) && /[A-Z]/.test(password)
-                    ? 'check-circle'
-                    : 'cancel'
-                }
+                name={/[a-z]/.test(password) && /[A-Z]/.test(password) ? 'check-circle' : 'cancel'}
                 type="material"
                 color={
                   /[a-z]/.test(password) && /[A-Z]/.test(password)
@@ -203,9 +178,7 @@ export const ResetPasswordScreen: React.FC = () => {
                 }
                 size={16}
               />
-              <Text style={styles.requirementText}>
-                Uppercase and lowercase letters
-              </Text>
+              <Text style={styles.requirementText}>Uppercase and lowercase letters</Text>
             </View>
             <View style={styles.requirement}>
               <Icon

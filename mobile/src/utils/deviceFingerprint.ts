@@ -25,9 +25,9 @@ class DeviceFingerprintService {
     ];
 
     const baseFingerprint = components.join('|');
-    
+
     const hash = await this.simpleHash(baseFingerprint);
-    
+
     return hash;
   }
 
@@ -35,10 +35,10 @@ class DeviceFingerprintService {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
-    
+
     const timestamp = Date.now().toString(36);
     return Math.abs(hash).toString(36) + timestamp;
   }
@@ -46,12 +46,12 @@ class DeviceFingerprintService {
   async getOrCreateFingerprint(): Promise<string> {
     try {
       let fingerprint = await secureStorage.getItem(this.fingerprintKey);
-      
+
       if (!fingerprint) {
         fingerprint = await this.generateFingerprint();
         await secureStorage.setItem(this.fingerprintKey, fingerprint);
       }
-      
+
       return fingerprint;
     } catch (error) {
       console.error('Error getting/creating fingerprint:', error);
@@ -61,7 +61,7 @@ class DeviceFingerprintService {
 
   async getDeviceInfo(): Promise<DeviceInfo> {
     const fingerprint = await this.getOrCreateFingerprint();
-    
+
     let deviceType = 'unknown';
     if (Device.deviceType === Device.DeviceType.PHONE) {
       deviceType = 'phone';

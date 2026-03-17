@@ -152,41 +152,41 @@ export const useAssignmentDetail = (assignmentId: string) => {
 
 export const useSubmitAssignment = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (data: SubmitAssignmentData) => assignmentsApi.submitAssignment(data),
-    onMutate: async (newSubmission) => {
-      await queryClient.cancelQueries({ 
-        queryKey: ['assignment', newSubmission.assignmentId.toString()] 
+    onMutate: async newSubmission => {
+      await queryClient.cancelQueries({
+        queryKey: ['assignment', newSubmission.assignmentId.toString()],
       });
-      
+
       const previousAssignment = queryClient.getQueryData([
-        'assignment', 
-        newSubmission.assignmentId.toString()
+        'assignment',
+        newSubmission.assignmentId.toString(),
       ]);
-      
+
       queryClient.setQueryData(
-        ['assignment', newSubmission.assignmentId.toString()], 
+        ['assignment', newSubmission.assignmentId.toString()],
         (old: any) => ({
           ...old,
           status: 'submitted',
           submittedAt: new Date().toISOString(),
         })
       );
-      
+
       return { previousAssignment };
     },
     onError: (err, newSubmission, context) => {
       if (context?.previousAssignment) {
         queryClient.setQueryData(
-          ['assignment', newSubmission.assignmentId.toString()], 
+          ['assignment', newSubmission.assignmentId.toString()],
           context.previousAssignment
         );
       }
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['assignment', variables.assignmentId.toString()] 
+      queryClient.invalidateQueries({
+        queryKey: ['assignment', variables.assignmentId.toString()],
       });
       queryClient.invalidateQueries({ queryKey: ['assignments'] });
       queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
@@ -196,16 +196,19 @@ export const useSubmitAssignment = () => {
 
 export const useUpdateSubmission = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ submissionId, data }: { 
-      submissionId: number; 
-      data: Partial<SubmitAssignmentData> 
+    mutationFn: ({
+      submissionId,
+      data,
+    }: {
+      submissionId: number;
+      data: Partial<SubmitAssignmentData>;
     }) => assignmentsApi.updateSubmission(submissionId, data),
     onSuccess: (data, variables) => {
       if (variables.data.assignmentId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['assignment', variables.data.assignmentId.toString()] 
+        queryClient.invalidateQueries({
+          queryKey: ['assignment', variables.data.assignmentId.toString()],
         });
       }
       queryClient.invalidateQueries({ queryKey: ['assignments'] });
@@ -216,7 +219,7 @@ export const useUpdateSubmission = () => {
 
 export const useDeleteSubmission = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (submissionId: number) => assignmentsApi.deleteSubmission(submissionId),
     onSuccess: () => {

@@ -36,9 +36,7 @@ const getOperationTitle = (type: QueuedOperationType): string => {
   }
 };
 
-export const OfflineQueueStatus: React.FC<OfflineQueueStatusProps> = ({ 
-  showDetails = false 
-}) => {
+export const OfflineQueueStatus: React.FC<OfflineQueueStatusProps> = ({ showDetails = false }) => {
   const { queue, queueSize, isConnected } = useOfflineQueue();
 
   if (queueSize === 0) {

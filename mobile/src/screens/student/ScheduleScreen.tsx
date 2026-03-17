@@ -53,20 +53,15 @@ const TimetableCard: React.FC<TimetableCardProps> = ({ entry, isCurrentClass }) 
   };
 
   return (
-    <Card 
-      containerStyle={[
-        styles.timetableCard,
-        isCurrentClass && styles.currentClassCard
-      ]}
-    >
+    <Card containerStyle={[styles.timetableCard, isCurrentClass && styles.currentClassCard]}>
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
           <View style={styles.subjectRow}>
-            <Icon 
-              name={getTypeIcon(entry.type)} 
-              type="feather" 
-              size={20} 
-              color={getTypeColor(entry.type)} 
+            <Icon
+              name={getTypeIcon(entry.type)}
+              type="feather"
+              size={20}
+              color={getTypeColor(entry.type)}
             />
             <Text style={styles.subjectName}>{entry.subject}</Text>
           </View>
@@ -143,12 +138,8 @@ const DaySchedule: React.FC<DayScheduleProps> = ({ day, entries, currentDay }) =
 
   return (
     <View style={styles.dayScheduleContainer}>
-      {sortedEntries.map((entry) => (
-        <TimetableCard
-          key={entry.id}
-          entry={entry}
-          isCurrentClass={isCurrentClass(entry)}
-        />
+      {sortedEntries.map(entry => (
+        <TimetableCard key={entry.id} entry={entry} isCurrentClass={isCurrentClass(entry)} />
       ))}
     </View>
   );
@@ -156,11 +147,16 @@ const DaySchedule: React.FC<DayScheduleProps> = ({ day, entries, currentDay }) =
 
 export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  
+
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  const { data: timetableData, isLoading, isError, refetch } = useQuery({
+  const {
+    data: timetableData,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['timetable'],
     queryFn: async () => {
       const response = await studentApi.getTimetable();
@@ -168,19 +164,22 @@ export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
     },
     staleTime: 10 * 60 * 1000,
     retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const entriesByDay = useMemo(() => {
     if (!timetableData?.entries) return {};
-    
-    return timetableData.entries.reduce((acc, entry) => {
-      if (!acc[entry.day]) {
-        acc[entry.day] = [];
-      }
-      acc[entry.day].push(entry);
-      return acc;
-    }, {} as Record<string, TimetableEntry[]>);
+
+    return timetableData.entries.reduce(
+      (acc, entry) => {
+        if (!acc[entry.day]) {
+          acc[entry.day] = [];
+        }
+        acc[entry.day].push(entry);
+        return acc;
+      },
+      {} as Record<string, TimetableEntry[]>
+    );
   }, [timetableData]);
 
   const displayDay = selectedDay || timetableData?.currentDay || daysOfWeek[0];
@@ -224,12 +223,12 @@ export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.dayTabsContainer}
         >
-          {daysOfWeek.map((day) => {
+          {daysOfWeek.map(day => {
             const isSelected = day === displayDay;
             const isCurrentDay = day === timetableData?.currentDay;
             const hasClasses = entriesByDay[day]?.length > 0;
@@ -244,19 +243,13 @@ export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
                 ]}
                 onPress={() => handleDayPress(day)}
               >
-                <Text
-                  style={[
-                    styles.dayTabText,
-                    isSelected && styles.dayTabTextSelected,
-                  ]}
-                >
+                <Text style={[styles.dayTabText, isSelected && styles.dayTabTextSelected]}>
                   {day.substring(0, 3)}
                 </Text>
                 {hasClasses && (
-                  <View style={[
-                    styles.dayTabIndicator,
-                    isSelected && styles.dayTabIndicatorSelected,
-                  ]} />
+                  <View
+                    style={[styles.dayTabIndicator, isSelected && styles.dayTabIndicatorSelected]}
+                  />
                 )}
               </TouchableOpacity>
             );

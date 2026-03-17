@@ -16,7 +16,7 @@ class PinService {
     let hash = 0;
     for (let i = 0; i < pin.length; i++) {
       const char = pin.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36);
@@ -37,9 +37,9 @@ class PinService {
       const hashedPin = await this.hashPin(pin);
       await secureStorage.setItem('pin_hash', hashedPin);
       await secureStorage.setItem('pin_enabled', 'true');
-      
+
       await this.clearAttempts();
-      
+
       return true;
     } catch (error) {
       console.error('Error setting up PIN:', error);
@@ -72,17 +72,17 @@ class PinService {
         return true;
       } else {
         await this.recordFailedAttempt();
-        
+
         const attempts = await this.getAttempts();
         const remainingAttempts = this.MAX_ATTEMPTS - attempts.count;
-        
+
         if (remainingAttempts > 0) {
           Alert.alert(
             'Invalid PIN',
             `${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining`
           );
         }
-        
+
         return false;
       }
     } catch (error) {
@@ -146,7 +146,7 @@ class PinService {
     try {
       const attempts = await this.getAttempts();
       const newCount = attempts.count + 1;
-      
+
       const newAttempts: PinAttempt = {
         count: newCount,
         lastAttempt: Date.now(),
@@ -173,7 +173,7 @@ class PinService {
   async isLocked(): Promise<boolean> {
     try {
       const attempts = await this.getAttempts();
-      
+
       if (!attempts.lockedUntil) {
         return false;
       }
@@ -192,7 +192,7 @@ class PinService {
   async getLockTimeRemaining(): Promise<number> {
     try {
       const attempts = await this.getAttempts();
-      
+
       if (!attempts.lockedUntil) {
         return 0;
       }

@@ -22,7 +22,7 @@ export const initializeOfflineSupport = async (): Promise<void> => {
     NetInfo.addEventListener(state => {
       const online = state.isConnected === true && state.isInternetReachable === true;
       store.dispatch(setOnlineStatus(online));
-      
+
       if (online && offlineQueueManager.getQueueSize() > 0) {
         offlineQueueManager.syncQueue();
       }

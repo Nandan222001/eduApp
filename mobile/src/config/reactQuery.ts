@@ -22,7 +22,7 @@ export const queryClient = new QueryClient({
         }
         return failureCount < MAX_RETRIES;
       },
-      retryDelay: (attemptIndex) => Math.min(RETRY_DELAY * 2 ** attemptIndex, 30000),
+      retryDelay: attemptIndex => Math.min(RETRY_DELAY * 2 ** attemptIndex, 30000),
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,

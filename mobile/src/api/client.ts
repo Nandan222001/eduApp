@@ -1,4 +1,9 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios';
 import { API_URL } from '@env';
 import { secureStorage } from '@utils/secureStorage';
 import { STORAGE_KEYS, API_TIMEOUT } from '@constants';
@@ -67,7 +72,7 @@ class ApiClient {
 
           try {
             const refreshToken = await secureStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-            
+
             if (!refreshToken) {
               throw new Error('No refresh token available');
             }
@@ -93,7 +98,7 @@ class ApiClient {
           } catch (refreshError) {
             isRefreshing = false;
             refreshSubscribers = [];
-            
+
             await secureStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
             await secureStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
             await secureStorage.removeItem(STORAGE_KEYS.USER_DATA);

@@ -6,3 +6,4 @@ export { AIPredictionWidget } from './AIPredictionWidget';
 export { WeakAreasPanel } from './WeakAreasPanel';
 export { StreakTracker } from './StreakTracker';
 export { GamificationWidget } from './GamificationWidget';
+export { AIFeaturesQuickAccess } from './AIFeaturesQuickAccess';

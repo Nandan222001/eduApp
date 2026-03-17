@@ -72,9 +72,7 @@ const GradeCard: React.FC<GradeCardProps> = ({ grade }) => {
 
         <View style={styles.examDateRow}>
           <Icon name="calendar" type="feather" size={14} color={COLORS.textSecondary} />
-          <Text style={styles.examDate}>
-            {format(parseISO(grade.examDate), 'MMM dd, yyyy')}
-          </Text>
+          <Text style={styles.examDate}>{format(parseISO(grade.examDate), 'MMM dd, yyyy')}</Text>
         </View>
 
         {grade.remarks && (
@@ -94,14 +92,17 @@ interface PerformanceChartProps {
 
 const PerformanceChart: React.FC<PerformanceChartProps> = ({ grades }) => {
   const chartData = useMemo(() => {
-    const subjectAverages = grades.reduce((acc, grade) => {
-      if (!acc[grade.subject]) {
-        acc[grade.subject] = { total: 0, count: 0 };
-      }
-      acc[grade.subject].total += grade.percentage;
-      acc[grade.subject].count += 1;
-      return acc;
-    }, {} as Record<string, { total: number; count: number }>);
+    const subjectAverages = grades.reduce(
+      (acc, grade) => {
+        if (!acc[grade.subject]) {
+          acc[grade.subject] = { total: 0, count: 0 };
+        }
+        acc[grade.subject].total += grade.percentage;
+        acc[grade.subject].count += 1;
+        return acc;
+      },
+      {} as Record<string, { total: number; count: number }>
+    );
 
     return Object.entries(subjectAverages).map(([subject, data]) => ({
       subject,
@@ -119,18 +120,16 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ grades }) => {
         {chartData.map((item, index) => {
           const barHeight = (item.average / maxPercentage) * 150;
           const barColor =
-            item.average >= 75 ? COLORS.success :
-            item.average >= 60 ? COLORS.warning : COLORS.error;
+            item.average >= 75
+              ? COLORS.success
+              : item.average >= 60
+                ? COLORS.warning
+                : COLORS.error;
 
           return (
             <View key={index} style={styles.chartBarContainer}>
               <View style={styles.barWrapper}>
-                <View
-                  style={[
-                    styles.chartBar,
-                    { height: barHeight, backgroundColor: barColor },
-                  ]}
-                >
+                <View style={[styles.chartBar, { height: barHeight, backgroundColor: barColor }]}>
                   <Text style={styles.barValueText}>{item.average.toFixed(0)}%</Text>
                 </View>
               </View>
@@ -197,9 +196,15 @@ export const GradesScreen: React.FC<Props> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   const terms = ['All', 'Term 1', 'Term 2', 'Term 3'];
-  const termParam = selectedTerm === 0 ? undefined : terms[selectedTerm].toLowerCase().replace(' ', '_');
+  const termParam =
+    selectedTerm === 0 ? undefined : terms[selectedTerm].toLowerCase().replace(' ', '_');
 
-  const { data: grades, isLoading, isError, refetch } = useQuery({
+  const {
+    data: grades,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['grades', termParam],
     queryFn: async () => {
       const response = await studentApi.getGrades({ term: termParam });
@@ -207,7 +212,7 @@ export const GradesScreen: React.FC<Props> = ({ navigation }) => {
     },
     staleTime: 5 * 60 * 1000,
     retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const onRefresh = async () => {
@@ -278,7 +283,7 @@ export const GradesScreen: React.FC<Props> = ({ navigation }) => {
     <View style={styles.container}>
       <FlatList
         data={grades}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => <GradeCard grade={item} />}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}

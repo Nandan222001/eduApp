@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  Alert,
-  RefreshControl,
-} from 'react-native';
+import { View, StyleSheet, FlatList, Alert, RefreshControl } from 'react-native';
 import { Text, ListItem, Icon, Button } from '@rneui/themed';
 import { format } from 'date-fns';
 import { mobileAuthApi, UserDevice } from '@api/mobileAuth';
@@ -40,26 +34,22 @@ export const DeviceManagementScreen: React.FC = () => {
   };
 
   const handleRemoveDevice = (device: UserDevice) => {
-    Alert.alert(
-      'Remove Device',
-      `Are you sure you want to remove "${device.device_name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await mobileAuthApi.removeDevice(device.id);
-              Alert.alert('Success', 'Device removed successfully');
-              loadDevices();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to remove device');
-            }
-          },
+    Alert.alert('Remove Device', `Are you sure you want to remove "${device.device_name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await mobileAuthApi.removeDevice(device.id);
+            Alert.alert('Success', 'Device removed successfully');
+            loadDevices();
+          } catch (error) {
+            Alert.alert('Error', 'Failed to remove device');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleTrustDevice = async (device: UserDevice) => {
@@ -95,9 +85,7 @@ export const DeviceManagementScreen: React.FC = () => {
       <ListItem.Content>
         <ListItem.Title>
           {item.device_name}
-          {item.is_current && (
-            <Text style={styles.currentBadge}> (Current)</Text>
-          )}
+          {item.is_current && <Text style={styles.currentBadge}> (Current)</Text>}
         </ListItem.Title>
         <ListItem.Subtitle>
           {item.device_model && `${item.device_model} • `}
@@ -109,9 +97,7 @@ export const DeviceManagementScreen: React.FC = () => {
         {item.biometric_enabled && (
           <View style={styles.biometricBadge}>
             <Icon name="fingerprint" type="material" size={16} color={COLORS.success} />
-            <Text style={styles.biometricText}>
-              {item.biometric_type} enabled
-            </Text>
+            <Text style={styles.biometricText}>{item.biometric_type} enabled</Text>
           </View>
         )}
         {item.is_trusted && (
@@ -145,18 +131,14 @@ export const DeviceManagementScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>
-          Manage devices that have access to your account
-        </Text>
+        <Text style={styles.headerText}>Manage devices that have access to your account</Text>
       </View>
 
       <FlatList
         data={devices}
         renderItem={renderDevice}
-        keyExtractor={(item) => item.id.toString()}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+        keyExtractor={item => item.id.toString()}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Icon name="devices" type="material" size={64} color={COLORS.disabled} />

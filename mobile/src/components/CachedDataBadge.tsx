@@ -9,9 +9,9 @@ interface CachedDataBadgeProps {
   isOnline?: boolean;
 }
 
-export const CachedDataBadge: React.FC<CachedDataBadgeProps> = ({ 
-  lastSyncTime, 
-  isOnline = true 
+export const CachedDataBadge: React.FC<CachedDataBadgeProps> = ({
+  lastSyncTime,
+  isOnline = true,
 }) => {
   if (!lastSyncTime) {
     return null;
@@ -21,10 +21,10 @@ export const CachedDataBadge: React.FC<CachedDataBadgeProps> = ({
 
   return (
     <View style={styles.container}>
-      <Icon 
-        name={isOnline ? 'cached' : 'cloud-off'} 
-        size={14} 
-        color={isOnline ? COLORS.textSecondary : COLORS.error} 
+      <Icon
+        name={isOnline ? 'cached' : 'cloud-off'}
+        size={14}
+        color={isOnline ? COLORS.textSecondary : COLORS.error}
         style={styles.icon}
       />
       <Text style={[styles.text, !isOnline && styles.offlineText]}>

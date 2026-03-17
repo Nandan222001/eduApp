@@ -24,7 +24,7 @@ class BiometricService {
       const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
 
       let biometricType = 'Biometric';
-      
+
       if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
         biometricType = Platform.OS === 'ios' ? 'Face ID' : 'Face Recognition';
       } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
@@ -113,13 +113,13 @@ class BiometricService {
   async enableBiometric(email: string, password: string): Promise<boolean> {
     try {
       const authenticated = await this.authenticate('Authenticate to enable biometric login');
-      
+
       if (!authenticated) {
         return false;
       }
 
       const saved = await this.saveCredentials(email, password);
-      
+
       if (!saved) {
         Alert.alert('Error', 'Failed to save credentials');
         return false;
@@ -154,14 +154,12 @@ class BiometricService {
   async authenticateForSensitiveOperation(operationType: string): Promise<boolean> {
     try {
       const capabilities = await this.checkBiometricCapabilities();
-      
+
       if (!capabilities.isAvailable) {
         return false;
       }
 
-      return await this.authenticate(
-        `Authenticate to ${operationType}`
-      );
+      return await this.authenticate(`Authenticate to ${operationType}`);
     } catch (error) {
       console.error('Error authenticating for sensitive operation:', error);
       return false;

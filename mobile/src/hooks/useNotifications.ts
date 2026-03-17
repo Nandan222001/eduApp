@@ -25,19 +25,19 @@ export function useNotifications(userId?: number) {
 
   useEffect(() => {
     if (userId) {
-      registerDevice(userId).then((success) => {
+      registerDevice(userId).then(success => {
         setIsRegistered(success);
       });
     }
   }, [userId]);
 
   useEffect(() => {
-    notificationListener.current = addNotificationReceivedListener((notification) => {
+    notificationListener.current = addNotificationReceivedListener(notification => {
       setNotification(notification);
       scheduleBadgeUpdate();
     });
 
-    responseListener.current = addNotificationResponseReceivedListener((response) => {
+    responseListener.current = addNotificationResponseReceivedListener(response => {
       handleNotificationTap(response.notification);
     });
 

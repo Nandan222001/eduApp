@@ -72,6 +72,39 @@ export default function StudentTabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="ai-predictions"
+        options={{
+          title: 'AI Predictions',
+          tabBarLabel: 'AI',
+          href: null,
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="psychology" type="material" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="homework-scanner"
+        options={{
+          title: 'Homework Scanner',
+          tabBarLabel: 'Scanner',
+          href: null,
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="camera" type="material" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="study-buddy"
+        options={{
+          title: 'Study Buddy',
+          tabBarLabel: 'Buddy',
+          href: null,
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="chat" type="material" color={color} size={size} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

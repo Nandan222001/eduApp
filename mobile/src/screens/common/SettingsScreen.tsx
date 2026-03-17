@@ -85,7 +85,7 @@ export const SettingsScreen: React.FC = () => {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Enable',
-            onPress: async (password) => {
+            onPress: async password => {
               if (!password) {
                 Alert.alert('Error', 'Password is required');
                 return;
@@ -94,7 +94,7 @@ export const SettingsScreen: React.FC = () => {
               const success = await biometricService.enableBiometric('user@example.com', password);
               if (success) {
                 setBiometricEnabled(true);
-                
+
                 const deviceInfo = await deviceFingerprintService.getDeviceInfo();
                 try {
                   await mobileAuthApi.setupBiometric({
@@ -238,17 +238,13 @@ export const SettingsScreen: React.FC = () => {
           </ListItem.Content>
           <TouchableOpacity
             onPress={() => {
-              Alert.alert(
-                'Session Timeout',
-                'Select timeout duration',
-                [
-                  { text: '15 minutes', onPress: () => updateSessionTimeout(15) },
-                  { text: '30 minutes', onPress: () => updateSessionTimeout(30) },
-                  { text: '60 minutes', onPress: () => updateSessionTimeout(60) },
-                  { text: '120 minutes', onPress: () => updateSessionTimeout(120) },
-                  { text: 'Cancel', style: 'cancel' },
-                ]
-              );
+              Alert.alert('Session Timeout', 'Select timeout duration', [
+                { text: '15 minutes', onPress: () => updateSessionTimeout(15) },
+                { text: '30 minutes', onPress: () => updateSessionTimeout(30) },
+                { text: '60 minutes', onPress: () => updateSessionTimeout(60) },
+                { text: '120 minutes', onPress: () => updateSessionTimeout(120) },
+                { text: 'Cancel', style: 'cancel' },
+              ]);
             }}
           >
             <Text style={styles.changeText}>Change</Text>
@@ -263,17 +259,13 @@ export const SettingsScreen: React.FC = () => {
           </ListItem.Content>
           <TouchableOpacity
             onPress={() => {
-              Alert.alert(
-                'Auto-Lock Time',
-                'Select auto-lock duration',
-                [
-                  { text: '1 minute', onPress: () => updateAutoLock(1) },
-                  { text: '5 minutes', onPress: () => updateAutoLock(5) },
-                  { text: '15 minutes', onPress: () => updateAutoLock(15) },
-                  { text: '30 minutes', onPress: () => updateAutoLock(30) },
-                  { text: 'Cancel', style: 'cancel' },
-                ]
-              );
+              Alert.alert('Auto-Lock Time', 'Select auto-lock duration', [
+                { text: '1 minute', onPress: () => updateAutoLock(1) },
+                { text: '5 minutes', onPress: () => updateAutoLock(5) },
+                { text: '15 minutes', onPress: () => updateAutoLock(15) },
+                { text: '30 minutes', onPress: () => updateAutoLock(30) },
+                { text: 'Cancel', style: 'cancel' },
+              ]);
             }}
           >
             <Text style={styles.changeText}>Change</Text>

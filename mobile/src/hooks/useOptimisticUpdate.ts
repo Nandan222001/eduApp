@@ -14,12 +14,7 @@ export const useOptimisticUpdate = () => {
 
   const submitAssignment = useCallback(
     async (assignmentId: number, submissionData: SubmitAssignmentData) => {
-      return submitAssignmentWithOptimisticUpdate(
-        dispatch,
-        assignmentId,
-        submissionData,
-        isOnline
-      );
+      return submitAssignmentWithOptimisticUpdate(dispatch, assignmentId, submissionData, isOnline);
     },
     [dispatch, isOnline]
   );

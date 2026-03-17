@@ -7,13 +7,13 @@ const BACKGROUND_SYNC_TASK = 'background-sync-task';
 TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
   try {
     console.log('Background sync task started');
-    
+
     if (offlineQueueManager.isConnected()) {
       await offlineQueueManager.syncQueue();
       console.log('Background sync completed successfully');
       return BackgroundFetch.BackgroundFetchResult.NewData;
     }
-    
+
     console.log('Device offline, skipping sync');
     return BackgroundFetch.BackgroundFetchResult.NoData;
   } catch (error) {
@@ -33,14 +33,14 @@ export class BackgroundSyncService {
 
     try {
       const status = await BackgroundFetch.getStatusAsync();
-      
+
       if (status === BackgroundFetch.BackgroundFetchStatus.Available) {
         await BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
           minimumInterval: 15 * 60,
           stopOnTerminate: false,
           startOnBoot: true,
         });
-        
+
         this.isRegistered = true;
         console.log('Background sync registered successfully');
       } else {

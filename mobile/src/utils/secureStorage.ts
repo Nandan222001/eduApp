@@ -9,21 +9,17 @@ export interface SecureStorageOptions {
 class SecureStorageService {
   private prefix = '@edu_secure_';
 
-  async setItem(
-    key: string,
-    value: string,
-    options?: SecureStorageOptions
-  ): Promise<void> {
+  async setItem(key: string, value: string, options?: SecureStorageOptions): Promise<void> {
     try {
       const fullKey = this.prefix + key;
-      
+
       if (Platform.OS === 'web') {
         localStorage.setItem(fullKey, value);
         return;
       }
 
       const storeOptions: SecureStore.SecureStoreOptions = {};
-      
+
       if (options?.keychainAccessible && Platform.OS === 'ios') {
         storeOptions.keychainAccessible = options.keychainAccessible;
       }
@@ -40,19 +36,16 @@ class SecureStorageService {
     }
   }
 
-  async getItem(
-    key: string,
-    options?: SecureStorageOptions
-  ): Promise<string | null> {
+  async getItem(key: string, options?: SecureStorageOptions): Promise<string | null> {
     try {
       const fullKey = this.prefix + key;
-      
+
       if (Platform.OS === 'web') {
         return localStorage.getItem(fullKey);
       }
 
       const storeOptions: SecureStore.SecureStoreOptions = {};
-      
+
       if (options?.requireAuthentication && Platform.OS === 'android') {
         storeOptions.requireAuthentication = true;
         storeOptions.authenticationPrompt = 'Authenticate to access secure data';
@@ -68,7 +61,7 @@ class SecureStorageService {
   async removeItem(key: string): Promise<void> {
     try {
       const fullKey = this.prefix + key;
-      
+
       if (Platform.OS === 'web') {
         localStorage.removeItem(fullKey);
         return;
@@ -81,11 +74,7 @@ class SecureStorageService {
     }
   }
 
-  async setObject<T>(
-    key: string,
-    value: T,
-    options?: SecureStorageOptions
-  ): Promise<void> {
+  async setObject<T>(key: string, value: T, options?: SecureStorageOptions): Promise<void> {
     try {
       const jsonValue = JSON.stringify(value);
       await this.setItem(key, jsonValue, options);
@@ -95,10 +84,7 @@ class SecureStorageService {
     }
   }
 
-  async getObject<T>(
-    key: string,
-    options?: SecureStorageOptions
-  ): Promise<T | null> {
+  async getObject<T>(key: string, options?: SecureStorageOptions): Promise<T | null> {
     try {
       const jsonValue = await this.getItem(key, options);
       return jsonValue != null ? JSON.parse(jsonValue) : null;
@@ -126,9 +112,7 @@ class SecureStorageService {
         'session_data',
       ];
 
-      await Promise.all(
-        keys.map(key => this.removeItem(key))
-      );
+      await Promise.all(keys.map(key => this.removeItem(key)));
     } catch (error) {
       console.error('Error clearing secure storage:', error);
       throw error;

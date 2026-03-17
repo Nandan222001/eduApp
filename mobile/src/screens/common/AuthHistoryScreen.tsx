@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-} from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { Text, ListItem, Icon, Chip } from '@rneui/themed';
 import { format } from 'date-fns';
 import { mobileAuthApi, AuthEvent } from '@api/mobileAuth';
@@ -39,7 +34,7 @@ export const AuthHistoryScreen: React.FC = () => {
 
   const getEventIcon = (eventType: string, success: boolean) => {
     if (!success) return 'error';
-    
+
     switch (eventType) {
       case 'biometric_setup':
         return 'fingerprint';
@@ -84,29 +79,19 @@ export const AuthHistoryScreen: React.FC = () => {
         color={item.success ? COLORS.success : COLORS.error}
       />
       <ListItem.Content>
-        <ListItem.Title>
-          {getEventTitle(item.event_type)}
-        </ListItem.Title>
-        <ListItem.Subtitle>
-          Method: {item.auth_method.replace(/_/g, ' ')}
-        </ListItem.Subtitle>
+        <ListItem.Title>{getEventTitle(item.event_type)}</ListItem.Title>
+        <ListItem.Subtitle>Method: {item.auth_method.replace(/_/g, ' ')}</ListItem.Subtitle>
         <ListItem.Subtitle style={styles.subtitle}>
           {format(new Date(item.created_at), 'MMM d, yyyy h:mm a')}
         </ListItem.Subtitle>
         {item.ip_address && (
-          <ListItem.Subtitle style={styles.subtitle}>
-            IP: {item.ip_address}
-          </ListItem.Subtitle>
+          <ListItem.Subtitle style={styles.subtitle}>IP: {item.ip_address}</ListItem.Subtitle>
         )}
         {item.location && (
-          <ListItem.Subtitle style={styles.subtitle}>
-            Location: {item.location}
-          </ListItem.Subtitle>
+          <ListItem.Subtitle style={styles.subtitle}>Location: {item.location}</ListItem.Subtitle>
         )}
         {!item.success && item.failure_reason && (
-          <Text style={styles.failureReason}>
-            Reason: {item.failure_reason}
-          </Text>
+          <Text style={styles.failureReason}>Reason: {item.failure_reason}</Text>
         )}
       </ListItem.Content>
       <Chip
@@ -126,18 +111,14 @@ export const AuthHistoryScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>
-          Review recent authentication activity on your account
-        </Text>
+        <Text style={styles.headerText}>Review recent authentication activity on your account</Text>
       </View>
 
       <FlatList
         data={events}
         renderItem={renderEvent}
-        keyExtractor={(item) => item.id.toString()}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+        keyExtractor={item => item.id.toString()}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Icon name="history" type="material" size={64} color={COLORS.disabled} />

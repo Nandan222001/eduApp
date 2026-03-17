@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-} from 'react-native';
+import { View, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Text, Input, Button } from '@rneui/themed';
 import { useRouter } from 'expo-router';
 import { pinService } from '@services';
@@ -43,10 +38,10 @@ export const PinSetupScreen: React.FC = () => {
     setLoading(true);
     try {
       const success = await pinService.setupPin(newPin);
-      
+
       if (success) {
         const deviceInfo = await deviceFingerprintService.getDeviceInfo();
-        
+
         try {
           await mobileAuthApi.setupPin({
             pin: newPin,
@@ -87,10 +82,10 @@ export const PinSetupScreen: React.FC = () => {
     setLoading(true);
     try {
       const success = await pinService.changePin(currentPin, newPin);
-      
+
       if (success) {
         const deviceInfo = await deviceFingerprintService.getDeviceInfo();
-        
+
         try {
           await mobileAuthApi.setupPin({
             pin: newPin,
@@ -113,43 +108,39 @@ export const PinSetupScreen: React.FC = () => {
   };
 
   const handleDisablePin = () => {
-    Alert.alert(
-      'Disable PIN',
-      'Are you sure you want to disable PIN authentication?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Disable',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await pinService.disablePin();
-              
-              const deviceInfo = await deviceFingerprintService.getDeviceInfo();
-              
-              try {
-                await mobileAuthApi.setupPin({
-                  pin: '',
-                  enabled: false,
-                  device_fingerprint: deviceInfo.fingerprint,
-                });
-              } catch (error) {
-                console.error('Error syncing PIN disable:', error);
-              }
+    Alert.alert('Disable PIN', 'Are you sure you want to disable PIN authentication?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Disable',
+        style: 'destructive',
+        onPress: async () => {
+          setLoading(true);
+          try {
+            await pinService.disablePin();
 
-              Alert.alert('Success', 'PIN has been disabled', [
-                { text: 'OK', onPress: () => router.back() },
-              ]);
+            const deviceInfo = await deviceFingerprintService.getDeviceInfo();
+
+            try {
+              await mobileAuthApi.setupPin({
+                pin: '',
+                enabled: false,
+                device_fingerprint: deviceInfo.fingerprint,
+              });
             } catch (error) {
-              Alert.alert('Error', 'Failed to disable PIN');
-            } finally {
-              setLoading(false);
+              console.error('Error syncing PIN disable:', error);
             }
-          },
+
+            Alert.alert('Success', 'PIN has been disabled', [
+              { text: 'OK', onPress: () => router.back() },
+            ]);
+          } catch (error) {
+            Alert.alert('Error', 'Failed to disable PIN');
+          } finally {
+            setLoading(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   return (
@@ -206,10 +197,7 @@ export const PinSetupScreen: React.FC = () => {
         />
 
         {pinEnabled && (
-          <TouchableOpacity
-            style={styles.disableButton}
-            onPress={handleDisablePin}
-          >
+          <TouchableOpacity style={styles.disableButton} onPress={handleDisablePin}>
             <Text style={styles.disableText}>Disable PIN</Text>
           </TouchableOpacity>
         )}
@@ -217,9 +205,8 @@ export const PinSetupScreen: React.FC = () => {
 
       <View style={styles.info}>
         <Text style={styles.infoText}>
-          • PIN must be 4-6 digits{'\n'}
-          • After 5 failed attempts, you'll be locked out for 30 minutes{'\n'}
-          • PIN can be used as an alternative to biometric authentication
+          • PIN must be 4-6 digits{'\n'}• After 5 failed attempts, you'll be locked out for 30
+          minutes{'\n'}• PIN can be used as an alternative to biometric authentication
         </Text>
       </View>
     </View>

@@ -18,10 +18,7 @@ interface SyncButtonProps {
   onSyncComplete?: (success: boolean) => void;
 }
 
-export const SyncButton: React.FC<SyncButtonProps> = ({ 
-  variant = 'button',
-  onSyncComplete 
-}) => {
+export const SyncButton: React.FC<SyncButtonProps> = ({ variant = 'button', onSyncComplete }) => {
   const dispatch = useAppDispatch();
   const [isSyncing, setIsSyncing] = useState(false);
   const isOnline = useAppSelector(state => state.offline.isOnline);
@@ -36,7 +33,7 @@ export const SyncButton: React.FC<SyncButtonProps> = ({
 
     try {
       const queueResult = await offlineQueueManager.manualSync();
-      
+
       await Promise.all([
         dispatch(fetchProfile()),
         dispatch(fetchDashboard()),
@@ -91,9 +88,7 @@ export const SyncButton: React.FC<SyncButtonProps> = ({
       ) : (
         <Icon name="sync" size={20} color={COLORS.background} style={styles.icon} />
       )}
-      <Text style={styles.buttonText}>
-        {isSyncing ? 'Syncing...' : 'Sync Now'}
-      </Text>
+      <Text style={styles.buttonText}>{isSyncing ? 'Syncing...' : 'Sync Now'}</Text>
     </TouchableOpacity>
   );
 };

@@ -2,21 +2,25 @@ import { useMutation, UseMutationOptions, UseMutationResult } from '@tanstack/re
 import { Alert } from 'react-native';
 import { getErrorMessage } from '../utils/apiErrorHandler';
 
-interface MutationWithErrorOptions<TData, TError, TVariables, TContext>
-  extends UseMutationOptions<TData, TError, TVariables, TContext> {
+interface MutationWithErrorOptions<TData, TError, TVariables, TContext> extends UseMutationOptions<
+  TData,
+  TError,
+  TVariables,
+  TContext
+> {
   showErrorAlert?: boolean;
   errorTitle?: string;
 }
 
-export function useMutationWithError<TData = unknown, TError = unknown, TVariables = void, TContext = unknown>(
+export function useMutationWithError<
+  TData = unknown,
+  TError = unknown,
+  TVariables = void,
+  TContext = unknown,
+>(
   options: MutationWithErrorOptions<TData, TError, TVariables, TContext>
 ): UseMutationResult<TData, TError, TVariables, TContext> {
-  const {
-    showErrorAlert = true,
-    errorTitle = 'Error',
-    onError,
-    ...mutationOptions
-  } = options;
+  const { showErrorAlert = true, errorTitle = 'Error', onError, ...mutationOptions } = options;
 
   return useMutation({
     ...mutationOptions,

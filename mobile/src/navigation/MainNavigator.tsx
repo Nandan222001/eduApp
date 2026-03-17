@@ -29,14 +29,14 @@ const MainNavigatorContent: React.FC = () => {
   useEffect(() => {
     if (previousRoleRef.current !== activeRole && activeRole) {
       const targetScreen = activeRole === UserRole.PARENT ? 'ParentTabs' : 'StudentTabs';
-      
+
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
           routes: [{ name: targetScreen }],
         })
       );
-      
+
       previousRoleRef.current = activeRole;
     }
   }, [activeRole, navigation]);
@@ -68,68 +68,68 @@ export const MainNavigator: React.FC = () => {
         <Stack.Screen name="StudentTabs" component={StudentTabNavigator} />
         <Stack.Screen name="ParentTabs" component={ParentTabNavigator} />
 
-      <Stack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ headerShown: true, title: 'Profile' }}
-      />
-      <Stack.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ headerShown: true, title: 'Settings' }}
-      />
-      <Stack.Screen
-        name="Notifications"
-        component={NotificationsScreen}
-        options={{ headerShown: true, title: 'Notifications' }}
-      />
-      <Stack.Screen
-        name="NotificationDetail"
-        component={NotificationDetailScreen}
-        options={{ headerShown: true, title: 'Notification' }}
-      />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ headerShown: true, title: 'Profile' }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ headerShown: true, title: 'Settings' }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsScreen}
+          options={{ headerShown: true, title: 'Notifications' }}
+        />
+        <Stack.Screen
+          name="NotificationDetail"
+          component={NotificationDetailScreen}
+          options={{ headerShown: true, title: 'Notification' }}
+        />
 
-      <Stack.Screen
-        name="Courses"
-        component={CoursesScreen}
-        options={{ headerShown: true, title: 'Courses' }}
-      />
-      <Stack.Screen
-        name="CourseDetail"
-        component={CourseDetailScreen}
-        options={{ headerShown: true, title: 'Course Details' }}
-      />
-      <Stack.Screen
-        name="AssignmentDetail"
-        component={AssignmentDetailScreen}
-        options={{ headerShown: true, title: 'Assignment Details' }}
-      />
+        <Stack.Screen
+          name="Courses"
+          component={CoursesScreen}
+          options={{ headerShown: true, title: 'Courses' }}
+        />
+        <Stack.Screen
+          name="CourseDetail"
+          component={CourseDetailScreen}
+          options={{ headerShown: true, title: 'Course Details' }}
+        />
+        <Stack.Screen
+          name="AssignmentDetail"
+          component={AssignmentDetailScreen}
+          options={{ headerShown: true, title: 'Assignment Details' }}
+        />
 
-      <Stack.Screen
-        name="Grades"
-        component={GradesScreen}
-        options={{ headerShown: true, title: 'Grades' }}
-      />
-      <Stack.Screen
-        name="Attendance"
-        component={AttendanceScreen}
-        options={{ headerShown: true, title: 'Attendance' }}
-      />
-      <Stack.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{ headerShown: true, title: 'Messages' }}
-      />
-      <Stack.Screen
-        name="ChildDetail"
-        component={ChildDetailScreen}
-        options={{ headerShown: true, title: 'Child Details' }}
-      />
-      <Stack.Screen
-        name="MessageDetail"
-        component={MessageDetailScreen}
-        options={{ headerShown: true, title: 'Message' }}
-      />
+        <Stack.Screen
+          name="Grades"
+          component={GradesScreen}
+          options={{ headerShown: true, title: 'Grades' }}
+        />
+        <Stack.Screen
+          name="Attendance"
+          component={AttendanceScreen}
+          options={{ headerShown: true, title: 'Attendance' }}
+        />
+        <Stack.Screen
+          name="Messages"
+          component={MessagesScreen}
+          options={{ headerShown: true, title: 'Messages' }}
+        />
+        <Stack.Screen
+          name="ChildDetail"
+          component={ChildDetailScreen}
+          options={{ headerShown: true, title: 'Child Details' }}
+        />
+        <Stack.Screen
+          name="MessageDetail"
+          component={MessageDetailScreen}
+          options={{ headerShown: true, title: 'Message' }}
+        />
       </Stack.Navigator>
     </>
   );

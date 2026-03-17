@@ -141,13 +141,11 @@ export default function NotificationPreferencesScreen() {
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceText}>
               <Text style={styles.preferenceLabel}>Push Notifications</Text>
-              <Text style={styles.preferenceDescription}>
-                Receive notifications on this device
-              </Text>
+              <Text style={styles.preferenceDescription}>Receive notifications on this device</Text>
             </View>
             <Switch
               value={preferences.pushEnabled}
-              onValueChange={(value) => handleChannelToggle('pushEnabled', value)}
+              onValueChange={value => handleChannelToggle('pushEnabled', value)}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={preferences.pushEnabled ? '#007AFF' : '#f4f3f4'}
             />
@@ -160,7 +158,7 @@ export default function NotificationPreferencesScreen() {
             </View>
             <Switch
               value={preferences.emailEnabled}
-              onValueChange={(value) => handleChannelToggle('emailEnabled', value)}
+              onValueChange={value => handleChannelToggle('emailEnabled', value)}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={preferences.emailEnabled ? '#007AFF' : '#f4f3f4'}
             />
@@ -175,7 +173,7 @@ export default function NotificationPreferencesScreen() {
             </View>
             <Switch
               value={preferences.smsEnabled}
-              onValueChange={(value) => handleChannelToggle('smsEnabled', value)}
+              onValueChange={value => handleChannelToggle('smsEnabled', value)}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={preferences.smsEnabled ? '#007AFF' : '#f4f3f4'}
             />
@@ -184,13 +182,11 @@ export default function NotificationPreferencesScreen() {
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceText}>
               <Text style={styles.preferenceLabel}>In-App Notifications</Text>
-              <Text style={styles.preferenceDescription}>
-                Show notifications within the app
-              </Text>
+              <Text style={styles.preferenceDescription}>Show notifications within the app</Text>
             </View>
             <Switch
               value={preferences.inAppEnabled}
-              onValueChange={(value) => handleChannelToggle('inAppEnabled', value)}
+              onValueChange={value => handleChannelToggle('inAppEnabled', value)}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={preferences.inAppEnabled ? '#007AFF' : '#f4f3f4'}
             />
@@ -212,7 +208,7 @@ export default function NotificationPreferencesScreen() {
             </View>
             <Switch
               value={preferences.assignments}
-              onValueChange={(value) => handleTopicToggle('assignments', value)}
+              onValueChange={value => handleTopicToggle('assignments', value)}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={preferences.assignments ? '#007AFF' : '#f4f3f4'}
             />
@@ -225,7 +221,7 @@ export default function NotificationPreferencesScreen() {
             </View>
             <Switch
               value={preferences.grades}
-              onValueChange={(value) => handleTopicToggle('grades', value)}
+              onValueChange={value => handleTopicToggle('grades', value)}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={preferences.grades ? '#007AFF' : '#f4f3f4'}
             />
@@ -234,13 +230,11 @@ export default function NotificationPreferencesScreen() {
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceText}>
               <Text style={styles.preferenceLabel}>Attendance</Text>
-              <Text style={styles.preferenceDescription}>
-                Attendance records and notifications
-              </Text>
+              <Text style={styles.preferenceDescription}>Attendance records and notifications</Text>
             </View>
             <Switch
               value={preferences.attendance}
-              onValueChange={(value) => handleTopicToggle('attendance', value)}
+              onValueChange={value => handleTopicToggle('attendance', value)}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={preferences.attendance ? '#007AFF' : '#f4f3f4'}
             />
@@ -249,13 +243,11 @@ export default function NotificationPreferencesScreen() {
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceText}>
               <Text style={styles.preferenceLabel}>Announcements</Text>
-              <Text style={styles.preferenceDescription}>
-                School announcements and updates
-              </Text>
+              <Text style={styles.preferenceDescription}>School announcements and updates</Text>
             </View>
             <Switch
               value={preferences.announcements}
-              onValueChange={(value) => handleTopicToggle('announcements', value)}
+              onValueChange={value => handleTopicToggle('announcements', value)}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={preferences.announcements ? '#007AFF' : '#f4f3f4'}
             />
@@ -287,9 +279,7 @@ export default function NotificationPreferencesScreen() {
                 onPress={() => setShowStartTimePicker(true)}
               >
                 <Text style={styles.timePickerLabel}>Start Time</Text>
-                <Text style={styles.timePickerValue}>
-                  {preferences.quietHoursStart || '22:00'}
-                </Text>
+                <Text style={styles.timePickerValue}>{preferences.quietHoursStart || '22:00'}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -297,9 +287,7 @@ export default function NotificationPreferencesScreen() {
                 onPress={() => setShowEndTimePicker(true)}
               >
                 <Text style={styles.timePickerLabel}>End Time</Text>
-                <Text style={styles.timePickerValue}>
-                  {preferences.quietHoursEnd || '07:00'}
-                </Text>
+                <Text style={styles.timePickerValue}>{preferences.quietHoursEnd || '07:00'}</Text>
               </TouchableOpacity>
 
               {showStartTimePicker && (

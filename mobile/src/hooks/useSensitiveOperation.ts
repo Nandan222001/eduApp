@@ -7,7 +7,7 @@ import { deviceFingerprintService } from '@utils/deviceFingerprint';
 export const useSensitiveOperation = () => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  const executeWithAuth = async <T,>(
+  const executeWithAuth = async <T>(
     operationType: string,
     operation: () => Promise<T>,
     options?: {
@@ -21,9 +21,7 @@ export const useSensitiveOperation = () => {
 
     setIsAuthenticating(true);
     try {
-      const authenticated = await sessionService.requireReauthForSensitiveOperation(
-        operationType
-      );
+      const authenticated = await sessionService.requireReauthForSensitiveOperation(operationType);
 
       if (!authenticated) {
         Alert.alert(
@@ -37,7 +35,7 @@ export const useSensitiveOperation = () => {
       const result = await operation();
 
       const deviceInfo = await deviceFingerprintService.getDeviceInfo();
-      
+
       await mobileAuthApi.logSensitiveOperation({
         operation_type: operationType,
         operation_details: options?.operationDetails,
@@ -52,10 +50,10 @@ export const useSensitiveOperation = () => {
       return result;
     } catch (error) {
       console.error(`Error executing sensitive operation (${operationType}):`, error);
-      
+
       try {
         const deviceInfo = await deviceFingerprintService.getDeviceInfo();
-        
+
         await mobileAuthApi.logSensitiveOperation({
           operation_type: operationType,
           operation_details: options?.operationDetails,

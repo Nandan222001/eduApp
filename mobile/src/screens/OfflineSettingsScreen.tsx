@@ -1,24 +1,11 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Switch,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert } from 'react-native';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { useNetworkStatus, useOfflineQueue } from '@hooks';
 import { setAutoSyncEnabled } from '@store/slices/offlineSlice';
 import { offlineQueueManager } from '@utils/offlineQueue';
 import { BackgroundSyncService } from '@utils/backgroundSync';
-import {
-  OfflineIndicator,
-  OfflineQueueStatus,
-  CachedDataBadge,
-  SyncButton,
-} from '@components';
+import { OfflineIndicator, OfflineQueueStatus, CachedDataBadge, SyncButton } from '@components';
 import { COLORS, SPACING, FONT_SIZES } from '@constants';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
@@ -111,9 +98,7 @@ export const OfflineSettingsScreen: React.FC = () => {
             />
             <View style={styles.statusInfo}>
               <Text style={styles.statusLabel}>Connection Status</Text>
-              <Text style={styles.statusValue}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </Text>
+              <Text style={styles.statusValue}>{isConnected ? 'Connected' : 'Disconnected'}</Text>
             </View>
           </View>
 
@@ -162,9 +147,7 @@ export const OfflineSettingsScreen: React.FC = () => {
                   style={[styles.button, styles.syncButton]}
                 >
                   <Icon name="sync" size={20} color={COLORS.background} />
-                  <Text style={styles.buttonText}>
-                    {syncingQueue ? 'Syncing...' : 'Sync Now'}
-                  </Text>
+                  <Text style={styles.buttonText}>{syncingQueue ? 'Syncing...' : 'Sync Now'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -226,9 +209,7 @@ export const OfflineSettingsScreen: React.FC = () => {
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Auto Sync</Text>
-              <Text style={styles.settingDescription}>
-                Automatically sync data when online
-              </Text>
+              <Text style={styles.settingDescription}>Automatically sync data when online</Text>
             </View>
             <Switch
               value={autoSyncEnabled}
@@ -240,15 +221,10 @@ export const OfflineSettingsScreen: React.FC = () => {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity
-            onPress={handleRegisterBackgroundSync}
-            style={styles.settingRow}
-          >
+          <TouchableOpacity onPress={handleRegisterBackgroundSync} style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Background Sync</Text>
-              <Text style={styles.settingDescription}>
-                Enable background data synchronization
-              </Text>
+              <Text style={styles.settingDescription}>Enable background data synchronization</Text>
             </View>
             <Icon name="chevron-right" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>

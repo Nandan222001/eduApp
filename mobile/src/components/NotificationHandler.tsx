@@ -3,7 +3,7 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useAuthStore } from '../store/authStore';
 
 export const NotificationHandler: React.FC = () => {
-  const user = useAuthStore((state) => state.user);
+  const user = useAuthStore(state => state.user);
   const { notification, isRegistered } = useNotifications(user?.id);
 
   useEffect(() => {

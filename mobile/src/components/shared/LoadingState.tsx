@@ -7,9 +7,7 @@ interface LoadingStateProps {
   message?: string;
 }
 
-export const LoadingState: React.FC<LoadingStateProps> = ({ 
-  message = 'Loading...' 
-}) => {
+export const LoadingState: React.FC<LoadingStateProps> = ({ message = 'Loading...' }) => {
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" color={COLORS.primary} />

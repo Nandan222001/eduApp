@@ -29,9 +29,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({ onSyncPress 
           style={styles.icon}
         />
         <View style={styles.textContainer}>
-          <Text style={styles.title}>
-            {isOffline ? 'Offline Mode' : 'Pending Sync'}
-          </Text>
+          <Text style={styles.title}>{isOffline ? 'Offline Mode' : 'Pending Sync'}</Text>
           {queueSize > 0 && (
             <Text style={styles.subtitle}>
               {queueSize} operation{queueSize !== 1 ? 's' : ''} queued

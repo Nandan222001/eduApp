@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-} from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { Text, Card, Badge, Icon } from '@rneui/themed';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useQuery } from '@tanstack/react-query';
@@ -39,7 +33,7 @@ const AssignmentCard: React.FC<{
     if (assignment.status === 'graded' || assignment.status === 'submitted') {
       return COLORS.textSecondary;
     }
-    
+
     const dueDate = parseISO(assignment.dueDate);
     const now = new Date();
     const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -111,7 +105,7 @@ const AssignmentsList: React.FC<{
     },
     staleTime: 2 * 60 * 1000,
     retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const [refreshing, setRefreshing] = useState(false);
@@ -149,10 +143,10 @@ const AssignmentsList: React.FC<{
           status === 'pending'
             ? 'You have no pending assignments'
             : status === 'submitted'
-            ? 'You have not submitted any assignments yet'
-            : status === 'graded'
-            ? 'No graded assignments available'
-            : 'No assignments available'
+              ? 'You have not submitted any assignments yet'
+              : status === 'graded'
+                ? 'No graded assignments available'
+                : 'No assignments available'
         }
       />
     );
@@ -161,12 +155,9 @@ const AssignmentsList: React.FC<{
   return (
     <FlatList
       data={data}
-      keyExtractor={(item) => item.id.toString()}
+      keyExtractor={item => item.id.toString()}
       renderItem={({ item }) => (
-        <AssignmentCard
-          assignment={item}
-          onPress={() => handleAssignmentPress(item.id)}
-        />
+        <AssignmentCard assignment={item} onPress={() => handleAssignmentPress(item.id)} />
       )}
       contentContainerStyle={styles.listContent}
       refreshControl={
@@ -218,15 +209,9 @@ export const AssignmentsScreen: React.FC<Props> = ({ navigation }) => {
           },
         }}
       >
-        <Tab.Screen name="Pending">
-          {() => <PendingTab navigation={navigation} />}
-        </Tab.Screen>
-        <Tab.Screen name="Submitted">
-          {() => <SubmittedTab navigation={navigation} />}
-        </Tab.Screen>
-        <Tab.Screen name="Graded">
-          {() => <GradedTab navigation={navigation} />}
-        </Tab.Screen>
+        <Tab.Screen name="Pending">{() => <PendingTab navigation={navigation} />}</Tab.Screen>
+        <Tab.Screen name="Submitted">{() => <SubmittedTab navigation={navigation} />}</Tab.Screen>
+        <Tab.Screen name="Graded">{() => <GradedTab navigation={navigation} />}</Tab.Screen>
       </Tab.Navigator>
     </View>
   );

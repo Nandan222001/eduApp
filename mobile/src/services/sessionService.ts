@@ -28,9 +28,9 @@ class SessionService {
     this.sessionLockCallback = lockCallback;
 
     await this.loadSettings();
-    
+
     this.setupAppStateListener();
-    
+
     await this.updateActivity();
   }
 
@@ -113,7 +113,7 @@ class SessionService {
 
   private async handleSessionTimeout(): Promise<void> {
     await this.lockSession();
-    
+
     if (this.sessionTimeoutCallback) {
       this.sessionTimeoutCallback();
     }
@@ -157,7 +157,7 @@ class SessionService {
       sessionData.isLocked = false;
       sessionData.lastActiveTime = Date.now();
       await this.saveSessionData(sessionData);
-      
+
       this.resetTimer();
       return true;
     }
@@ -173,7 +173,7 @@ class SessionService {
   async requireReauthForSensitiveOperation(operationType: string): Promise<boolean> {
     try {
       const requireBiometric = await secureStorage.getItem('require_biometric_for_sensitive');
-      
+
       if (requireBiometric !== 'true') {
         return true;
       }
@@ -197,10 +197,12 @@ class SessionService {
   private async getSessionData(): Promise<SessionData> {
     try {
       const data = await secureStorage.getObject<SessionData>('session_data');
-      return data || {
-        lastActiveTime: Date.now(),
-        isLocked: false,
-      };
+      return (
+        data || {
+          lastActiveTime: Date.now(),
+          isLocked: false,
+        }
+      );
     } catch (error) {
       return {
         lastActiveTime: Date.now(),

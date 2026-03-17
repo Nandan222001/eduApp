@@ -24,7 +24,7 @@ export const useNetworkStatus = () => {
         isInternetReachable: state.isInternetReachable ?? false,
         type: state.type,
       };
-      
+
       setNetworkStatus(status);
       dispatch(setOnlineStatus(status.isConnected && status.isInternetReachable));
     });
@@ -35,7 +35,7 @@ export const useNetworkStatus = () => {
         isInternetReachable: state.isInternetReachable ?? false,
         type: state.type,
       };
-      
+
       setNetworkStatus(status);
       dispatch(setOnlineStatus(status.isConnected && status.isInternetReachable));
     });

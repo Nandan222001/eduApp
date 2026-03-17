@@ -12,11 +12,7 @@ export type {
 } from './navigation';
 
 // New Expo Router types
-export type {
-  RootStackParamList,
-  StudentTabRoutes,
-  ParentTabRoutes,
-} from './routes';
+export type { RootStackParamList, StudentTabRoutes, ParentTabRoutes } from './routes';
 
 export * from './student';
 export * from './offline';

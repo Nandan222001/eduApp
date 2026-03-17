@@ -34,9 +34,9 @@ export interface DeviceRegistrationData {
 }
 
 Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
+  handleNotification: async notification => {
     const preferences = await getNotificationPreferences();
-    
+
     if (!preferences.pushEnabled) {
       return {
         shouldShowAlert: false,

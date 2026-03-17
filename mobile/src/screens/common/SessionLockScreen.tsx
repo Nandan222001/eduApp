@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-} from 'react-native';
+import { View, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Text, Input, Button, Icon } from '@rneui/themed';
 import { biometricService, pinService, sessionService } from '@services';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
@@ -40,7 +35,7 @@ export const SessionLockScreen: React.FC<SessionLockScreenProps> = ({ onUnlock }
 
   const tryBiometricUnlock = async () => {
     const bioEnabled = await biometricService.isBiometricEnabled();
-    
+
     if (bioEnabled) {
       const success = await sessionService.unlockSession();
       if (success) {
@@ -96,14 +91,12 @@ export const SessionLockScreen: React.FC<SessionLockScreenProps> = ({ onUnlock }
           color={COLORS.primary}
           containerStyle={styles.lockIcon}
         />
-        
+
         <Text h3 style={styles.title}>
           Session Locked
         </Text>
-        
-        <Text style={styles.subtitle}>
-          Please authenticate to continue
-        </Text>
+
+        <Text style={styles.subtitle}>Please authenticate to continue</Text>
 
         {useBiometric && biometricAvailable && (
           <>
@@ -145,9 +138,7 @@ export const SessionLockScreen: React.FC<SessionLockScreenProps> = ({ onUnlock }
               maxLength={6}
               secureTextEntry
               containerStyle={styles.pinInput}
-              leftIcon={
-                <Icon name="dialpad" type="material" color={COLORS.textSecondary} />
-              }
+              leftIcon={<Icon name="dialpad" type="material" color={COLORS.textSecondary} />}
             />
 
             <Button

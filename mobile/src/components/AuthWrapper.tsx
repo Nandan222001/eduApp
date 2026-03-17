@@ -11,10 +11,7 @@ interface AuthWrapperProps {
   requireAuth?: boolean;
 }
 
-export const AuthWrapper: React.FC<AuthWrapperProps> = ({
-  children,
-  requireAuth = true,
-}) => {
+export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children, requireAuth = true }) => {
   const router = useRouter();
   const [isLocked, setIsLocked] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -33,10 +30,7 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({
 
   const initializeAuth = async () => {
     try {
-      await sessionService.initialize(
-        handleSessionTimeout,
-        handleSessionLock
-      );
+      await sessionService.initialize(handleSessionTimeout, handleSessionLock);
 
       const locked = await sessionService.isSessionLocked();
       setIsLocked(locked);
@@ -53,7 +47,7 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({
   const registerDevice = async () => {
     try {
       const deviceInfo = await deviceFingerprintService.getDeviceInfo();
-      
+
       await mobileAuthApi.registerDevice({
         device_name: deviceInfo.deviceName,
         device_type: deviceInfo.deviceType,
