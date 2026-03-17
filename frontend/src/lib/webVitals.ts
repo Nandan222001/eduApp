@@ -1,113 +1,145 @@
-import { onCLS, onFID, onFCP, onLCP, onTTFB, Metric } from 'web-vitals';
+import { onCLS, onFID, onFCP, onLCP, onTTFB, onINP, Metric } from 'web-vitals';
 import { analytics } from './analytics';
 import { captureMessage } from './sentry';
+import { env } from '@/config/env';
 
-type MetricName = 'CLS' | 'FID' | 'FCP' | 'LCP' | 'TTFB';
-
-interface WebVitalsConfig {
-  enableAnalytics?: boolean;
-  enableSentry?: boolean;
-  enableConsoleLog?: boolean;
-}
-
-const thresholds: Record<MetricName, { good: number; needsImprovement: number }> = {
-  CLS: { good: 0.1, needsImprovement: 0.25 },
-  FID: { good: 100, needsImprovement: 300 },
-  FCP: { good: 1800, needsImprovement: 3000 },
-  LCP: { good: 2500, needsImprovement: 4000 },
-  TTFB: { good: 800, needsImprovement: 1800 },
+const VITALS_THRESHOLDS = {
+  CLS: { good: 0.1, poor: 0.25 },
+  FID: { good: 100, poor: 300 },
+  FCP: { good: 1800, poor: 3000 },
+  LCP: { good: 2500, poor: 4000 },
+  TTFB: { good: 800, poor: 1800 },
+  INP: { good: 200, poor: 500 },
 };
 
-const getRating = (name: MetricName, value: number): 'good' | 'needs-improvement' | 'poor' => {
-  const threshold = thresholds[name];
-  if (value <= threshold.good) {
-    return 'good';
-  }
-  if (value <= threshold.needsImprovement) {
-    return 'needs-improvement';
-  }
+type VitalName = keyof typeof VITALS_THRESHOLDS;
+
+const getRating = (name: VitalName, value: number): 'good' | 'needs-improvement' | 'poor' => {
+  const thresholds = VITALS_THRESHOLDS[name];
+  if (value <= thresholds.good) return 'good';
+  if (value <= thresholds.poor) return 'needs-improvement';
   return 'poor';
 };
 
-const shouldTrack = (): boolean => {
-  const environment = import.meta.env.MODE;
-  return environment === 'production' || import.meta.env.VITE_ENABLE_WEB_VITALS === 'true';
-};
+const sendToAnalytics = (metric: Metric): void => {
+  const { name, value, id, navigationType } = metric;
+  const rating = getRating(name as VitalName, value);
 
-const sendToAnalytics = (metric: Metric, config: WebVitalsConfig): void => {
-  const { name, value, id, rating } = metric;
+  analytics.event({
+    event_name: 'web_vitals',
+    event_type: 'performance',
+    properties: {
+      metric_name: name,
+      metric_value: Math.round(name === 'CLS' ? value * 1000 : value),
+      metric_id: id,
+      metric_rating: rating,
+      navigation_type: navigationType,
+    },
+  });
 
-  if (config.enableConsoleLog) {
-    console.log(`[Web Vitals] ${name}:`, {
-      value: Math.round(value),
+  if (rating === 'poor' && env.isProduction) {
+    captureMessage(`Poor Web Vital: ${name} = ${value.toFixed(2)}`, 'warning', {
+      metric: name,
+      value,
       rating,
       id,
     });
   }
+};
 
-  if (config.enableAnalytics && analytics.isInitialized()) {
-    try {
-      analytics.trackEvent({
-        event_name: 'web_vitals',
-        event_type: 'performance',
-        properties: {
-          metric_name: name,
-          metric_value: Math.round(value),
-          metric_rating: rating,
-          metric_id: id,
-          metric_delta: Math.round(metric.delta),
-        },
-      });
-    } catch (error) {
-      console.error('Error sending web vitals to analytics:', error);
-    }
-  }
+const sendToServer = (metric: Metric): void => {
+  if (!env.isProduction) return;
 
-  if (config.enableSentry) {
-    try {
-      const customRating = getRating(name as MetricName, value);
+  const body = JSON.stringify({
+    name: metric.name,
+    value: metric.value,
+    id: metric.id,
+    navigationType: metric.navigationType,
+    rating: getRating(metric.name as VitalName, metric.value),
+    url: window.location.href,
+    timestamp: Date.now(),
+  });
 
-      if (customRating === 'poor') {
-        captureMessage(`Poor Web Vital: ${name}`, 'warning', {
-          extra: {
-            metric_name: name,
-            metric_value: Math.round(value),
-            metric_rating: rating,
-            metric_id: id,
-            metric_delta: Math.round(metric.delta),
-            custom_rating: customRating,
-          },
-          tags: {
-            metric_type: name,
-            performance_rating: customRating,
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Error sending web vitals to Sentry:', error);
-    }
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon('/api/v1/analytics/web-vitals', body);
+  } else {
+    fetch('/api/v1/analytics/web-vitals', {
+      method: 'POST',
+      body,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      keepalive: true,
+    }).catch((error) => {
+      console.error('Error sending web vitals to server:', error);
+    });
   }
 };
 
-export const initWebVitals = (config: WebVitalsConfig = {}): void => {
-  if (!shouldTrack()) {
-    return;
-  }
+const handleMetric = (metric: Metric): void => {
+  console.log(`[Web Vitals] ${metric.name}:`, {
+    value: metric.value,
+    rating: getRating(metric.name as VitalName, metric.value),
+    id: metric.id,
+  });
 
-  const defaultConfig: WebVitalsConfig = {
-    enableAnalytics: true,
-    enableSentry: true,
-    enableConsoleLog: import.meta.env.MODE === 'development',
-    ...config,
-  };
+  sendToAnalytics(metric);
+  sendToServer(metric);
+};
+
+export const initWebVitals = (): void => {
+  try {
+    onCLS(handleMetric);
+    onFID(handleMetric);
+    onFCP(handleMetric);
+    onLCP(handleMetric);
+    onTTFB(handleMetric);
+    onINP(handleMetric);
+
+    console.log('Web Vitals monitoring initialized');
+  } catch (error) {
+    console.error('Error initializing Web Vitals:', error);
+  }
+};
+
+export const reportCustomMetric = (name: string, value: number, unit?: string): void => {
+  analytics.timing(name, value, 'Custom Metrics', unit);
+
+  console.log(`[Custom Metric] ${name}: ${value}${unit ? ` ${unit}` : ''}`);
+};
+
+export const measureAsync = async <T>(name: string, asyncFn: () => Promise<T>): Promise<T> => {
+  const startTime = performance.now();
 
   try {
-    onCLS((metric) => sendToAnalytics(metric, defaultConfig));
-    onFID((metric) => sendToAnalytics(metric, defaultConfig));
-    onFCP((metric) => sendToAnalytics(metric, defaultConfig));
-    onLCP((metric) => sendToAnalytics(metric, defaultConfig));
-    onTTFB((metric) => sendToAnalytics(metric, defaultConfig));
+    const result = await asyncFn();
+    const duration = performance.now() - startTime;
+
+    reportCustomMetric(name, duration, 'ms');
+
+    return result;
   } catch (error) {
-    console.error('Error initializing web vitals:', error);
+    const duration = performance.now() - startTime;
+    reportCustomMetric(`${name}_error`, duration, 'ms');
+    throw error;
   }
 };
+
+export const measureSync = <T>(name: string, syncFn: () => T): T => {
+  const startTime = performance.now();
+
+  try {
+    const result = syncFn();
+    const duration = performance.now() - startTime;
+
+    reportCustomMetric(name, duration, 'ms');
+
+    return result;
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    reportCustomMetric(`${name}_error`, duration, 'ms');
+    throw error;
+  }
+};
+
+export { onCLS, onFID, onFCP, onLCP, onTTFB, onINP };

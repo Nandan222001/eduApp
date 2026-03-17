@@ -20,7 +20,8 @@ export const useTokenRefresh = () => {
     try {
       isRefreshingRef.current = true;
       const response = await authApi.refreshToken(refreshTokenValue);
-      tokenManager.updateAccessToken(response.accessToken, response.expiresIn);
+      tokenManager.setAccessToken(response.accessToken);
+      tokenManager.setTokenExpiry(response.expiresIn);
       setTokens({
         accessToken: response.accessToken,
         refreshToken: refreshTokenValue,
@@ -41,7 +42,7 @@ export const useTokenRefresh = () => {
     }
 
     refreshIntervalRef.current = setInterval(() => {
-      if (tokenManager.isTokenExpiringSoon(5)) {
+      if (tokenManager.isTokenExpired()) {
         refreshToken();
       }
     }, 60000);
@@ -56,7 +57,7 @@ export const useTokenRefresh = () => {
       return;
     }
 
-    if (tokenManager.isTokenExpiringSoon(5)) {
+    if (tokenManager.isTokenExpired()) {
       refreshToken();
     }
 

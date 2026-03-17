@@ -1,77 +1,127 @@
 import * as Sentry from '@sentry/react';
+import { env } from '@/config/env';
 
-interface CaptureMessageOptions {
-  extra?: Record<string, unknown>;
-  tags?: Record<string, string>;
-  contexts?: Record<string, Record<string, unknown>>;
-}
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+const SENTRY_ENVIRONMENT = import.meta.env.VITE_SENTRY_ENVIRONMENT || 'development';
+const SENTRY_TRACES_SAMPLE_RATE = parseFloat(
+  import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || '1.0'
+);
+const SENTRY_REPLAYS_SESSION_SAMPLE_RATE = parseFloat(
+  import.meta.env.VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE || '0.1'
+);
+const SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE = parseFloat(
+  import.meta.env.VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE || '1.0'
+);
 
 export const initSentry = (): void => {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
-  const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || 'development';
-
-  if (!dsn || dsn === 'your_sentry_dsn_here') {
-    console.warn('Sentry is not configured');
+  if (!SENTRY_DSN || SENTRY_ENVIRONMENT === 'development') {
+    console.log('Sentry is disabled in development mode');
     return;
   }
 
-  const tracesSampleRate = parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || '1.0');
-  const replaysSessionSampleRate = parseFloat(
-    import.meta.env.VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE || '0.1'
-  );
-  const replaysOnErrorSampleRate = parseFloat(
-    import.meta.env.VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE || '1.0'
-  );
-
   Sentry.init({
-    dsn,
-    environment,
+    dsn: SENTRY_DSN,
+    environment: SENTRY_ENVIRONMENT,
+    release: env.appVersion,
     integrations: [
       new Sentry.BrowserTracing(),
       new Sentry.Replay({
-        maskAllText: false,
-        blockAllMedia: false,
+        maskAllText: true,
+        blockAllMedia: true,
       }),
     ],
-    tracesSampleRate,
-    replaysSessionSampleRate,
-    replaysOnErrorSampleRate,
+    tracesSampleRate: SENTRY_TRACES_SAMPLE_RATE,
+    replaysSessionSampleRate: SENTRY_REPLAYS_SESSION_SAMPLE_RATE,
+    replaysOnErrorSampleRate: SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
+    beforeSend(event, hint) {
+      const error = hint.originalException;
+
+      if (error instanceof Error) {
+        if (error.message.includes('Network Error')) {
+          return null;
+        }
+
+        if (error.message.includes('ResizeObserver loop')) {
+          return null;
+        }
+      }
+
+      return event;
+    },
+    ignoreErrors: [
+      'ResizeObserver loop limit exceeded',
+      'Non-Error promise rejection captured',
+      'Network request failed',
+      'Failed to fetch',
+      'NetworkError',
+      'Load failed',
+    ],
   });
 };
 
-export const captureException = (error: Error, options?: CaptureMessageOptions): string => {
-  return Sentry.captureException(error, {
-    extra: options?.extra,
-    tags: options?.tags,
-    contexts: options?.contexts,
-  });
+export const captureException = (error: Error, context?: Record<string, unknown>): void => {
+  if (SENTRY_DSN && SENTRY_ENVIRONMENT !== 'development') {
+    Sentry.captureException(error, {
+      extra: context,
+    });
+  } else {
+    console.error('Exception:', error, context);
+  }
 };
 
 export const captureMessage = (
   message: string,
-  level?: Sentry.SeverityLevel,
-  options?: CaptureMessageOptions
-): string => {
-  return Sentry.captureMessage(message, {
-    level: level || 'info',
-    extra: options?.extra,
-    tags: options?.tags,
-    contexts: options?.contexts,
-  });
+  level: Sentry.SeverityLevel = 'info',
+  context?: Record<string, unknown>
+): void => {
+  if (SENTRY_DSN && SENTRY_ENVIRONMENT !== 'development') {
+    Sentry.captureMessage(message, {
+      level,
+      extra: context,
+    });
+  } else {
+    console.log(`[${level}] ${message}`, context);
+  }
 };
 
-export const setUser = (user: Sentry.User | null): void => {
-  Sentry.setUser(user);
+export const setUserContext = (user: { id: string; email?: string; username?: string }): void => {
+  if (SENTRY_DSN && SENTRY_ENVIRONMENT !== 'development') {
+    Sentry.setUser(user);
+  }
 };
 
-export const setContext = (name: string, context: Record<string, unknown> | null): void => {
-  Sentry.setContext(name, context);
+export const clearUserContext = (): void => {
+  if (SENTRY_DSN && SENTRY_ENVIRONMENT !== 'development') {
+    Sentry.setUser(null);
+  }
+};
+
+export const addBreadcrumb = (
+  category: string,
+  message: string,
+  level: Sentry.SeverityLevel = 'info',
+  data?: Record<string, unknown>
+): void => {
+  if (SENTRY_DSN && SENTRY_ENVIRONMENT !== 'development') {
+    Sentry.addBreadcrumb({
+      category,
+      message,
+      level,
+      data,
+    });
+  }
 };
 
 export const setTag = (key: string, value: string): void => {
-  Sentry.setTag(key, value);
+  if (SENTRY_DSN && SENTRY_ENVIRONMENT !== 'development') {
+    Sentry.setTag(key, value);
+  }
 };
 
-export const addBreadcrumb = (breadcrumb: Sentry.Breadcrumb): void => {
-  Sentry.addBreadcrumb(breadcrumb);
+export const setContext = (name: string, context: Record<string, unknown>): void => {
+  if (SENTRY_DSN && SENTRY_ENVIRONMENT !== 'development') {
+    Sentry.setContext(name, context);
+  }
 };
+
+export { Sentry };
