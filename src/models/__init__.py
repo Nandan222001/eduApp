@@ -15,7 +15,7 @@ from src.models.examination import Exam, ExamSubject, ExamSchedule, ExamMarks, E
 from src.models.previous_year_papers import PreviousYearPaper, QuestionBank, TopicPrediction, QuestionBookmark, QuestionType, DifficultyLevel, BloomTaxonomyLevel, Board
 from src.models.notification import (
     Notification, NotificationPreference, Announcement, Message, NotificationTemplate,
-    NotificationDelivery, NotificationEngagement, NotificationAnalytics,
+    NotificationDelivery, NotificationEngagement, NotificationAnalytics, NotificationDevice,
     NotificationChannel, NotificationPriority, NotificationStatus, AudienceType,
     DigestMode, NotificationGroup
 )
@@ -234,6 +234,7 @@ __all__ = [
     "NotificationDelivery",
     "NotificationEngagement",
     "NotificationAnalytics",
+    "NotificationDevice",
     "NotificationChannel",
     "NotificationPriority",
     "NotificationStatus",

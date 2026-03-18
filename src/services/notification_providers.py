@@ -143,6 +143,77 @@ class PushProvider(NotificationProvider):
             return False
 
 
+class ExpoPushProvider(NotificationProvider):
+    def __init__(self):
+        self.expo_url = "https://exp.host/--/api/v2/push/send"
+
+    async def send(self, recipient: str, subject: str, content: str, data: Optional[Dict[str, Any]] = None) -> bool:
+        if not REQUESTS_AVAILABLE:
+            logger.error("Requests library not installed")
+            return False
+        
+        try:
+            headers = {
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "to": recipient,
+                "title": subject,
+                "body": content,
+                "sound": "default",
+                "priority": "high"
+            }
+            
+            if data:
+                payload["data"] = data
+            
+            response = requests.post(self.expo_url, json=payload, headers=headers)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("data", {}).get("status") == "ok":
+                    logger.info(f"Expo push notification sent successfully to {recipient}")
+                    return True
+                else:
+                    logger.error(f"Expo push notification failed: {result.get('data', {}).get('message', 'Unknown error')}")
+                    return False
+            else:
+                logger.error(f"Failed to send Expo push notification. Status code: {response.status_code}, Response: {response.text}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending Expo push notification: {str(e)}")
+            return False
+
+    async def send_bulk(self, messages: list) -> Dict[str, Any]:
+        if not REQUESTS_AVAILABLE:
+            logger.error("Requests library not installed")
+            return {"success": False, "error": "Requests library not available"}
+        
+        try:
+            headers = {
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json"
+            }
+            
+            response = requests.post(self.expo_url, json=messages, headers=headers)
+            
+            if response.status_code == 200:
+                result = response.json()
+                return {"success": True, "data": result.get("data", [])}
+            else:
+                logger.error(f"Failed to send bulk Expo push notifications. Status code: {response.status_code}")
+                return {"success": False, "error": f"Status code: {response.status_code}"}
+                
+        except Exception as e:
+            logger.error(f"Error sending bulk Expo push notifications: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+
 class InAppProvider(NotificationProvider):
     async def send(self, recipient: str, subject: str, content: str, data: Optional[Dict[str, Any]] = None) -> bool:
         return True
@@ -171,10 +242,18 @@ class NotificationProviderFactory:
                 sender_id=getattr(settings, 'msg91_sender_id', 'SENDER')
             )
         elif channel == "push":
-            return PushProvider(
-                server_key=getattr(settings, 'fcm_server_key', '')
-            )
+            use_expo = getattr(settings, 'use_expo_push', True)
+            if use_expo:
+                return ExpoPushProvider()
+            else:
+                return PushProvider(
+                    server_key=getattr(settings, 'fcm_server_key', '')
+                )
         elif channel == "in_app":
             return InAppProvider()
         else:
             raise ValueError(f"Unknown notification channel: {channel}")
+    
+    @classmethod
+    def get_expo_provider(cls) -> ExpoPushProvider:
+        return ExpoPushProvider()

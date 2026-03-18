@@ -13,7 +13,8 @@ from src.models.notification import (
     NotificationAnalytics,
     NotificationEngagement,
     NotificationDelivery,
-    DigestMode
+    DigestMode,
+    NotificationDevice
 )
 from src.services.notification_service import NotificationService
 from src.services.announcement_service import AnnouncementService
@@ -486,7 +487,6 @@ def aggregate_analytics(self, date: str = None) -> Dict[str, Any]:
 @celery_app.task(base=DatabaseTask, bind=True, name="src.tasks.notification_tasks.process_grouped_notifications")
 def process_grouped_notifications(self) -> Dict[str, Any]:
     try:
-        # Find notifications that should no longer be grouped
         cutoff_time = datetime.utcnow() - timedelta(hours=1)
         
         grouped_notifications = self.db.query(Notification).filter(
@@ -515,6 +515,139 @@ def process_grouped_notifications(self) -> Dict[str, Any]:
         self.db.rollback()
         return {
             "ungrouped": 0,
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+@celery_app.task(base=DatabaseTask, bind=True, name="src.tasks.notification_tasks.send_expo_push_notification")
+def send_expo_push_notification(
+    self,
+    user_id: int,
+    title: str,
+    message: str,
+    data: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    try:
+        from src.services.notification_providers import NotificationProviderFactory
+        
+        devices = self.db.query(NotificationDevice).filter(
+            and_(
+                NotificationDevice.user_id == user_id,
+                NotificationDevice.is_active == True
+            )
+        ).all()
+        
+        if not devices:
+            return {
+                "success": False,
+                "error": "No active devices found for user",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        expo_provider = NotificationProviderFactory.get_expo_provider()
+        
+        messages = []
+        for device in devices:
+            messages.append({
+                "to": device.device_token,
+                "title": title,
+                "body": message,
+                "sound": "default",
+                "priority": "high",
+                "data": data or {}
+            })
+        
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        result = loop.run_until_complete(expo_provider.send_bulk(messages))
+        
+        for device in devices:
+            device.last_used_at = datetime.utcnow()
+        self.db.commit()
+        
+        return {
+            "success": result.get("success", False),
+            "devices_count": len(devices),
+            "result": result,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error sending Expo push notification to user {user_id}: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+@celery_app.task(base=DatabaseTask, bind=True, name="src.tasks.notification_tasks.send_bulk_expo_push")
+def send_bulk_expo_push(
+    self,
+    user_ids: List[int],
+    title: str,
+    message: str,
+    data: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    try:
+        from src.services.notification_providers import NotificationProviderFactory
+        
+        devices = self.db.query(NotificationDevice).filter(
+            and_(
+                NotificationDevice.user_id.in_(user_ids),
+                NotificationDevice.is_active == True
+            )
+        ).all()
+        
+        if not devices:
+            return {
+                "success": False,
+                "error": "No active devices found for specified users",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        expo_provider = NotificationProviderFactory.get_expo_provider()
+        
+        messages = []
+        for device in devices:
+            messages.append({
+                "to": device.device_token,
+                "title": title,
+                "body": message,
+                "sound": "default",
+                "priority": "high",
+                "data": data or {}
+            })
+        
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        result = loop.run_until_complete(expo_provider.send_bulk(messages))
+        
+        for device in devices:
+            device.last_used_at = datetime.utcnow()
+        self.db.commit()
+        
+        return {
+            "success": result.get("success", False),
+            "users_count": len(user_ids),
+            "devices_count": len(devices),
+            "result": result,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error sending bulk Expo push notifications: {str(e)}")
+        return {
+            "success": False,
             "error": str(e),
             "timestamp": datetime.utcnow().isoformat()
         }

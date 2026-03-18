@@ -332,3 +332,29 @@ class PushDevice(Base):
         Index('idx_push_device_token', 'token'),
         Index('idx_push_device_active', 'is_active'),
     )
+
+
+class NotificationDevice(Base):
+    __tablename__ = "notification_devices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    role = Column(String(50), nullable=False)
+    device_token = Column(String(500), nullable=False, index=True)
+    device_type = Column(String(20), nullable=False)
+    platform = Column(String(20), nullable=False)
+    device_info = Column(JSON, nullable=True)
+    app_version = Column(String(50), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_used_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", backref="notification_devices")
+
+    __table_args__ = (
+        Index('idx_notification_device_user', 'user_id'),
+        Index('idx_notification_device_token', 'device_token'),
+        Index('idx_notification_device_active', 'is_active'),
+        Index('idx_notification_device_user_active', 'user_id', 'is_active'),
+    )

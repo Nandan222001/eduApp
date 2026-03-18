@@ -329,3 +329,35 @@ class DeviceRegistrationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class NotificationDeviceRegistrationRequest(BaseModel):
+    device_token: str = Field(..., description="Expo push token", max_length=500)
+    device_type: str = Field(..., description="Device type (ios/android)", pattern="^(ios|android)$")
+    platform: str = Field(..., description="Platform (ios/android)", pattern="^(ios|android)$")
+    device_info: Optional[Dict[str, Any]] = Field(None, description="Additional device information")
+    app_version: Optional[str] = Field(None, max_length=50, description="Application version")
+
+
+class NotificationDeviceResponse(BaseModel):
+    id: int
+    user_id: int
+    role: str
+    device_token: str
+    device_type: str
+    platform: str
+    device_info: Optional[Dict[str, Any]]
+    app_version: Optional[str]
+    is_active: bool
+    last_used_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationDeviceUpdateRequest(BaseModel):
+    device_info: Optional[Dict[str, Any]] = None
+    app_version: Optional[str] = Field(None, max_length=50)
+    is_active: Optional[bool] = None
