@@ -10,11 +10,13 @@ import { ReportsScreen } from '@screens/parent/ReportsScreen';
 import { ProfileScreen } from '@screens/parent/ProfileScreen';
 import { RoleSwitcher } from '@components/shared/RoleSwitcher';
 import { RoleBadge } from '@components/shared/RoleBadge';
+import { NotificationBell } from '@components/shared/NotificationBell';
 
 const Tab = createBottomTabNavigator<ParentTabParamList>();
 
 const HeaderRight = () => (
   <View style={styles.headerRight}>
+    <NotificationBell />
     <RoleBadge />
     <RoleSwitcher showLabel={false} />
   </View>

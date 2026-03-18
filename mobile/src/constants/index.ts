@@ -55,4 +55,6 @@ export const STORAGE_KEYS = {
   BIOMETRIC_ENABLED: '@edu_biometric_enabled',
   BIOMETRIC_CREDENTIALS: '@edu_biometric_credentials',
   ACTIVE_ROLE: '@edu_active_role',
+  NOTIFICATION_PERMISSION_REQUESTED: '@edu_notification_permission_requested',
+  PUSH_TOKEN: '@edu_push_token',
 };

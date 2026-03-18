@@ -44,6 +44,8 @@ export const linking: LinkingOptions<RootStackParamList> = {
           Settings: 'settings',
           Notifications: 'notifications',
           NotificationDetail: 'notifications/:notificationId',
+          NotificationHistory: 'notifications/history',
+          NotificationPreferences: 'notifications/preferences',
         },
       },
     },

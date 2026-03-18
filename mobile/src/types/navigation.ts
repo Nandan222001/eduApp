@@ -22,6 +22,8 @@ export type MainStackParamList = {
   Settings: undefined;
   Notifications: undefined;
   NotificationDetail: { notificationId: string };
+  NotificationHistory: undefined;
+  NotificationPreferences: undefined;
   Courses: undefined;
   CourseDetail: { courseId: string };
   AssignmentDetail: { assignmentId: string };

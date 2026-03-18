@@ -10,11 +10,13 @@ import { ScheduleScreen } from '@screens/student/ScheduleScreen';
 import { ProfileScreen } from '@screens/student/ProfileScreen';
 import { RoleSwitcher } from '@components/shared/RoleSwitcher';
 import { RoleBadge } from '@components/shared/RoleBadge';
+import { NotificationBell } from '@components/shared/NotificationBell';
 
 const Tab = createBottomTabNavigator<StudentTabParamList>();
 
 const HeaderRight = () => (
   <View style={styles.headerRight}>
+    <NotificationBell />
     <RoleBadge />
     <RoleSwitcher showLabel={false} />
   </View>

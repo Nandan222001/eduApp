@@ -8,6 +8,8 @@ import { ProfileScreen } from '@screens/common/ProfileScreen';
 import { SettingsScreen } from '@screens/common/SettingsScreen';
 import { NotificationsScreen } from '@screens/common/NotificationsScreen';
 import { NotificationDetailScreen } from '@screens/common/NotificationDetailScreen';
+import { NotificationHistoryScreen } from '@screens/shared/NotificationHistoryScreen';
+import { NotificationPreferencesScreen } from '@screens/shared/NotificationPreferencesScreen';
 import { CoursesScreen } from '@screens/student/CoursesScreen';
 import { CourseDetailScreen } from '@screens/student/CourseDetailScreen';
 import { AssignmentDetailScreen } from '@screens/student/AssignmentDetailScreen';
@@ -87,6 +89,16 @@ export const MainNavigator: React.FC = () => {
           name="NotificationDetail"
           component={NotificationDetailScreen}
           options={{ headerShown: true, title: 'Notification' }}
+        />
+        <Stack.Screen
+          name="NotificationHistory"
+          component={NotificationHistoryScreen}
+          options={{ headerShown: true, title: 'Notification History' }}
+        />
+        <Stack.Screen
+          name="NotificationPreferences"
+          component={NotificationPreferencesScreen}
+          options={{ headerShown: true, title: 'Notification Preferences' }}
         />
 
         <Stack.Screen

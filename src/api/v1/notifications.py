@@ -20,7 +20,9 @@ from src.schemas.notification import (
     NotificationEngagementResponse,
     DigestNotificationRequest,
     NotificationGroupSummary,
-    SmartGroupingSettings
+    SmartGroupingSettings,
+    DeviceRegistrationRequest,
+    DeviceRegistrationResponse
 )
 from src.services.notification_service import NotificationService
 from src.dependencies.auth import get_current_user
@@ -356,3 +358,43 @@ def test_quiet_hours(
         "in_quiet_hours": is_quiet,
         "user_id": current_user.id
     }
+
+
+@router.post("/register-device", response_model=DeviceRegistrationResponse)
+def register_device(
+    device_data: DeviceRegistrationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Register a device for push notifications"""
+    service = NotificationService(db)
+    device = service.register_device(
+        user_id=current_user.id,
+        token=device_data.token,
+        device_type=device_data.deviceType,
+        device_id=device_data.deviceId,
+        topics=device_data.topics
+    )
+    
+    return DeviceRegistrationResponse(
+        id=device.id,
+        token=device.token,
+        deviceType=device.device_type,
+        deviceId=device.device_id,
+        topics=device.topics or [],
+        isActive=device.is_active,
+        createdAt=device.created_at,
+        updatedAt=device.updated_at
+    )
+
+
+@router.get("/unread-count")
+def get_unread_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get count of unread notifications"""
+    service = NotificationService(db)
+    count = service.get_unread_count(current_user.id)
+    
+    return {"unread": count}

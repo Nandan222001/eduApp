@@ -28,3 +28,5 @@ export { ProfileScreen as ParentProfileScreen } from './parent/ProfileScreen';
 export { SettingsScreen } from './shared/SettingsScreen';
 export { NotificationsScreen } from './common/NotificationsScreen';
 export { NotificationDetailScreen } from './common/NotificationDetailScreen';
+export { NotificationHistoryScreen } from './shared/NotificationHistoryScreen';
+export { NotificationPreferencesScreen } from './shared/NotificationPreferencesScreen';

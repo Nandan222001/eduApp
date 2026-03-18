@@ -5,3 +5,4 @@ export * from './useDashboardSync';
 export * from './useAssignmentsSync';
 export * from './useGradesSync';
 export * from './useAttendanceSync';
+export * from './useNotificationBadge';

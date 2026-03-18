@@ -308,3 +308,24 @@ class WebSocketMessage(BaseModel):
     type: str
     data: Dict[str, Any]
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DeviceRegistrationRequest(BaseModel):
+    token: str = Field(..., description="Expo push token")
+    deviceType: str = Field(..., description="Device platform (ios/android)")
+    deviceId: str = Field(..., description="Unique device identifier")
+    topics: List[str] = Field(default_factory=list, description="Notification topics to subscribe to")
+
+
+class DeviceRegistrationResponse(BaseModel):
+    id: int
+    token: str
+    deviceType: str
+    deviceId: str
+    topics: List[str]
+    isActive: bool
+    createdAt: datetime
+    updatedAt: datetime
+
+    class Config:
+        from_attributes = True

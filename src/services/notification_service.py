@@ -16,7 +16,8 @@ from src.models.notification import (
     NotificationAnalytics,
     NotificationPriority,
     DigestMode,
-    NotificationGroup
+    NotificationGroup,
+    PushDevice
 )
 from src.models.user import User
 from src.schemas.notification import (
@@ -731,3 +732,50 @@ class NotificationService:
             })
         
         return summaries
+
+    def register_device(
+        self,
+        user_id: int,
+        token: str,
+        device_type: str,
+        device_id: str,
+        topics: Optional[List[str]] = None
+    ) -> PushDevice:
+        existing_device = self.db.query(PushDevice).filter(
+            PushDevice.token == token
+        ).first()
+        
+        if existing_device:
+            existing_device.user_id = user_id
+            existing_device.device_type = device_type
+            existing_device.device_id = device_id
+            existing_device.topics = topics or []
+            existing_device.is_active = True
+            existing_device.last_used_at = datetime.utcnow()
+            existing_device.updated_at = datetime.utcnow()
+            self.db.commit()
+            self.db.refresh(existing_device)
+            return existing_device
+        
+        device = PushDevice(
+            user_id=user_id,
+            token=token,
+            device_type=device_type,
+            device_id=device_id,
+            topics=topics or [],
+            is_active=True,
+            last_used_at=datetime.utcnow()
+        )
+        self.db.add(device)
+        self.db.commit()
+        self.db.refresh(device)
+        return device
+
+    def get_unread_count(self, user_id: int) -> int:
+        count = self.db.query(func.count(Notification.id)).filter(
+            and_(
+                Notification.user_id == user_id,
+                Notification.status != NotificationStatus.READ.value
+            )
+        ).scalar()
+        return count or 0

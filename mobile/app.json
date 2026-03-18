@@ -71,6 +71,15 @@
           "photosPermission": "Allow EDU Mobile to access your photos to upload profile pictures.",
           "cameraPermission": "Allow EDU Mobile to access your camera to take profile pictures."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2089dc",
+          "sounds": [],
+          "mode": "production"
+        }
       ]
     ],
     "extra": {
