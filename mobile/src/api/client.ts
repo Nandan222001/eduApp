@@ -9,6 +9,8 @@ import { API_URL } from '@env';
 import { secureStorage } from '@utils/secureStorage';
 import { STORAGE_KEYS, API_TIMEOUT } from '@constants';
 import { ApiError, ApiResponse } from '@types';
+import { analyticsService } from '@services/analytics';
+import { Sentry } from '@config/sentry';
 
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
@@ -63,6 +65,23 @@ class ApiClient {
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+
+        const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        (config as any).requestId = requestId;
+        
+        const endpoint = config.url || '';
+        const method = config.method?.toUpperCase() || 'GET';
+        analyticsService.startApiRequest(requestId, endpoint, method);
+
+        Sentry.addBreadcrumb({
+          category: 'http',
+          data: {
+            url: config.url,
+            method: config.method,
+          },
+          level: 'info',
+        });
+
         return config;
       },
       error => {
@@ -71,9 +90,51 @@ class ApiClient {
     );
 
     this.instance.interceptors.response.use(
-      response => response,
+      response => {
+        const requestId = (response.config as any).requestId;
+        const endpoint = response.config.url || '';
+        const method = response.config.method?.toUpperCase() || 'GET';
+        
+        if (requestId) {
+          analyticsService.endApiRequest(
+            requestId,
+            endpoint,
+            method,
+            response.status,
+            true
+          );
+        }
+
+        return response;
+      },
       async error => {
         const originalRequest = error.config;
+        
+        const requestId = (originalRequest as any)?.requestId;
+        if (requestId) {
+          const endpoint = originalRequest.url || '';
+          const method = originalRequest.method?.toUpperCase() || 'GET';
+          const statusCode = error.response?.status || 0;
+          
+          analyticsService.endApiRequest(
+            requestId,
+            endpoint,
+            method,
+            statusCode,
+            false
+          );
+        }
+
+        if (error.response) {
+          Sentry.captureException(error, {
+            contexts: {
+              response: {
+                status: error.response.status,
+                data: error.response.data,
+              },
+            },
+          });
+        }
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           if (isRefreshing) {

@@ -14,7 +14,8 @@
       },
       "env": {
         "APP_ENV": "development"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -27,7 +28,8 @@
       },
       "env": {
         "APP_ENV": "staging"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "ios": {
@@ -38,7 +40,8 @@
       },
       "env": {
         "APP_ENV": "production"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

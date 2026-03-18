@@ -19,6 +19,8 @@ import { logout } from '@store/slices/authSlice';
 import { AppDispatch } from '@store/store';
 import { storage } from '@utils/storage';
 import Constants from 'expo-constants';
+import { useNavigation } from '@react-navigation/native';
+import { analyticsService } from '@services/analytics';
 
 interface NotificationPreferences {
   assignments: boolean;
@@ -52,6 +54,7 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
 export const SettingsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
+  const navigation = useNavigation();
 
   const [theme, setTheme] = useState<Theme>('auto');
   const [language, setLanguage] = useState<Language>('en');
@@ -139,9 +142,15 @@ export const SettingsScreen: React.FC = () => {
     Linking.openURL('mailto:support@your-app.com');
   };
 
+  const handleSendFeedback = () => {
+    analyticsService.trackButtonClick('send_feedback', 'settings');
+    navigation.navigate('Feedback' as never);
+  };
+
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const buildNumber =
     Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || '1';
+  const expoVersion = Constants.expoVersion || 'unknown';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -318,6 +327,11 @@ export const SettingsScreen: React.FC = () => {
           <Text style={styles.linkText}>Contact Support</Text>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.linkItem} onPress={handleSendFeedback}>
+          <Text style={styles.linkText}>Send Feedback</Text>
+          <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
       </Card>
 
       <Card style={styles.card}>
@@ -337,7 +351,14 @@ export const SettingsScreen: React.FC = () => {
 
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Platform</Text>
-          <Text style={styles.infoValue}>{Platform.OS}</Text>
+          <Text style={styles.infoValue}>
+            {Platform.OS === 'ios' ? 'iOS' : 'Android'} {Platform.Version}
+          </Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Expo Version</Text>
+          <Text style={styles.infoValue}>{expoVersion}</Text>
         </View>
       </Card>
 

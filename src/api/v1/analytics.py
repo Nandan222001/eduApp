@@ -1,7 +1,9 @@
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, Request
+from datetime import datetime
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 from src.database import get_db
 from src.repositories.analytics_repository import AnalyticsRepository
 from src.schemas.analytics import (
@@ -179,3 +181,78 @@ async def get_performance_stats(
     repo = AnalyticsRepository(db)
     stats = await repo.get_performance_stats(metric_name, days)
     return [PerformanceStats(**stat) for stat in stats]
+
+
+class TrackEventsBatchRequest(BaseModel):
+    events: List[dict]
+
+
+class TrackPerformanceBatchRequest(BaseModel):
+    metrics: List[dict]
+
+
+@router.post("/track", status_code=202)
+async def track_events_batch(
+    request_data: TrackEventsBatchRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Track multiple analytics events from mobile app."""
+    repo = AnalyticsRepository(db)
+    
+    processed_events = []
+    for event_data in request_data.events:
+        try:
+            event = AnalyticsEventCreate(
+                event_name=event_data.get("event_name"),
+                event_category=event_data.get("event_category"),
+                event_properties=event_data.get("event_properties", {}),
+                user_id=event_data.get("user_id"),
+                session_id=event_data.get("session_id"),
+                user_agent=event_data.get("user_agent") or request.headers.get("user-agent"),
+                ip_address=event_data.get("ip_address") or (request.client.host if request.client else None),
+                timestamp=event_data.get("timestamp"),
+            )
+            await repo.create_event(event)
+            processed_events.append(event_data.get("event_name"))
+        except Exception as e:
+            print(f"Error processing event: {e}")
+            continue
+    
+    return {
+        "status": "accepted",
+        "processed_count": len(processed_events),
+        "total_count": len(request_data.events),
+    }
+
+
+@router.post("/performance", status_code=202)
+async def track_performance_batch(
+    request_data: TrackPerformanceBatchRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Track multiple performance metrics from mobile app."""
+    repo = AnalyticsRepository(db)
+    
+    processed_metrics = []
+    for metric_data in request_data.metrics:
+        try:
+            metric = PerformanceMetricCreate(
+                metric_name=metric_data.get("metric_name"),
+                metric_type=metric_data.get("metric_type"),
+                value=metric_data.get("value"),
+                unit=metric_data.get("unit"),
+                metadata=metric_data.get("metadata", {}),
+                timestamp=metric_data.get("timestamp"),
+            )
+            await repo.create_performance_metric(metric)
+            processed_metrics.append(metric_data.get("metric_name"))
+        except Exception as e:
+            print(f"Error processing metric: {e}")
+            continue
+    
+    return {
+        "status": "accepted",
+        "processed_count": len(processed_metrics),
+        "total_count": len(request_data.metrics),
+    }

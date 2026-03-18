@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
@@ -8,16 +7,18 @@ import { Loading } from '@components';
 import { RootStackParamList } from '@types';
 import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
-import { linking } from './linking';
+import { NavigationContainer } from './NavigationContainer';
 import { authService } from '@utils/authService';
 import { notificationService } from '@services/notificationService';
 import { apiClient } from '@api/client';
+import { analyticsService } from '@services/analytics';
+import { setSentryUser, clearSentryUser } from '@config/sentry';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { isAuthenticated, isLoading } = useAppSelector(state => state.auth);
+  const { isAuthenticated, isLoading, user } = useAppSelector(state => state.auth);
   const navigationRef = useRef<any>(null);
 
   useEffect(() => {
@@ -25,14 +26,23 @@ export const RootNavigator: React.FC = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       authService.initializeAuth();
       initializeNotifications();
+
+      analyticsService.setUserId(user.id.toString());
+      setSentryUser({
+        id: user.id.toString(),
+        email: user.email,
+        username: user.firstName || user.email,
+      });
     } else {
       authService.stopAutoRefresh();
       notificationService.removeNotificationListeners();
+      analyticsService.clearUserId();
+      clearSentryUser();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   const initializeNotifications = async () => {
     try {
@@ -53,7 +63,7 @@ export const RootNavigator: React.FC = () => {
     }
   };
 
-  const handleNotificationReceived = async (notification: Notifications.Notification) => {
+  const handleNotificationReceived = async (_notification: Notifications.Notification) => {
     try {
       const unreadResponse = await apiClient.get<{ unread: number }>(
         '/api/v1/notifications/unread-count'
@@ -109,7 +119,7 @@ export const RootNavigator: React.FC = () => {
   }
 
   return (
-    <NavigationContainer linking={linking} ref={navigationRef}>
+    <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <Stack.Screen name="Main" component={MainNavigator} />

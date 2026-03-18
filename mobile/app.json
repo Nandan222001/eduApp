@@ -54,6 +54,13 @@
     "plugins": [
       "expo-router",
       [
+        "sentry-expo",
+        {
+          "organization": "your-sentry-org",
+          "project": "edu-mobile"
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Allow EDU Mobile to access your camera to take photos for assignment submissions and document scanning."

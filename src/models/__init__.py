@@ -173,6 +173,7 @@ from src.models.reverse_classroom import (
 from src.models.subject_rpg import (
     StudentCharacter, SubjectWorld, BattleSession, SubjectPassport, QuestLog, QuestType
 )
+from src.models.feedback import Feedback
 
 __all__ = [
     "Institution",
@@ -595,4 +596,5 @@ __all__ = [
     "SubjectPassport",
     "QuestLog",
     "QuestType",
+    "Feedback",
 ]

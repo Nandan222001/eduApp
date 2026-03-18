@@ -89,7 +89,8 @@ from src.api.v1 import (
     reverse_classroom,
     subject_rpg,
     wellbeing,
-    parent_roi
+    parent_roi,
+    feedback
 )
 from src.api import ml
 
@@ -187,3 +188,4 @@ api_router.include_router(reverse_classroom.router, prefix="", tags=["reverse-cl
 api_router.include_router(subject_rpg.router, prefix="/subject-rpg", tags=["subject-rpg"])
 api_router.include_router(wellbeing.router, prefix="/wellbeing", tags=["wellbeing"])
 api_router.include_router(parent_roi.router, prefix="/parent-roi", tags=["parent-roi"])
+api_router.include_router(feedback.router, prefix="", tags=["feedback"])
