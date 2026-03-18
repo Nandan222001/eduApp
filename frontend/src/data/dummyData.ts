@@ -2993,7 +2993,17 @@ export const demoCommunicationData = {
 };
 
 export const demoSearchData = {
-  students: [],
+  students: [
+    {
+      id: 1001,
+      first_name: 'Liam',
+      last_name: 'Anderson',
+      admission_number: 'STU2023001',
+      email: 'liam.anderson@school.edu',
+      grade: '10th Grade',
+      section: 'A',
+    },
+  ],
   teachers: demoTeachers,
   assignments: demoAssignments,
   announcements: demoCommunicationData.announcements,

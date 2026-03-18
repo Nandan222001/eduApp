@@ -314,7 +314,7 @@ export const demoStudentsApi = {
           id: ub.badge!.id,
           name: ub.badge!.name,
           description: ub.badge!.description,
-          icon_url: ub.badge!.icon_url,
+          icon_url: ub.badge!.icon_url || undefined,
           badge_type: ub.badge!.badge_type,
           rarity: ub.badge!.rarity,
           earned_at: ub.earned_at,
@@ -780,6 +780,7 @@ export const demoGamificationApi = {
         current_streak: demoData.gamification.userPoints.current_streak,
         longest_streak: demoData.gamification.userPoints.longest_streak,
         last_activity_date: demoData.gamification.userPoints.last_activity_date,
+        metadata: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -794,28 +795,35 @@ export const demoGamificationApi = {
     });
   },
 
-  getUserStats: async (_userId: number, _institutionId: number) => {
+  getUserStats: async (userId: number, _institutionId: number) => {
     return Promise.resolve({
+      user_id: userId,
       total_points: demoData.gamification.userPoints.total_points,
       level: demoData.gamification.userPoints.level,
-      badges_earned: demoData.gamification.userBadges.length,
-      achievements_unlocked: 0,
       current_streak: demoData.gamification.userPoints.current_streak,
+      longest_streak: demoData.gamification.userPoints.longest_streak,
+      badges_count: demoData.gamification.userBadges.length,
+      achievements_count: 0,
       rank: 3,
+      points_to_next_level: 200,
+      level_progress_percentage: 75,
     });
   },
 
-  getUserShowcase: async (userId: number, institutionId: number) => {
+  getUserShowcase: async (userId: number, _institutionId: number) => {
     return Promise.resolve({
       user_id: userId,
-      institution_id: institutionId,
-      featured_badges: demoData.gamification.userBadges.slice(0, 3),
-      top_achievements: [],
-      stats_summary: {
-        total_points: demoData.gamification.userPoints.total_points,
-        level: demoData.gamification.userPoints.level,
-        rank: 3,
-      },
+      username: 'liam.anderson',
+      first_name: 'Liam',
+      last_name: 'Anderson',
+      total_points: demoData.gamification.userPoints.total_points,
+      level: demoData.gamification.userPoints.level,
+      current_streak: demoData.gamification.userPoints.current_streak,
+      longest_streak: demoData.gamification.userPoints.longest_streak,
+      badges: demoData.gamification.userBadges.slice(0, 3),
+      achievements: [],
+      recent_activities: [],
+      rank: 3,
     });
   },
 
@@ -834,9 +842,10 @@ export const demoGamificationApi = {
       user_id: userId,
       reward_id: rewardId,
       points_spent: 100,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      status: 'pending' as const,
+      redeemed_at: new Date().toISOString(),
+      processed_at: null,
+      notes: null,
     });
   },
 };
@@ -852,14 +861,25 @@ export const demoGoalsApi = {
   },
 
   createGoal: async (data: Record<string, unknown>): Promise<Goal> => {
+    const goalData = data as Partial<Goal>;
     return Promise.resolve({
       id: String(demoData.goals.length + 1),
-      ...data,
+      title: goalData.title || 'New Goal',
+      description: goalData.description || '',
+      type: (goalData.type as Goal['type']) || 'performance',
+      status: 'not_started',
+      specific: goalData.specific || '',
+      measurable: goalData.measurable || '',
+      achievable: goalData.achievable || '',
+      relevant: goalData.relevant || '',
+      timeBound: goalData.timeBound || '',
+      startDate: goalData.startDate || new Date().toISOString(),
+      targetDate: goalData.targetDate || new Date().toISOString(),
       progress: 0,
       milestones: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    } as Goal);
+    });
   },
 
   updateGoal: async (id: string, data: Record<string, unknown>): Promise<Goal> => {
@@ -1017,11 +1037,11 @@ export const demoAnalyticsApi = {
       subject_trends: [],
       attendance_calendar: [],
       assignment_stats: {
-        total_assigned: 25,
         submitted: 20,
         pending: 5,
-        submission_rate: 80,
-        average_score: 86.8,
+        late: 3,
+        total: 25,
+        submissionRate: 80,
       },
       exam_comparisons: [],
       chapter_mastery: [],
@@ -2845,7 +2865,7 @@ export const demoSearchApi = {
           t.first_name.toLowerCase().includes(query) ||
           t.last_name.toLowerCase().includes(query) ||
           t.email.toLowerCase().includes(query) ||
-          t.subjects.some((s) => s.name.toLowerCase().includes(query))
+          t.subjects?.some((s) => s.name.toLowerCase().includes(query))
       );
     }
 

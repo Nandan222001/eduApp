@@ -58,7 +58,7 @@ export default function Header() {
                 Store
               </Button>
               <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', mx: 2 }}>
-                {user?.name}
+                {user?.fullName}
               </Typography>
               <Button color="inherit" onClick={logout}>
                 Logout

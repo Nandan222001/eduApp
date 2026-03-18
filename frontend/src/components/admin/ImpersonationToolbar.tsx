@@ -92,7 +92,7 @@ const ImpersonationToolbar: React.FC = () => {
               impersonatedUser: {
                 id: payload.sub,
                 email: user?.email || '',
-                name: user?.name || user?.email || '',
+                name: user?.fullName || user?.email || '',
               },
               institution: payload.institution_id
                 ? {

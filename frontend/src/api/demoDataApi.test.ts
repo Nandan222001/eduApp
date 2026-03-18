@@ -796,7 +796,7 @@ describe('demoGamificationApi', () => {
       expect(result).toBeDefined();
       expect(typeof result.total_points).toBe('number');
       expect(typeof result.level).toBe('number');
-      expect(typeof result.badges_earned).toBe('number');
+      expect(typeof result.badges_count).toBe('number');
       expect(typeof result.rank).toBe('number');
     });
   });
@@ -807,9 +807,9 @@ describe('demoGamificationApi', () => {
 
       expect(result).toBeDefined();
       expect(result.user_id).toBe(1001);
-      expect(Array.isArray(result.featured_badges)).toBe(true);
-      expect(result.featured_badges.length).toBeLessThanOrEqual(3);
-      expect(result.stats_summary).toBeDefined();
+      expect(Array.isArray(result.badges)).toBe(true);
+      expect(result.badges.length).toBeLessThanOrEqual(3);
+      expect(typeof result.total_points).toBe('number');
     });
   });
 
@@ -1036,8 +1036,8 @@ describe('demoAnalyticsApi', () => {
       expect(result).toBeDefined();
       expect(result.class_id).toBe(101);
       expect(typeof result.total_students).toBe('number');
-      expect(typeof result.average_performance).toBe('number');
-      expect(Array.isArray(result.subject_averages)).toBe(true);
+      expect(result.class_statistics).toBeDefined();
+      expect(typeof result.class_statistics.averageScore).toBe('number');
     });
   });
 
@@ -1075,7 +1075,7 @@ describe('demoAnalyticsApi', () => {
       expect(typeof result.student_name).toBe('string');
       expect(typeof result.grade).toBe('string');
       expect(result.assignment_stats).toBeDefined();
-      expect(typeof result.assignment_stats.total_assigned).toBe('number');
+      expect(typeof result.assignment_stats.total).toBe('number');
     });
   });
 

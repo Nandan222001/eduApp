@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../lib/axios';
 
 export enum WidgetType {
   UPCOMING_DEADLINES = 'upcoming_deadlines',

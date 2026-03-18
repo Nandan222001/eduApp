@@ -70,7 +70,7 @@ const ErrorFallback: React.FC<FallbackProps> = ({ error, resetError }) => {
 export const SentryErrorBoundary = Sentry.withErrorBoundary(
   ({ children }: { children: React.ReactNode }) => <>{children}</>,
   {
-    fallback: ErrorFallback,
+    fallback: (props) => <ErrorFallback {...props} />,
     showDialog: false,
   }
 );

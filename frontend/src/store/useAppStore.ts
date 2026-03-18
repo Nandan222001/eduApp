@@ -1,20 +1,15 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import type { AuthUser } from '@/types/auth';
 
 interface AppState {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   theme: 'light' | 'dark';
-  setUser: (user: User | null) => void;
+  setUser: (user: AuthUser | null) => void;
   setAuthenticated: (isAuthenticated: boolean) => void;
   toggleTheme: () => void;
   logout: () => void;
-}
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
 }
 
 export const useAppStore = create<AppState>()(
