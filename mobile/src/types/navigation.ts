@@ -35,6 +35,8 @@ export type MainStackParamList = {
   StudyMaterials: undefined;
   MaterialViewer: { materialId: number };
   DoubtForum: undefined;
+  Gamification: { studentId?: number };
+  Goals: { studentId?: number };
 };
 
 export type StudentTabParamList = {

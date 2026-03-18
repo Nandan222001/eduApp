@@ -4,3 +4,7 @@ dist/
 web-build/
 coverage/
 *.config.js
+*_EXAMPLES.tsx
+USAGE_EXAMPLES.tsx
+APP_INTEGRATION_EXAMPLE.tsx
+SHARED_COMPONENTS_EXAMPLES.tsx

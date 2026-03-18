@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { Points, Badge, Leaderboard, Achievement, GamificationStats } from '@types';
+import { Points, Badge, Leaderboard, Achievement, GamificationStats, Reward, Streak } from '@types';
 
 export const gamificationApi = {
   getPoints: async (studentId?: number): Promise<Points> => {
@@ -58,7 +58,24 @@ export const gamificationApi = {
     return response.data;
   },
 
+  getRewards: async (): Promise<Reward[]> => {
+    const response = await apiClient.get<Reward[]>('/api/v1/gamification/rewards');
+    return response.data;
+  },
+
   claimReward: async (rewardId: number): Promise<void> => {
     await apiClient.post(`/api/v1/gamification/rewards/${rewardId}/claim`, {});
+  },
+
+  getStreaks: async (studentId?: number): Promise<Streak[]> => {
+    const endpoint = studentId
+      ? `/api/v1/gamification/streaks?studentId=${studentId}`
+      : '/api/v1/gamification/streaks';
+    const response = await apiClient.get<Streak[]>(endpoint);
+    return response.data;
+  },
+
+  markAchievementAsViewed: async (achievementId: number): Promise<void> => {
+    await apiClient.post(`/api/v1/gamification/achievements/${achievementId}/viewed`, {});
   },
 };

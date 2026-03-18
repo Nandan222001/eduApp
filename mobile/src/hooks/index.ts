@@ -8,3 +8,4 @@ export * from './useAttendanceSync';
 export * from './useNotificationBadge';
 export * from './useEvents';
 export * from './useScreenTracking';
+export * from './useGoalNotifications';

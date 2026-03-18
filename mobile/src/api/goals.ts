@@ -103,4 +103,17 @@ export const goalsApi = {
   getAchievements: async () => {
     return apiClient.get<Achievement[]>('/api/v1/goals/achievements');
   },
+
+  shareGoal: async (goalId: number, shareWith: string[]) => {
+    return apiClient.post<void>(`/api/v1/goals/${goalId}/share`, { shareWith });
+  },
+
+  getSharedGoals: async () => {
+    return apiClient.get<Goal[]>('/api/v1/goals/shared');
+  },
+
+  getChildGoals: async (childId: number, status?: string) => {
+    const params = status ? { status } : undefined;
+    return apiClient.get<Goal[]>(`/api/v1/goals/child/${childId}`, { params });
+  },
 };

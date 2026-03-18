@@ -89,3 +89,23 @@ export interface GamificationStats {
   streaks: Streak[];
   recentAchievements: Achievement[];
 }
+
+export interface Reward {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  pointsCost: number;
+  available: boolean;
+  category: string;
+  imageUrl?: string;
+  expiresAt?: string;
+  claimed: boolean;
+  claimedAt?: string;
+}
+
+export interface StreakCalendarDay {
+  date: Date;
+  isActive: boolean;
+  isToday: boolean;
+}

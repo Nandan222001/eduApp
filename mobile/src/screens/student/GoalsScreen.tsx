@@ -9,19 +9,30 @@ import {
   Modal,
   TextInput,
   Dimensions,
+  Share,
+  Alert,
 } from 'react-native';
-import { Text, Card, Button } from '@rneui/themed';
+import { Text } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
+import { Card } from '@components/shared/Card';
+import { Button } from '@components/shared/Button';
 import { StudentTabScreenProps } from '@types';
 import { goalsApi, Goal, GoalCreateRequest, Milestone } from '@api/goals';
+import { useAuthStore } from '@store/authStore';
+import { UserRole } from '@types';
 import { format, differenceInDays } from 'date-fns';
 
-type Props = StudentTabScreenProps<'Home'>;
+type Props = StudentTabScreenProps<'Home'> | { studentId?: number };
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-export const GoalsScreen: React.FC<Props> = () => {
+export const GoalsScreen: React.FC<Props> = (props) => {
+  const { user } = useAuthStore();
+  const studentId = 'studentId' in props ? props.studentId : undefined;
+  const isParentView = user?.role === UserRole.PARENT;
+
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,7 +61,7 @@ export const GoalsScreen: React.FC<Props> = () => {
   const fetchGoals = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await goalsApi.getGoals(filterStatus);
+      const response = await goalsApi.getGoals(filterStatus === 'all' ? undefined : filterStatus);
       setGoals(response.data || []);
     } catch (error) {
       console.error('Failed to fetch goals:', error);
@@ -77,34 +88,114 @@ export const GoalsScreen: React.FC<Props> = () => {
       await fetchGoals();
     } catch (error) {
       console.error('Failed to create goal:', error);
+      Alert.alert('Error', 'Failed to create goal. Please try again.');
     }
   };
 
   const handleUpdateGoal = async (goalId: number, progress: number) => {
+    const goalIndex = goals.findIndex(g => g.id === goalId);
+    if (goalIndex === -1) return;
+
+    const oldGoal = goals[goalIndex];
+    const updatedGoals = [...goals];
+    updatedGoals[goalIndex] = { ...oldGoal, progress };
+    setGoals(updatedGoals);
+
     try {
       const response = await goalsApi.updateGoal(goalId, { progress });
-      if (response.data.status === 'completed') {
-        setAchievedGoal(response.data);
+      const updatedGoal = response.data;
+      
+      updatedGoals[goalIndex] = updatedGoal;
+      setGoals(updatedGoals);
+
+      if (updatedGoal.status === 'completed') {
+        setAchievedGoal(updatedGoal);
         setAchievementModalVisible(true);
         confettiRef.current?.start();
       }
-      await fetchGoals();
     } catch (error) {
       console.error('Failed to update goal:', error);
+      updatedGoals[goalIndex] = oldGoal;
+      setGoals(updatedGoals);
+      Alert.alert('Error', 'Failed to update goal progress. Please try again.');
     }
   };
 
   const handleCompleteMilestone = async (goalId: number, milestoneId: number) => {
+    const goalIndex = goals.findIndex(g => g.id === goalId);
+    if (goalIndex === -1) return;
+
+    const oldGoal = goals[goalIndex];
+    const updatedGoals = [...goals];
+    const milestones = [...oldGoal.milestones];
+    const milestoneIndex = milestones.findIndex(m => m.id === milestoneId);
+    
+    if (milestoneIndex === -1) return;
+
+    milestones[milestoneIndex] = { ...milestones[milestoneIndex], completed: true };
+    updatedGoals[goalIndex] = { ...oldGoal, milestones };
+    setGoals(updatedGoals);
+
+    if (selectedGoal) {
+      setSelectedGoal({ ...selectedGoal, milestones });
+    }
+
     try {
       await goalsApi.completeMilestone(goalId, milestoneId);
+      const updatedGoalResponse = await goalsApi.getGoalById(goalId);
+      
+      updatedGoals[goalIndex] = updatedGoalResponse.data;
+      setGoals(updatedGoals);
+      
       if (selectedGoal) {
-        const updatedGoal = await goalsApi.getGoalById(goalId);
-        setSelectedGoal(updatedGoal.data);
+        setSelectedGoal(updatedGoalResponse.data);
       }
-      await fetchGoals();
     } catch (error) {
       console.error('Failed to complete milestone:', error);
+      updatedGoals[goalIndex] = oldGoal;
+      setGoals(updatedGoals);
+      if (selectedGoal) {
+        setSelectedGoal(oldGoal);
+      }
+      Alert.alert('Error', 'Failed to complete milestone. Please try again.');
     }
+  };
+
+  const handleShareGoal = async (goal: Goal) => {
+    try {
+      const message = `🎯 My Goal: ${goal.title}\n\n${goal.description}\n\nProgress: ${goal.progress}%\nTarget Date: ${format(new Date(goal.targetDate), 'MMM dd, yyyy')}`;
+      
+      await Share.share({
+        message,
+        title: 'Share Goal',
+      });
+    } catch (error) {
+      console.error('Failed to share goal:', error);
+    }
+  };
+
+  const handleDeleteGoal = async (goalId: number) => {
+    Alert.alert(
+      'Delete Goal',
+      'Are you sure you want to delete this goal?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await goalsApi.deleteGoal(goalId);
+              setGoals(goals.filter(g => g.id !== goalId));
+              setDetailModalVisible(false);
+            } catch (error) {
+              console.error('Failed to delete goal:', error);
+              Alert.alert('Error', 'Failed to delete goal. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const resetForm = () => {
@@ -156,6 +247,21 @@ export const GoalsScreen: React.FC<Props> = () => {
     }
   };
 
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'academic':
+        return 'school';
+      case 'skill':
+        return 'lightning-bolt';
+      case 'personal':
+        return 'account';
+      case 'career':
+        return 'briefcase';
+      default:
+        return 'target';
+    }
+  };
+
   const renderFilterButtons = () => (
     <View style={styles.filterContainer}>
       {['active', 'completed', 'paused', 'all'].map(status => (
@@ -184,10 +290,17 @@ export const GoalsScreen: React.FC<Props> = () => {
 
     return (
       <TouchableOpacity key={goal.id} onPress={() => openGoalDetail(goal)}>
-        <Card containerStyle={styles.goalCard}>
+        <Card style={styles.goalCard}>
           <View style={styles.goalHeader}>
             <View style={styles.goalTitleContainer}>
-              <Text style={styles.goalTitle}>{goal.title}</Text>
+              <View style={styles.goalTitleRow}>
+                <MaterialCommunityIcons
+                  name={getCategoryIcon(goal.category) as any}
+                  size={24}
+                  color={getCategoryColor(goal.category)}
+                />
+                <Text style={styles.goalTitle}>{goal.title}</Text>
+              </View>
               <View style={styles.goalBadges}>
                 <View
                   style={[
@@ -207,6 +320,9 @@ export const GoalsScreen: React.FC<Props> = () => {
                 </View>
               </View>
             </View>
+            <TouchableOpacity onPress={() => handleShareGoal(goal)}>
+              <MaterialCommunityIcons name="share-variant" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.goalDescription} numberOfLines={2}>
@@ -225,11 +341,23 @@ export const GoalsScreen: React.FC<Props> = () => {
 
           <View style={styles.goalFooter}>
             <View style={styles.milestonesInfo}>
+              <MaterialCommunityIcons name="flag-checkered" size={16} color={COLORS.textSecondary} />
               <Text style={styles.milestonesText}>
-                🎯 {completedMilestones}/{totalMilestones} Milestones
+                {completedMilestones}/{totalMilestones} Milestones
               </Text>
             </View>
             <View style={styles.daysRemainingContainer}>
+              <MaterialCommunityIcons
+                name="calendar-clock"
+                size={16}
+                color={
+                  daysRemaining < 7
+                    ? COLORS.error
+                    : daysRemaining < 30
+                      ? COLORS.warning
+                      : COLORS.success
+                }
+              />
               <Text
                 style={[
                   styles.daysRemainingText,
@@ -268,7 +396,7 @@ export const GoalsScreen: React.FC<Props> = () => {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Create New Goal</Text>
             <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
-              <Text style={styles.closeButton}>✕</Text>
+              <MaterialCommunityIcons name="close" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -280,6 +408,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               placeholder="Goal Title"
               value={formData.title}
               onChangeText={text => setFormData({ ...formData, title: text })}
+              placeholderTextColor={COLORS.textSecondary}
             />
 
             <TextInput
@@ -289,13 +418,14 @@ export const GoalsScreen: React.FC<Props> = () => {
               onChangeText={text => setFormData({ ...formData, description: text })}
               multiline
               numberOfLines={3}
+              placeholderTextColor={COLORS.textSecondary}
             />
 
             <View style={styles.pickerRow}>
               <View style={styles.pickerContainer}>
                 <Text style={styles.label}>Category</Text>
                 <View style={styles.pickerButtons}>
-                  {['academic', 'skill', 'personal', 'career'].map(cat => (
+                  {(['academic', 'skill', 'personal', 'career'] as const).map(cat => (
                     <TouchableOpacity
                       key={cat}
                       style={[
@@ -305,7 +435,7 @@ export const GoalsScreen: React.FC<Props> = () => {
                       onPress={() =>
                         setFormData({
                           ...formData,
-                          category: cat as any,
+                          category: cat,
                         })
                       }
                     >
@@ -327,7 +457,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               <View style={styles.pickerContainer}>
                 <Text style={styles.label}>Priority</Text>
                 <View style={styles.pickerButtons}>
-                  {['high', 'medium', 'low'].map(pri => (
+                  {(['high', 'medium', 'low'] as const).map(pri => (
                     <TouchableOpacity
                       key={pri}
                       style={[
@@ -337,7 +467,7 @@ export const GoalsScreen: React.FC<Props> = () => {
                       onPress={() =>
                         setFormData({
                           ...formData,
-                          priority: pri as any,
+                          priority: pri,
                         })
                       }
                     >
@@ -360,6 +490,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               placeholder="Target Date (YYYY-MM-DD)"
               value={formData.targetDate}
               onChangeText={text => setFormData({ ...formData, targetDate: text })}
+              placeholderTextColor={COLORS.textSecondary}
             />
 
             <Text style={styles.sectionTitle}>SMART Goals Framework</Text>
@@ -371,6 +502,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               value={formData.specific}
               onChangeText={text => setFormData({ ...formData, specific: text })}
               multiline
+              placeholderTextColor={COLORS.textSecondary}
             />
 
             <Text style={styles.label}>Measurable</Text>
@@ -380,6 +512,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               value={formData.measurable}
               onChangeText={text => setFormData({ ...formData, measurable: text })}
               multiline
+              placeholderTextColor={COLORS.textSecondary}
             />
 
             <Text style={styles.label}>Achievable</Text>
@@ -389,6 +522,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               value={formData.achievable}
               onChangeText={text => setFormData({ ...formData, achievable: text })}
               multiline
+              placeholderTextColor={COLORS.textSecondary}
             />
 
             <Text style={styles.label}>Relevant</Text>
@@ -398,6 +532,7 @@ export const GoalsScreen: React.FC<Props> = () => {
               value={formData.relevant}
               onChangeText={text => setFormData({ ...formData, relevant: text })}
               multiline
+              placeholderTextColor={COLORS.textSecondary}
             />
 
             <Text style={styles.label}>Time-Bound</Text>
@@ -407,14 +542,18 @@ export const GoalsScreen: React.FC<Props> = () => {
               value={formData.timeBound}
               onChangeText={text => setFormData({ ...formData, timeBound: text })}
               multiline
+              placeholderTextColor={COLORS.textSecondary}
             />
           </ScrollView>
 
-          <Button
-            title="Create Goal"
-            onPress={handleCreateGoal}
-            buttonStyle={styles.createButton}
-          />
+          <View style={styles.modalActions}>
+            <Button
+              title="Create Goal"
+              variant="primary"
+              onPress={handleCreateGoal}
+              fullWidth
+            />
+          </View>
         </View>
       </View>
     </Modal>
@@ -436,13 +575,37 @@ export const GoalsScreen: React.FC<Props> = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Goal Details</Text>
-              <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
-                <Text style={styles.closeButton}>✕</Text>
-              </TouchableOpacity>
+              <View style={styles.modalHeaderActions}>
+                <TouchableOpacity
+                  style={styles.headerActionButton}
+                  onPress={() => handleShareGoal(selectedGoal)}
+                >
+                  <MaterialCommunityIcons name="share-variant" size={24} color={COLORS.primary} />
+                </TouchableOpacity>
+                {!isParentView && (
+                  <TouchableOpacity
+                    style={styles.headerActionButton}
+                    onPress={() => handleDeleteGoal(selectedGoal.id)}
+                  >
+                    <MaterialCommunityIcons name="delete" size={24} color={COLORS.error} />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
+                  <MaterialCommunityIcons name="close" size={24} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView style={styles.modalBody}>
-              <Text style={styles.detailTitle}>{selectedGoal.title}</Text>
+              <View style={styles.detailHeader}>
+                <MaterialCommunityIcons
+                  name={getCategoryIcon(selectedGoal.category) as any}
+                  size={40}
+                  color={getCategoryColor(selectedGoal.category)}
+                />
+                <Text style={styles.detailTitle}>{selectedGoal.title}</Text>
+              </View>
+              
               <View style={styles.detailBadges}>
                 <View
                   style={[
@@ -459,6 +622,14 @@ export const GoalsScreen: React.FC<Props> = () => {
                   ]}
                 >
                   <Text style={styles.badgeText}>{selectedGoal.priority.toUpperCase()}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: selectedGoal.status === 'completed' ? COLORS.success : COLORS.info },
+                  ]}
+                >
+                  <Text style={styles.badgeText}>{selectedGoal.status.toUpperCase()}</Text>
                 </View>
               </View>
 
@@ -477,24 +648,49 @@ export const GoalsScreen: React.FC<Props> = () => {
               <View style={styles.smartSection}>
                 <Text style={styles.sectionTitle}>SMART Framework</Text>
                 <View style={styles.smartItem}>
-                  <Text style={styles.smartLabel}>Specific:</Text>
-                  <Text style={styles.smartValue}>{selectedGoal.specific}</Text>
+                  <View style={styles.smartIcon}>
+                    <MaterialCommunityIcons name="bullseye-arrow" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={styles.smartContent}>
+                    <Text style={styles.smartLabel}>Specific</Text>
+                    <Text style={styles.smartValue}>{selectedGoal.specific}</Text>
+                  </View>
                 </View>
                 <View style={styles.smartItem}>
-                  <Text style={styles.smartLabel}>Measurable:</Text>
-                  <Text style={styles.smartValue}>{selectedGoal.measurable}</Text>
+                  <View style={styles.smartIcon}>
+                    <MaterialCommunityIcons name="chart-line" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={styles.smartContent}>
+                    <Text style={styles.smartLabel}>Measurable</Text>
+                    <Text style={styles.smartValue}>{selectedGoal.measurable}</Text>
+                  </View>
                 </View>
                 <View style={styles.smartItem}>
-                  <Text style={styles.smartLabel}>Achievable:</Text>
-                  <Text style={styles.smartValue}>{selectedGoal.achievable}</Text>
+                  <View style={styles.smartIcon}>
+                    <MaterialCommunityIcons name="check-circle" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={styles.smartContent}>
+                    <Text style={styles.smartLabel}>Achievable</Text>
+                    <Text style={styles.smartValue}>{selectedGoal.achievable}</Text>
+                  </View>
                 </View>
                 <View style={styles.smartItem}>
-                  <Text style={styles.smartLabel}>Relevant:</Text>
-                  <Text style={styles.smartValue}>{selectedGoal.relevant}</Text>
+                  <View style={styles.smartIcon}>
+                    <MaterialCommunityIcons name="star" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={styles.smartContent}>
+                    <Text style={styles.smartLabel}>Relevant</Text>
+                    <Text style={styles.smartValue}>{selectedGoal.relevant}</Text>
+                  </View>
                 </View>
                 <View style={styles.smartItem}>
-                  <Text style={styles.smartLabel}>Time-Bound:</Text>
-                  <Text style={styles.smartValue}>{selectedGoal.timeBound}</Text>
+                  <View style={styles.smartIcon}>
+                    <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.primary} />
+                  </View>
+                  <View style={styles.smartContent}>
+                    <Text style={styles.smartLabel}>Time-Bound</Text>
+                    <Text style={styles.smartValue}>{selectedGoal.timeBound}</Text>
+                  </View>
                 </View>
               </View>
 
@@ -512,7 +708,11 @@ export const GoalsScreen: React.FC<Props> = () => {
                             styles.timelineDot,
                             milestone.completed && styles.timelineDotCompleted,
                           ]}
-                        />
+                        >
+                          {milestone.completed && (
+                            <MaterialCommunityIcons name="check" size={12} color={COLORS.background} />
+                          )}
+                        </View>
                         {index < selectedGoal.milestones.length - 1 && (
                           <View style={styles.timelineLine} />
                         )}
@@ -523,9 +723,10 @@ export const GoalsScreen: React.FC<Props> = () => {
                           milestone.completed && styles.milestoneCardCompleted,
                         ]}
                         onPress={() =>
-                          !milestone.completed &&
+                          !milestone.completed && !isParentView &&
                           handleCompleteMilestone(selectedGoal.id, milestone.id)
                         }
+                        disabled={milestone.completed || isParentView}
                       >
                         <View style={styles.milestoneHeader}>
                           <Text
@@ -536,16 +737,24 @@ export const GoalsScreen: React.FC<Props> = () => {
                           >
                             {milestone.title}
                           </Text>
-                          {milestone.completed && <Text style={styles.completedCheckmark}>✓</Text>}
+                          {milestone.completed && (
+                            <MaterialCommunityIcons name="check-circle" size={20} color={COLORS.success} />
+                          )}
                         </View>
                         <Text style={styles.milestoneDescription}>{milestone.description}</Text>
-                        <Text style={styles.milestoneDate}>
-                          📅 {format(new Date(milestone.targetDate), 'MMM dd, yyyy')}
-                        </Text>
-                        {milestone.completed && milestone.completedAt && (
-                          <Text style={styles.completedDate}>
-                            Completed: {format(new Date(milestone.completedAt), 'MMM dd, yyyy')}
+                        <View style={styles.milestoneDateRow}>
+                          <MaterialCommunityIcons name="calendar" size={14} color={COLORS.textSecondary} />
+                          <Text style={styles.milestoneDate}>
+                            {format(new Date(milestone.targetDate), 'MMM dd, yyyy')}
                           </Text>
+                        </View>
+                        {milestone.completed && milestone.completedAt && (
+                          <View style={styles.milestoneDateRow}>
+                            <MaterialCommunityIcons name="check" size={14} color={COLORS.success} />
+                            <Text style={styles.completedDate}>
+                              Completed: {format(new Date(milestone.completedAt), 'MMM dd, yyyy')}
+                            </Text>
+                          </View>
                         )}
                       </TouchableOpacity>
                     </View>
@@ -554,33 +763,45 @@ export const GoalsScreen: React.FC<Props> = () => {
 
               <View style={styles.datesSection}>
                 <View style={styles.dateItem}>
-                  <Text style={styles.dateLabel}>Start Date:</Text>
-                  <Text style={styles.dateValue}>
-                    {format(new Date(selectedGoal.startDate), 'MMM dd, yyyy')}
-                  </Text>
+                  <MaterialCommunityIcons name="calendar-start" size={20} color={COLORS.textSecondary} />
+                  <View style={styles.dateContent}>
+                    <Text style={styles.dateLabel}>Start Date</Text>
+                    <Text style={styles.dateValue}>
+                      {format(new Date(selectedGoal.startDate), 'MMM dd, yyyy')}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.dateItem}>
-                  <Text style={styles.dateLabel}>Target Date:</Text>
-                  <Text style={styles.dateValue}>
-                    {format(new Date(selectedGoal.targetDate), 'MMM dd, yyyy')}
-                  </Text>
+                  <MaterialCommunityIcons name="calendar-end" size={20} color={COLORS.textSecondary} />
+                  <View style={styles.dateContent}>
+                    <Text style={styles.dateLabel}>Target Date</Text>
+                    <Text style={styles.dateValue}>
+                      {format(new Date(selectedGoal.targetDate), 'MMM dd, yyyy')}
+                    </Text>
+                  </View>
                 </View>
                 {selectedGoal.completedDate && (
                   <View style={styles.dateItem}>
-                    <Text style={styles.dateLabel}>Completed:</Text>
-                    <Text style={styles.dateValue}>
-                      {format(new Date(selectedGoal.completedDate), 'MMM dd, yyyy')}
-                    </Text>
+                    <MaterialCommunityIcons name="check-circle" size={20} color={COLORS.success} />
+                    <View style={styles.dateContent}>
+                      <Text style={styles.dateLabel}>Completed</Text>
+                      <Text style={styles.dateValue}>
+                        {format(new Date(selectedGoal.completedDate), 'MMM dd, yyyy')}
+                      </Text>
+                    </View>
                   </View>
                 )}
               </View>
             </ScrollView>
 
-            <Button
-              title="Close"
-              onPress={() => setDetailModalVisible(false)}
-              buttonStyle={styles.closeModalButton}
-            />
+            <View style={styles.modalActions}>
+              <Button
+                title="Close"
+                variant="outline"
+                onPress={() => setDetailModalVisible(false)}
+                fullWidth
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -606,18 +827,31 @@ export const GoalsScreen: React.FC<Props> = () => {
             fadeOut
           />
           <View style={styles.achievementCard}>
-            <Text style={styles.achievementEmoji}>🎉</Text>
+            <MaterialCommunityIcons name="trophy-award" size={80} color={COLORS.warning} />
             <Text style={styles.achievementTitle}>Goal Achieved!</Text>
             <Text style={styles.achievementGoalTitle}>{achievedGoal.title}</Text>
-            <Text style={styles.achievementMessage}>Congratulations on completing your goal!</Text>
-            <Button
-              title="Awesome!"
-              onPress={() => {
-                setAchievementModalVisible(false);
-                setAchievedGoal(null);
-              }}
-              buttonStyle={styles.achievementButton}
-            />
+            <Text style={styles.achievementMessage}>
+              Congratulations on completing your goal! 🎉
+            </Text>
+            <View style={styles.achievementActions}>
+              <Button
+                title="Share"
+                variant="outline"
+                onPress={() => {
+                  handleShareGoal(achievedGoal);
+                  setAchievementModalVisible(false);
+                  setAchievedGoal(null);
+                }}
+              />
+              <Button
+                title="Awesome!"
+                variant="primary"
+                onPress={() => {
+                  setAchievementModalVisible(false);
+                  setAchievedGoal(null);
+                }}
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -626,13 +860,17 @@ export const GoalsScreen: React.FC<Props> = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Button
-          title="+ Create Goal"
-          onPress={() => setCreateModalVisible(true)}
-          buttonStyle={styles.createGoalButton}
-        />
-      </View>
+      {!isParentView && (
+        <View style={styles.header}>
+          <Button
+            title="Create Goal"
+            variant="primary"
+            icon="plus"
+            onPress={() => setCreateModalVisible(true)}
+            fullWidth
+          />
+        </View>
+      )}
 
       {renderFilterButtons()}
 
@@ -657,9 +895,13 @@ export const GoalsScreen: React.FC<Props> = () => {
           goals.map(goal => renderGoalCard(goal))
         ) : (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🎯</Text>
+            <MaterialCommunityIcons name="target" size={64} color={COLORS.textSecondary} />
             <Text style={styles.emptyText}>No goals yet</Text>
-            <Text style={styles.emptySubtext}>Create your first goal to get started</Text>
+            <Text style={styles.emptySubtext}>
+              {isParentView
+                ? 'Your child has not set any goals yet'
+                : 'Create your first goal to get started'}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -681,10 +923,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-  },
-  createGoalButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.lg,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -732,17 +970,25 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   goalCard: {
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
     marginBottom: SPACING.md,
   },
   goalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: SPACING.sm,
   },
   goalTitleContainer: {
+    flex: 1,
+    gap: SPACING.sm,
+  },
+  goalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: SPACING.sm,
   },
   goalTitle: {
+    flex: 1,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
     color: COLORS.text,
@@ -757,6 +1003,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.sm,
   },
   priorityBadge: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  statusBadge: {
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.sm,
@@ -805,12 +1056,18 @@ const styles = StyleSheet.create({
   },
   milestonesInfo: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
   },
   milestonesText: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
   },
-  daysRemainingContainer: {},
+  daysRemainingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
   daysRemainingText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
@@ -821,14 +1078,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: SPACING.xxl * 2,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: SPACING.md,
-  },
   emptyText: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
     color: COLORS.text,
+    marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
   emptySubtext: {
@@ -846,7 +1100,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
     maxHeight: '90%',
-    paddingBottom: SPACING.lg,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -861,13 +1114,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  closeButton: {
-    fontSize: FONT_SIZES.xxl,
-    color: COLORS.textSecondary,
-    padding: SPACING.sm,
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  headerActionButton: {
+    padding: SPACING.xs,
   },
   modalBody: {
     padding: SPACING.md,
+    flex: 1,
+  },
+  modalActions: {
+    padding: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
@@ -928,17 +1190,17 @@ const styles = StyleSheet.create({
     color: COLORS.background,
     fontWeight: '600',
   },
-  createButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.lg,
-    marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   detailTitle: {
+    flex: 1,
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: SPACING.sm,
   },
   detailBadges: {
     flexDirection: 'row',
@@ -952,9 +1214,17 @@ const styles = StyleSheet.create({
   },
   smartSection: {
     marginTop: SPACING.md,
+    gap: SPACING.md,
   },
   smartItem: {
-    marginBottom: SPACING.md,
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  smartIcon: {
+    marginTop: 2,
+  },
+  smartContent: {
+    flex: 1,
   },
   smartLabel: {
     fontSize: FONT_SIZES.sm,
@@ -967,7 +1237,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   timelineSection: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
   },
   timelineItem: {
     flexDirection: 'row',
@@ -978,12 +1248,14 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   timelineDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: COLORS.border,
     borderWidth: 2,
     borderColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   timelineDotCompleted: {
     backgroundColor: COLORS.success,
@@ -1022,14 +1294,16 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: COLORS.textSecondary,
   },
-  completedCheckmark: {
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.success,
-  },
   milestoneDescription: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  milestoneDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: 2,
   },
   milestoneDate: {
     fontSize: FONT_SIZES.xs,
@@ -1038,33 +1312,31 @@ const styles = StyleSheet.create({
   completedDate: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.success,
-    marginTop: 2,
   },
   datesSection: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
+    gap: SPACING.md,
+  },
+  dateItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
     padding: SPACING.md,
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.md,
   },
-  dateItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.sm,
+  dateContent: {
+    flex: 1,
   },
   dateLabel: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.xs,
     color: COLORS.textSecondary,
+    marginBottom: 2,
   },
   dateValue: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: COLORS.text,
-  },
-  closeModalButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.lg,
-    marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
   },
   achievementOverlay: {
     flex: 1,
@@ -1077,16 +1349,13 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.xxl,
     alignItems: 'center',
-    width: SCREEN_WIDTH - SPACING.xxl,
-  },
-  achievementEmoji: {
-    fontSize: 80,
-    marginBottom: SPACING.md,
+    width: SCREEN_WIDTH - SPACING.xxl * 2,
   },
   achievementTitle: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
     color: COLORS.text,
+    marginTop: SPACING.md,
     marginBottom: SPACING.sm,
   },
   achievementGoalTitle: {
@@ -1101,9 +1370,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     textAlign: 'center',
   },
-  achievementButton: {
-    backgroundColor: COLORS.success,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: SPACING.xxl,
+  achievementActions: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    width: '100%',
   },
 });

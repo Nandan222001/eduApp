@@ -39,6 +39,11 @@
     "expo-env.d.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "**/*_EXAMPLES.tsx",
+    "USAGE_EXAMPLES.tsx",
+    "APP_INTEGRATION_EXAMPLE.tsx",
+    "SHARED_COMPONENTS_EXAMPLES.tsx",
+    "GAMIFICATION_GOALS_EXAMPLES.tsx"
   ]
 }
