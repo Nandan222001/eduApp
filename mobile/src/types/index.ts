@@ -7,6 +7,7 @@ export * from './gamification';
 export * from './studyMaterials';
 export * from './doubts';
 export * from './fees';
+export * from './events';
 
 export interface User {
   id: number;
