@@ -26,7 +26,9 @@
       "@config": ["src/config"],
       "@config/*": ["src/config/*"],
       "@services": ["src/services"],
-      "@services/*": ["src/services/*"]
+      "@services/*": ["src/services/*"],
+      "@theme": ["src/theme"],
+      "@theme/*": ["src/theme/*"]
     },
     "skipLibCheck": true
   },

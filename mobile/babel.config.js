@@ -21,6 +21,8 @@ module.exports = function (api) {
             '@hooks': './src/hooks',
             '@constants': './src/constants',
             '@config': './src/config',
+            '@theme': './src/theme',
+            '@services': './src/services',
           },
         },
       ],
