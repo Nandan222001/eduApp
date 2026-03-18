@@ -1,0 +1,154 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Run linter
+        working-directory: mobile
+        run: npm run lint
+
+      - name: Run type check
+        working-directory: mobile
+        run: npm run type-check
+
+      - name: Run unit tests
+        working-directory: mobile
+        run: npm run test:unit -- --coverage
+
+      - name: Run component tests
+        working-directory: mobile
+        run: npm run test:components -- --coverage
+
+      - name: Run integration tests
+        working-directory: mobile
+        run: npm run test:integration -- --coverage
+
+      - name: Generate coverage report
+        working-directory: mobile
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./mobile/coverage/lcov.info
+          flags: mobile
+          name: mobile-coverage
+          fail_ci_if_error: false
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: mobile/coverage
+
+  e2e-ios:
+    name: E2E Tests (iOS)
+    runs-on: macos-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Setup iOS Simulator
+        run: |
+          xcrun simctl boot "iPhone 14" || true
+
+      - name: Build app for testing
+        working-directory: mobile
+        run: npm run test:e2e:build:ios
+
+      - name: Run E2E tests
+        working-directory: mobile
+        run: npm run test:e2e:ios
+
+      - name: Upload E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-artifacts-ios
+          path: mobile/e2e/artifacts
+
+  e2e-android:
+    name: E2E Tests (Android)
+    runs-on: macos-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Setup Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: Pixel_4
+          script: echo "Emulator started"
+
+      - name: Build app for testing
+        working-directory: mobile
+        run: npm run test:e2e:build:android
+
+      - name: Run E2E tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: Pixel_4
+          script: cd mobile && npm run test:e2e:android
+
+      - name: Upload E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-artifacts-android
+          path: mobile/e2e/artifacts

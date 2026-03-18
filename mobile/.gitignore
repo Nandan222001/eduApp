@@ -69,6 +69,11 @@ web-build/
 
 # Testing
 coverage/
+.jest/
+*.snap
+__tests__/coverage/
+e2e/artifacts/
+e2e/*.log
 
 # Advanced Mobile Features - File Downloads & Cached Files
 downloads/
