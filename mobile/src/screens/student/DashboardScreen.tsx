@@ -59,6 +59,19 @@ export const DashboardScreen: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: goalsData } = useQuery({
+    queryKey: ['goals'],
+    queryFn: async () => {
+      if (isDemoUser()) {
+        const response = await demoDataApi.student.getGoals();
+        return response.data;
+      }
+      const response = await studentApi.getGoals();
+      return response.data;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     try {
@@ -133,7 +146,7 @@ export const DashboardScreen: React.FC = () => {
 
       <AIFeaturesQuickAccess />
 
-      <ActiveGoalsWidget />
+      <ActiveGoalsWidget goals={goalsData} isLoading={!goalsData} />
 
       <UpcomingAssignmentsCard
         assignments={dashboardData?.upcomingAssignments}

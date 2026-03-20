@@ -14,9 +14,10 @@ export interface Assignment {
   description: string;
   subject: string;
   subject_id: number;
-  due_date: string;
+  due_date?: string;
+  dueDate?: string;
   max_score: number;
-  status: 'pending' | 'submitted' | 'graded';
+  status: 'pending' | 'submitted' | 'graded' | 'overdue';
   score?: number;
   submission_date?: string;
   feedback?: string;
@@ -27,12 +28,17 @@ export interface Assignment {
 export interface Grade {
   id: number;
   subject: string;
-  assignment_title: string;
-  score: number;
-  max_score: number;
+  assignment_title?: string;
+  examName?: string;
+  score?: number;
+  obtainedMarks?: number;
+  max_score?: number;
+  totalMarks?: number;
   percentage: number;
-  date: string;
+  date?: string;
+  examDate?: string;
   grade_letter?: string;
+  grade?: string;
 }
 
 export interface AttendanceStatus {
@@ -45,17 +51,26 @@ export interface AttendanceStatus {
 }
 
 export interface AIPrediction {
-  subject: string;
-  predicted_grade: number;
+  subject?: string;
+  predicted_grade?: number;
+  predictedPercentage: number;
   confidence: number;
   trend: 'improving' | 'stable' | 'declining';
+  nextMilestone?: {
+    target: number;
+    daysRemaining: number;
+  };
 }
 
 export interface WeakArea {
+  id: number;
   subject: string;
   topic: string;
-  score_percentage: number;
-  recommendation: string;
+  score_percentage?: number;
+  score?: number;
+  recommendation?: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  recommendedResources?: number;
 }
 
 export interface StudyMaterial {
@@ -109,4 +124,50 @@ export interface Achievement {
   description: string;
   points: number;
   date: string;
+}
+
+export interface Profile {
+  firstName: string;
+  lastName: string;
+  profilePhoto?: string;
+  email?: string;
+  phone?: string;
+  grade?: string;
+  class?: string;
+  rollNumber?: string;
+}
+
+export interface GamificationData {
+  totalPoints: number;
+  rank: number;
+  badges: {
+    id: number;
+    name: string;
+    icon: string;
+    description: string;
+    earnedAt?: string;
+  }[];
+  streak?: {
+    currentStreak: number;
+    longestStreak: number;
+  };
+  activeGoalsCount?: number;
+}
+
+export interface Goal {
+  id: number;
+  title: string;
+  description?: string;
+  category: 'academic' | 'attendance' | 'behavior' | 'extracurricular' | 'personal' | 'project';
+  targetValue: number;
+  currentValue: number;
+  status: 'active' | 'completed' | 'abandoned' | 'in_progress';
+  targetDate?: string;
+  progress?: number;
+  milestones?: {
+    id: number;
+    title: string;
+    completed: boolean;
+    completedDate?: string;
+  }[];
 }

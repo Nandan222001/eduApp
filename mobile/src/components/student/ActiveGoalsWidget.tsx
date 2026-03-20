@@ -1,26 +1,20 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, Icon } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
 import { Card } from '../Card';
 import { COLORS, SPACING, FONT_SIZES } from '@constants';
-import { studentApi } from '../../api/student';
 import { Goal } from '../../types/student';
 
-export const ActiveGoalsWidget: React.FC = () => {
+interface ActiveGoalsWidgetProps {
+  goals?: Goal[];
+  isLoading?: boolean;
+}
+
+export const ActiveGoalsWidget: React.FC<ActiveGoalsWidgetProps> = ({ goals, isLoading }) => {
   const navigation = useNavigation();
 
-  const { data: goals, isLoading } = useQuery({
-    queryKey: ['goals'],
-    queryFn: async () => {
-      const response = await studentApi.getGoals();
-      return response.data;
-    },
-    staleTime: 2 * 60 * 1000,
-  });
-
-  const activeGoals = goals?.filter(g => g.status === 'active') || [];
+  const activeGoals = goals?.filter(g => g.status === 'active' || g.status === 'in_progress') || [];
 
   if (isLoading) {
     return (
@@ -79,7 +73,9 @@ export const ActiveGoalsWidget: React.FC = () => {
 };
 
 const GoalMiniCard: React.FC<{ goal: Goal }> = ({ goal }) => {
-  const progress = (goal.currentValue / goal.targetValue) * 100;
+  const progress = goal.progress !== undefined 
+    ? goal.progress 
+    : (goal.currentValue / goal.targetValue) * 100;
 
   const getCategoryColor = (category: string) => {
     switch (category) {

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { studentApi, GradesParams } from '../api/student';
 import { assignmentsApi, SubmitAssignmentData, AssignmentsListParams } from '../api/assignments';
+import { isDemoUser, demoDataApi } from '../api/demoDataApi';
 
 const DEFAULT_STALE_TIME = 5 * 60 * 1000;
 const DEFAULT_RETRY = 3;
@@ -10,6 +11,9 @@ export const useProfile = () => {
   return useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getProfile();
+      }
       const response = await studentApi.getProfile();
       return response.data;
     },
@@ -23,6 +27,9 @@ export const useDashboard = () => {
   return useQuery({
     queryKey: ['student-dashboard'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getDashboard();
+      }
       const response = await studentApi.getDashboard();
       return response.data;
     },
@@ -36,6 +43,9 @@ export const useAttendanceSummary = () => {
   return useQuery({
     queryKey: ['attendance', 'summary'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getAttendance();
+      }
       const response = await studentApi.getAttendanceSummary();
       return response.data;
     },
@@ -49,6 +59,9 @@ export const useAssignments = () => {
   return useQuery({
     queryKey: ['assignments'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getAssignments();
+      }
       const response = await studentApi.getAssignments();
       return response.data;
     },
@@ -62,6 +75,9 @@ export const useGrades = (params?: GradesParams) => {
   return useQuery({
     queryKey: ['grades', params?.term, params?.subject],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getGrades();
+      }
       const response = await studentApi.getGrades(params);
       return response.data;
     },
@@ -75,6 +91,9 @@ export const useAIPrediction = () => {
   return useQuery({
     queryKey: ['ai-prediction'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getAIPredictionDashboard();
+      }
       const response = await studentApi.getAIPredictionDashboard();
       return response.data;
     },
@@ -88,6 +107,9 @@ export const useWeakAreas = () => {
   return useQuery({
     queryKey: ['weak-areas'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getWeakAreas();
+      }
       const response = await studentApi.getWeakAreas();
       return response.data;
     },
@@ -101,6 +123,9 @@ export const useGamification = () => {
   return useQuery({
     queryKey: ['gamification'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getGamification();
+      }
       const response = await studentApi.getGamification();
       return response.data;
     },

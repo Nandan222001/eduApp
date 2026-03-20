@@ -141,6 +141,13 @@ export const demoDataApi = {
       return studentApi.getTimetable();
     },
 
+    getGamification: async () => {
+      if (isDemoUser()) {
+        return Promise.resolve(dummyData.students.demo.gamification.stats);
+      }
+      return studentApi.getGamification();
+    },
+
     getGamificationDetails: async () => {
       if (isDemoUser()) {
         return Promise.resolve({ data: {
