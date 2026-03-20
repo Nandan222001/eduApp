@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
 import {
   fetchChildren,
   fetchChildStats,
@@ -18,7 +18,7 @@ import {
   fetchPendingAssignments,
   fetchFeePayments,
   setSelectedChild,
-} from '../store/slices/parentSlice';
+} from '@store/slices/parentSlice';
 import { Child } from '../types/parent';
 
 interface ParentDashboardProps {

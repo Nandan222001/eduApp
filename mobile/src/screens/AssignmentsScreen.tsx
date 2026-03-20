@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { fetchAssignments } from '../store/slices/assignmentsSlice';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { fetchAssignments } from '@store/slices/assignmentsSlice';
 import { OfflineIndicator } from '../components/OfflineIndicator';
 import { CachedDataBanner } from '../components/CachedDataBanner';
 import { Assignment } from '../types/student';

@@ -10,8 +10,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { login, loginWithBiometric, clearError } from '../../store/slices/authSlice';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { login, loginWithBiometric, clearError } from '@store/slices/authSlice';
 import { AuthStackParamList } from '../../types/navigation';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';

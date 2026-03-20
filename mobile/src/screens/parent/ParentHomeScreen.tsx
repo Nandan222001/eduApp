@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useAppSelector } from '../../store/hooks';
+import { useAppSelector } from '@store/hooks';
 
 export const ParentHomeScreen: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);

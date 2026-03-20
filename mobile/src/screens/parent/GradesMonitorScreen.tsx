@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { fetchExamResults, fetchSubjectPerformance } from '../../store/slices/parentSlice';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { fetchExamResults, fetchSubjectPerformance } from '@store/slices/parentSlice';
 import { RouteProp } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
 

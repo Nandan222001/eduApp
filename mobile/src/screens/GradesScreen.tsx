@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { fetchGrades } from '../store/slices/gradesSlice';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { fetchGrades } from '@store/slices/gradesSlice';
 import { OfflineIndicator } from '../components/OfflineIndicator';
 import { CachedDataBanner } from '../components/CachedDataBanner';
 import { Grade } from '../types/student';

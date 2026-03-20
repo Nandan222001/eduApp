@@ -7,8 +7,8 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { fetchAttendanceCalendar, fetchSubjectAttendance } from '../../store/slices/parentSlice';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { fetchAttendanceCalendar, fetchSubjectAttendance } from '@store/slices/parentSlice';
 import { RouteProp } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
 

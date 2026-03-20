@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { fetchProfile } from '../store/slices/profileSlice';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { fetchProfile } from '@store/slices/profileSlice';
 import { OfflineIndicator } from '../components/OfflineIndicator';
 import { CachedDataBanner } from '../components/CachedDataBanner';
 

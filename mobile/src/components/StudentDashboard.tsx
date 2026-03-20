@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useAppSelector } from '../store/hooks';
+import { useAppSelector } from '@store/hooks';
 import { studentApi } from '../api/studentApi';
 import {
   StudentStats,

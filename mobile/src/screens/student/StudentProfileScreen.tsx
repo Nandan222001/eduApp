@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { logout, enableBiometric, disableBiometric } from '../../store/slices/authSlice';
+import { useAppDispatch, useAppSelector } from '@store/hooks';
+import { logout, enableBiometric, disableBiometric } from '@store/slices/authSlice';
 import { Button } from '../../components/Button';
 
 export const StudentProfileScreen: React.FC = () => {

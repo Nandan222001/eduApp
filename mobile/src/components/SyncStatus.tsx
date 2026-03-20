@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, ActivityIndicator } from 'react-native';
-import { useOfflineQueue } from '../store/hooks';
+import { useOfflineQueue } from '@store/hooks';
 import { backgroundSyncService } from '../utils/backgroundSync';
 
 export const SyncStatus: React.FC = () => {

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { useAppDispatch, useAppSelector, useOfflineQueue } from '../store/hooks';
-import { fetchDashboardData } from '../store/slices/dashboardSlice';
-import { fetchAssignments } from '../store/slices/assignmentsSlice';
-import { fetchGrades } from '../store/slices/gradesSlice';
-import { fetchProfile } from '../store/slices/profileSlice';
+import { useAppDispatch, useAppSelector, useOfflineQueue } from '@store/hooks';
+import { fetchDashboardData } from '@store/slices/dashboardSlice';
+import { fetchAssignments } from '@store/slices/assignmentsSlice';
+import { fetchGrades } from '@store/slices/gradesSlice';
+import { fetchProfile } from '@store/slices/profileSlice';
 import { OfflineIndicator } from '../components/OfflineIndicator';
 import { CachedDataBanner } from '../components/CachedDataBanner';
 import { SyncStatus } from '../components/SyncStatus';

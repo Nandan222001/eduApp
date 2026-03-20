@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { persistor } from '../store';
+import { persistor } from '@store';
 
 const CACHE_METADATA_KEY = '@cache_metadata';
 

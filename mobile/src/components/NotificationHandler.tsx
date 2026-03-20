@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '@store/authStore';
 
 export const NotificationHandler: React.FC = () => {
   const user = useAuthStore(state => state.user);
