@@ -47,7 +47,6 @@ config.resolver = {
 
 config.transformer = {
   ...config.transformer,
-  babelTransformerPath: require.resolve('metro-react-native-babel-transformer'),
   assetPlugins: ['expo-asset/tools/hashAssetFiles'],
   getTransformOptions: async () => ({
     transform: {
