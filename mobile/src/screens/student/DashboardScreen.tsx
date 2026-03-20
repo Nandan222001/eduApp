@@ -11,6 +11,7 @@ import { Text, Icon } from '@rneui/themed';
 import { useQuery } from '@tanstack/react-query';
 import { COLORS, SPACING } from '@constants';
 import { studentApi } from '../../api/student';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
 import { WelcomeCard } from '../../components/student/WelcomeCard';
 import { AttendanceStatusCard } from '../../components/student/AttendanceStatusCard';
 import { UpcomingAssignmentsCard } from '../../components/student/UpcomingAssignmentsCard';
@@ -35,6 +36,9 @@ export const DashboardScreen: React.FC = () => {
   } = useQuery({
     queryKey: ['student-dashboard'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getDashboard();
+      }
       const response = await studentApi.getDashboard();
       return response.data;
     },
@@ -46,6 +50,9 @@ export const DashboardScreen: React.FC = () => {
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        return await demoDataApi.student.getProfile();
+      }
       const response = await studentApi.getProfile();
       return response.data;
     },
