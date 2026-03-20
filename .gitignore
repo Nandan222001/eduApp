@@ -50,7 +50,12 @@ poetry.lock
 # Pytest
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
+.pytest/
+test-results/
+coverage-badge.svg
 
 # Mypy
 .mypy_cache/
@@ -59,6 +64,9 @@ dmypy.json
 
 # Ruff
 .ruff_cache/
+
+# Pre-commit
+.pre-commit-config.yaml.backup
 
 # Database
 *.db

@@ -1,0 +1,71 @@
+name: Test Cache Optimization
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        required: true
+        type: string
+      cache-key-prefix:
+        required: false
+        type: string
+        default: "test-cache"
+
+jobs:
+  test-with-cache:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: |
+            src/**/*.py
+            tests/**/*.py
+
+      - name: Cache test results
+        if: steps.changed-files.outputs.any_changed == 'false'
+        uses: actions/cache@v4
+        id: test-cache
+        with:
+          path: |
+            .pytest_cache
+            .coverage
+            htmlcov
+            coverage.xml
+          key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ inputs.python-version }}-${{ hashFiles('src/**/*.py', 'tests/**/*.py') }}
+          restore-keys: |
+            ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ inputs.python-version }}-
+
+      - name: Skip tests if cached
+        if: steps.test-cache.outputs.cache-hit == 'true' && steps.changed-files.outputs.any_changed == 'false'
+        run: |
+          echo "No changes detected and test results are cached. Skipping tests."
+          echo "SKIP_TESTS=true" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        if: env.SKIP_TESTS != 'true'
+        run: |
+          pip install poetry
+          poetry install --no-interaction --no-root
+
+      - name: Run tests
+        if: env.SKIP_TESTS != 'true'
+        run: |
+          poetry run pytest tests/ --cov=src -n auto
+
+      - name: Upload cached results
+        if: steps.test-cache.outputs.cache-hit == 'true'
+        run: |
+          echo "Using cached test results"

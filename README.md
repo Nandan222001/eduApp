@@ -1,5 +1,11 @@
 # FastAPI Application
 
+[![CI Pipeline](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPO/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/YOUR_REPO)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 A production-ready FastAPI application with PostgreSQL, Redis, and Docker support.
 
 ## Features
@@ -158,25 +164,121 @@ Key variables:
 
 ## Development
 
-### Running tests
+### Code Quality & Testing
+
+This project uses comprehensive CI/CD with automated testing, linting, and coverage reporting.
+
+#### Running tests
 ```bash
-poetry run pytest
+# Run all tests with coverage
+make test
+
+# Run only unit tests
+make test-unit
+
+# Run only integration tests
+make test-integration
+
+# Run tests with detailed coverage report
+make test-cov
+
+# Run tests in parallel (faster)
+make test-parallel
+
+# Run tests for critical services
+make test-critical
 ```
 
-### Code formatting
+#### Coverage Reports
+
+The project enforces a minimum **70% overall coverage** with higher thresholds for critical services:
+
+| Service | Coverage Target |
+|---------|----------------|
+| auth_service.py | 80% |
+| subscription_service.py | 75% |
+| assignment_service.py | 75% |
+| attendance_service.py | 75% |
+| notification_service.py | 70% |
+| security.py | 85% |
+| rbac.py | 80% |
+
+View coverage report:
 ```bash
-poetry run black src/
+make coverage-report
 ```
 
-### Linting
+#### Code formatting
 ```bash
-poetry run ruff check src/
+# Format code with Black
+make format
+
+# Check formatting without changes
+make format-check
 ```
 
-### Type checking
+#### Linting
 ```bash
-poetry run mypy src/
+# Run Ruff linter
+make lint
+
+# Run linter with auto-fix
+make lint-fix
 ```
+
+#### Type checking
+```bash
+# Run MyPy type checker
+make type-check
+```
+
+#### Run all quality checks
+```bash
+make quality
+```
+
+### Pre-commit Hooks
+
+Install pre-commit hooks to automatically run checks before each commit:
+
+```bash
+make pre-commit
+```
+
+This will run:
+- **Black** - Code formatting
+- **Ruff** - Linting and import sorting
+- **MyPy** - Type checking
+- **pytest** - Quick test validation
+- **Security checks** - Detect potential secrets
+
+### Continuous Integration
+
+The CI pipeline runs on every PR and includes:
+
+1. **Code Quality Checks**
+   - Black formatting validation
+   - Ruff linting
+   - MyPy type checking
+
+2. **Test Suite**
+   - Unit tests with coverage
+   - Integration tests with coverage
+   - Critical service coverage validation
+   - Parallel test execution with pytest-xdist
+
+3. **Security Scanning**
+   - Dependency vulnerability scanning
+   - Code security analysis with Bandit
+
+4. **Build Verification**
+   - Package build check
+   - Docker image build
+
+5. **Coverage Reporting**
+   - Automatic upload to Codecov
+   - Per-service coverage validation
+   - HTML coverage reports as artifacts
 
 ## Docker Commands
 

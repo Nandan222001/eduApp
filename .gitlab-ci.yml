@@ -1,0 +1,250 @@
+image: python:3.11
+
+variables:
+  POETRY_VERSION: "1.7.1"
+  POSTGRES_DB: test_db
+  POSTGRES_USER: test_user
+  POSTGRES_PASSWORD: test_password
+  REDIS_URL: redis://redis:6379/0
+  DATABASE_URL: postgresql://test_user:test_password@postgres:5432/test_db
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  POETRY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pypoetry"
+
+stages:
+  - quality
+  - test
+  - security
+  - build
+  - deploy
+
+cache:
+  key:
+    files:
+      - poetry.lock
+      - pyproject.toml
+  paths:
+    - .cache/pip
+    - .cache/pypoetry
+    - .venv
+
+.python-base:
+  before_script:
+    - apt-get update && apt-get install -y git
+    - pip install --upgrade pip
+    - pip install poetry==$POETRY_VERSION
+    - poetry config virtualenvs.in-project true
+    - poetry install --no-interaction --no-root
+
+black:
+  extends: .python-base
+  stage: quality
+  script:
+    - poetry run black --check src/ tests/
+  allow_failure: false
+
+ruff:
+  extends: .python-base
+  stage: quality
+  script:
+    - poetry run ruff check src/ tests/
+  allow_failure: false
+
+mypy:
+  extends: .python-base
+  stage: quality
+  script:
+    - poetry run mypy src/
+  allow_failure: true
+
+unit-tests:
+  extends: .python-base
+  stage: test
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+  script:
+    - poetry run pytest tests/unit/ -v 
+        --cov=src 
+        --cov-report=xml 
+        --cov-report=html 
+        --cov-report=term-missing 
+        --cov-branch 
+        -n auto 
+        -m "unit"
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - htmlcov/
+      - coverage.xml
+    expire_in: 30 days
+  cache:
+    key: 
+      files:
+        - poetry.lock
+      prefix: test-unit
+    paths:
+      - .pytest_cache
+      - .coverage
+
+integration-tests:
+  extends: .python-base
+  stage: test
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+  script:
+    - poetry run pytest tests/integration/ -v 
+        --cov=src 
+        --cov-append 
+        --cov-report=xml 
+        --cov-report=html 
+        --cov-report=term-missing 
+        --cov-branch 
+        -n auto 
+        -m "integration"
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - htmlcov/
+      - coverage.xml
+    expire_in: 30 days
+  cache:
+    key: 
+      files:
+        - poetry.lock
+      prefix: test-integration
+    paths:
+      - .pytest_cache
+      - .coverage
+
+critical-service-coverage:
+  extends: .python-base
+  stage: test
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+  script:
+    - poetry run pytest tests/ -v 
+        --cov=src.services.auth_service 
+        --cov=src.services.subscription_service 
+        --cov=src.services.assignment_service 
+        --cov=src.services.attendance_service 
+        --cov=src.services.notification_service 
+        --cov=src.utils.security 
+        --cov=src.utils.rbac 
+        --cov-report=xml 
+        --cov-report=term-missing 
+        -n auto
+    - poetry run python scripts/check_service_coverage.py
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    paths:
+      - coverage.xml
+    expire_in: 30 days
+
+coverage-check:
+  extends: .python-base
+  stage: test
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+  needs:
+    - unit-tests
+    - integration-tests
+  script:
+    - poetry run pytest tests/ -v 
+        --cov=src 
+        --cov-report=xml 
+        --cov-report=html 
+        --cov-report=term-missing 
+        --cov-branch 
+        --cov-fail-under=70 
+        -n auto
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - htmlcov/
+      - coverage.xml
+    expire_in: 30 days
+
+security-scan:
+  extends: .python-base
+  stage: security
+  script:
+    - pip install safety bandit
+    - safety check --json || true
+    - bandit -r src/ -f json -o bandit-report.json || true
+  artifacts:
+    paths:
+      - bandit-report.json
+    expire_in: 30 days
+  allow_failure: true
+
+build-package:
+  extends: .python-base
+  stage: build
+  needs:
+    - black
+    - ruff
+    - unit-tests
+    - integration-tests
+    - coverage-check
+  script:
+    - poetry build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 7 days
+  only:
+    - main
+    - develop
+
+build-docker:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  needs:
+    - black
+    - ruff
+    - unit-tests
+    - integration-tests
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA .
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - main
+    - develop
+
+pages:
+  stage: deploy
+  needs:
+    - coverage-check
+  script:
+    - mkdir -p public
+    - cp -r htmlcov/* public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - main

@@ -59,6 +59,7 @@ freezegun = "^1.4.0"
 black = "^24.1.1"
 ruff = "^0.1.14"
 mypy = "^1.8.0"
+pre-commit = "^3.6.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -67,15 +68,70 @@ build-backend = "poetry.core.masonry.api"
 [tool.black]
 line-length = 100
 target-version = ['py311']
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.ruff_cache
+  | \.venv
+  | venv
+  | build
+  | dist
+  | alembic/versions
+)/
+'''
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "alembic/versions",
+    "node_modules",
+]
 
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+exclude = [
+    "alembic/versions",
+    "tests/",
+    ".venv",
+    "venv",
+]
+
+[[tool.mypy.overrides]]
+module = "src.services.*"
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "src.utils.*"
 disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
@@ -89,9 +145,11 @@ addopts = [
     "--strict-markers",
     "--cov=src",
     "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
     "--cov-branch",
+    "--cov-fail-under=70",
+    "-n=auto",
 ]
 markers = [
     "unit: Unit tests",
@@ -99,24 +157,60 @@ markers = [
     "e2e: End-to-end tests",
     "slow: Slow running tests",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
 
 [tool.coverage.run]
 source = ["src"]
 omit = [
     "*/tests/*",
+    "*/test_*.py",
     "*/migrations/*",
+    "*/alembic/*",
     "*/__init__.py",
     "*/config.py",
+    "*/conftest.py",
 ]
+branch = true
+parallel = true
 
 [tool.coverage.report]
+precision = 2
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
+    "def __str__",
     "raise AssertionError",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+    "@overload",
+    "except ImportError:",
 ]
+skip_empty = true
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.coverage.paths]
+source = [
+    "src",
+    "*/site-packages",
+]
+
+# Per-service coverage targets for critical services
+[tool.coverage.targets]
+"src/services/auth_service.py" = 80
+"src/services/subscription_service.py" = 75
+"src/services/assignment_service.py" = 75
+"src/services/attendance_service.py" = 75
+"src/services/notification_service.py" = 70
+"src/utils/security.py" = 85
+"src/utils/rbac.py" = 80
