@@ -1,9 +1,9 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { QueuedOperation } from '@utils/offlineQueue';
+import { QueuedRequest } from '@utils/offlineQueue';
 
 interface OfflineState {
   isOnline: boolean;
-  queuedOperations: QueuedOperation[];
+  queuedOperations: QueuedRequest[];
   lastSyncTime: number | null;
   syncInProgress: boolean;
   autoSyncEnabled: boolean;
@@ -24,10 +24,10 @@ const offlineSlice = createSlice({
     setOnlineStatus: (state, action: PayloadAction<boolean>) => {
       state.isOnline = action.payload;
     },
-    setQueuedOperations: (state, action: PayloadAction<QueuedOperation[]>) => {
+    setQueuedOperations: (state, action: PayloadAction<QueuedRequest[]>) => {
       state.queuedOperations = action.payload;
     },
-    addQueuedOperation: (state, action: PayloadAction<QueuedOperation>) => {
+    addQueuedOperation: (state, action: PayloadAction<QueuedRequest>) => {
       state.queuedOperations.push(action.payload);
     },
     removeQueuedOperation: (state, action: PayloadAction<string>) => {

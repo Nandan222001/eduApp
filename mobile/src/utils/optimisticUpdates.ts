@@ -1,4 +1,4 @@
-import { AppDispatch } from '@store/store';
+import { AppDispatch } from '@store';
 import {
   updateAssignmentOptimistic,
   updateProfileOptimistic,

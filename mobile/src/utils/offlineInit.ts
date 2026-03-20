@@ -1,6 +1,6 @@
 import { BackgroundSyncService } from './backgroundSync';
 import { offlineQueueManager } from './offlineQueue';
-import { store } from '@store/store';
+import { store } from '@store';
 import { setOnlineStatus, setQueuedOperations } from '@store/slices/offlineSlice';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -23,8 +23,8 @@ export const initializeOfflineSupport = async (): Promise<void> => {
       const online = state.isConnected === true && state.isInternetReachable === true;
       store.dispatch(setOnlineStatus(online));
 
-      if (online && offlineQueueManager.getQueueSize() > 0) {
-        offlineQueueManager.syncQueue();
+      if (online && offlineQueueManager.getQueueCount() > 0) {
+        offlineQueueManager.processQueue();
       }
     });
 

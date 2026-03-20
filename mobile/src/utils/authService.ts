@@ -1,8 +1,8 @@
 import { secureStorage } from './secureStorage';
-import { authApi } from '@api/auth';
+import { authApi } from '@api/authApi';
 import { STORAGE_KEYS } from '@constants';
 import { store } from '@store';
-import { setTokens, logout } from '@store/slices/authSlice';
+import { logout } from '@store/slices/authSlice';
 
 let refreshTimeout: NodeJS.Timeout | null = null;
 
@@ -51,18 +51,11 @@ export const authService = {
         throw new Error('No refresh token available');
       }
 
-      const response = await authApi.refreshToken(refreshToken);
-      const { access_token, refresh_token } = response.data;
+      const response = await authApi.refreshToken({ refresh_token: refreshToken });
+      const { access_token, refresh_token } = response;
 
       await secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access_token);
       await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh_token);
-
-      store.dispatch(
-        setTokens({
-          accessToken: access_token,
-          refreshToken: refresh_token,
-        })
-      );
 
       this.startAutoRefresh();
 
