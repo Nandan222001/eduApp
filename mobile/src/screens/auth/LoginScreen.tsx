@@ -9,20 +9,16 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { login, loginWithBiometric, clearError } from '@store/slices/authSlice';
-import { AuthStackParamList } from '../../types/navigation';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { biometricUtils } from '../../utils/biometric';
 
-type LoginScreenProps = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
-};
-
-export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+export const LoginScreen: React.FC = () => {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const { isLoading, error, biometricEnabled } = useAppSelector((state) => state.auth);
 
   const [email, setEmail] = useState('');
@@ -71,7 +67,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   };
 
   const handleOTPLogin = () => {
-    navigation.navigate('OTPLogin');
+    router.push('/(auth)/otp-login' as any);
+  };
+
+  const handleForgotPassword = () => {
+    router.push('/(auth)/forgot-password' as any);
   };
 
   return (
@@ -133,7 +133,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <Text style={styles.otpLinkText}>Sign in with OTP instead</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPassword}>
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>

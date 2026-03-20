@@ -1,12 +1,13 @@
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Slot, useRouter, useSegments, SplashScreen } from 'expo-router';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { ThemeProvider } from '@rneui/themed';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 import { store, persistor } from '@store';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { loadStoredAuth } from '@store/slices/authSlice';
@@ -14,6 +15,9 @@ import { Loading, OfflineDataRefresher } from '@components';
 import { theme } from '@config/theme';
 import { authService } from '@utils/authService';
 import { initializeOfflineSupport } from '@utils/offlineInit';
+
+// Prevent splash screen from auto-hiding
+SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,8 +35,23 @@ function RootLayoutNav() {
   const { isAuthenticated, isLoading } = useAppSelector(state => state.auth);
 
   useEffect(() => {
-    dispatch(loadStoredAuth());
-    initializeOfflineSupport();
+    const initApp = async () => {
+      try {
+        await dispatch(loadStoredAuth()).unwrap();
+        if (Platform.OS !== 'web') {
+          await initializeOfflineSupport();
+        }
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+      } finally {
+        // Hide splash screen after initialization
+        if (Platform.OS !== 'web') {
+          await SplashScreen.hideAsync();
+        }
+      }
+    };
+
+    initApp();
   }, [dispatch]);
 
   useEffect(() => {

@@ -9,6 +9,9 @@ yarn-error.log
 .expo-router/
 dist/
 web-build/
+*.jsbundle
+*.map
+.expo-env.d.ts
 
 # Native
 *.orig.*

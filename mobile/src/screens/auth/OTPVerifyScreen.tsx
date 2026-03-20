@@ -9,24 +9,20 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { verifyOTP, requestOTP, clearError } from '@store/slices/authSlice';
-import { AuthStackParamList } from '../../types/navigation';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 
-type OTPVerifyScreenProps = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, 'OTPVerify'>;
-  route: RouteProp<AuthStackParamList, 'OTPVerify'>;
-};
-
-export const OTPVerifyScreen: React.FC<OTPVerifyScreenProps> = ({ route }) => {
+export const OTPVerifyScreen: React.FC = () => {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const params = useLocalSearchParams();
   const { isLoading, error } = useAppSelector((state) => state.auth);
 
-  const { email, institution_id } = route.params;
+  const email = params.email as string;
+  const institution_id = params.institution_id ? parseInt(params.institution_id as string) : undefined;
   const [otp, setOtp] = useState('');
 
   useEffect(() => {

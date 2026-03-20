@@ -9,19 +9,15 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { requestOTP, clearError } from '@store/slices/authSlice';
-import { AuthStackParamList } from '../../types/navigation';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 
-type OTPLoginScreenProps = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, 'OTPLogin'>;
-};
-
-export const OTPLoginScreen: React.FC<OTPLoginScreenProps> = ({ navigation }) => {
+export const OTPLoginScreen: React.FC = () => {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const { isLoading, error } = useAppSelector((state) => state.auth);
 
   const [email, setEmail] = useState('');
@@ -50,9 +46,12 @@ export const OTPLoginScreen: React.FC<OTPLoginScreenProps> = ({ navigation }) =>
       Alert.alert('Success', 'OTP has been sent to your email', [
         {
           text: 'OK',
-          onPress: () => navigation.navigate('OTPVerify', { 
-            email: email.trim(), 
-            institution_id: institutionId ? parseInt(institutionId) : undefined 
+          onPress: () => router.push({
+            pathname: '/(auth)/otp-verify' as any,
+            params: { 
+              email: email.trim(), 
+              institution_id: institutionId || '' 
+            }
           }),
         },
       ]);
@@ -62,7 +61,7 @@ export const OTPLoginScreen: React.FC<OTPLoginScreenProps> = ({ navigation }) =>
   };
 
   const handleBackToLogin = () => {
-    navigation.navigate('Login');
+    router.back();
   };
 
   return (
