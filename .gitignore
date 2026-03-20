@@ -238,6 +238,15 @@ migration_metrics_*.json
 migration_export_*.json
 migration_audit_*.txt
 
+# Migration testing
+migration_test_report_*.json
+test_migrations_*.dump
+emergency_backup*.dump
+data_backup_*.csv
+*_backup_*.csv
+test_prod_migrations/
+test_manual_db/
+
 # AWS credentials
 .aws/credentials
 aws-exports.js
