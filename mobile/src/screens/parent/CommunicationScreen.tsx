@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { fetchMessages, fetchAnnouncements, markMessageAsRead } from '@store/slices/parentSlice';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
+import { TeacherMessage, Announcement } from '../../types/parent';
 
 type TabType = 'messages' | 'announcements';
 
@@ -20,6 +22,12 @@ export const CommunicationScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('messages');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [demoMessages, setDemoMessages] = useState<TeacherMessage[]>([]);
+  const [demoAnnouncements, setDemoAnnouncements] = useState<Announcement[]>([]);
+
+  const isDemo = isDemoUser();
+  const displayMessages = isDemo ? demoMessages : messages;
+  const displayAnnouncements = isDemo ? demoAnnouncements : announcements;
 
   useEffect(() => {
     loadCommunicationData();
@@ -28,7 +36,16 @@ export const CommunicationScreen: React.FC = () => {
   const loadCommunicationData = async () => {
     setIsLoading(true);
     try {
-      await Promise.all([dispatch(fetchMessages()), dispatch(fetchAnnouncements())]);
+      if (isDemoUser()) {
+        const [messagesData, announcementsData] = await Promise.all([
+          demoDataApi.parent.getMessages(),
+          demoDataApi.parent.getAnnouncements(),
+        ]);
+        setDemoMessages(messagesData);
+        setDemoAnnouncements(announcementsData);
+      } else {
+        await Promise.all([dispatch(fetchMessages()), dispatch(fetchAnnouncements())]);
+      }
     } catch (error) {
       console.error('Failed to load communication data:', error);
     } finally {
@@ -45,7 +62,14 @@ export const CommunicationScreen: React.FC = () => {
   const handleMessagePress = async (messageId: number, isRead: boolean) => {
     if (!isRead) {
       try {
-        await dispatch(markMessageAsRead(messageId));
+        if (isDemoUser()) {
+          const updatedMessages = demoMessages.map((msg) =>
+            msg.id === messageId ? { ...msg, read: true } : msg
+          );
+          setDemoMessages(updatedMessages);
+        } else {
+          await dispatch(markMessageAsRead(messageId));
+        }
       } catch (error) {
         console.error('Failed to mark message as read:', error);
       }
@@ -66,8 +90,8 @@ export const CommunicationScreen: React.FC = () => {
   };
 
   const renderMessages = () => {
-    const unreadMessages = messages.filter((m) => !m.read);
-    const readMessages = messages.filter((m) => m.read);
+    const unreadMessages = displayMessages.filter((m) => !m.read);
+    const readMessages = displayMessages.filter((m) => m.read);
 
     return (
       <View style={styles.tabContent}>
@@ -146,7 +170,7 @@ export const CommunicationScreen: React.FC = () => {
           </>
         )}
 
-        {messages.length === 0 && (
+        {displayMessages.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📭</Text>
             <Text style={styles.emptyText}>No messages yet</Text>
@@ -157,8 +181,8 @@ export const CommunicationScreen: React.FC = () => {
   };
 
   const renderAnnouncements = () => {
-    const importantAnnouncements = announcements.filter((a) => a.is_important);
-    const regularAnnouncements = announcements.filter((a) => !a.is_important);
+    const importantAnnouncements = displayAnnouncements.filter((a) => a.is_important);
+    const regularAnnouncements = displayAnnouncements.filter((a) => !a.is_important);
 
     return (
       <View style={styles.tabContent}>
@@ -225,7 +249,7 @@ export const CommunicationScreen: React.FC = () => {
           </>
         )}
 
-        {announcements.length === 0 && (
+        {displayAnnouncements.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📢</Text>
             <Text style={styles.emptyText}>No announcements yet</Text>
@@ -243,7 +267,7 @@ export const CommunicationScreen: React.FC = () => {
     );
   }
 
-  const unreadCount = messages.filter((m) => !m.read).length;
+  const unreadCount = displayMessages.filter((m) => !m.read).length;
 
   return (
     <View style={styles.container}>

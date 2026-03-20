@@ -12,6 +12,8 @@ import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { fetchExamResults, fetchSubjectPerformance } from '@store/slices/parentSlice';
 import { RouteProp } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
+import { ExamResult, SubjectPerformance } from '../../types/parent';
 
 type GradesMonitorScreenRouteProp = RouteProp<MainTabParamList, 'GradesMonitor'>;
 
@@ -28,10 +30,13 @@ export const GradesMonitorScreen: React.FC<GradesMonitorScreenProps> = ({ route 
 
   const [selectedTerm, setSelectedTerm] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [demoResults, setDemoResults] = useState<ExamResult[]>([]);
+  const [demoPerformance, setDemoPerformance] = useState<SubjectPerformance[]>([]);
 
   const child = children.find((c) => c.id === childId);
-  const results = examResults[childId] || [];
-  const performance = subjectPerformance[childId] || [];
+  const isDemo = isDemoUser();
+  const results = isDemo ? demoResults : (examResults[childId] || []);
+  const performance = isDemo ? demoPerformance : (subjectPerformance[childId] || []);
 
   useEffect(() => {
     loadGradesData();
@@ -40,10 +45,19 @@ export const GradesMonitorScreen: React.FC<GradesMonitorScreenProps> = ({ route 
   const loadGradesData = async () => {
     setIsLoading(true);
     try {
-      await Promise.all([
-        dispatch(fetchExamResults({ childId, term: selectedTerm })),
-        dispatch(fetchSubjectPerformance(childId)),
-      ]);
+      if (isDemoUser()) {
+        const [resultsData, performanceData] = await Promise.all([
+          demoDataApi.parent.getExamResults(childId, selectedTerm),
+          demoDataApi.parent.getSubjectPerformance(childId),
+        ]);
+        setDemoResults(resultsData);
+        setDemoPerformance(performanceData);
+      } else {
+        await Promise.all([
+          dispatch(fetchExamResults({ childId, term: selectedTerm })),
+          dispatch(fetchSubjectPerformance(childId)),
+        ]);
+      }
     } catch (error) {
       console.error('Failed to load grades data:', error);
     } finally {

@@ -6,3 +6,4 @@ export { ParentDashboardScreen } from './ParentDashboardScreen';
 export { AttendanceMonitorScreen } from './AttendanceMonitorScreen';
 export { GradesMonitorScreen } from './GradesMonitorScreen';
 export { CommunicationScreen } from './CommunicationScreen';
+export { FeeManagementScreen } from './FeeManagementScreen';

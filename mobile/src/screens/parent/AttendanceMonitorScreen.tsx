@@ -11,6 +11,8 @@ import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { fetchAttendanceCalendar, fetchSubjectAttendance } from '@store/slices/parentSlice';
 import { RouteProp } from '@react-navigation/native';
 import { MainTabParamList } from '../../types/navigation';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
+import { AttendanceCalendar, SubjectAttendance } from '../../types/parent';
 
 type AttendanceMonitorScreenRouteProp = RouteProp<MainTabParamList, 'AttendanceMonitor'>;
 
@@ -30,10 +32,13 @@ export const AttendanceMonitorScreen: React.FC<AttendanceMonitorScreenProps> = (
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isLoading, setIsLoading] = useState(true);
+  const [demoCalendar, setDemoCalendar] = useState<AttendanceCalendar>({});
+  const [demoSubjects, setDemoSubjects] = useState<SubjectAttendance[]>([]);
 
   const child = children.find((c) => c.id === childId);
-  const calendar = attendanceCalendar[childId] || {};
-  const subjects = subjectAttendance[childId] || [];
+  const isDemo = isDemoUser();
+  const calendar = isDemo ? demoCalendar : (attendanceCalendar[childId] || {});
+  const subjects = isDemo ? demoSubjects : (subjectAttendance[childId] || []);
 
   useEffect(() => {
     loadAttendanceData();
@@ -42,16 +47,25 @@ export const AttendanceMonitorScreen: React.FC<AttendanceMonitorScreenProps> = (
   const loadAttendanceData = async () => {
     setIsLoading(true);
     try {
-      await Promise.all([
-        dispatch(
-          fetchAttendanceCalendar({
-            childId,
-            year: selectedYear,
-            month: selectedMonth + 1,
-          })
-        ),
-        dispatch(fetchSubjectAttendance(childId)),
-      ]);
+      if (isDemoUser()) {
+        const [calendarData, subjectsData] = await Promise.all([
+          demoDataApi.parent.getAttendanceCalendar(childId, selectedYear, selectedMonth + 1),
+          demoDataApi.parent.getSubjectAttendance(childId),
+        ]);
+        setDemoCalendar(calendarData);
+        setDemoSubjects(subjectsData);
+      } else {
+        await Promise.all([
+          dispatch(
+            fetchAttendanceCalendar({
+              childId,
+              year: selectedYear,
+              month: selectedMonth + 1,
+            })
+          ),
+          dispatch(fetchSubjectAttendance(childId)),
+        ]);
+      }
     } catch (error) {
       console.error('Failed to load attendance data:', error);
     } finally {

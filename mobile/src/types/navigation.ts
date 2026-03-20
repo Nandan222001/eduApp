@@ -31,6 +31,7 @@ export type MainTabParamList = {
   AttendanceMonitor: { childId: number };
   GradesMonitor: { childId: number };
   Communication: undefined;
+  FeeManagement: { childId: number };
 };
 
 export type ParentStackParamList = {
@@ -38,6 +39,7 @@ export type ParentStackParamList = {
   AttendanceMonitor: { childId: number };
   GradesMonitor: { childId: number };
   Communication: undefined;
+  FeeManagement: { childId: number };
 };
 
 export type DeepLinkConfig = {
@@ -64,6 +66,7 @@ export type DeepLinkConfig = {
           AttendanceMonitor: 'parent/attendance/:childId';
           GradesMonitor: 'parent/grades/:childId';
           Communication: 'parent/communication';
+          FeeManagement: 'parent/fees/:childId';
         };
       };
     };
