@@ -485,3 +485,171 @@ def parent_user(db_session: Session, institution: Institution, parent_role: Role
     db_session.refresh(parent)
     
     return user
+
+
+@pytest.fixture
+def user_factory():
+    """Factory for creating User objects."""
+    from tests.factories import UserFactory
+    return UserFactory
+
+
+@pytest.fixture
+def institution_factory():
+    """Factory for creating Institution objects."""
+    from tests.factories import InstitutionFactory
+    return InstitutionFactory
+
+
+@pytest.fixture
+def student_factory():
+    """Factory for creating Student objects."""
+    from tests.factories import StudentFactory
+    return StudentFactory
+
+
+@pytest.fixture
+def teacher_factory():
+    """Factory for creating Teacher objects."""
+    from tests.factories import TeacherFactory
+    return TeacherFactory
+
+
+@pytest.fixture
+def assignment_factory():
+    """Factory for creating Assignment objects."""
+    from tests.factories import AssignmentFactory
+    return AssignmentFactory
+
+
+@pytest.fixture
+def attendance_factory():
+    """Factory for creating Attendance objects."""
+    from tests.factories import AttendanceFactory
+    return AttendanceFactory
+
+
+@pytest.fixture
+def exam_factory():
+    """Factory for creating Exam objects."""
+    from tests.factories import ExamFactory
+    return ExamFactory
+
+
+@pytest.fixture
+def subscription_factory():
+    """Factory for creating Subscription objects."""
+    from tests.factories import SubscriptionFactory
+    return SubscriptionFactory
+
+
+@pytest.fixture
+def role_factory():
+    """Factory for creating Role objects."""
+    from tests.factories import RoleFactory
+    return RoleFactory
+
+
+@pytest.fixture
+def academic_year_factory():
+    """Factory for creating AcademicYear objects."""
+    from tests.factories import AcademicYearFactory
+    return AcademicYearFactory
+
+
+@pytest.fixture
+def grade_factory():
+    """Factory for creating Grade objects."""
+    from tests.factories import GradeFactory
+    return GradeFactory
+
+
+@pytest.fixture
+def section_factory():
+    """Factory for creating Section objects."""
+    from tests.factories import SectionFactory
+    return SectionFactory
+
+
+@pytest.fixture
+def subject_factory():
+    """Factory for creating Subject objects."""
+    from tests.factories import SubjectFactory
+    return SubjectFactory
+
+
+@pytest.fixture
+def generate_class_with_students(db_session: Session):
+    """Helper fixture for generating a complete class setup."""
+    from tests.factories import generate_class_with_students as _generate_class
+    
+    def _wrapper(institution_id: int, academic_year_id: int, **kwargs):
+        return _generate_class(db_session, institution_id, academic_year_id, **kwargs)
+    
+    return _wrapper
+
+
+@pytest.fixture
+def generate_complete_academic_setup(db_session: Session):
+    """Helper fixture for generating a complete academic setup."""
+    from tests.factories import generate_complete_academic_setup as _generate_setup
+    
+    def _wrapper(institution_id: int, **kwargs):
+        return _generate_setup(db_session, institution_id, **kwargs)
+    
+    return _wrapper
+
+
+@pytest.fixture
+def generate_exam_with_schedule(db_session: Session):
+    """Helper fixture for generating an exam with complete schedule."""
+    from tests.factories import generate_exam_with_schedule as _generate_exam
+    
+    def _wrapper(institution_id: int, academic_year_id: int, grade_id: int, subject_ids, **kwargs):
+        return _generate_exam(db_session, institution_id, academic_year_id, grade_id, subject_ids, **kwargs)
+    
+    return _wrapper
+
+
+@pytest.fixture
+def generate_student_attendance_history(db_session: Session):
+    """Helper fixture for generating attendance history."""
+    from tests.factories import generate_student_attendance_history as _generate_attendance
+    
+    def _wrapper(institution_id: int, student_id: int, section_id: int, subject_id: int, **kwargs):
+        return _generate_attendance(db_session, institution_id, student_id, section_id, subject_id, **kwargs)
+    
+    return _wrapper
+
+
+@pytest.fixture
+def create_bulk_students(db_session: Session):
+    """Helper fixture for creating bulk students."""
+    from tests.factories import create_bulk_students as _create_bulk
+    
+    def _wrapper(institution_id: int, section_id: int, count: int = 10):
+        return _create_bulk(db_session, institution_id, section_id, count)
+    
+    return _wrapper
+
+
+@pytest.fixture
+def create_bulk_teachers(db_session: Session):
+    """Helper fixture for creating bulk teachers."""
+    from tests.factories import create_bulk_teachers as _create_bulk
+    
+    def _wrapper(institution_id: int, count: int = 5):
+        return _create_bulk(db_session, institution_id, count)
+    
+    return _wrapper
+
+
+@pytest.fixture
+def create_bulk_assignments(db_session: Session):
+    """Helper fixture for creating bulk assignments."""
+    from tests.factories import create_bulk_assignments as _create_bulk
+    
+    def _wrapper(institution_id: int, teacher_id: int, grade_id: int, subject_id: int, count: int = 5):
+        return _create_bulk(db_session, institution_id, teacher_id, grade_id, subject_id, count)
+    
+    return _wrapper
