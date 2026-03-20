@@ -2,6 +2,21 @@
 
 React Native mobile application for the EduTrack education management system.
 
+---
+
+## 🔧 Build Issues? Need to Clean Cache?
+
+If you're experiencing build errors, 500 errors on web, or dependency issues:
+
+**👉 See [START_HERE.md](START_HERE.md) for quick cleanup and rebuild instructions**
+
+Or jump directly to:
+- [Quick Commands](QUICK_COMMANDS.md) - Copy-paste commands
+- [Troubleshooting](TROUBLESHOOTING_FLOWCHART.md) - Visual guide
+- [Full Documentation](INDEX.md) - Complete index
+
+---
+
 ## Features
 
 ### Authentication
