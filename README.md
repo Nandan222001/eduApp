@@ -92,6 +92,28 @@ alembic upgrade head
 alembic downgrade -1
 ```
 
+### Migration Troubleshooting
+
+If you encounter migration issues, conflicts, or errors, see the comprehensive troubleshooting guide:
+
+📚 **[Migration Troubleshooting Guide](docs/MIGRATION_TROUBLESHOOTING.md)**
+
+This guide covers:
+- Common error messages and their solutions
+- Step-by-step resolution procedures
+- Emergency recovery procedures
+- Safe migration practices
+- Prevention strategies
+- Lessons learned from past issues
+
+### Migration Best Practices
+
+For detailed guidance on migrations, see:
+- [Migration Safety System](docs/MIGRATION_SAFETY_SYSTEM.md) - Complete safety system
+- [Migration Rollback Playbook](docs/MIGRATION_ROLLBACK_PLAYBOOK.md) - Emergency procedures
+- [Migration Naming Convention](docs/MIGRATION_NAMING_CONVENTION.md) - Naming standards
+- [Migration Quick Reference](docs/MIGRATION_QUICK_REFERENCE.md) - Command reference
+
 ## Project Structure
 
 ```
