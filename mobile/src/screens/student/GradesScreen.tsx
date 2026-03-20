@@ -14,6 +14,7 @@ import { format, parseISO } from 'date-fns';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
 import { StudentTabScreenProps } from '@types';
 import { studentApi } from '../../api/student';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
 import { Grade } from '../../types/student';
 
 type Props = StudentTabScreenProps<'Grades'>;
@@ -207,6 +208,10 @@ export const GradesScreen: React.FC<Props> = ({ navigation }) => {
   } = useQuery({
     queryKey: ['grades', termParam],
     queryFn: async () => {
+      if (isDemoUser()) {
+        const allGrades = await demoDataApi.student.getGrades();
+        return termParam ? allGrades.filter((g: any) => g.term === termParam) : allGrades;
+      }
       const response = await studentApi.getGrades({ term: termParam });
       return response.data;
     },

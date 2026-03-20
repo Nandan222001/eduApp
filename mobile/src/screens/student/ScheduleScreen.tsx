@@ -13,6 +13,7 @@ import { format, parse } from 'date-fns';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '@constants';
 import { StudentTabScreenProps } from '@types';
 import { studentApi, TimetableEntry } from '../../api/student';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
 
 type Props = StudentTabScreenProps<'Schedule'>;
 
@@ -159,6 +160,10 @@ export const ScheduleScreen: React.FC<Props> = ({ navigation }) => {
   } = useQuery({
     queryKey: ['timetable'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        const response = await demoDataApi.student.getTimetable();
+        return response.data;
+      }
       const response = await studentApi.getTimetable();
       return response.data;
     },

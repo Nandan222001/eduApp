@@ -20,6 +20,7 @@ import {
   FocusArea,
   DailyTask,
 } from '@api/predictions';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
 import { format } from 'date-fns';
 
 type Props = StudentTabScreenProps<'Home'>;
@@ -37,10 +38,9 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
     try {
       setLoading(true);
       const [dashboardRes, boardExamRes] = await Promise.all([
-        predictionsApi.getAIPredictionDashboard(),
-        predictionsApi.getBoardExamPredictions(),
+        isDemoUser() ? demoDataApi.predictions.getAIPredictionDashboard() : predictionsApi.getAIPredictionDashboard(),
+        isDemoUser() ? demoDataApi.predictions.getBoardExamPredictions() : predictionsApi.getBoardExamPredictions(),
       ]);
-
       setDashboard(dashboardRes.data);
       setBoardExam(boardExamRes.data);
     } catch (error) {
@@ -69,7 +69,11 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
 
   const handleTaskComplete = async (taskId: number) => {
     try {
-      await predictionsApi.markTaskComplete(taskId);
+      if (isDemoUser()) {
+        await demoDataApi.predictions.markTaskComplete(taskId);
+      } else {
+        await predictionsApi.markTaskComplete(taskId);
+      }
       await fetchData();
     } catch (error) {
       console.error('Failed to mark task complete:', error);
@@ -78,7 +82,11 @@ export const AIPredictionsScreen: React.FC<Props> = () => {
 
   const handleRegenerateStudyPlan = async () => {
     try {
-      await predictionsApi.regenerateStudyPlan();
+      if (isDemoUser()) {
+        await demoDataApi.predictions.regenerateStudyPlan();
+      } else {
+        await predictionsApi.regenerateStudyPlan();
+      }
       await fetchData();
     } catch (error) {
       console.error('Failed to regenerate study plan:', error);

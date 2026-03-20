@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { COLORS, SPACING, FONT_SIZES } from '@constants';
 import { studentApi } from '../../api/student';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
 import { BadgeDetail, LeaderboardEntry } from '../../types/student';
 import { Card } from '../../components/Card';
 import {
@@ -47,6 +48,10 @@ export const GamificationScreen: React.FC = () => {
   const { data: gamificationData, isLoading: isGamificationLoading } = useQuery({
     queryKey: ['gamification-details'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        const response = await demoDataApi.student.getGamificationDetails();
+        return response.data;
+      }
       const response = await studentApi.getGamificationDetails();
       return response.data;
     },
@@ -56,6 +61,10 @@ export const GamificationScreen: React.FC = () => {
   const { data: leaderboardData, isLoading: isLeaderboardLoading } = useQuery({
     queryKey: ['leaderboard', leaderboardPeriod],
     queryFn: async () => {
+      if (isDemoUser()) {
+        const response = await demoDataApi.student.getLeaderboard(leaderboardPeriod);
+        return response.data;
+      }
       const response = await studentApi.getLeaderboard(leaderboardPeriod);
       return response.data;
     },

@@ -11,6 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { studentApi } from '../../api/studentApi';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
 import { Assignment } from '../../types/student';
 import { MainTabParamList } from '../../types/navigation';
 
@@ -30,7 +31,13 @@ export const AssignmentsScreen: React.FC = () => {
 
   const loadAssignments = async () => {
     try {
-      const data = await studentApi.getAssignments(activeTab);
+      let data;
+      if (isDemoUser()) {
+        const allAssignments = await demoDataApi.student.getAssignments();
+        data = allAssignments.filter(a => a.status === activeTab);
+      } else {
+        data = await studentApi.getAssignments(activeTab);
+      }
       setAssignments(data);
     } catch (error) {
       console.error('Error loading assignments:', error);

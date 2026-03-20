@@ -15,6 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { COLORS, SPACING, FONT_SIZES } from '@constants';
 import { studentApi } from '../../api/student';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
 import { Goal, CreateGoalRequest } from '../../types/student';
 import { Card } from '../../components/Card';
 import { format } from 'date-fns';
@@ -31,13 +32,22 @@ export const GoalsScreen: React.FC = () => {
   const { data: goals, isLoading } = useQuery({
     queryKey: ['goals'],
     queryFn: async () => {
+      if (isDemoUser()) {
+        const response = await demoDataApi.student.getGoals();
+        return response.data;
+      }
       const response = await studentApi.getGoals();
       return response.data;
     },
   });
 
   const createGoalMutation = useMutation({
-    mutationFn: (goal: CreateGoalRequest) => studentApi.createGoal(goal),
+    mutationFn: (goal: CreateGoalRequest) => {
+      if (isDemoUser()) {
+        return demoDataApi.student.createGoal(goal);
+      }
+      return studentApi.createGoal(goal);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       setShowCreateModal(false);
@@ -45,8 +55,12 @@ export const GoalsScreen: React.FC = () => {
   });
 
   const updateProgressMutation = useMutation({
-    mutationFn: ({ goalId, progress }: { goalId: number; progress: number }) =>
-      studentApi.updateGoalProgress(goalId, progress),
+    mutationFn: ({ goalId, progress }: { goalId: number; progress: number }) => {
+      if (isDemoUser()) {
+        return demoDataApi.student.updateGoalProgress(goalId, progress);
+      }
+      return studentApi.updateGoalProgress(goalId, progress);
+    },
     onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       if (data.data.status === 'completed') {

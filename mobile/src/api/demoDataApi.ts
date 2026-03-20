@@ -128,6 +128,123 @@ export const demoDataApi = {
       }
       return studentApi.getGamificationDetails().then(data => data.recentAchievements || []);
     },
+
+    getTimetable: async () => {
+      if (isDemoUser()) {
+        return Promise.resolve({ 
+          data: {
+            entries: [],
+            currentDay: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]
+          }
+        });
+      }
+      return studentApi.getTimetable();
+    },
+
+    getGamificationDetails: async () => {
+      if (isDemoUser()) {
+        return Promise.resolve({ data: {
+          ...dummyData.students.demo.gamification.stats,
+          badges: dummyData.students.demo.gamification.badges,
+          streak: dummyData.students.demo.gamification.streaks,
+          streakCalendar: [],
+          pointsHistory: [],
+        }});
+      }
+      return studentApi.getGamificationDetails();
+    },
+
+    getLeaderboard: async (period: string) => {
+      if (isDemoUser()) {
+        return Promise.resolve({ data: dummyData.students.demo.gamification.leaderboard });
+      }
+      return studentApi.getLeaderboard(period);
+    },
+
+    getGoals: async () => {
+      if (isDemoUser()) {
+        return Promise.resolve({ data: dummyData.students.demo.goals || [] });
+      }
+      return studentApi.getGoals();
+    },
+
+    createGoal: async (goal: any) => {
+      if (isDemoUser()) {
+        return Promise.resolve({ data: { ...goal, id: Date.now() } });
+      }
+      return studentApi.createGoal(goal);
+    },
+
+    updateGoalProgress: async (goalId: number, progress: number) => {
+      if (isDemoUser()) {
+        return Promise.resolve({ data: { goalId, progress, status: 'active' } });
+      }
+      return studentApi.updateGoalProgress(goalId, progress);
+    },
+
+    getWeakAreas: async () => {
+      if (isDemoUser()) {
+        return Promise.resolve(dummyData.students.demo.ai.weakAreas);
+      }
+      return studentApi.getWeakAreas();
+    },
+  },
+
+  predictions: {
+    getAIPredictionDashboard: async () => {
+      if (isDemoUser()) {
+        const predictions = dummyData.students.demo.ai.predictions;
+        return Promise.resolve({ 
+          data: {
+            predictedScore: predictions[0]?.predicted_score || 85,
+            confidence: predictions[0]?.confidence || 90,
+            trend: 'improving' as const,
+            topicProbabilities: dummyData.students.demo.ai.topicProbabilities || [],
+            focusAreas: dummyData.students.demo.ai.focusAreas || [],
+            studyPlan: {
+              id: 1,
+              startDate: new Date().toISOString(),
+              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              totalHours: 100,
+              completedHours: 45,
+              dailyTasks: [],
+              weeklyGoals: ['Complete Math revision', 'Practice 5 Science experiments'],
+            },
+            lastUpdated: new Date().toISOString(),
+          }
+        });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { predictionsApi } = require('./predictions');
+      return predictionsApi.getAIPredictionDashboard();
+    },
+
+    getBoardExamPredictions: async () => {
+      if (isDemoUser()) {
+        return Promise.resolve({ data: null });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { predictionsApi } = require('./predictions');
+      return predictionsApi.getBoardExamPredictions();
+    },
+
+    markTaskComplete: async (taskId: number) => {
+      if (isDemoUser()) {
+        return Promise.resolve({ data: { id: taskId, completed: true } });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { predictionsApi } = require('./predictions');
+      return predictionsApi.markTaskComplete(taskId);
+    },
+
+    regenerateStudyPlan: async () => {
+      if (isDemoUser()) {
+        return Promise.resolve({ data: {} });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { predictionsApi } = require('./predictions');
+      return predictionsApi.regenerateStudyPlan();
+    },
   },
 
   parent: {

@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { studentApi } from '../../api/studentApi';
+import { isDemoUser, demoDataApi } from '../../api/demoDataApi';
 import { Subject } from '../../types/student';
 import { MainTabParamList } from '../../types/navigation';
 
@@ -29,11 +30,18 @@ export const StudyMaterialsScreen: React.FC = () => {
 
   const loadSubjects = async () => {
     try {
-      const data = await studentApi.getSubjects();
+      let data;
+      if (isDemoUser()) {
+        data = await demoDataApi.student.getSubjects();
+      } else {
+        data = await studentApi.getSubjects();
+      }
       setSubjects(data);
     } catch (error) {
       console.error('Error loading subjects:', error);
-      Alert.alert('Error', 'Failed to load subjects');
+      if (!isDemoUser()) {
+        Alert.alert('Error', 'Failed to load subjects');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
