@@ -2,23 +2,22 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Badge } from '@rneui/themed';
 import { useAppSelector } from '@store/hooks';
-import { UserRole } from '@types';
 import { COLORS, SPACING } from '@constants';
 
-const roleLabels: Record<UserRole, string> = {
-  [UserRole.STUDENT]: 'Student',
-  [UserRole.TEACHER]: 'Teacher',
-  [UserRole.PARENT]: 'Parent',
-  [UserRole.ADMIN]: 'Admin',
-  [UserRole.SUPER_ADMIN]: 'Super Admin',
+const roleLabels: Record<string, string> = {
+  student: 'Student',
+  teacher: 'Teacher',
+  parent: 'Parent',
+  admin: 'Admin',
+  super_admin: 'Super Admin',
 };
 
-const roleColors: Record<UserRole, string> = {
-  [UserRole.STUDENT]: '#3B82F6',
-  [UserRole.TEACHER]: '#8B5CF6',
-  [UserRole.PARENT]: '#10B981',
-  [UserRole.ADMIN]: '#F59E0B',
-  [UserRole.SUPER_ADMIN]: '#EF4444',
+const roleColors: Record<string, string> = {
+  student: '#3B82F6',
+  teacher: '#8B5CF6',
+  parent: '#10B981',
+  admin: '#F59E0B',
+  super_admin: '#EF4444',
 };
 
 export const RoleBadge: React.FC = () => {

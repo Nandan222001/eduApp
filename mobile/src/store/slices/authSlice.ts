@@ -18,6 +18,8 @@ const initialState: AuthState = {
   isLoading: false,
   error: null,
   biometricEnabled: false,
+  activeRole: null,
+  availableRoles: [],
 };
 
 export const login = createAsyncThunk(
@@ -202,6 +204,9 @@ const authSlice = createSlice({
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
     },
+    setActiveRole: (state, action: PayloadAction<string>) => {
+      state.activeRole = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -216,6 +221,11 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
         state.error = null;
+        // Set activeRole based on user's role
+        if (action.payload.user.role?.slug) {
+          state.activeRole = action.payload.user.role.slug;
+          state.availableRoles = [action.payload.user.role.slug];
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -245,6 +255,11 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
         state.error = null;
+        // Set activeRole based on user's role
+        if (action.payload.user.role?.slug) {
+          state.activeRole = action.payload.user.role.slug;
+          state.availableRoles = [action.payload.user.role.slug];
+        }
       })
       .addCase(verifyOTP.rejected, (state, action) => {
         state.isLoading = false;
@@ -262,6 +277,11 @@ const authSlice = createSlice({
         state.accessToken = action.payload.accessToken;
         state.refreshToken = action.payload.refreshToken;
         state.error = null;
+        // Set activeRole based on user's role
+        if (action.payload.user.role?.slug) {
+          state.activeRole = action.payload.user.role.slug;
+          state.availableRoles = [action.payload.user.role.slug];
+        }
       })
       .addCase(loginWithBiometric.rejected, (state, action) => {
         state.isLoading = false;
@@ -274,6 +294,8 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isLoading = false;
         state.error = null;
+        state.activeRole = null;
+        state.availableRoles = [];
       })
       .addCase(loadStoredAuth.pending, (state) => {
         state.isLoading = true;
@@ -286,6 +308,11 @@ const authSlice = createSlice({
           state.accessToken = action.payload.accessToken;
           state.refreshToken = action.payload.refreshToken;
           state.biometricEnabled = action.payload.biometricEnabled;
+          // Set activeRole based on user's role
+          if (action.payload.user.role?.slug) {
+            state.activeRole = action.payload.user.role.slug;
+            state.availableRoles = [action.payload.user.role.slug];
+          }
         }
       })
       .addCase(loadStoredAuth.rejected, (state) => {
@@ -301,5 +328,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, setUser } = authSlice.actions;
+export const { clearError, setUser, setActiveRole } = authSlice.actions;
 export default authSlice.reducer;

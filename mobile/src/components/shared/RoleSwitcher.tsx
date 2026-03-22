@@ -3,27 +3,26 @@ import { View, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-nat
 import { Text, Icon, Divider } from '@rneui/themed';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { setActiveRole } from '@store/slices/authSlice';
-import { UserRole } from '@types';
 import { COLORS, SPACING, BORDER_RADIUS } from '@constants';
 
 interface RoleSwitcherProps {
   showLabel?: boolean;
 }
 
-const roleLabels: Record<UserRole, string> = {
-  [UserRole.STUDENT]: 'Student',
-  [UserRole.TEACHER]: 'Teacher',
-  [UserRole.PARENT]: 'Parent',
-  [UserRole.ADMIN]: 'Admin',
-  [UserRole.SUPER_ADMIN]: 'Super Admin',
+const roleLabels: Record<string, string> = {
+  student: 'Student',
+  teacher: 'Teacher',
+  parent: 'Parent',
+  admin: 'Admin',
+  super_admin: 'Super Admin',
 };
 
-const roleIcons: Record<UserRole, { name: string; type: string }> = {
-  [UserRole.STUDENT]: { name: 'school', type: 'material' },
-  [UserRole.TEACHER]: { name: 'person', type: 'material' },
-  [UserRole.PARENT]: { name: 'people', type: 'material' },
-  [UserRole.ADMIN]: { name: 'admin-panel-settings', type: 'material' },
-  [UserRole.SUPER_ADMIN]: { name: 'supervised-user-circle', type: 'material' },
+const roleIcons: Record<string, { name: string; type: string }> = {
+  student: { name: 'school', type: 'material' },
+  teacher: { name: 'person', type: 'material' },
+  parent: { name: 'people', type: 'material' },
+  admin: { name: 'admin-panel-settings', type: 'material' },
+  super_admin: { name: 'supervised-user-circle', type: 'material' },
 };
 
 export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ showLabel = true }) => {
@@ -35,12 +34,12 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ showLabel = true }) 
     return null;
   }
 
-  const handleRoleSwitch = (role: UserRole) => {
+  const handleRoleSwitch = (role: string) => {
     dispatch(setActiveRole(role));
     setModalVisible(false);
   };
 
-  const currentRoleIcon = activeRole ? roleIcons[activeRole] : roleIcons[UserRole.STUDENT];
+  const currentRoleIcon = activeRole ? roleIcons[activeRole] : roleIcons['student'];
   const currentRoleLabel = activeRole ? roleLabels[activeRole] : '';
 
   return (
