@@ -39,7 +39,7 @@ function RootLayoutNav() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isLoading } = useAppSelector(state => state.auth);
+  const { isAuthenticated, isLoading, activeRole } = useAppSelector(state => state.auth);
 
   useEffect(() => {
     const initApp = async () => {
@@ -87,9 +87,17 @@ function RootLayoutNav() {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)/student');
+      if (activeRole === 'parent') {
+        router.replace('/(tabs)/parent');
+      } else if (activeRole === 'student') {
+        router.replace('/(tabs)/student');
+      } else if (activeRole) {
+        router.replace('/(tabs)/student');
+      } else {
+        router.replace('/(tabs)/student');
+      }
     }
-  }, [isAuthenticated, segments, isLoading]);
+  }, [isAuthenticated, activeRole, segments, isLoading, router]);
 
   if (isLoading) {
     return <Loading />;

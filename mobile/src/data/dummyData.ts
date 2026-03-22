@@ -151,7 +151,8 @@ export const demoStudentUser: DemoUser = {
     email_verified: true,
     last_login: new Date().toISOString(),
     permissions: ['view_profile', 'view_assignments', 'submit_assignment', 'view_grades', 'view_attendance'],
-    role: studentRole,
+    role: 'student' as any,
+    roleInfo: studentRole,
     institution: demoInstitution,
   },
   tokens: {
@@ -193,7 +194,8 @@ export const demoParentUser: DemoUser = {
     email_verified: true,
     last_login: new Date().toISOString(),
     permissions: ['view_children', 'view_attendance', 'view_grades', 'view_fees', 'communicate_teachers'],
-    role: parentRole,
+    role: 'parent' as any,
+    roleInfo: parentRole,
     institution: demoInstitution,
   },
   tokens: {
