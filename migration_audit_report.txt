@@ -1,0 +1,382 @@
+===================================================================================
+POSTGRESQL-SPECIFIC MIGRATION AUDIT REPORT
+===================================================================================
+Generated: 2024
+Total Migration Files Analyzed: 75+
+===================================================================================
+
+===================================================================================
+SUMMARY OF POSTGRESQL-SPECIFIC PATTERNS
+===================================================================================
+
+1. POSTGRESQL DIALECT IMPORTS: 54 files
+2. UUID COLUMNS: 0 files identified
+3. JSONB/JSON COLUMNS: 39 files
+4. ARRAY COLUMNS: 0 files identified (explicitly typed)
+5. POSTGRESQL ENUM TYPES (CREATE TYPE): 28 files
+6. GIN/GIST INDEXES: 0 files identified
+
+===================================================================================
+DETAILED FINDINGS BY FILE
+===================================================================================
+
+------------------------------------------------------------------------------------
+FILE: 001_add_dashboard_widgets.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - dashboard_widgets.config: sa.JSON() (line 36)
+  - widget_presets.default_config: sa.JSON() (line 63)
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - widgettype: ENUM with 20 values (lines 23-30, 50-57)
+  - widgetsize: ENUM('SMALL', 'MEDIUM', 'LARGE', 'FULL') (lines 34, 61)
+  - DROP TYPE statements in downgrade() (lines 83-84)
+GIN/GIST INDEXES: None
+NOTES: Uses sa.Enum() with name parameter, creating PostgreSQL native ENUMs
+
+------------------------------------------------------------------------------------
+FILE: 001_create_multi_tenant_schema.py
+------------------------------------------------------------------------------------
+IMPORTS: None (standard SQLAlchemy only)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - audit_logs.old_values: sa.JSON() (line 157)
+  - audit_logs.new_values: sa.JSON() (line 158)
+  - audit_logs.metadata: sa.JSON() (line 161)
+ARRAY COLUMNS: None
+ENUM TYPES: None (uses sa.String for status fields)
+GIN/GIST INDEXES: None
+NOTES: Uses standard SQLAlchemy types, JSON columns without explicit dialect
+
+------------------------------------------------------------------------------------
+FILE: 004_create_subscription_billing_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS: None (uses sa.Text() for metadata fields)
+ARRAY COLUMNS: None
+ENUM TYPES: None
+GIN/GIST INDEXES: None
+NOTES: Imports postgresql dialect but doesn't use any PostgreSQL-specific types
+
+------------------------------------------------------------------------------------
+FILE: 005_create_institution_management_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS: None (uses sa.Text() for settings/metadata fields)
+ARRAY COLUMNS: None
+ENUM TYPES: None
+GIN/GIST INDEXES: None
+NOTES: Imports postgresql dialect but doesn't use any PostgreSQL-specific types
+
+------------------------------------------------------------------------------------
+FILE: 007_create_attendance_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: None (standard SQLAlchemy only)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS: None
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - attendancestatus: ENUM('present', 'absent', 'late', 'half_day') (lines 25, 53, 54)
+  - correctionstatus: ENUM('pending', 'approved', 'rejected') (line 56)
+  - DROP TYPE statements in downgrade() (lines 130-131)
+GIN/GIST INDEXES: None
+NOTES: Uses sa.Enum() with name parameter for PostgreSQL native ENUMs
+
+------------------------------------------------------------------------------------
+FILE: 008_create_examination_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 13)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS: None
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - examtype: postgresql.ENUM('unit', 'mid_term', 'final', 'mock') (lines 22-23)
+  - examstatus: postgresql.ENUM('scheduled', 'ongoing', 'completed', 'cancelled') (lines 23-24)
+  - Both created with .create(op.get_bind(), checkfirst=True) (lines 25-26)
+  - DROP TYPE statements in downgrade() (lines 243-244)
+GIN/GIST INDEXES: None
+NOTES: Uses explicit postgresql.ENUM type creation
+
+------------------------------------------------------------------------------------
+FILE: 009_enhance_gamification_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects.postgresql import JSON (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - badges.criteria: JSON (line 28)
+  - user_badges.metadata: JSON (line 49)
+  - point_history.metadata: JSON (line 94)
+  - achievements.requirements: JSON (line 114)
+  - user_achievements.metadata: JSON (line 137)
+  - leaderboard_entries.metadata: JSON (line 191)
+  - streak_trackers.metadata: JSON (line 214)
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - badgetype: ENUM with 7 values (line 24)
+  - badgerarity: ENUM('common', 'rare', 'epic', 'legendary') (line 25)
+  - pointeventtype: ENUM with 10 values (line 89)
+  - achievementtype: ENUM with 8 values (line 111)
+  - leaderboardtype: ENUM('global', 'grade', 'section', 'subject', 'custom') (line 156)
+  - leaderboardperiod: ENUM('all_time', 'yearly', 'monthly', 'weekly', 'daily') (line 157)
+  - DROP TYPE statements in downgrade() (lines 289-294)
+GIN/GIST INDEXES: None
+NOTES: Uses imported JSON type from postgresql dialect
+
+------------------------------------------------------------------------------------
+FILE: 010_create_study_planner_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - study_plans.metadata: postgresql.JSON(astext_type=sa.Text()) (line 37)
+  - daily_study_tasks.metadata: postgresql.JSON(astext_type=sa.Text()) (line 110)
+  - study_progress.metadata: postgresql.JSON(astext_type=sa.Text()) (line 178)
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - studyplanstatus: ENUM('DRAFT', 'ACTIVE', 'COMPLETED', 'CANCELLED') (line 30)
+  - taskpriority: ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') (line 96)
+  - taskstatus: ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED', 'RESCHEDULED') (line 102)
+  - DROP TYPE statements in downgrade() (lines 200-202)
+GIN/GIST INDEXES: None
+NOTES: Uses postgresql.JSON with astext_type parameter
+
+------------------------------------------------------------------------------------
+FILE: 016_create_ml_training_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - ml_training_jobs.hyperparameters: postgresql.JSON(astext_type=sa.Text()) (line 37)
+  - ml_training_jobs.training_config: postgresql.JSON(astext_type=sa.Text()) (line 38)
+  - model_performance_metrics.metadata: postgresql.JSON(astext_type=sa.Text()) (line 77)
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - trainingjobtype: postgresql.ENUM('manual', 'scheduled', 'retraining') (lines 19-20)
+  - trainingstatus: postgresql.ENUM('pending', 'running', 'completed', 'failed', 'cancelled') (lines 22-23)
+  - Both created with .create(op.get_bind()) (lines 20, 23)
+  - Both dropped with .drop(op.get_bind()) in downgrade() (lines 126-130)
+GIN/GIST INDEXES: None
+NOTES: Uses explicit postgresql.ENUM type creation and deletion
+
+------------------------------------------------------------------------------------
+FILE: 017_create_adaptive_learning_path_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - learning_paths.personalization_metadata: postgresql.JSON(astext_type=sa.Text()) (line 43)
+  - topic_sequences.prerequisite_topic_ids: postgresql.JSON(astext_type=sa.Text()) (line 67)
+  - topic_performance_data.struggle_indicators: postgresql.JSON(astext_type=sa.Text()) (line 108)
+  - learning_milestones.required_topic_ids: postgresql.JSON(astext_type=sa.Text()) (line 131)
+  - learning_milestones.completion_criteria: postgresql.JSON(astext_type=sa.Text()) (line 134)
+  - difficulty_progressions.confidence_interval: postgresql.JSON(astext_type=sa.Text()) (line 246)
+  - learning_velocity_records.metrics: postgresql.JSON(astext_type=sa.Text()) (line 222)
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - difficultylevel: ENUM('beginner', 'elementary', 'intermediate', 'advanced', 'expert') (line 20)
+  - masterylevel: ENUM('not_started', 'learning', 'practicing', 'mastered', 'needs_review') (line 21)
+  - learningpathstatus: ENUM('active', 'completed', 'paused', 'abandoned') (line 22)
+  - milestonestatus: ENUM('locked', 'unlocked', 'in_progress', 'completed') (line 23)
+  - reviewpriority: ENUM('low', 'medium', 'high', 'critical') (line 24)
+  - Created with op.execute() CREATE TYPE statements (lines 19-25)
+  - Dropped with op.execute() DROP TYPE statements (lines 346-352)
+GIN/GIST INDEXES: None
+NOTES: Uses raw SQL for CREATE TYPE/DROP TYPE, multiple JSON columns
+
+------------------------------------------------------------------------------------
+FILE: 018_create_plagiarism_detection_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects.postgresql import JSON (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - plagiarism_checks.check_settings: JSON (line 34)
+  - plagiarism_results.external_source_info: JSON (line 61)
+  - plagiarism_results.anonymized_match_info: JSON (line 63)
+  - plagiarism_results.citation_info: JSON (line 65)
+  - plagiarism_match_segments.code_analysis: JSON (line 101)
+  - code_ast_fingerprints.ast_features: JSON (line 119)
+  - citation_patterns.reference_info: JSON (line 142)
+  - plagiarism_privacy_consents.privacy_settings: JSON (line 161)
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - contenttype: ENUM('TEXT', 'SOURCE_CODE', 'MIXED') (line 25)
+  - comparisonscope: ENUM('WITHIN_BATCH', 'CROSS_BATCH', 'CROSS_INSTITUTION', 'ALL') (line 26)
+  - plagiarismcheckstatus: ENUM('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED') (line 29)
+  - reviewdecision: ENUM('CONFIRMED_PLAGIARISM', 'FALSE_POSITIVE', 'LEGITIMATE_CITATION', 'NEEDS_INVESTIGATION', 'DISMISSED') (line 71)
+  - DROP TYPE statements in downgrade() (lines 181-184)
+GIN/GIST INDEXES: None
+NOTES: Uses imported JSON type from postgresql dialect, multiple ENUMs
+
+------------------------------------------------------------------------------------
+FILE: 037_add_volunteer_hours_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 11)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - volunteer_hour_logs.attachments: postgresql.JSON(astext_type=sa.Text()) (line 80)
+  - volunteer_hour_logs.metadata: postgresql.JSON(astext_type=sa.Text()) (line 81)
+  - parent_volunteer_badges.metadata: postgresql.JSON(astext_type=sa.Text()) (line 183)
+  - volunteer_certificates.metadata: postgresql.JSON(astext_type=sa.Text()) (line 254)
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - activitytype: ENUM('classroom_help', 'event_support', 'fundraising', 'field_trip_chaperone', 'committee_work') (lines 30-33)
+  - badgetier: ENUM('bronze', 'silver', 'gold', 'platinum') (line 43)
+  - verificationstatus: ENUM('pending', 'approved', 'rejected') (line 53)
+  - Created with op.execute() CREATE TYPE statements with existence checks (lines 24-54)
+  - Uses postgresql.ENUM with create_type=False to reference existing types (lines 70, 76)
+GIN/GIST INDEXES: None
+NOTES: Advanced pattern with type existence checking before creation
+
+------------------------------------------------------------------------------------
+FILE: create_nlp_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: None (standard SQLAlchemy only)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS: None (uses sa.Text() for JSON-like fields)
+ARRAY COLUMNS: None
+ENUM TYPES (CREATE TYPE):
+  - questiontype: ENUM with 7 values (lines 83-85)
+  - difficultylevel: ENUM('VERY_EASY', 'EASY', 'MEDIUM', 'HARD', 'VERY_HARD') (lines 86-87)
+  - bloomtaxonomylevel: ENUM('REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE') (lines 88-89)
+  - board: ENUM('CBSE', 'ICSE', 'STATE_BOARD', 'IB', 'CAMBRIDGE', 'OTHER') (lines 122-123)
+GIN/GIST INDEXES: None
+NOTES: Uses sa.Enum() with name parameter, stores complex data as Text
+
+------------------------------------------------------------------------------------
+FILE: add_search_tables.py
+------------------------------------------------------------------------------------
+IMPORTS: from sqlalchemy.dialects import postgresql (line 10)
+UUID COLUMNS: None
+JSON/JSONB COLUMNS:
+  - search_history.filters: sa.JSON() (line 28)
+ARRAY COLUMNS: None
+ENUM TYPES: None
+GIN/GIST INDEXES: None
+NOTES: Imports postgresql dialect but only uses standard JSON type
+
+------------------------------------------------------------------------------------
+ADDITIONAL FILES WITH POSTGRESQL PATTERNS (Summary):
+------------------------------------------------------------------------------------
+
+Files with postgresql dialect imports but minimal PostgreSQL-specific usage:
+- 015_add_ml_training_config.py: Empty upgrade/downgrade functions
+- create_performance_monitoring_tables.py: Uses postgresql.JSON
+- create_notification_tables.py: Uses postgresql.JSON, postgresql.ARRAY
+- create_analytics_tables.py: Uses postgresql.JSON
+- create_live_events_tables.py: Uses postgresql.JSON
+- add_wellbeing_system.py: Uses postgresql.JSON
+- add_virtual_classrooms.py: Uses postgresql.JSON, CREATE TYPE statements
+- add_user_settings_tables.py: Uses postgresql.JSON
+- add_push_devices_table.py: Uses postgresql.JSON
+- add_notification_devices_table.py: Uses postgresql.JSON
+- add_ml_prediction_tables.py: Uses postgresql.JSON, sa.Enum()
+- add_institution_health_tables.py: Uses postgresql.JSON
+- add_feedback_table.py: Uses postgresql.JSON
+- add_institution_branding.py: Uses postgresql.JSON, GIN index patterns
+- add_extended_branding_fields.py: Uses postgresql.JSON
+- add_digital_credentials.py: Uses postgresql.JSON, sa.Enum()
+- TEMPLATE_autogenerated_migration.py: Template with postgresql.ARRAY, postgresql.UUID examples
+- SAMPLE_add_volunteer_hours_tables.py: Sample with postgresql.JSON, postgresql.ENUM
+- 038_add_content_marketplace_tables.py: Uses postgresql.JSON, sa.Enum()
+- 035_enhance_wellbeing_conferences_roi.py: Uses postgresql.JSON
+- 033_create_reverse_classroom_tables.py: Uses postgresql.JSON
+- 034_create_subject_rpg_tables.py: Uses postgresql.JSON, sa.Enum(), CREATE TYPE
+- 032_create_mistake_analysis_tables.py: Uses postgresql.JSON
+- 031_create_olympics_tables.py: Uses sa.Enum(), CREATE TYPE
+- 030_create_homework_scanner_tables.py: Uses postgresql.JSON
+- 029_create_study_buddy_tables.py: Uses postgresql.JSON
+- 028_create_community_service_tables.py: Uses postgresql.JSON
+- 027_create_carpool_tables.py: Uses postgresql.JSON
+- 025_create_family_coordination_tables.py: Uses postgresql.JSON
+- 023_create_conference_tables.py: Uses postgresql.JSON
+- 021_create_merchandise_tables.py: Uses postgresql.JSON
+- 022_create_onboarding_tables.py: Uses postgresql.JSON
+- 019_create_career_pathway_tables.py: Uses postgresql.JSON, CREATE TYPE
+- 011_create_weakness_detection_tables.py: Uses postgresql.JSON
+- 013_create_parent_linking_tables.py: Uses postgresql dialect import
+- 015_add_user_device_table.py: Uses postgresql.JSON
+- 014_create_assignment_rubric_tables.py: Uses postgresql dialect import
+
+===================================================================================
+KEY POSTGRESQL-SPECIFIC PATTERNS IDENTIFIED
+===================================================================================
+
+1. ENUM TYPE CREATION PATTERNS:
+   - Pattern 1: sa.Enum() with name parameter (creates PostgreSQL ENUM)
+   - Pattern 2: postgresql.ENUM().create(op.get_bind())
+   - Pattern 3: op.execute("CREATE TYPE ... AS ENUM (...)")
+   - Pattern 4: postgresql.ENUM with create_type=False (references existing type)
+
+2. JSON/JSONB USAGE PATTERNS:
+   - Pattern 1: sa.JSON() (standard, may use PostgreSQL JSON)
+   - Pattern 2: postgresql.JSON(astext_type=sa.Text())
+   - Pattern 3: Imported JSON from sqlalchemy.dialects.postgresql
+
+3. ENUM CLEANUP PATTERNS:
+   - Pattern 1: op.execute('DROP TYPE IF EXISTS typename')
+   - Pattern 2: postgresql.ENUM().drop(op.get_bind())
+   - Pattern 3: Manual DROP TYPE in downgrade()
+
+4. COMMON ENUM TYPES ACROSS MIGRATIONS:
+   - Status-related: 'pending', 'approved', 'rejected', 'completed', 'failed'
+   - Difficulty levels: 'easy', 'medium', 'hard', 'beginner', 'advanced'
+   - Verification: 'pending', 'approved', 'rejected'
+   - Activity states: 'active', 'inactive', 'archived'
+
+===================================================================================
+MIGRATION COMPATIBILITY CONSIDERATIONS
+===================================================================================
+
+1. ENUM TYPE DEPENDENCIES:
+   - Some migrations share ENUM types (e.g., verificationstatus, difficultylevel)
+   - Migration 037 checks for type existence before creating
+   - Risk of conflicts if migrations run out of order
+
+2. JSON VS JSONB:
+   - Most migrations use generic JSON type
+   - No explicit JSONB usage found
+   - PostgreSQL will default to json type
+
+3. MISSING POSTGRESQL FEATURES:
+   - No UUID columns found in analyzed migrations
+   - No explicit ARRAY columns found (despite imports)
+   - No GIN or GIST indexes explicitly created
+   - No full-text search indexes
+
+4. ENUM CLEANUP ISSUES:
+   - Not all migrations use IF EXISTS in DROP TYPE statements
+   - Some migrations may fail on downgrade if types are shared
+   - Inconsistent patterns for type creation/deletion
+
+===================================================================================
+RECOMMENDATIONS
+===================================================================================
+
+1. STANDARDIZE ENUM CREATION:
+   - Use consistent pattern for ENUM creation across all migrations
+   - Always check for type existence before creating
+   - Document shared ENUM types in a central location
+
+2. CONSIDER JSONB:
+   - Evaluate switching from JSON to JSONB for better performance
+   - JSONB supports indexing and faster queries
+
+3. ADD INDEX OPTIMIZATIONS:
+   - Consider GIN indexes for JSON/JSONB columns with frequent queries
+   - Add GIN/GIST indexes for full-text search if needed
+
+4. IMPROVE DOWNGRADE SAFETY:
+   - Always use "DROP TYPE IF EXISTS" in downgrade functions
+   - Add dependency documentation for shared types
+
+5. UUID ADOPTION:
+   - Consider using UUID for distributed systems or external IDs
+   - Currently using Integer primary keys throughout
+
+===================================================================================
+END OF REPORT
+===================================================================================
