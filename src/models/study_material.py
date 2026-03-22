@@ -1,7 +1,6 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, BigInteger, Index, UniqueConstraint, Enum as SQLEnum, Numeric
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, BigInteger, Index, UniqueConstraint, Enum as SQLEnum, Numeric, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import ARRAY
 from enum import Enum
 from src.database import Base
 
@@ -43,7 +42,7 @@ class StudyMaterial(Base):
     view_count = Column(Integer, default=0, nullable=False)
     download_count = Column(Integer, default=0, nullable=False)
     
-    tags = Column(ARRAY(String), nullable=True)
+    tags = Column(JSON, nullable=True)
     is_public = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     
@@ -72,7 +71,7 @@ class StudyMaterial(Base):
         Index('idx_study_material_active', 'is_active'),
         Index('idx_study_material_public', 'is_public'),
         Index('idx_study_material_created', 'created_at'),
-        Index('idx_study_material_tags', 'tags', postgresql_using='gin'),
+        Index('idx_study_material_tags', 'tags'),
     )
 
 
@@ -217,7 +216,7 @@ class ExternalContent(Base):
     view_count = Column(Integer, default=0, nullable=False)
     recommendation_count = Column(Integer, default=0, nullable=False)
     
-    metadata_json = Column('metadata', ARRAY(String), nullable=True)
+    metadata_json = Column('metadata', JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
