@@ -1,7 +1,6 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Index, UniqueConstraint, Enum as SQLEnum, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Index, UniqueConstraint, Enum as SQLEnum, Float, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import ARRAY
 from enum import Enum
 from src.database import Base
 
@@ -44,9 +43,9 @@ class DoubtPost(Base):
     
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
-    images = Column(ARRAY(String), nullable=True)
-    tags = Column(ARRAY(String), nullable=True)
-    auto_generated_tags = Column(ARRAY(String), nullable=True)
+    images = Column(JSON, nullable=True)
+    tags = Column(JSON, nullable=True)
+    auto_generated_tags = Column(JSON, nullable=True)
     
     status = Column(SQLEnum(DoubtStatus), default=DoubtStatus.UNANSWERED, nullable=False, index=True)
     priority = Column(SQLEnum(DoubtPriority), default=DoubtPriority.MEDIUM, nullable=False, index=True)
@@ -95,8 +94,8 @@ class DoubtPost(Base):
         Index('idx_doubt_post_priority_score', 'priority_score'),
         Index('idx_doubt_post_assigned_teacher', 'assigned_teacher_id'),
         Index('idx_doubt_post_created', 'created_at'),
-        Index('idx_doubt_post_tags', 'tags', postgresql_using='gin'),
-        Index('idx_doubt_post_auto_tags', 'auto_generated_tags', postgresql_using='gin'),
+        Index('idx_doubt_post_tags', 'tags'),
+        Index('idx_doubt_post_auto_tags', 'auto_generated_tags'),
     )
 
 
@@ -109,7 +108,7 @@ class DoubtAnswer(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
     content = Column(Text, nullable=False)
-    images = Column(ARRAY(String), nullable=True)
+    images = Column(JSON, nullable=True)
     upvote_count = Column(Integer, default=0, nullable=False)
     downvote_count = Column(Integer, default=0, nullable=False)
     is_accepted = Column(Boolean, default=False, nullable=False)
