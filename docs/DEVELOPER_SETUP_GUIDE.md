@@ -57,17 +57,17 @@ curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 
-**PostgreSQL 14+**
+**MySQL 8.0+**
 ```bash
-# Windows: Download from postgresql.org
+# Windows: Download from mysql.com
 # macOS:
-brew install postgresql@14
+brew install mysql
 
 # Linux:
-sudo apt install postgresql-14
+sudo apt install mysql-server
 
 # Verify
-psql --version
+mysql --version
 ```
 
 **Redis 5.0+**
@@ -108,7 +108,7 @@ git config --global user.email "your.email@example.com"
 
 - **IDE:** Visual Studio Code, PyCharm, or similar
 - **API Testing:** Postman or Insomnia
-- **Database Client:** pgAdmin, DBeaver, or TablePlus
+- **Database Client:** MySQL Workbench, DBeaver, or TablePlus
 - **Redis Client:** RedisInsight or redis-cli
 
 ---
@@ -162,7 +162,7 @@ DEBUG=True
 SECRET_KEY=your-secret-key-here-generate-a-secure-one
 
 # Database
-DATABASE_URL=postgresql://postgres:password@localhost:5432/edu_platform_dev
+DATABASE_URL=mysql+pymysql://root:password@localhost:3306/edu_platform_dev?charset=utf8mb4
 DATABASE_POOL_SIZE=5
 DATABASE_MAX_OVERFLOW=10
 
@@ -375,8 +375,8 @@ frontend/
 ### Using Docker (Recommended)
 
 ```bash
-# Start PostgreSQL and Redis using Docker Compose
-docker-compose up -d postgres redis
+# Start MySQL and Redis using Docker Compose
+docker-compose up -d mysql redis
 
 # Verify containers are running
 docker-compose ps
@@ -388,17 +388,19 @@ docker-compose ps
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:14-alpine
-    container_name: edu_platform_postgres
+  mysql:
+    image: mysql:8.0
+    container_name: edu_platform_mysql
     environment:
-      POSTGRES_DB: edu_platform_dev
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: edu_platform_dev
+      MYSQL_USER: edu_user
+      MYSQL_PASSWORD: secure_password
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
   redis:
     image: redis:7-alpine
@@ -409,7 +411,7 @@ services:
       - redis_data:/data
 
 volumes:
-  postgres_data:
+  mysql_data:
   redis_data:
 ```
 
@@ -418,26 +420,27 @@ volumes:
 **Create Database:**
 
 ```bash
-# Login to PostgreSQL
-psql -U postgres
+# Login to MySQL
+mysql -u root -p
 
 # Create database
-CREATE DATABASE edu_platform_dev;
+CREATE DATABASE edu_platform_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 # Create user (if needed)
-CREATE USER edu_user WITH PASSWORD 'secure_password';
+CREATE USER 'edu_user'@'localhost' IDENTIFIED BY 'secure_password';
 
 # Grant privileges
-GRANT ALL PRIVILEGES ON DATABASE edu_platform_dev TO edu_user;
+GRANT ALL PRIVILEGES ON edu_platform_dev.* TO 'edu_user'@'localhost';
+FLUSH PRIVILEGES;
 
 # Exit
-\q
+EXIT;
 ```
 
 **Test Connection:**
 
 ```bash
-psql -U postgres -d edu_platform_dev -c "SELECT version();"
+mysql -u root -p -D edu_platform_dev -e "SELECT VERSION();"
 ```
 
 ### Database Migrations
@@ -478,16 +481,16 @@ alembic revision --autogenerate -m "Add new table"
 
 ```bash
 # Connect to database
-psql -U postgres -d edu_platform_dev
+mysql -u root -p -D edu_platform_dev
 
 # List tables
-\dt
+SHOW TABLES;
 
 # Describe table
-\d users
+DESCRIBE users;
 
 # Exit
-\q
+EXIT;
 ```
 
 ---
@@ -662,16 +665,18 @@ docker-compose down
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:14-alpine
+  mysql:
+    image: mysql:8.0
     environment:
-      POSTGRES_DB: edu_platform_dev
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: edu_platform_dev
+      MYSQL_USER: edu_user
+      MYSQL_PASSWORD: secure_password
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
   redis:
     image: redis:7-alpine
@@ -690,10 +695,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/edu_platform_dev
+      - DATABASE_URL=mysql+pymysql://edu_user:secure_password@mysql:3306/edu_platform_dev?charset=utf8mb4
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - postgres
+      - mysql
       - redis
 
   frontend:
@@ -719,15 +724,15 @@ services:
     volumes:
       - .:/app
     environment:
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/edu_platform_dev
+      - DATABASE_URL=mysql+pymysql://edu_user:secure_password@mysql:3306/edu_platform_dev?charset=utf8mb4
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
     depends_on:
-      - postgres
+      - mysql
       - redis
 
 volumes:
-  postgres_data:
+  mysql_data:
   redis_data:
 ```
 
@@ -1111,33 +1116,33 @@ engine = create_engine(
 )
 ```
 
-**PgAdmin:**
+**MySQL Workbench:**
 
-1. Open pgAdmin
-2. Create Server
-3. Connection: localhost:5432
+1. Open MySQL Workbench
+2. Create Connection
+3. Connection: localhost:3306
 4. View tables, run queries, analyze data
 
-**psql Commands:**
+**MySQL Commands:**
 
 ```sql
 -- List databases
-\l
+SHOW DATABASES;
 
 -- Connect to database
-\c edu_platform_dev
+USE edu_platform_dev;
 
 -- List tables
-\dt
+SHOW TABLES;
 
 -- Describe table
-\d users
+DESCRIBE users;
 
 -- Show table contents
 SELECT * FROM users LIMIT 10;
 
 -- Query execution plan
-EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'test@example.com';
+EXPLAIN SELECT * FROM users WHERE email = 'test@example.com';
 ```
 
 ---
@@ -1166,24 +1171,24 @@ poetry update
 
 **Check:**
 
-1. PostgreSQL is running
+1. MySQL is running
    ```bash
    # Docker
-   docker-compose ps postgres
+   docker-compose ps mysql
    
    # Service
-   sudo systemctl status postgresql
+   sudo systemctl status mysql
    ```
 
 2. Credentials are correct in `.env`
 3. Database exists
    ```bash
-   psql -U postgres -l
+   mysql -u root -p -e "SHOW DATABASES;"
    ```
 
 4. Port not already in use
    ```bash
-   lsof -i :5432
+   lsof -i :3306
    ```
 
 ### Issue: Migration Conflicts
@@ -1296,7 +1301,7 @@ poetry install
 cd frontend && npm install && cd ..
 
 # 3. Start services
-docker-compose up -d postgres redis
+docker-compose up -d mysql redis
 
 # 4. Run migrations
 poetry run alembic upgrade head
@@ -1322,6 +1327,7 @@ cd frontend && npm run dev
 - Alembic: https://alembic.sqlalchemy.org
 - Pydantic: https://docs.pydantic.dev
 - Next.js: https://nextjs.org/docs
+- MySQL: https://dev.mysql.com/doc/
 
 **Community:**
 - GitHub Issues: Report bugs and request features

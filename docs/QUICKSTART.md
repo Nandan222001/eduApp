@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Python 3.11+
-- PostgreSQL 14+
+- MySQL 8.0+
 - Redis 5.0+
 - Poetry (for dependency management)
 
@@ -31,9 +31,14 @@ cp .env.example .env
 ```
 
 Edit `.env` and configure:
-- Database credentials
+- Database credentials (MySQL connection string)
 - Redis credentials
 - SECRET_KEY (generate a secure random key)
+
+Example database URL:
+```ini
+DATABASE_URL=mysql+pymysql://root:password@localhost:3306/edu_platform_dev?charset=utf8mb4
+```
 
 5. **Start services with Docker Compose**
 ```bash
@@ -41,7 +46,7 @@ docker-compose up -d
 ```
 
 This will start:
-- PostgreSQL on port 5432
+- MySQL on port 3306
 - Redis on port 6379
 
 6. **Run database migrations**
@@ -50,11 +55,12 @@ alembic upgrade head
 ```
 
 This creates:
-- All database tables
-- Multi-tenant schema with RLS policies
+- All database tables with InnoDB engine
+- Multi-tenant schema with proper indexes
 - Permissions and roles seed data
 - Password reset tokens table
-- Audit logging triggers
+- Audit logging infrastructure
+- UTF-8 character set (utf8mb4) configuration
 
 7. **Create an admin user**
 ```bash
@@ -318,9 +324,9 @@ if has_permission(user, "data:export"):
 ## Troubleshooting
 
 ### Database Connection Issues
-- Verify PostgreSQL is running: `docker-compose ps`
+- Verify MySQL is running: `docker-compose ps`
 - Check credentials in `.env`
-- Test connection: `psql -h localhost -U postgres -d fastapi_db`
+- Test connection: `mysql -h localhost -u root -p -D edu_platform_dev`
 
 ### Redis Connection Issues
 - Verify Redis is running: `docker-compose ps`

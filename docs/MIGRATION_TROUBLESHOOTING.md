@@ -55,6 +55,8 @@ please specify a specific target revision, '<branchname>@head' to narrow to a sp
 or 'heads' for all heads
 ```
 
+**Note:** This issue is database-agnostic and applies equally to MySQL and other databases.
+
 **Root Cause:**
 Multiple migration files used the same revision identifier, creating conflicting branches in the migration chain.
 
@@ -76,8 +78,8 @@ Multiple migration files used the same revision identifier, creating conflicting
 
 **Error Message:**
 ```
-sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) 
-relation "volunteer_hour_logs" does not exist
+sqlalchemy.exc.ProgrammingError: (pymysql.err.ProgrammingError) 
+(1146, "Table 'edu_platform.volunteer_hour_logs' doesn't exist")
 ```
 
 **Root Cause:**
@@ -113,10 +115,10 @@ SQLAlchemy models were created without corresponding migration files, causing th
 
 **Error Message:**
 ```
-sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation) 
-insert or update on table "volunteer_hour_logs" violates foreign key constraint 
-"fk_volunteer_hour_logs_parent_id"
-DETAIL: Key (parent_id)=(123) is not present in table "parents".
+sqlalchemy.exc.IntegrityError: (pymysql.err.IntegrityError) 
+(1452, 'Cannot add or update a child row: a foreign key constraint fails 
+(`edu_platform`.`volunteer_hour_logs`, CONSTRAINT `fk_volunteer_hour_logs_parent_id` 
+FOREIGN KEY (`parent_id`) REFERENCES `parents` (`id`))')
 ```
 
 **Root Cause:**
@@ -161,8 +163,9 @@ DETAIL: Key (parent_id)=(123) is not present in table "parents".
 
 **Error Message:**
 ```
-sqlalchemy.exc.ProgrammingError: (psycopg2.errors.DuplicateObject) 
-type "verificationstatus" already exists
+Note: MySQL doesn't use enum types like PostgreSQL. 
+In MySQL, ENUMs are column-level constraints, not separate database objects.
+This error is less common in MySQL but may appear during schema synchronization.
 ```
 
 **Root Cause:**
@@ -1114,22 +1117,30 @@ aws rds create-db-snapshot \
     --db-snapshot-identifier pre-migration-$(date +%Y%m%d-%H%M%S)
 
 # Logical Backup
-pg_dump -Fc $DATABASE_URL > backup_$(date +%Y%m%d-%H%M%S).dump
+mysqldump -h ${DB_HOST} -u ${DB_USER} -p \
+  --single-transaction --routines --triggers \
+  edu_platform_prod | gzip > backup_$(date +%Y%m%d-%H%M%S).sql.gz
 
 # Upload to S3
-aws s3 cp backup_*.dump s3://$BACKUP_BUCKET/migrations/
+aws s3 cp backup_*.sql.gz s3://$BACKUP_BUCKET/migrations/
 ```
 
 **Manual Backup:**
 ```bash
 # Full backup
-pg_dump -Fc -h localhost -U user -d database > backup.dump
+mysqldump -h ${DB_HOST} -u ${DB_USER} -p \
+  --single-transaction --routines --triggers \
+  edu_platform_prod > backup.sql
 
 # Schema only
-pg_dump -s -h localhost -U user -d database > schema.sql
+mysqldump -h ${DB_HOST} -u ${DB_USER} -p \
+  --no-data --routines --triggers \
+  edu_platform_prod > schema.sql
 
 # Data only
-pg_dump -a -h localhost -U user -d database > data.sql
+mysqldump -h ${DB_HOST} -u ${DB_USER} -p \
+  --no-create-info \
+  edu_platform_prod > data.sql
 ```
 
 ---

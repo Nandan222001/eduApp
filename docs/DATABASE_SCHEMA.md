@@ -20,11 +20,12 @@ Complete database schema documentation with ER diagrams and table descriptions f
 ## 1. Overview
 
 ### Database Technology
-- **DBMS:** PostgreSQL 14+
+- **DBMS:** MySQL 8.0+
 - **ORM:** SQLAlchemy 2.0
 - **Migrations:** Alembic
-- **Charset:** UTF-8
+- **Charset:** UTF-8 (utf8mb4)
 - **Timezone:** UTC (all timestamps)
+- **Storage Engine:** InnoDB
 
 ### Design Principles
 - Multi-tenant architecture with institution isolation
@@ -217,7 +218,7 @@ Multi-tenant base table for educational institutions.
 
 ```sql
 CREATE TABLE institutions (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(255) NOT NULL,
@@ -230,18 +231,17 @@ CREATE TABLE institutions (
     timezone VARCHAR(50) DEFAULT 'UTC',
     logo_url TEXT,
     is_active BOOLEAN DEFAULT TRUE,
-    settings JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_institutions_slug ON institutions(slug);
-CREATE INDEX idx_institutions_is_active ON institutions(is_active);
+    settings JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    INDEX idx_institutions_slug (slug),
+    INDEX idx_institutions_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Columns:**
-- `id`: Primary key
+- `id`: Primary key (auto-increment)
 - `slug`: URL-friendly unique identifier
 - `settings`: JSON configuration (theme, features enabled, etc.)
 - `deleted_at`: Soft delete timestamp
@@ -252,28 +252,29 @@ Core user authentication and profile table.
 
 ```sql
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
     profile_picture_url TEXT,
-    role_id INTEGER NOT NULL REFERENCES roles(id),
+    role_id INT NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     is_verified BOOLEAN DEFAULT FALSE,
-    email_verified_at TIMESTAMP WITH TIME ZONE,
-    last_login_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(institution_id, email)
-);
-
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_institution ON users(institution_id);
-CREATE INDEX idx_users_role ON users(role_id);
-CREATE INDEX idx_users_is_active ON users(is_active);
+    email_verified_at TIMESTAMP NULL,
+    last_login_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (role_id) REFERENCES roles(id),
+    UNIQUE KEY unique_institution_email (institution_id, email),
+    INDEX idx_users_email (email),
+    INDEX idx_users_institution (institution_id),
+    INDEX idx_users_role (role_id),
+    INDEX idx_users_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Columns:**
@@ -287,14 +288,14 @@ Role-based access control.
 
 ```sql
 CREATE TABLE roles (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) UNIQUE NOT NULL,
     display_name VARCHAR(100) NOT NULL,
     description TEXT,
     is_system BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Seed data
 INSERT INTO roles (name, display_name, is_system) VALUES
@@ -311,20 +312,22 @@ Granular permission system.
 
 ```sql
 CREATE TABLE permissions (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
     display_name VARCHAR(150) NOT NULL,
     description TEXT,
     resource VARCHAR(50) NOT NULL,
     action VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE role_permissions (
-    role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
-    PRIMARY KEY (role_id, permission_id)
-);
+    role_id INT NOT NULL,
+    permission_id INT NOT NULL,
+    PRIMARY KEY (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Example Permissions:**
@@ -338,22 +341,23 @@ Comprehensive audit trail.
 
 ```sql
 CREATE TABLE audit_logs (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    user_id INTEGER REFERENCES users(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    user_id INT,
     action VARCHAR(50) NOT NULL,
     resource_type VARCHAR(50) NOT NULL,
-    resource_id INTEGER,
-    details JSONB,
+    resource_id INT,
+    details JSON,
     ip_address VARCHAR(45),
     user_agent TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_audit_logs_institution ON audit_logs(institution_id);
-CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
-CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_audit_logs_institution (institution_id),
+    INDEX idx_audit_logs_user (user_id),
+    INDEX idx_audit_logs_resource (resource_type, resource_id),
+    INDEX idx_audit_logs_created (created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Actions:** `CREATE`, `UPDATE`, `DELETE`, `LOGIN`, `LOGOUT`, `VIEW`, `EXPORT`
@@ -368,18 +372,18 @@ Academic year periods.
 
 ```sql
 CREATE TABLE academic_years (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     is_current BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(institution_id, name)
-);
-
-CREATE INDEX idx_academic_years_current ON academic_years(institution_id, is_current);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    UNIQUE KEY unique_institution_name (institution_id, name),
+    INDEX idx_academic_years_current (institution_id, is_current)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### grades
@@ -388,19 +392,20 @@ Class/Grade levels (e.g., Grade 10, Class 12).
 
 ```sql
 CREATE TABLE grades (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    academic_year_id INTEGER REFERENCES academic_years(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    academic_year_id INT,
     name VARCHAR(100) NOT NULL,
-    level INTEGER NOT NULL,
+    level INT NOT NULL,
     description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_grades_institution ON grades(institution_id);
-CREATE INDEX idx_grades_level ON grades(level);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (academic_year_id) REFERENCES academic_years(id),
+    INDEX idx_grades_institution (institution_id),
+    INDEX idx_grades_level (level)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### sections
@@ -409,21 +414,23 @@ Divisions within a grade (e.g., Section A, Section B).
 
 ```sql
 CREATE TABLE sections (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    grade_id INTEGER NOT NULL REFERENCES grades(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    grade_id INT NOT NULL,
     name VARCHAR(50) NOT NULL,
-    capacity INTEGER DEFAULT 40,
-    class_teacher_id INTEGER REFERENCES teachers(id),
+    capacity INT DEFAULT 40,
+    class_teacher_id INT,
     room_number VARCHAR(20),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(grade_id, name)
-);
-
-CREATE INDEX idx_sections_grade ON sections(grade_id);
-CREATE INDEX idx_sections_teacher ON sections(class_teacher_id);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (grade_id) REFERENCES grades(id),
+    FOREIGN KEY (class_teacher_id) REFERENCES teachers(id),
+    UNIQUE KEY unique_grade_name (grade_id, name),
+    INDEX idx_sections_grade (grade_id),
+    INDEX idx_sections_teacher (class_teacher_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### subjects
@@ -432,20 +439,20 @@ Subjects taught in the institution.
 
 ```sql
 CREATE TABLE subjects (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     code VARCHAR(20),
     description TEXT,
-    credit_hours INTEGER DEFAULT 0,
+    credit_hours INT DEFAULT 0,
     is_elective BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_subjects_institution ON subjects(institution_id);
-CREATE INDEX idx_subjects_code ON subjects(code);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    INDEX idx_subjects_institution (institution_id),
+    INDEX idx_subjects_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### grade_subjects
@@ -454,14 +461,16 @@ Many-to-many relationship between grades and subjects.
 
 ```sql
 CREATE TABLE grade_subjects (
-    id SERIAL PRIMARY KEY,
-    grade_id INTEGER NOT NULL REFERENCES grades(id),
-    subject_id INTEGER NOT NULL REFERENCES subjects(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    grade_id INT NOT NULL,
+    subject_id INT NOT NULL,
     is_mandatory BOOLEAN DEFAULT TRUE,
-    weekly_periods INTEGER DEFAULT 5,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(grade_id, subject_id)
-);
+    weekly_periods INT DEFAULT 5,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (grade_id) REFERENCES grades(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    UNIQUE KEY unique_grade_subject (grade_id, subject_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### chapters
@@ -470,17 +479,17 @@ Subject chapters/units.
 
 ```sql
 CREATE TABLE chapters (
-    id SERIAL PRIMARY KEY,
-    subject_id INTEGER NOT NULL REFERENCES subjects(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    subject_id INT NOT NULL,
     name VARCHAR(200) NOT NULL,
-    chapter_number INTEGER NOT NULL,
+    chapter_number INT NOT NULL,
     description TEXT,
-    estimated_hours INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_chapters_subject ON chapters(subject_id);
+    estimated_hours INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    INDEX idx_chapters_subject (subject_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### topics
@@ -489,18 +498,18 @@ Topics within chapters.
 
 ```sql
 CREATE TABLE topics (
-    id SERIAL PRIMARY KEY,
-    chapter_id INTEGER NOT NULL REFERENCES chapters(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    chapter_id INT NOT NULL,
     name VARCHAR(200) NOT NULL,
-    topic_number NUMERIC(5,2),
+    topic_number DECIMAL(5,2),
     description TEXT,
-    learning_outcomes TEXT[],
+    learning_outcomes JSON,
     difficulty_level VARCHAR(20),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_topics_chapter ON topics(chapter_id);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (chapter_id) REFERENCES chapters(id),
+    INDEX idx_topics_chapter (chapter_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
@@ -513,24 +522,25 @@ Teacher profiles.
 
 ```sql
 CREATE TABLE teachers (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    user_id INT NOT NULL,
     employee_id VARCHAR(50) UNIQUE,
     department VARCHAR(100),
     designation VARCHAR(100),
     qualification VARCHAR(255),
     specialization TEXT,
     joining_date DATE,
-    experience_years INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(institution_id, employee_id)
-);
-
-CREATE INDEX idx_teachers_user ON teachers(user_id);
-CREATE INDEX idx_teachers_institution ON teachers(institution_id);
+    experience_years INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_institution_employee (institution_id, employee_id),
+    INDEX idx_teachers_user (user_id),
+    INDEX idx_teachers_institution (institution_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### teacher_subjects
@@ -539,15 +549,20 @@ Subjects assigned to teachers.
 
 ```sql
 CREATE TABLE teacher_subjects (
-    id SERIAL PRIMARY KEY,
-    teacher_id INTEGER NOT NULL REFERENCES teachers(id),
-    subject_id INTEGER NOT NULL REFERENCES subjects(id),
-    grade_id INTEGER REFERENCES grades(id),
-    section_id INTEGER REFERENCES sections(id),
-    academic_year_id INTEGER REFERENCES academic_years(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(teacher_id, subject_id, grade_id, section_id, academic_year_id)
-);
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    teacher_id INT NOT NULL,
+    subject_id INT NOT NULL,
+    grade_id INT,
+    section_id INT,
+    academic_year_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    FOREIGN KEY (grade_id) REFERENCES grades(id),
+    FOREIGN KEY (section_id) REFERENCES sections(id),
+    FOREIGN KEY (academic_year_id) REFERENCES academic_years(id),
+    UNIQUE KEY unique_teacher_assignment (teacher_id, subject_id, grade_id, section_id, academic_year_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### students
@@ -556,14 +571,14 @@ Student profiles.
 
 ```sql
 CREATE TABLE students (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    user_id INT NOT NULL,
     admission_number VARCHAR(50) NOT NULL,
     roll_number VARCHAR(50),
-    grade_id INTEGER NOT NULL REFERENCES grades(id),
-    section_id INTEGER NOT NULL REFERENCES sections(id),
-    academic_year_id INTEGER REFERENCES academic_years(id),
+    grade_id INT NOT NULL,
+    section_id INT NOT NULL,
+    academic_year_id INT,
     date_of_birth DATE,
     gender VARCHAR(20),
     blood_group VARCHAR(5),
@@ -575,15 +590,19 @@ CREATE TABLE students (
     previous_school VARCHAR(255),
     medical_conditions TEXT,
     special_needs TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(institution_id, admission_number)
-);
-
-CREATE INDEX idx_students_user ON students(user_id);
-CREATE INDEX idx_students_grade_section ON students(grade_id, section_id);
-CREATE INDEX idx_students_admission ON students(admission_number);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (grade_id) REFERENCES grades(id),
+    FOREIGN KEY (section_id) REFERENCES sections(id),
+    FOREIGN KEY (academic_year_id) REFERENCES academic_years(id),
+    UNIQUE KEY unique_institution_admission (institution_id, admission_number),
+    INDEX idx_students_user (user_id),
+    INDEX idx_students_grade_section (grade_id, section_id),
+    INDEX idx_students_admission (admission_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### assignments
@@ -592,33 +611,36 @@ Homework and assignments.
 
 ```sql
 CREATE TABLE assignments (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    subject_id INTEGER NOT NULL REFERENCES subjects(id),
-    grade_id INTEGER NOT NULL REFERENCES grades(id),
-    assigned_by INTEGER NOT NULL REFERENCES teachers(id),
-    published_date TIMESTAMP WITH TIME ZONE,
-    due_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    total_marks INTEGER NOT NULL,
-    passing_marks INTEGER,
+    subject_id INT NOT NULL,
+    grade_id INT NOT NULL,
+    assigned_by INT NOT NULL,
+    published_date TIMESTAMP,
+    due_date TIMESTAMP NOT NULL,
+    total_marks INT NOT NULL,
+    passing_marks INT,
     allow_late_submission BOOLEAN DEFAULT FALSE,
-    late_penalty_percent NUMERIC(5,2) DEFAULT 0,
+    late_penalty_percent DECIMAL(5,2) DEFAULT 0,
     allow_resubmission BOOLEAN DEFAULT FALSE,
     instructions TEXT,
-    rubric JSONB,
+    rubric JSON,
     status VARCHAR(20) DEFAULT 'draft',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_assignments_subject ON assignments(subject_id);
-CREATE INDEX idx_assignments_grade ON assignments(grade_id);
-CREATE INDEX idx_assignments_teacher ON assignments(assigned_by);
-CREATE INDEX idx_assignments_due_date ON assignments(due_date);
-CREATE INDEX idx_assignments_status ON assignments(status);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    FOREIGN KEY (grade_id) REFERENCES grades(id),
+    FOREIGN KEY (assigned_by) REFERENCES teachers(id),
+    INDEX idx_assignments_subject (subject_id),
+    INDEX idx_assignments_grade (grade_id),
+    INDEX idx_assignments_teacher (assigned_by),
+    INDEX idx_assignments_due_date (due_date),
+    INDEX idx_assignments_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Status Values:** `draft`, `published`, `closed`, `graded`
@@ -629,16 +651,16 @@ Files attached to assignments.
 
 ```sql
 CREATE TABLE assignment_files (
-    id SERIAL PRIMARY KEY,
-    assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id INT NOT NULL,
     filename VARCHAR(255) NOT NULL,
     file_url TEXT NOT NULL,
     file_size BIGINT,
     mime_type VARCHAR(100),
-    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_assignment_files_assignment ON assignment_files(assignment_id);
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+    INDEX idx_assignment_files_assignment (assignment_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### submissions
@@ -647,26 +669,28 @@ Student assignment submissions.
 
 ```sql
 CREATE TABLE submissions (
-    id SERIAL PRIMARY KEY,
-    assignment_id INTEGER NOT NULL REFERENCES assignments(id),
-    student_id INTEGER NOT NULL REFERENCES students(id),
-    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id INT NOT NULL,
+    student_id INT NOT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_late BOOLEAN DEFAULT FALSE,
-    marks_obtained NUMERIC(5,2),
+    marks_obtained DECIMAL(5,2),
     feedback TEXT,
-    graded_by INTEGER REFERENCES teachers(id),
-    graded_at TIMESTAMP WITH TIME ZONE,
+    graded_by INT,
+    graded_at TIMESTAMP,
     status VARCHAR(20) DEFAULT 'submitted',
     comments TEXT,
-    attempt_number INTEGER DEFAULT 1,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(assignment_id, student_id, attempt_number)
-);
-
-CREATE INDEX idx_submissions_assignment ON submissions(assignment_id);
-CREATE INDEX idx_submissions_student ON submissions(student_id);
-CREATE INDEX idx_submissions_status ON submissions(status);
+    attempt_number INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (assignment_id) REFERENCES assignments(id),
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (graded_by) REFERENCES teachers(id),
+    UNIQUE KEY unique_assignment_student_attempt (assignment_id, student_id, attempt_number),
+    INDEX idx_submissions_assignment (assignment_id),
+    INDEX idx_submissions_student (student_id),
+    INDEX idx_submissions_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Status Values:** `submitted`, `grading`, `graded`, `returned`
@@ -677,16 +701,16 @@ Files submitted by students.
 
 ```sql
 CREATE TABLE submission_files (
-    id SERIAL PRIMARY KEY,
-    submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    submission_id INT NOT NULL,
     filename VARCHAR(255) NOT NULL,
     file_url TEXT NOT NULL,
     file_size BIGINT,
     mime_type VARCHAR(100),
-    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_submission_files_submission ON submission_files(submission_id);
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+    INDEX idx_submission_files_submission (submission_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### exams
@@ -695,24 +719,26 @@ Examinations and tests.
 
 ```sql
 CREATE TABLE exams (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
     name VARCHAR(255) NOT NULL,
     exam_type VARCHAR(50) NOT NULL,
-    academic_year_id INTEGER NOT NULL REFERENCES academic_years(id),
-    grade_id INTEGER NOT NULL REFERENCES grades(id),
+    academic_year_id INT NOT NULL,
+    grade_id INT NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     description TEXT,
     status VARCHAR(20) DEFAULT 'scheduled',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_exams_grade ON exams(grade_id);
-CREATE INDEX idx_exams_academic_year ON exams(academic_year_id);
-CREATE INDEX idx_exams_status ON exams(status);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (academic_year_id) REFERENCES academic_years(id),
+    FOREIGN KEY (grade_id) REFERENCES grades(id),
+    INDEX idx_exams_grade (grade_id),
+    INDEX idx_exams_academic_year (academic_year_id),
+    INDEX idx_exams_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Exam Types:** `unit_test`, `mid_term`, `final`, `board`, `mock`  
@@ -724,23 +750,25 @@ Subjects included in an exam.
 
 ```sql
 CREATE TABLE exam_subjects (
-    id SERIAL PRIMARY KEY,
-    exam_id INTEGER NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
-    subject_id INTEGER NOT NULL REFERENCES subjects(id),
-    max_marks INTEGER NOT NULL,
-    passing_marks INTEGER NOT NULL,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_id INT NOT NULL,
+    subject_id INT NOT NULL,
+    max_marks INT NOT NULL,
+    passing_marks INT NOT NULL,
     exam_date DATE,
     start_time TIME,
     end_time TIME,
-    duration_minutes INTEGER,
+    duration_minutes INT,
     room_number VARCHAR(20),
-    invigilator_id INTEGER REFERENCES teachers(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(exam_id, subject_id)
-);
-
-CREATE INDEX idx_exam_subjects_exam ON exam_subjects(exam_id);
-CREATE INDEX idx_exam_subjects_subject ON exam_subjects(subject_id);
+    invigilator_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    FOREIGN KEY (invigilator_id) REFERENCES teachers(id),
+    UNIQUE KEY unique_exam_subject (exam_id, subject_id),
+    INDEX idx_exam_subjects_exam (exam_id),
+    INDEX idx_exam_subjects_subject (subject_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### exam_marks
@@ -749,20 +777,22 @@ Marks obtained by students in exams.
 
 ```sql
 CREATE TABLE exam_marks (
-    id SERIAL PRIMARY KEY,
-    exam_subject_id INTEGER NOT NULL REFERENCES exam_subjects(id),
-    student_id INTEGER NOT NULL REFERENCES students(id),
-    marks_obtained NUMERIC(5,2) NOT NULL,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_subject_id INT NOT NULL,
+    student_id INT NOT NULL,
+    marks_obtained DECIMAL(5,2) NOT NULL,
     is_absent BOOLEAN DEFAULT FALSE,
     remarks TEXT,
-    entered_by INTEGER REFERENCES teachers(id),
-    entered_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(exam_subject_id, student_id)
-);
-
-CREATE INDEX idx_exam_marks_exam_subject ON exam_marks(exam_subject_id);
-CREATE INDEX idx_exam_marks_student ON exam_marks(student_id);
+    entered_by INT,
+    entered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (exam_subject_id) REFERENCES exam_subjects(id),
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (entered_by) REFERENCES teachers(id),
+    UNIQUE KEY unique_exam_subject_student (exam_subject_id, student_id),
+    INDEX idx_exam_marks_exam_subject (exam_subject_id),
+    INDEX idx_exam_marks_student (student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### attendance
@@ -771,25 +801,29 @@ Daily attendance records.
 
 ```sql
 CREATE TABLE attendance (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    student_id INTEGER NOT NULL REFERENCES students(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    student_id INT NOT NULL,
     date DATE NOT NULL,
-    section_id INTEGER REFERENCES sections(id),
-    subject_id INTEGER REFERENCES subjects(id),
-    period INTEGER,
+    section_id INT,
+    subject_id INT,
+    period INT,
     status VARCHAR(20) NOT NULL,
-    marked_by INTEGER REFERENCES teachers(id),
+    marked_by INT,
     reason TEXT,
-    minutes_late INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(student_id, date, subject_id, period)
-);
-
-CREATE INDEX idx_attendance_student_date ON attendance(student_id, date);
-CREATE INDEX idx_attendance_section_date ON attendance(section_id, date);
-CREATE INDEX idx_attendance_status ON attendance(status);
+    minutes_late INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (section_id) REFERENCES sections(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    FOREIGN KEY (marked_by) REFERENCES teachers(id),
+    UNIQUE KEY unique_student_date_subject_period (student_id, date, subject_id, period),
+    INDEX idx_attendance_student_date (student_id, date),
+    INDEX idx_attendance_section_date (section_id, date),
+    INDEX idx_attendance_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Status Values:** `present`, `absent`, `late`, `excused`, `medical_leave`
@@ -804,23 +838,24 @@ System and user notifications.
 
 ```sql
 CREATE TABLE notifications (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    user_id INTEGER REFERENCES users(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    user_id INT,
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     notification_type VARCHAR(50) NOT NULL,
     priority VARCHAR(20) DEFAULT 'medium',
     is_read BOOLEAN DEFAULT FALSE,
-    read_at TIMESTAMP WITH TIME ZONE,
-    data JSONB,
-    expires_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_notifications_user ON notifications(user_id, is_read);
-CREATE INDEX idx_notifications_type ON notifications(notification_type);
-CREATE INDEX idx_notifications_created ON notifications(created_at DESC);
+    read_at TIMESTAMP NULL,
+    data JSON,
+    expires_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_notifications_user (user_id, is_read),
+    INDEX idx_notifications_type (notification_type),
+    INDEX idx_notifications_created (created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Types:** `assignment`, `grade`, `attendance`, `exam`, `announcement`, `message`  
@@ -832,26 +867,29 @@ Institution-wide or class-specific announcements.
 
 ```sql
 CREATE TABLE announcements (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
-    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_by INT NOT NULL,
     audience_type VARCHAR(50) NOT NULL,
-    target_grade_id INTEGER REFERENCES grades(id),
-    target_section_id INTEGER REFERENCES sections(id),
+    target_grade_id INT,
+    target_section_id INT,
     priority VARCHAR(20) DEFAULT 'medium',
-    published_at TIMESTAMP WITH TIME ZONE,
-    expires_at TIMESTAMP WITH TIME ZONE,
-    attachment_urls TEXT[],
+    published_at TIMESTAMP,
+    expires_at TIMESTAMP,
+    attachment_urls JSON,
     is_pinned BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_announcements_institution ON announcements(institution_id);
-CREATE INDEX idx_announcements_published ON announcements(published_at DESC);
-CREATE INDEX idx_announcements_audience ON announcements(audience_type);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (target_grade_id) REFERENCES grades(id),
+    FOREIGN KEY (target_section_id) REFERENCES sections(id),
+    INDEX idx_announcements_institution (institution_id),
+    INDEX idx_announcements_published (published_at DESC),
+    INDEX idx_announcements_audience (audience_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Audience Types:** `all`, `students`, `teachers`, `parents`, `grade`, `section`
@@ -862,23 +900,26 @@ Direct messaging between users.
 
 ```sql
 CREATE TABLE messages (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    sender_id INTEGER NOT NULL REFERENCES users(id),
-    recipient_id INTEGER NOT NULL REFERENCES users(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    recipient_id INT NOT NULL,
     subject VARCHAR(255),
     body TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
-    read_at TIMESTAMP WITH TIME ZONE,
-    parent_message_id INTEGER REFERENCES messages(id),
-    attachment_urls TEXT[],
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_messages_sender ON messages(sender_id);
-CREATE INDEX idx_messages_recipient ON messages(recipient_id, is_read);
-CREATE INDEX idx_messages_thread ON messages(parent_message_id);
+    read_at TIMESTAMP NULL,
+    parent_message_id INT,
+    attachment_urls JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (recipient_id) REFERENCES users(id),
+    FOREIGN KEY (parent_message_id) REFERENCES messages(id),
+    INDEX idx_messages_sender (sender_id),
+    INDEX idx_messages_recipient (recipient_id, is_read),
+    INDEX idx_messages_thread (parent_message_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
@@ -891,20 +932,20 @@ Achievement badges.
 
 ```sql
 CREATE TABLE badges (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER REFERENCES institutions(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     icon_url TEXT,
     badge_type VARCHAR(50) NOT NULL,
     rarity VARCHAR(20) DEFAULT 'common',
-    criteria JSONB,
-    points_value INTEGER DEFAULT 0,
+    criteria JSON,
+    points_value INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_badges_type ON badges(badge_type);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    INDEX idx_badges_type (badge_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Badge Types:** `academic`, `attendance`, `participation`, `leadership`, `special`  
@@ -916,16 +957,18 @@ Badges earned by users.
 
 ```sql
 CREATE TABLE user_badges (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    badge_id INTEGER NOT NULL REFERENCES badges(id),
-    awarded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    awarded_by INTEGER REFERENCES users(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    badge_id INT NOT NULL,
+    awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    awarded_by INT,
     reason TEXT,
-    UNIQUE(user_id, badge_id)
-);
-
-CREATE INDEX idx_user_badges_user ON user_badges(user_id);
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (badge_id) REFERENCES badges(id),
+    FOREIGN KEY (awarded_by) REFERENCES users(id),
+    UNIQUE KEY unique_user_badge (user_id, badge_id),
+    INDEX idx_user_badges_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### user_points
@@ -934,16 +977,16 @@ Gamification points.
 
 ```sql
 CREATE TABLE user_points (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    total_points INTEGER DEFAULT 0,
-    current_level INTEGER DEFAULT 1,
-    current_level_points INTEGER DEFAULT 0,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id)
-);
-
-CREATE INDEX idx_user_points_user ON user_points(user_id);
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    total_points INT DEFAULT 0,
+    current_level INT DEFAULT 1,
+    current_level_points INT DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE KEY unique_user (user_id),
+    INDEX idx_user_points_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### point_history
@@ -952,18 +995,18 @@ Point transaction history.
 
 ```sql
 CREATE TABLE point_history (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    points INTEGER NOT NULL,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    points INT NOT NULL,
     event_type VARCHAR(50) NOT NULL,
     description TEXT,
     reference_type VARCHAR(50),
-    reference_id INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_point_history_user ON point_history(user_id);
-CREATE INDEX idx_point_history_created ON point_history(created_at DESC);
+    reference_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_point_history_user (user_id),
+    INDEX idx_point_history_created (created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Event Types:** `assignment_completion`, `perfect_attendance`, `exam_excellence`, `helping_peer`, `streak_bonus`
@@ -978,18 +1021,17 @@ Cached analytics data for performance.
 
 ```sql
 CREATE TABLE analytics_cache (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     cache_key VARCHAR(255) UNIQUE NOT NULL,
     cache_type VARCHAR(50) NOT NULL,
-    data JSONB NOT NULL,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_analytics_cache_key ON analytics_cache(cache_key);
-CREATE INDEX idx_analytics_cache_type ON analytics_cache(cache_type);
-CREATE INDEX idx_analytics_cache_expires ON analytics_cache(expires_at);
+    data JSON NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_analytics_cache_key (cache_key),
+    INDEX idx_analytics_cache_type (cache_type),
+    INDEX idx_analytics_cache_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### student_performance_metrics
@@ -998,25 +1040,27 @@ Aggregated student performance data.
 
 ```sql
 CREATE TABLE student_performance_metrics (
-    id SERIAL PRIMARY KEY,
-    student_id INTEGER NOT NULL REFERENCES students(id),
-    academic_year_id INTEGER NOT NULL REFERENCES academic_years(id),
-    subject_id INTEGER REFERENCES subjects(id),
-    average_score NUMERIC(5,2),
-    highest_score NUMERIC(5,2),
-    lowest_score NUMERIC(5,2),
-    attendance_percentage NUMERIC(5,2),
-    assignments_completed INTEGER,
-    assignments_total INTEGER,
-    rank_in_class INTEGER,
-    rank_in_grade INTEGER,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    academic_year_id INT NOT NULL,
+    subject_id INT,
+    average_score DECIMAL(5,2),
+    highest_score DECIMAL(5,2),
+    lowest_score DECIMAL(5,2),
+    attendance_percentage DECIMAL(5,2),
+    assignments_completed INT,
+    assignments_total INT,
+    rank_in_class INT,
+    rank_in_grade INT,
     trend VARCHAR(20),
-    calculated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(student_id, academic_year_id, subject_id)
-);
-
-CREATE INDEX idx_perf_metrics_student ON student_performance_metrics(student_id);
-CREATE INDEX idx_perf_metrics_subject ON student_performance_metrics(subject_id);
+    calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (academic_year_id) REFERENCES academic_years(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    UNIQUE KEY unique_student_year_subject (student_id, academic_year_id, subject_id),
+    INDEX idx_perf_metrics_student (student_id),
+    INDEX idx_perf_metrics_subject (subject_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### ml_predictions
@@ -1025,20 +1069,21 @@ Machine learning prediction results.
 
 ```sql
 CREATE TABLE ml_predictions (
-    id SERIAL PRIMARY KEY,
-    student_id INTEGER NOT NULL REFERENCES students(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
     prediction_type VARCHAR(50) NOT NULL,
-    subject_id INTEGER REFERENCES subjects(id),
-    predicted_score NUMERIC(5,2),
-    confidence NUMERIC(5,4),
-    factors JSONB,
-    recommendations TEXT[],
+    subject_id INT,
+    predicted_score DECIMAL(5,2),
+    confidence DECIMAL(5,4),
+    factors JSON,
+    recommendations JSON,
     target_date DATE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_predictions_student ON ml_predictions(student_id);
-CREATE INDEX idx_predictions_type ON ml_predictions(prediction_type);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    INDEX idx_predictions_student (student_id),
+    INDEX idx_predictions_type (prediction_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
@@ -1051,31 +1096,34 @@ Learning resources and materials.
 
 ```sql
 CREATE TABLE study_materials (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    subject_id INTEGER REFERENCES subjects(id),
-    grade_id INTEGER REFERENCES grades(id),
-    chapter_id INTEGER REFERENCES chapters(id),
+    subject_id INT,
+    grade_id INT,
+    chapter_id INT,
     material_type VARCHAR(50) NOT NULL,
     file_url TEXT,
     file_size BIGINT,
     thumbnail_url TEXT,
-    uploaded_by INTEGER NOT NULL REFERENCES users(id),
-    downloads_count INTEGER DEFAULT 0,
-    views_count INTEGER DEFAULT 0,
+    uploaded_by INT NOT NULL,
+    downloads_count INT DEFAULT 0,
+    views_count INT DEFAULT 0,
     is_public BOOLEAN DEFAULT FALSE,
-    tags TEXT[],
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_materials_subject ON study_materials(subject_id);
-CREATE INDEX idx_materials_grade ON study_materials(grade_id);
-CREATE INDEX idx_materials_type ON study_materials(material_type);
-CREATE INDEX idx_materials_tags ON study_materials USING GIN(tags);
+    tags JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    FOREIGN KEY (grade_id) REFERENCES grades(id),
+    FOREIGN KEY (chapter_id) REFERENCES chapters(id),
+    FOREIGN KEY (uploaded_by) REFERENCES users(id),
+    INDEX idx_materials_subject (subject_id),
+    INDEX idx_materials_grade (grade_id),
+    INDEX idx_materials_type (material_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 **Material Types:** `notes`, `presentation`, `video`, `worksheet`, `textbook`, `reference`
@@ -1086,21 +1134,23 @@ Fee management.
 
 ```sql
 CREATE TABLE fee_structures (
-    id SERIAL PRIMARY KEY,
-    institution_id INTEGER NOT NULL REFERENCES institutions(id),
-    academic_year_id INTEGER NOT NULL REFERENCES academic_years(id),
-    grade_id INTEGER REFERENCES grades(id),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    institution_id INT NOT NULL,
+    academic_year_id INT NOT NULL,
+    grade_id INT,
     fee_category VARCHAR(50) NOT NULL,
-    amount NUMERIC(10,2) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
     due_date DATE,
     description TEXT,
     is_mandatory BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_fee_structures_grade ON fee_structures(grade_id);
-CREATE INDEX idx_fee_structures_category ON fee_structures(fee_category);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (institution_id) REFERENCES institutions(id),
+    FOREIGN KEY (academic_year_id) REFERENCES academic_years(id),
+    FOREIGN KEY (grade_id) REFERENCES grades(id),
+    INDEX idx_fee_structures_grade (grade_id),
+    INDEX idx_fee_structures_category (fee_category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ### fee_payments
@@ -1109,22 +1159,23 @@ Student fee payments.
 
 ```sql
 CREATE TABLE fee_payments (
-    id SERIAL PRIMARY KEY,
-    student_id INTEGER NOT NULL REFERENCES students(id),
-    fee_structure_id INTEGER NOT NULL REFERENCES fee_structures(id),
-    amount_paid NUMERIC(10,2) NOT NULL,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    fee_structure_id INT NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL,
     payment_date DATE NOT NULL,
     payment_method VARCHAR(50),
     transaction_id VARCHAR(100),
     receipt_number VARCHAR(50) UNIQUE,
     payment_status VARCHAR(20) DEFAULT 'completed',
     notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_payments_student ON fee_payments(student_id);
-CREATE INDEX idx_payments_status ON fee_payments(payment_status);
-CREATE INDEX idx_payments_receipt ON fee_payments(receipt_number);
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (fee_structure_id) REFERENCES fee_structures(id),
+    INDEX idx_payments_student (student_id),
+    INDEX idx_payments_status (payment_status),
+    INDEX idx_payments_receipt (receipt_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
@@ -1136,8 +1187,7 @@ CREATE INDEX idx_payments_receipt ON fee_payments(receipt_number);
 ```sql
 -- Composite indexes for common queries
 CREATE INDEX idx_students_grade_section_active 
-    ON students(grade_id, section_id) 
-    WHERE deleted_at IS NULL;
+    ON students(grade_id, section_id, deleted_at);
 
 CREATE INDEX idx_assignments_subject_grade_status 
     ON assignments(subject_id, grade_id, status);
@@ -1146,15 +1196,7 @@ CREATE INDEX idx_attendance_student_date_range
     ON attendance(student_id, date DESC);
 
 CREATE INDEX idx_notifications_user_unread 
-    ON notifications(user_id) 
-    WHERE is_read = FALSE;
-
--- JSONB indexes
-CREATE INDEX idx_institutions_settings 
-    ON institutions USING GIN(settings);
-
-CREATE INDEX idx_analytics_cache_data 
-    ON analytics_cache USING GIN(data);
+    ON notifications(user_id, is_read);
 ```
 
 ### Foreign Key Constraints
@@ -1163,19 +1205,14 @@ All foreign keys include appropriate ON DELETE actions:
 
 - `CASCADE`: For dependent records (e.g., submission_files → submissions)
 - `SET NULL`: For optional references (e.g., sections → class_teacher)
-- `RESTRICT`: For critical references (e.g., students → institution)
+- `RESTRICT`: For critical references (e.g., students → institution - default behavior)
 
 ### Check Constraints
 
 ```sql
-ALTER TABLE exam_marks 
-    ADD CONSTRAINT ck_exam_marks_valid_marks 
-    CHECK (marks_obtained >= 0 AND marks_obtained <= 
-        (SELECT max_marks FROM exam_subjects WHERE id = exam_subject_id));
-
 ALTER TABLE students 
     ADD CONSTRAINT ck_students_valid_dob 
-    CHECK (date_of_birth < CURRENT_DATE);
+    CHECK (date_of_birth < CURDATE());
 
 ALTER TABLE assignments 
     ADD CONSTRAINT ck_assignments_valid_dates 
@@ -1218,7 +1255,7 @@ ALTER TABLE assignments
 
 ```bash
 # Create database
-createdb edu_platform_dev
+mysql -u root -p -e "CREATE DATABASE edu_platform_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # Run all migrations
 alembic upgrade head
@@ -1248,16 +1285,16 @@ VALUES (1, '2024-2025', '2024-06-01', '2025-05-31', true);
 
 ```bash
 # Full backup
-pg_dump edu_platform_prod > backup_$(date +%Y%m%d).sql
+mysqldump -u username -p --single-transaction --routines --triggers edu_platform_prod > backup_$(date +%Y%m%d).sql
 
 # Compressed backup
-pg_dump edu_platform_prod | gzip > backup_$(date +%Y%m%d).sql.gz
+mysqldump -u username -p --single-transaction --routines --triggers edu_platform_prod | gzip > backup_$(date +%Y%m%d).sql.gz
 
 # Schema only
-pg_dump --schema-only edu_platform_prod > schema_$(date +%Y%m%d).sql
+mysqldump -u username -p --no-data --routines --triggers edu_platform_prod > schema_$(date +%Y%m%d).sql
 
 # Restore
-psql edu_platform_dev < backup_20240115.sql
+mysql -u username -p edu_platform_dev < backup_20240115.sql
 ```
 
 ---
@@ -1285,7 +1322,7 @@ FROM students s
 JOIN users u ON s.user_id = u.id
 JOIN grades g ON s.grade_id = g.id
 JOIN sections sec ON s.section_id = sec.id
-WHERE s.id = $1 AND s.deleted_at IS NULL;
+WHERE s.id = ? AND s.deleted_at IS NULL;
 
 -- Get class performance summary (using analytics table)
 SELECT 
@@ -1295,7 +1332,7 @@ SELECT
     MAX(spm.highest_score) as class_highest
 FROM student_performance_metrics spm
 JOIN subjects s ON spm.subject_id = s.id
-WHERE spm.academic_year_id = $1
+WHERE spm.academic_year_id = ?
 GROUP BY spm.subject_id, s.name;
 ```
 
@@ -1306,47 +1343,48 @@ GROUP BY spm.subject_id, s.name;
 ### Regular Tasks
 
 ```sql
+-- Optimize tables
+OPTIMIZE TABLE users, students, assignments;
+
 -- Analyze tables for query optimization
-ANALYZE;
+ANALYZE TABLE users, students, assignments;
 
--- Vacuum to reclaim storage
-VACUUM;
-
--- Full vacuum (requires downtime)
-VACUUM FULL;
-
--- Reindex for performance
-REINDEX DATABASE edu_platform_dev;
+-- Check table status
+SHOW TABLE STATUS WHERE Name = 'users';
 ```
 
 ### Monitoring Queries
 
 ```sql
--- Find slow queries
-SELECT query, mean_exec_time, calls
-FROM pg_stat_statements
-ORDER BY mean_exec_time DESC
-LIMIT 10;
-
 -- Check table sizes
 SELECT 
-    schemaname,
-    tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
-FROM pg_tables
-WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+    table_name AS 'Table',
+    ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'Size (MB)'
+FROM information_schema.TABLES
+WHERE table_schema = 'edu_platform_dev'
+ORDER BY (data_length + index_length) DESC;
 
 -- Check index usage
 SELECT 
-    schemaname,
-    tablename,
-    indexname,
-    idx_scan,
-    idx_tup_read
-FROM pg_stat_user_indexes
-WHERE idx_scan = 0
-ORDER BY schemaname, tablename;
+    TABLE_NAME,
+    INDEX_NAME,
+    SEQ_IN_INDEX,
+    COLUMN_NAME,
+    CARDINALITY
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = 'edu_platform_dev'
+ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
+
+-- Check for missing indexes on foreign keys
+SELECT 
+    TABLE_NAME,
+    COLUMN_NAME,
+    CONSTRAINT_NAME,
+    REFERENCED_TABLE_NAME,
+    REFERENCED_COLUMN_NAME
+FROM information_schema.KEY_COLUMN_USAGE
+WHERE REFERENCED_TABLE_NAME IS NOT NULL
+    AND TABLE_SCHEMA = 'edu_platform_dev';
 ```
 
 ---

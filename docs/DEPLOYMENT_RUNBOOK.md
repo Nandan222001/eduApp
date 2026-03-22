@@ -126,7 +126,7 @@ DEBUG=False
 SECRET_KEY=${SECRET_KEY_FROM_VAULT}
 
 # Database
-DATABASE_URL=${RDS_CONNECTION_STRING}
+DATABASE_URL=${RDS_CONNECTION_STRING}  # mysql+pymysql://user:pass@host:3306/dbname?charset=utf8mb4
 DATABASE_POOL_SIZE=20
 DATABASE_MAX_OVERFLOW=40
 
@@ -181,16 +181,17 @@ aws ec2 create-subnet --vpc-id vpc-xxx --cidr-block 10.0.2.0/24 --availability-z
 aws rds create-db-instance \
     --db-instance-identifier edu-platform-prod \
     --db-instance-class db.t3.medium \
-    --engine postgres \
-    --engine-version 14.7 \
-    --master-username postgres \
+    --engine mysql \
+    --engine-version 8.0.35 \
+    --master-username admin \
     --master-user-password ${DB_PASSWORD} \
     --allocated-storage 100 \
     --storage-type gp3 \
     --vpc-security-group-ids sg-xxx \
     --db-subnet-group-name edu-platform-subnet-group \
     --backup-retention-period 7 \
-    --multi-az
+    --multi-az \
+    --db-parameter-group-name edu-platform-mysql-params
 ```
 
 **3. Create ElastiCache Redis:**
@@ -262,16 +263,16 @@ resource "aws_vpc" "main" {
   }
 }
 
-# RDS PostgreSQL
-resource "aws_db_instance" "postgres" {
+# RDS MySQL
+resource "aws_db_instance" "mysql" {
   identifier             = "edu-platform-prod"
-  engine                 = "postgres"
-  engine_version         = "14.7"
+  engine                 = "mysql"
+  engine_version         = "8.0.35"
   instance_class         = "db.t3.medium"
   allocated_storage      = 100
   storage_type           = "gp3"
   storage_encrypted      = true
-  username               = "postgres"
+  username               = "admin"
   password               = var.db_password
   vpc_security_group_ids = [aws_security_group.rds.id]
   db_subnet_group_name   = aws_db_subnet_group.main.name
@@ -279,10 +280,37 @@ resource "aws_db_instance" "postgres" {
   multi_az               = true
   skip_final_snapshot    = false
   final_snapshot_identifier = "edu-platform-final-snapshot"
+  parameter_group_name   = aws_db_parameter_group.mysql.name
 
   tags = {
-    Name        = "edu-platform-postgres"
+    Name        = "edu-platform-mysql"
     Environment = "production"
+  }
+}
+
+# MySQL Parameter Group
+resource "aws_db_parameter_group" "mysql" {
+  name   = "edu-platform-mysql-params"
+  family = "mysql8.0"
+
+  parameter {
+    name  = "character_set_server"
+    value = "utf8mb4"
+  }
+
+  parameter {
+    name  = "collation_server"
+    value = "utf8mb4_unicode_ci"
+  }
+
+  parameter {
+    name  = "max_connections"
+    value = "200"
+  }
+
+  parameter {
+    name  = "innodb_buffer_pool_size"
+    value = "{DBInstanceClassMemory*3/4}"
   }
 }
 
@@ -642,10 +670,12 @@ jobs:
 
 ```bash
 # Create backup
-pg_dump -h ${DB_HOST} -U ${DB_USER} -d edu_platform_prod > backup_pre_migration_$(date +%Y%m%d_%H%M%S).sql
+mysqldump -h ${DB_HOST} -u ${DB_USER} -p \
+  --single-transaction --routines --triggers \
+  edu_platform_prod > backup_pre_migration_$(date +%Y%m%d_%H%M%S).sql
 
 # Verify backup
-psql -h ${DB_HOST} -U ${DB_USER} -d edu_platform_test < backup_pre_migration_*.sql
+mysql -h ${DB_HOST} -u ${DB_USER} -p edu_platform_test < backup_pre_migration_*.sql
 
 # Store backup securely
 aws s3 cp backup_pre_migration_*.sql s3://edu-platform-backups/$(date +%Y%m%d)/
@@ -659,7 +689,7 @@ poetry run alembic upgrade head
 
 # Verify
 poetry run alembic current
-psql -h staging-db -U postgres -d edu_platform_staging -c "\dt"
+mysql -h staging-db -u admin -p -D edu_platform_staging -e "SHOW TABLES;"
 ```
 
 ### Running Migrations
@@ -782,7 +812,7 @@ sudo systemctl restart edu-platform-backend
 poetry run alembic downgrade -1
 
 # Or restore from backup
-psql $DATABASE_URL < backup_pre_migration_20240115.sql
+mysql -h ${DB_HOST} -u ${DB_USER} -p edu_platform_prod < backup_pre_migration_20240115.sql
 ```
 
 ### Full System Rollback Procedure
@@ -845,7 +875,7 @@ curl https://api.yourplatform.com/health
 **2. Database Connectivity:**
 
 ```bash
-psql $DATABASE_URL -c "SELECT version();"
+mysql -h ${DB_HOST} -u ${DB_USER} -p -e "SELECT VERSION();"
 ```
 
 **3. Redis Connectivity:**
@@ -1040,10 +1070,13 @@ aws logs put-retention-policy \
 aws rds describe-db-instances --db-instance-identifier edu-platform-prod
 
 # Check connections
-psql $DATABASE_URL -c "SELECT count(*) FROM pg_stat_activity;"
+mysql -h ${DB_HOST} -u ${DB_USER} -p -e "SHOW PROCESSLIST;"
 
 # Kill long-running queries
-psql $DATABASE_URL -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'active' AND (now() - query_start) > interval '5 minutes';"
+mysql -h ${DB_HOST} -u ${DB_USER} -p -e "
+SELECT CONCAT('KILL ', id, ';') 
+FROM information_schema.PROCESSLIST 
+WHERE TIME > 300 AND COMMAND != 'Sleep';"
 ```
 
 **Database Restore:**
@@ -1055,7 +1088,7 @@ aws rds restore-db-instance-from-db-snapshot \
     --db-snapshot-identifier edu-platform-snapshot-20240115
 
 # Restore from manual backup
-psql $DATABASE_URL < backup_20240115.sql
+mysql -h ${DB_HOST} -u ${DB_USER} -p edu_platform_prod < backup_20240115.sql
 ```
 
 ### Traffic Spike
