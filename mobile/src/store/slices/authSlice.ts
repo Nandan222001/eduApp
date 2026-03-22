@@ -303,7 +303,7 @@ const authSlice = createSlice({
       })
       .addCase(loadStoredAuth.fulfilled, (state, action) => {
         state.isLoading = false;
-        if (action.payload) {
+        if (action.payload && action.payload.user && action.payload.accessToken && action.payload.refreshToken) {
           state.isAuthenticated = true;
           state.user = action.payload.user;
           state.accessToken = action.payload.accessToken;
