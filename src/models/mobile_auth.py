@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Index
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import relationship
 from src.database import Base
 
@@ -18,8 +18,8 @@ class MobileAuthEvent(Base):
     device_fingerprint = Column(String(255), nullable=True)
     ip_address = Column(String(45), nullable=True)
     location = Column(String(255), nullable=True)
-    device_info = Column(JSONB, nullable=True)
-    metadata_json = Column('metadata', JSONB, nullable=True)
+    device_info = Column(JSON, nullable=True)
+    metadata_json = Column('metadata', JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     __table_args__ = (
@@ -62,7 +62,7 @@ class SensitiveOperationLog(Base):
     reauth_method = Column(String(50), nullable=True)
     reauth_success = Column(Boolean, nullable=True)
     ip_address = Column(String(45), nullable=True)
-    metadata_json = Column('metadata', JSONB, nullable=True)
+    metadata_json = Column('metadata', JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     __table_args__ = (

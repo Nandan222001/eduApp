@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Index, Boolean
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import relationship
 from src.database import Base
 
@@ -23,12 +23,12 @@ class FamilyDocument(Base):
     mime_type = Column(String(100), nullable=True)
     
     expiry_date = Column(DateTime, nullable=True, index=True)
-    shared_with = Column(ARRAY(String), nullable=True)
+    shared_with = Column(JSON, nullable=True)
     
     uploaded_by_role = Column(String(50), nullable=True)
     
     ocr_text = Column(Text, nullable=True)
-    metadata_json = Column('metadata', JSONB, nullable=True)
+    metadata_json = Column('metadata', JSON, nullable=True)
     
     is_sensitive = Column(Boolean, default=True, nullable=False)
     is_archived = Column(Boolean, default=False, nullable=False, index=True)
@@ -68,7 +68,7 @@ class DocumentAccessLog(Base):
     access_granted = Column(Boolean, default=True, nullable=False)
     denial_reason = Column(String(255), nullable=True)
     
-    metadata_json = Column('metadata', JSONB, nullable=True)
+    metadata_json = Column('metadata', JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     
     document = relationship("FamilyDocument", back_populates="access_logs")
@@ -89,12 +89,12 @@ class DocumentShare(Base):
     shared_with_user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
     
     share_type = Column(String(50), nullable=False)
-    permissions = Column(ARRAY(String), nullable=True)
+    permissions = Column(JSON, nullable=True)
     
     expiry_date = Column(DateTime, nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     
-    metadata_json = Column('metadata', JSONB, nullable=True)
+    metadata_json = Column('metadata', JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     revoked_at = Column(DateTime, nullable=True)
@@ -120,7 +120,7 @@ class DocumentExpirationAlert(Base):
     sent_at = Column(DateTime, nullable=True)
     is_sent = Column(Boolean, default=False, nullable=False, index=True)
     
-    metadata = Column(JSONB, nullable=True)
+    metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     __table_args__ = (

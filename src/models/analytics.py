@@ -1,6 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Float, Index
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Integer, String, DateTime, JSON, Float, Index, CHAR
 from src.database import Base
 import uuid
 
@@ -10,12 +9,12 @@ class AnalyticsEvent(Base):
     
     __tablename__ = "analytics_events"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     event_name = Column(String(255), nullable=False, index=True)
     event_type = Column(String(50), nullable=False, index=True)  # page_view, click, conversion, etc.
-    user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    user_id = Column(CHAR(36), nullable=True, index=True)
     session_id = Column(String(255), nullable=True, index=True)
-    institution_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    institution_id = Column(CHAR(36), nullable=True, index=True)
     
     # Event properties
     properties = Column(JSON, nullable=True)
@@ -45,12 +44,12 @@ class PerformanceMetric(Base):
     
     __tablename__ = "performance_metrics"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     metric_name = Column(String(100), nullable=False, index=True)
     metric_value = Column(Float, nullable=False)
     
     # Context
-    user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    user_id = Column(CHAR(36), nullable=True, index=True)
     session_id = Column(String(255), nullable=True, index=True)
     url = Column(String(1000), nullable=True)
     
@@ -73,10 +72,10 @@ class UserSession(Base):
     
     __tablename__ = "user_sessions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = Column(String(255), unique=True, nullable=False, index=True)
-    user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
-    institution_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    user_id = Column(CHAR(36), nullable=True, index=True)
+    institution_id = Column(CHAR(36), nullable=True, index=True)
     
     # Session details
     first_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -112,10 +111,10 @@ class FeatureUsage(Base):
     
     __tablename__ = "feature_usage"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     feature_name = Column(String(255), nullable=False, index=True)
-    user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
-    institution_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    user_id = Column(CHAR(36), nullable=True, index=True)
+    institution_id = Column(CHAR(36), nullable=True, index=True)
     
     # Usage details
     usage_count = Column(Integer, default=1)
@@ -139,9 +138,9 @@ class UserRetention(Base):
     
     __tablename__ = "user_retention"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    institution_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(CHAR(36), nullable=False, index=True)
+    institution_id = Column(CHAR(36), nullable=True, index=True)
     
     cohort_date = Column(DateTime, nullable=False, index=True)  # First activity date
     activity_date = Column(DateTime, nullable=False, index=True)  # This activity date

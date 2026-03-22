@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Index, Boolean
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import JSON
 from src.database import Base
 
 
@@ -13,11 +13,11 @@ class AuditLog(Base):
     table_name = Column(String(100), nullable=False, index=True)
     record_id = Column(Integer, nullable=True, index=True)
     action = Column(String(50), nullable=False, index=True)
-    old_values = Column(JSONB, nullable=True)
-    new_values = Column(JSONB, nullable=True)
+    old_values = Column(JSON, nullable=True)
+    new_values = Column(JSON, nullable=True)
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
-    metadata_json = Column('metadata', JSONB, nullable=True)
+    metadata_json = Column('metadata', JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     
     __table_args__ = (
@@ -40,7 +40,7 @@ class ImpersonationLog(Base):
     ended_at = Column(DateTime, nullable=True, index=True)
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
-    actions_performed = Column(JSONB, nullable=True)
+    actions_performed = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     
     __table_args__ = (
@@ -63,8 +63,8 @@ class ActivityLog(Base):
     method = Column(String(10), nullable=True)
     status_code = Column(Integer, nullable=True)
     description = Column(Text, nullable=True)
-    request_data = Column(JSONB, nullable=True)
-    response_data = Column(JSONB, nullable=True)
+    request_data = Column(JSON, nullable=True)
+    response_data = Column(JSON, nullable=True)
     error_message = Column(Text, nullable=True)
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
@@ -87,8 +87,8 @@ class SessionReplay(Base):
     session_id = Column(String(255), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
     institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='SET NULL'), nullable=True, index=True)
-    events = Column(JSONB, nullable=False)
-    metadata_json = Column('metadata', JSONB, nullable=True)
+    events = Column(JSON, nullable=False)
+    metadata_json = Column('metadata', JSON, nullable=True)
     started_at = Column(DateTime, nullable=False, index=True)
     ended_at = Column(DateTime, nullable=True)
     duration_seconds = Column(Integer, nullable=True)
