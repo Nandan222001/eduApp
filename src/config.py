@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     database_host: str = Field(default="localhost", alias="DATABASE_HOST")
     database_port: int = Field(default=3306, alias="DATABASE_PORT")
     database_user: str = Field(default="mysql", alias="DATABASE_USER")
-    database_password: str = Field(default="postgres", alias="DATABASE_PASSWORD")
+    database_password: str = Field(default="mysql_password", alias="DATABASE_PASSWORD")
     database_name: str = Field(default="mysql_db", alias="DATABASE_NAME")
     database_charset: str = Field(default="utf8mb4", alias="DATABASE_CHARSET")
     database_connect_timeout: int = Field(default=10, alias="DATABASE_CONNECT_TIMEOUT")
