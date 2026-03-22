@@ -74,6 +74,32 @@ jest.mock('react-native-vector-icons/Feather', () => 'Icon');
 jest.mock('react-native-vector-icons/MaterialIcons', () => 'Icon');
 jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'Icon');
 
+// Mock expo-background-fetch
+jest.mock('expo-background-fetch', () => ({
+  registerTaskAsync: jest.fn(() => Promise.resolve()),
+  unregisterTaskAsync: jest.fn(() => Promise.resolve()),
+  getStatusAsync: jest.fn(() => Promise.resolve(1)),
+  setMinimumIntervalAsync: jest.fn(() => Promise.resolve()),
+  BackgroundFetchResult: {
+    NewData: 'newData',
+    NoData: 'noData',
+    Failed: 'failed',
+  },
+  BackgroundFetchStatus: {
+    Available: 1,
+    Denied: 2,
+    Restricted: 3,
+  },
+}));
+
+// Mock expo-task-manager
+jest.mock('expo-task-manager', () => ({
+  defineTask: jest.fn(),
+  isTaskRegisteredAsync: jest.fn(() => Promise.resolve(false)),
+  getRegisteredTasksAsync: jest.fn(() => Promise.resolve([])),
+  unregisterTaskAsync: jest.fn(() => Promise.resolve()),
+}));
+
 // Mock console methods to reduce noise in tests
 global.console = {
   ...console,
