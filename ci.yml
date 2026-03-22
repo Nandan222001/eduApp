@@ -58,19 +58,20 @@ jobs:
     runs-on: ubuntu-latest
     
     services:
-      postgres:
-        image: postgres:15
+      mysql:
+        image: mysql:8.0
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_db
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "mysqladmin ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - 3306:3306
 
       redis:
         image: redis:7-alpine
@@ -113,7 +114,7 @@ jobs:
 
       - name: Run unit tests
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL: mysql+pymysql://test_user:test_password@localhost:3306/test_db
           REDIS_URL: redis://localhost:6379/0
         run: |
           poetry run pytest tests/ -v \
@@ -125,7 +126,7 @@ jobs:
 
       - name: Run integration tests
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL: mysql+pymysql://test_user:test_password@localhost:3306/test_db
           REDIS_URL: redis://localhost:6379/0
         run: |
           poetry run pytest tests/ -v \
@@ -214,19 +215,20 @@ jobs:
     needs: [backend-test, frontend-test]
     
     services:
-      postgres:
-        image: postgres:15
+      mysql:
+        image: mysql:8.0
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_db
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "mysqladmin ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - 3306:3306
 
       redis:
         image: redis:7-alpine
@@ -271,7 +273,7 @@ jobs:
 
       - name: Start backend server
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL: mysql+pymysql://test_user:test_password@localhost:3306/test_db
           REDIS_URL: redis://localhost:6379/0
         run: |
           poetry run alembic upgrade head
