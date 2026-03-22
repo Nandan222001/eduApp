@@ -54,7 +54,7 @@ if (-not (Test-Path .env)) {
         Write-Host "✓ Created .env from .env.example" -ForegroundColor Green
     } else {
         @"
-DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db
+DATABASE_URL=mysql+pymysql://test_user:test_password@localhost:3306/test_db
 REDIS_URL=redis://localhost:6379/0
 SECRET_KEY=test-secret-key-change-in-production
 ENVIRONMENT=development
@@ -74,16 +74,16 @@ try {
     Write-Host "✓ Docker is available" -ForegroundColor Green
     
     Write-Host ""
-    Write-Host "Starting test services (PostgreSQL & Redis)..." -ForegroundColor Yellow
-    docker-compose up -d postgres redis
+    Write-Host "Starting test services (MySQL & Redis)..." -ForegroundColor Yellow
+    docker-compose up -d mysql redis
     
-    # Wait for PostgreSQL to be ready
-    Write-Host "Waiting for PostgreSQL to be ready..." -ForegroundColor Yellow
+    # Wait for MySQL to be ready
+    Write-Host "Waiting for MySQL to be ready..." -ForegroundColor Yellow
     $retries = 0
     $maxRetries = 30
     while ($retries -lt $maxRetries) {
         try {
-            docker-compose exec -T postgres pg_isready -U test_user 2>&1 | Out-Null
+            docker-compose exec -T mysql mysqladmin ping -h localhost --silent 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 break
             }
@@ -93,7 +93,7 @@ try {
         $retries++
     }
     Write-Host ""
-    Write-Host "✓ PostgreSQL is ready" -ForegroundColor Green
+    Write-Host "✓ MySQL is ready" -ForegroundColor Green
     
     # Wait for Redis to be ready
     Write-Host "Waiting for Redis to be ready..." -ForegroundColor Yellow
@@ -112,7 +112,7 @@ try {
     Write-Host ""
     Write-Host "✓ Redis is ready" -ForegroundColor Green
 } catch {
-    Write-Host "⚠️  Docker not found. You'll need to run PostgreSQL and Redis manually." -ForegroundColor Yellow
+    Write-Host "⚠️  Docker not found. You'll need to run MySQL and Redis manually." -ForegroundColor Yellow
 }
 
 # Run migrations

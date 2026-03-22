@@ -17,7 +17,7 @@ set -e
 # Default values
 TEST_TYPE="${1:-all}"
 VERBOSE="${2:-}"
-DATABASE_URL="${TEST_MIGRATION_DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/test_migrations_db}"
+DATABASE_URL="${TEST_MIGRATION_DATABASE_URL:-mysql+pymysql://root:root@localhost:3306/test_migrations_db}"
 
 # Export environment variable
 export TEST_MIGRATION_DATABASE_URL="$DATABASE_URL"
@@ -31,9 +31,9 @@ echo "Database: $DATABASE_URL"
 echo ""
 
 # Check if database exists
-if ! psql -lqt | cut -d \| -f 1 | grep -qw test_migrations_db; then
+if ! mysql -h localhost -u root -proot -e "USE test_migrations_db;" 2>/dev/null; then
     echo "Creating test database..."
-    createdb test_migrations_db
+    mysql -h localhost -u root -proot -e "CREATE DATABASE test_migrations_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
     if [ $? -eq 0 ]; then
         echo "✓ Test database created"
     else

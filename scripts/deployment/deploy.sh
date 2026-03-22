@@ -105,16 +105,18 @@ if [ "$ENVIRONMENT" = "prod" ]; then
     DB_HOST=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/db/host" --query 'Parameter.Value' --output text)
     DB_NAME=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/db/name" --query 'Parameter.Value' --output text)
     DB_USER=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/db/user" --query 'Parameter.Value' --output text)
+    DB_PASS=$(aws ssm get-parameter --name "/${PROJECT_NAME}/${ENVIRONMENT}/db/password" --with-decryption --query 'Parameter.Value' --output text)
     
-    # Create pg_dump backup (this requires pg_dump to be available)
-    if command -v pg_dump &> /dev/null; then
-        pg_dump -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -F c -f ${BACKUP_DIR}/backup.dump
+    # Create mysqldump backup (this requires mysqldump to be available)
+    if command -v mysqldump &> /dev/null; then
+        mysqldump -h ${DB_HOST} -u ${DB_USER} -p${DB_PASS} --all-databases --single-transaction --routines --triggers > ${BACKUP_DIR}/backup.sql
+        gzip ${BACKUP_DIR}/backup.sql
         
         # Upload to S3
-        aws s3 cp ${BACKUP_DIR}/backup.dump s3://${PROJECT_NAME}-${ENVIRONMENT}-backups/migrations/$(basename ${BACKUP_DIR})/backup.dump
+        aws s3 cp ${BACKUP_DIR}/backup.sql.gz s3://${PROJECT_NAME}-${ENVIRONMENT}-backups/migrations/$(basename ${BACKUP_DIR})/backup.sql.gz
         log_info "Logical backup uploaded to S3"
     else
-        log_warn "pg_dump not available, skipping logical backup"
+        log_warn "mysqldump not available, skipping logical backup"
     fi
 fi
 

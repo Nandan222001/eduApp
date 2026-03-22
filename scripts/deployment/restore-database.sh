@@ -81,7 +81,7 @@ aws rds restore-db-instance-from-db-snapshot \
     --publicly-accessible false \
     --multi-az true \
     --auto-minor-version-upgrade true \
-    --enable-cloudwatch-logs-exports postgresql upgrade \
+    --enable-cloudwatch-logs-exports error general slowquery \
     --deletion-protection false \
     --region ${AWS_REGION}
 
@@ -111,3 +111,4 @@ log_warn "4. Delete the old instance when no longer needed"
 log_warn ""
 log_info "To point application to new database:"
 log_info "Update DATABASE_HOST environment variable to: ${NEW_ENDPOINT}"
+log_info "Update DATABASE_URL to use mysql+pymysql:// scheme for Python applications"

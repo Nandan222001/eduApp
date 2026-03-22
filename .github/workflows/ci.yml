@@ -65,19 +65,20 @@ jobs:
       fail-fast: false
     
     services:
-      postgres:
-        image: postgres:15-alpine
+      mysql:
+        image: mysql:8.0
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_db
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "mysqladmin ping -h localhost"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - 3306:3306
 
       redis:
         image: redis:7-alpine
@@ -132,10 +133,10 @@ jobs:
           poetry config virtualenvs.in-project true
           poetry install --no-interaction --no-root
 
-      - name: Wait for PostgreSQL
+      - name: Wait for MySQL
         run: |
-          until pg_isready -h localhost -p 5432 -U test_user; do
-            echo "Waiting for PostgreSQL..."
+          until mysqladmin ping -h localhost -P 3306 -u test_user -ptest_password --silent; do
+            echo "Waiting for MySQL..."
             sleep 2
           done
 
@@ -148,7 +149,7 @@ jobs:
 
       - name: Run unit tests with coverage
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL: mysql+pymysql://test_user:test_password@localhost:3306/test_db
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
           ENVIRONMENT: test
@@ -164,7 +165,7 @@ jobs:
 
       - name: Run integration tests with coverage
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL: mysql+pymysql://test_user:test_password@localhost:3306/test_db
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
           ENVIRONMENT: test
@@ -181,7 +182,7 @@ jobs:
 
       - name: Run service-specific tests with coverage
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL: mysql+pymysql://test_user:test_password@localhost:3306/test_db
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
           ENVIRONMENT: test

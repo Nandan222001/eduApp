@@ -23,7 +23,7 @@ Parameters:
   
   DBUsername:
     Type: String
-    Default: postgres
+    Default: admin
     NoEcho: true
     Description: Database username
   
@@ -257,8 +257,8 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
+          FromPort: 3306
+          ToPort: 3306
           SourceSecurityGroupId: !Ref ECSSecurityGroup
       Tags:
         - Key: Name
@@ -294,8 +294,8 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       DBInstanceIdentifier: !Sub ${ProjectName}-${Environment}-db
-      Engine: postgres
-      EngineVersion: '16.1'
+      Engine: mysql
+      EngineVersion: '8.0.35'
       DBInstanceClass: !Ref DBInstanceClass
       AllocatedStorage: 20
       StorageType: gp3
@@ -311,7 +311,9 @@ Resources:
       PreferredBackupWindow: '03:00-04:00'
       PreferredMaintenanceWindow: 'mon:04:00-mon:05:00'
       EnableCloudwatchLogsExports:
-        - postgresql
+        - error
+        - general
+        - slowquery
       DeletionProtection: true
       Tags:
         - Key: Name

@@ -53,15 +53,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || pip install alembic sqlalchemy psycopg2-binary python-dotenv
+          pip install -r requirements.txt || pip install alembic sqlalchemy pymysql python-dotenv
       
       - name: Set up environment variables
         run: |
           cat > .env << EOF
           DATABASE_HOST=localhost
-          DATABASE_PORT=5432
-          DATABASE_USER=postgres
-          DATABASE_PASSWORD=postgres
+          DATABASE_PORT=3306
+          DATABASE_USER=mysql_user
+          DATABASE_PASSWORD=mysql_password
           DATABASE_NAME=fastapi_db
           EOF
       
@@ -70,7 +70,7 @@ jobs:
           chmod +x scripts/migration_test/setup_test_db.sh
           ./scripts/migration_test/setup_test_db.sh
         env:
-          PGPASSWORD: postgres
+          MYSQL_PWD: mysql_password
       
       - name: Run migration validation
         run: |
@@ -174,16 +174,17 @@ jobs:
     if: github.event_name == 'pull_request'
     
     services:
-      postgres:
-        image: postgres:14
+      mysql:
+        image: mysql:8.0
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: fastapi_db
+          MYSQL_USER: mysql_user
+          MYSQL_PASSWORD: mysql_password
         ports:
-          - 5432:5432
+          - 3306:3306
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "mysqladmin ping -h localhost"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -202,31 +203,31 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install alembic sqlalchemy psycopg2-binary python-dotenv
+          pip install alembic sqlalchemy pymysql python-dotenv
       
       - name: Set up environment
         run: |
           cat > .env << EOF
           DATABASE_HOST=localhost
-          DATABASE_PORT=5432
-          DATABASE_USER=postgres
-          DATABASE_PASSWORD=postgres
+          DATABASE_PORT=3306
+          DATABASE_USER=mysql_user
+          DATABASE_PASSWORD=mysql_password
           DATABASE_NAME=fastapi_db_base
           EOF
       
       - name: Create base schema
         run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE fastapi_db_base;"
+          mysql -h localhost -u root -proot -e "CREATE DATABASE fastapi_db_base CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
           alembic upgrade head
         env:
-          PGPASSWORD: postgres
+          MYSQL_PWD: root
       
       - name: Backup base schema
         run: |
           mkdir -p /tmp/schema
-          PGPASSWORD=postgres pg_dump -h localhost -U postgres --schema-only fastapi_db_base > /tmp/schema/base_schema.sql
+          mysqldump -h localhost -u root -proot --no-data fastapi_db_base > /tmp/schema/base_schema.sql
         env:
-          PGPASSWORD: postgres
+          MYSQL_PWD: root
       
       - name: Checkout PR branch
         uses: actions/checkout@v3
@@ -235,16 +236,16 @@ jobs:
         run: |
           cat > .env << EOF
           DATABASE_HOST=localhost
-          DATABASE_PORT=5432
-          DATABASE_USER=postgres
-          DATABASE_PASSWORD=postgres
+          DATABASE_PORT=3306
+          DATABASE_USER=mysql_user
+          DATABASE_PASSWORD=mysql_password
           DATABASE_NAME=fastapi_db_pr
           EOF
           
-          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE fastapi_db_pr;"
+          mysql -h localhost -u root -proot -e "CREATE DATABASE fastapi_db_pr CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
           alembic upgrade head
         env:
-          PGPASSWORD: postgres
+          MYSQL_PWD: root
       
       - name: Compare schemas
         run: |

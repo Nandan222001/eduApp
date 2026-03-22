@@ -9,26 +9,26 @@ resource "aws_db_subnet_group" "main" {
 
 resource "aws_db_parameter_group" "main" {
   name   = "${var.project_name}-${var.environment}-db-params"
-  family = "postgres16"
+  family = "mysql8.0"
 
   parameter {
-    name  = "log_connections"
+    name  = "general_log"
     value = "1"
   }
 
   parameter {
-    name  = "log_disconnections"
+    name  = "slow_query_log"
     value = "1"
   }
 
   parameter {
-    name  = "log_duration"
-    value = "1"
+    name  = "long_query_time"
+    value = "2"
   }
 
   parameter {
-    name  = "shared_preload_libraries"
-    value = "pg_stat_statements"
+    name  = "log_output"
+    value = "FILE"
   }
 
   tags = {
@@ -38,7 +38,7 @@ resource "aws_db_parameter_group" "main" {
 
 resource "aws_db_instance" "main" {
   identifier     = "${var.project_name}-${var.environment}-db"
-  engine         = "postgres"
+  engine         = "mysql"
   engine_version = var.db_engine_version
   instance_class = var.db_instance_class
 
@@ -60,7 +60,7 @@ resource "aws_db_instance" "main" {
   backup_window          = var.backup_window
   maintenance_window     = var.maintenance_window
 
-  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+  enabled_cloudwatch_logs_exports = ["error", "general", "slowquery"]
   
   deletion_protection = true
   skip_final_snapshot = false

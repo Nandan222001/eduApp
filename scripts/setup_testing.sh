@@ -48,7 +48,7 @@ if [ ! -f .env ]; then
         echo "✓ Created .env from .env.example"
     else
         cat > .env << EOF
-DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db
+DATABASE_URL=mysql+pymysql://test_user:test_password@localhost:3306/test_db
 REDIS_URL=redis://localhost:6379/0
 SECRET_KEY=test-secret-key-change-in-production
 ENVIRONMENT=development
@@ -67,17 +67,17 @@ if command -v docker &> /dev/null; then
     echo "✓ Docker is available"
     
     echo ""
-    echo "Starting test services (PostgreSQL & Redis)..."
-    docker-compose up -d postgres redis
+    echo "Starting test services (MySQL & Redis)..."
+    docker-compose up -d mysql redis
     
-    # Wait for PostgreSQL to be ready
-    echo "Waiting for PostgreSQL to be ready..."
-    until docker-compose exec -T postgres pg_isready -U test_user &> /dev/null; do
+    # Wait for MySQL to be ready
+    echo "Waiting for MySQL to be ready..."
+    until docker-compose exec -T mysql mysqladmin ping -h localhost --silent &> /dev/null; do
         echo -n "."
         sleep 1
     done
     echo ""
-    echo "✓ PostgreSQL is ready"
+    echo "✓ MySQL is ready"
     
     # Wait for Redis to be ready
     echo "Waiting for Redis to be ready..."
@@ -88,7 +88,7 @@ if command -v docker &> /dev/null; then
     echo ""
     echo "✓ Redis is ready"
 else
-    echo "⚠️  Docker not found. You'll need to run PostgreSQL and Redis manually."
+    echo "⚠️  Docker not found. You'll need to run MySQL and Redis manually."
 fi
 
 # Run migrations

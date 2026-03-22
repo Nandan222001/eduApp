@@ -46,21 +46,23 @@ services:
           memory: 512M
 
   db:
-    image: postgres:16-alpine
+    image: mysql:8.0
     container_name: fastapi-db
     environment:
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME}
+      MYSQL_ROOT_PASSWORD: ${DATABASE_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DATABASE_NAME}
+      MYSQL_USER: ${DATABASE_USER}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD}
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
       - ./backups:/backups
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max-connections=500
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DATABASE_USER}", "-p${DATABASE_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -133,7 +135,7 @@ services:
       - app-network
 
 volumes:
-  postgres_data:
+  mysql_data:
   redis_data:
   certbot-data:
 

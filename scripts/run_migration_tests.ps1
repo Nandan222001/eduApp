@@ -10,7 +10,7 @@ param(
     [switch]$Verbose,
     
     [Parameter(Mandatory=$false)]
-    [string]$DatabaseUrl = "postgresql://postgres:postgres@localhost:5432/test_migrations_db"
+    [string]$DatabaseUrl = "mysql+pymysql://root:root@localhost:3306/test_migrations_db"
 )
 
 # Set environment variable
@@ -25,11 +25,16 @@ Write-Host "Database: $DatabaseUrl" -ForegroundColor Yellow
 Write-Host ""
 
 # Check if database exists
-$dbExists = psql -lqt -h localhost -U postgres 2>$null | Select-String -Pattern "test_migrations_db"
+try {
+    mysql -h localhost -u root -proot -e "USE test_migrations_db;" 2>$null
+    $dbExists = $LASTEXITCODE -eq 0
+} catch {
+    $dbExists = $false
+}
 
 if (-not $dbExists) {
     Write-Host "Creating test database..." -ForegroundColor Yellow
-    createdb -h localhost -U postgres test_migrations_db
+    mysql -h localhost -u root -proot -e "CREATE DATABASE test_migrations_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✓ Test database created" -ForegroundColor Green
     } else {

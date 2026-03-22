@@ -56,6 +56,22 @@ aws rds add-tags-to-resource \
     --tags Key=Environment,Value=${ENVIRONMENT} Key=Type,Value=Manual Key=CreatedAt,Value=$(date -Iseconds) \
     --region ${AWS_REGION}
 
+# Create logical backup using mysqldump via SSM
+log_info "Creating logical backup using mysqldump..."
+BACKUP_FILE="backup-${SNAPSHOT_ID}.sql.gz"
+
+# Get DB endpoint
+DB_ENDPOINT=$(aws rds describe-db-instances \
+    --db-instance-identifier ${DB_INSTANCE} \
+    --query 'DBInstances[0].Endpoint.Address' \
+    --output text \
+    --region ${AWS_REGION})
+
+# Note: This requires an EC2 instance with SSM agent and network access to RDS
+# Alternatively, use AWS Lambda or ECS task for backup operations
+log_info "Logical backup requires ECS task or Lambda function with MySQL client"
+log_info "To create logical backup, run: mysqldump -h ${DB_ENDPOINT} -u admin -p --all-databases | gzip > ${BACKUP_FILE}"
+
 # Export snapshot to S3 (optional)
 log_info "Exporting snapshot to S3..."
 EXPORT_TASK_ID="${SNAPSHOT_ID}-export"
