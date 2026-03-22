@@ -1,320 +1,225 @@
-# Migration Tests
+# MySQL Migration Tests
 
-Comprehensive test suite for database migrations.
+Comprehensive test suite for validating MySQL migration from PostgreSQL.
 
-## Overview
+## Quick Start
 
-This directory contains tests that validate database migrations including:
-
-- **Forward migrations**: Test upgrading from fresh database to HEAD
-- **Backward migrations**: Test downgrading last N migrations
-- **Idempotency**: Verify migrations can run safely multiple times
-- **Foreign keys**: Validate all FK constraints and relationships
-- **Indexes**: Check index creation and performance
-- **Data integrity**: Ensure data survives migration cycles
-- **RLS policies**: Verify Row Level Security configurations
-
-## Running Tests
-
-### Prerequisites
-
-1. Ensure PostgreSQL is running
-2. Create test database:
-```bash
-createdb test_migrations_db
-```
-
-3. Set environment variable (optional):
-```bash
-export TEST_MIGRATION_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test_migrations_db"
-```
-
-### Run All Migration Tests
+### Run All Tests (Recommended)
 
 ```bash
-pytest tests/migration/ -v
+# Linux/Mac
+./scripts/run_mysql_migration_tests.sh
+
+# Windows PowerShell
+.\scripts\run_mysql_migration_tests.ps1
 ```
 
-### Run Specific Test Classes
+This will execute:
+1. Alembic migrations on fresh MySQL database
+2. Comprehensive migration validation tests
+3. Unit and integration tests
+4. API endpoint validation
+5. Performance benchmarks
+6. Schema integrity checks
+7. Multi-tenant isolation verification
+
+## Test Files
+
+### Core Test Files
+
+- **test_mysql_comprehensive.py** - Main comprehensive test suite
+  - Database migration validation
+  - Multi-tenant data isolation
+  - Load testing and performance
+  - Analytics aggregations
+  - ML model predictions
+  - Real-time features
+
+- **test_api_endpoints_mysql.py** - API endpoint validation
+  - Authentication endpoints
+  - CRUD operations
+  - Data isolation via API
+  - Subscription management
+
+- **test_migrations.py** - Migration-specific tests
+  - Forward/backward migrations
+  - Migration idempotency
+  - Foreign key constraints
+  - Index creation
+  - Data integrity
+
+## Test Execution
+
+### Individual Test Categories
 
 ```bash
-# Test forward/backward migrations
-pytest tests/migration/test_migrations.py::TestMigrations -v
+# 1. Run alembic migrations
+export DATABASE_URL="mysql+pymysql://root:test_password@localhost:3306/test_db?charset=utf8mb4"
+alembic upgrade head
 
-# Test data integrity
-pytest tests/migration/test_migrations.py::TestMigrationDataIntegrity -v
+# 2. Multi-tenant isolation
+pytest tests/migration/test_mysql_comprehensive.py::TestMySQLMigrationComprehensive::test_02_multi_tenant_data_isolation -v -s
 
-# Test performance
-pytest tests/migration/test_migrations.py::TestMigrationPerformance -v
+# 3. Load testing
+pytest tests/migration/test_mysql_comprehensive.py::TestMySQLMigrationComprehensive::test_03_load_testing_mysql_performance -v -s
+
+# 4. API endpoints
+pytest tests/migration/test_api_endpoints_mysql.py -v -s
+
+# 5. Analytics
+pytest tests/migration/test_mysql_comprehensive.py::TestMySQLMigrationComprehensive::test_04_analytics_aggregations -v -s
+
+# 6. ML predictions
+pytest tests/migration/test_mysql_comprehensive.py::TestMySQLMigrationComprehensive::test_05_ml_model_predictions -v -s
+
+# 7. Real-time features
+pytest tests/migration/test_mysql_comprehensive.py::TestMySQLRealTimeFeatures::test_real_time_leaderboard -v -s
 ```
-
-### Run Individual Tests
-
-```bash
-# Test forward migration only
-pytest tests/migration/test_migrations.py::TestMigrations::test_forward_migration_from_scratch -v
-
-# Test backward migration
-pytest tests/migration/test_migrations.py::TestMigrations::test_backward_migration_last_5 -v
-
-# Test idempotency
-pytest tests/migration/test_migrations.py::TestMigrations::test_migration_idempotency -v
-
-# Test foreign keys
-pytest tests/migration/test_migrations.py::TestMigrations::test_foreign_key_constraints -v
-
-# Test indexes
-pytest tests/migration/test_migrations.py::TestMigrations::test_index_creation_and_performance -v
-```
-
-### Run with Verbose Output
-
-```bash
-pytest tests/migration/ -v -s
-```
-
-### Run with Coverage
-
-```bash
-pytest tests/migration/ --cov=alembic --cov-report=html
-```
-
-## Test Production-Like Data
-
-For testing migrations with production-like data volumes:
-
-```bash
-# Small dataset (~1K records per table)
-python scripts/test_migrations_production_like.py --size small
-
-# Medium dataset (~10K records per table)
-python scripts/test_migrations_production_like.py --size medium
-
-# Large dataset (~100K records per table)
-python scripts/test_migrations_production_like.py --size large
-
-# Custom database
-python scripts/test_migrations_production_like.py \
-    --database-url postgresql://user:pass@host/testdb \
-    --size medium
-```
-
-## Check Schema Integrity
-
-After running migrations, verify schema integrity:
-
-```bash
-python scripts/check_schema_integrity.py --database-url postgresql://user:pass@host/db -v
-```
-
-## Test Structure
-
-```
-tests/migration/
-├── __init__.py              # Package initialization
-├── conftest.py              # Pytest fixtures and configuration
-├── test_migrations.py       # Main migration test suite
-└── README.md               # This file
-```
-
-## Key Test Classes
-
-### TestMigrations
-
-Core migration functionality tests:
-
-- `test_forward_migration_from_scratch`: Validates upgrade from empty DB to HEAD
-- `test_backward_migration_last_5`: Tests downgrade of last 5 migrations
-- `test_migration_idempotency`: Ensures migrations can run multiple times safely
-- `test_foreign_key_constraints`: Validates all FK relationships
-- `test_index_creation_and_performance`: Checks index coverage and performance
-- `test_rls_policies`: Verifies Row Level Security policies
-
-### TestMigrationDataIntegrity
-
-Data integrity during migrations:
-
-- `test_data_preserved_after_downgrade_upgrade`: Ensures data survives migration cycles
-
-### TestMigrationPerformance
-
-Performance characteristics:
-
-- `test_migration_execution_time`: Measures migration execution time
-
-### TestMigrationWithProductionLikeData
-
-Production-scale testing (requires manual setup):
-
-- `test_migration_with_large_dataset`: Tests with production-like data volumes
-
-## Fixtures
-
-Key pytest fixtures available:
-
-- `alembic_config`: Alembic configuration object
-- `test_database_url`: Test database URL
-- `test_engine`: SQLAlchemy engine for test database
-- `test_session_factory`: Session factory for test database
-- `clean_test_db`: Fresh database for each test
-- `migrated_test_db`: Database with all migrations applied
-- `migration_config`: Configured Alembic config
 
 ## Environment Variables
 
-- `TEST_MIGRATION_DATABASE_URL`: Override default test database URL
-- `TEST_DATABASE_URL`: Alternative variable name for test database URL
-
-## Common Issues
-
-### Issue: Test database doesn't exist
-
-**Solution:**
 ```bash
-createdb test_migrations_db
+# MySQL connection settings
+export MYSQL_HOST=localhost
+export MYSQL_PORT=3306
+export MYSQL_USER=root
+export MYSQL_PASSWORD=test_password
+export MYSQL_TEST_DB=test_mysql_migration
+
+# Test database URL
+export MYSQL_TEST_DATABASE_URL="mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_TEST_DB}?charset=utf8mb4"
 ```
 
-### Issue: Permission denied
+## Expected Results
 
-**Solution:**
+### Success Criteria
+
+✓ All Alembic migrations execute without errors  
+✓ Database schema matches SQLAlchemy models  
+✓ Multi-tenant filtering works correctly  
+✓ No cross-institution data leakage  
+✓ Performance meets defined thresholds  
+✓ All API endpoints return correct responses  
+✓ Analytics aggregations produce accurate results  
+✓ ML predictions work with JSON storage  
+✓ Real-time features function properly  
+
+### Performance Thresholds
+
+| Test | Threshold | Description |
+|------|-----------|-------------|
+| Bulk insert 1000 students | < 30s | Mass data import performance |
+| Query with filtering | < 0.5s | Single query performance |
+| Complex joins | < 1.0s | Multi-table query performance |
+| Bulk attendance (3000) | < 10s | Bulk insert performance |
+| Aggregation query | < 1.0s | Analytics query performance |
+| Leaderboard (1000 users) | < 5s | Real-time ranking generation |
+
+## Test Coverage
+
+### Areas Covered
+
+1. **Database Migrations**
+   - Schema creation
+   - Indexes and constraints
+   - Foreign key relationships
+   - Data type compatibility
+
+2. **Multi-Tenant Isolation**
+   - Tenant filtering logic
+   - Cross-institution data protection
+   - RLS alternative implementation
+   - Bypass mechanisms
+
+3. **Performance**
+   - Bulk operations
+   - Query optimization
+   - Index effectiveness
+   - Connection pooling
+
+4. **API Integration**
+   - Authentication flow
+   - CRUD operations
+   - Error handling
+   - Data validation
+
+5. **Business Logic**
+   - Analytics calculations
+   - ML predictions
+   - Real-time updates
+   - Leaderboard generation
+
+## Troubleshooting
+
+### Common Issues
+
+**1. MySQL Connection Failed**
 ```bash
-# Grant permissions
-psql -c "GRANT ALL PRIVILEGES ON DATABASE test_migrations_db TO postgres;"
+# Verify MySQL is running
+systemctl status mysql  # Linux
+# or
+net start MySQL80  # Windows
+
+# Test connection
+mysql -u root -p -e "SELECT 1"
 ```
 
-### Issue: Tests fail due to existing data
-
-**Solution:**
+**2. Character Encoding Issues**
 ```bash
-# Drop and recreate test database
-dropdb test_migrations_db
-createdb test_migrations_db
+# Verify database charset
+mysql -u root -p -e "
+SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME 
+FROM information_schema.SCHEMATA 
+WHERE SCHEMA_NAME = 'test_mysql_migration';"
+
+# Should return: utf8mb4 | utf8mb4_unicode_ci
 ```
 
-### Issue: Connection limit exceeded
+**3. Migration Errors**
+```bash
+# Check current revision
+alembic current
 
-**Solution:**
-```sql
--- Increase max connections in postgresql.conf
-max_connections = 200
-
--- Or kill idle connections
-SELECT pg_terminate_backend(pid)
-FROM pg_stat_activity
-WHERE state = 'idle' AND datname = 'test_migrations_db';
+# Reset to clean state
+alembic downgrade base
+alembic upgrade head
 ```
 
-## Performance Benchmarks
+**4. Test Database Not Found**
+```bash
+# Create test database
+mysql -u root -p -e "
+CREATE DATABASE IF NOT EXISTS test_mysql_migration 
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;"
+```
 
-Expected test execution times:
+## Documentation
 
-- Forward migration (empty to HEAD): < 30s
-- Backward migration (5 steps): < 15s
-- Idempotency test: < 10s
-- Foreign key validation: < 5s
-- Index validation: < 5s
-- Full suite: < 60s
-
-If tests take significantly longer, investigate:
-- Large migration files
-- Missing indexes
-- Complex data transformations
-- Database connection issues
+- [MySQL Testing Guide](MYSQL_TESTING_GUIDE.md) - Detailed testing procedures
+- [Migration README](../../scripts/MIGRATION_README.md) - Migration process documentation
+- [Testing Guide](../TESTING_GUIDE.md) - General testing guidelines
 
 ## CI/CD Integration
 
-### GitHub Actions
+Add to your CI pipeline:
 
 ```yaml
-name: Migration Tests
-
-on: [push, pull_request]
-
-jobs:
-  test-migrations:
-    runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_migrations_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-      
-      - name: Run migration tests
-        env:
-          TEST_MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_migrations_db
-        run: |
-          pytest tests/migration/ -v --cov=alembic
+- name: Run MySQL Migration Tests
+  run: |
+    export MYSQL_TEST_DATABASE_URL="mysql+pymysql://root:password@localhost/test_db?charset=utf8mb4"
+    ./scripts/run_mysql_migration_tests.sh
 ```
-
-## Maintenance
-
-### Adding New Tests
-
-When adding new migration tests:
-
-1. Follow existing patterns in `test_migrations.py`
-2. Use appropriate fixtures from `conftest.py`
-3. Add docstrings explaining what the test validates
-4. Update this README with new test information
-
-### Updating Fixtures
-
-When modifying fixtures:
-
-1. Update `conftest.py`
-2. Ensure backward compatibility
-3. Update fixture documentation
-4. Test with existing test suite
-
-## Best Practices
-
-1. **Always test migrations** before deploying to production
-2. **Test both directions** - upgrade and downgrade
-3. **Use production-like data** for realistic testing
-4. **Monitor performance** - migrations should complete quickly
-5. **Verify data integrity** after migrations
-6. **Document issues** found during testing
-
-## Rollback Procedures
-
-See [Migration Rollback Procedures](../../docs/MIGRATION_ROLLBACK_PROCEDURES.md) for detailed rollback instructions.
-
-## Additional Resources
-
-- [Alembic Documentation](https://alembic.sqlalchemy.org/)
-- [PostgreSQL Migration Best Practices](https://wiki.postgresql.org/wiki/Development_Best_Practices)
-- [SQLAlchemy Documentation](https://docs.sqlalchemy.org/)
 
 ## Support
 
 For issues or questions:
-1. Check this README
-2. Review test output and error messages
-3. Consult [Migration Rollback Procedures](../../docs/MIGRATION_ROLLBACK_PROCEDURES.md)
-4. Contact the database team
+1. Check the troubleshooting section
+2. Review test logs
+3. Examine MySQL error logs
+4. Verify environment configuration
+5. Check database schema state
 
----
+## License
 
-**Last Updated**: 2024-01-20  
-**Maintained By**: Database Team
+Same as project license.
