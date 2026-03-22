@@ -32,6 +32,10 @@ export const authApi = {
   },
 
   logout: async (refreshToken?: string): Promise<{ message: string }> => {
+    // Check if it's a demo user token
+    if (refreshToken && (refreshToken.startsWith('demo_student_refresh_token_') || refreshToken.startsWith('demo_parent_refresh_token_'))) {
+      return Promise.resolve({ message: 'Demo user logged out successfully' });
+    }
     return apiClient.post<{ message: string }>('/auth/logout', { refresh_token: refreshToken });
   },
 
@@ -40,6 +44,15 @@ export const authApi = {
   },
 
   refreshToken: async (data: RefreshTokenRequest): Promise<TokenResponse> => {
+    // Check if it's a demo user token
+    if (data.refresh_token && (data.refresh_token.startsWith('demo_student_refresh_token_') || data.refresh_token.startsWith('demo_parent_refresh_token_'))) {
+      const isStudent = data.refresh_token.startsWith('demo_student_refresh_token_');
+      return Promise.resolve({
+        access_token: isStudent ? `demo_student_access_token_${Date.now()}` : `demo_parent_access_token_${Date.now()}`,
+        refresh_token: data.refresh_token,
+        token_type: 'Bearer',
+      });
+    }
     return apiClient.post<TokenResponse>('/auth/refresh', data);
   },
 

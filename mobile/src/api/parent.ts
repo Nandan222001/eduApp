@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { isDemoUser, demoDataApi } from './demoDataApi';
 import {
   ParentDashboardData,
   ChildAttendanceSummary,
@@ -20,10 +21,17 @@ export interface GradesParams {
 
 export const parentApi = {
   getDashboard: async () => {
+    if (await isDemoUser()) {
+      return { data: null, success: true };
+    }
     return apiClient.get<ParentDashboardData>('/api/v1/parents/dashboard');
   },
 
   getChildren: async () => {
+    if (await isDemoUser()) {
+      const children = await demoDataApi.parent.getChildren();
+      return { data: children, success: true };
+    }
     const response = await apiClient.get<ParentDashboardData>('/api/v1/parents/dashboard');
     return { data: response.data.children, success: response.success };
   },

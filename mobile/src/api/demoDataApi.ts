@@ -55,6 +55,14 @@ export const demoDataApi = {
       return Promise.resolve(studentDemoData.profile);
     },
 
+    getGamificationDetails: async () => {
+      return Promise.resolve({ data: studentDemoData.gamification.stats });
+    },
+
+    getLeaderboard: async (_period: 'daily' | 'weekly' | 'monthly' | 'all-time' = 'weekly') => {
+      return Promise.resolve({ data: studentDemoData.gamification.leaderboard.topRankers });
+    },
+
     getDashboard: async () => {
       const summary = studentDemoData.attendance.summary;
       const attendance = {
@@ -353,6 +361,138 @@ export const demoDataApi = {
     getSubjectPerformance: async (childId: number): Promise<SubjectPerformance[]> => {
       const performance = parentDemoData.subjectPerformance[childId] || [];
       return Promise.resolve(performance);
+    },
+  },
+
+  predictions: {
+    getAIPredictionDashboard: async () => {
+      return Promise.resolve({
+        data: {
+          predictedScore: 85,
+          confidence: 82,
+          trend: 'improving',
+          lastUpdated: new Date().toISOString(),
+          topicProbabilities: [
+            {
+              id: 1,
+              topic: 'Quadratic Equations',
+              subject: 'Mathematics',
+              probability: 92,
+              starRating: 5,
+              expectedQuestions: 3,
+              lastYearFrequency: 4,
+            },
+            {
+              id: 2,
+              topic: 'Cell Biology',
+              subject: 'Biology',
+              probability: 86,
+              starRating: 4,
+              expectedQuestions: 2,
+              lastYearFrequency: 3,
+            },
+            {
+              id: 3,
+              topic: 'World War II',
+              subject: 'History',
+              probability: 88,
+              starRating: 4,
+              expectedQuestions: 2,
+              lastYearFrequency: 2,
+            },
+          ],
+          focusAreas: [
+            {
+              id: 1,
+              subject: 'Mathematics',
+              topic: 'Trigonometric Identities',
+              priority: 'high',
+              currentMastery: 65,
+              targetMastery: 80,
+              estimatedStudyHours: 12,
+              resources: ['Khan Academy - Trigonometry', 'Practice Problems Set 3'],
+            },
+            {
+              id: 2,
+              subject: 'English Literature',
+              topic: 'Literary Analysis',
+              priority: 'medium',
+              currentMastery: 68,
+              targetMastery: 75,
+              estimatedStudyHours: 8,
+              resources: ['Literary Devices Guide', 'Analysis Examples'],
+            },
+          ],
+          studyPlan: {
+            totalHours: 40,
+            completedHours: 25,
+            dailyTasks: [
+              {
+                id: 1,
+                title: 'Practice Quadratic Equations',
+                description: 'Solve 10 problems from Chapter 4',
+                subject: 'Mathematics',
+                duration: 45,
+                taskType: 'practice',
+                scheduledFor: new Date().toISOString(),
+                completed: false,
+              },
+              {
+                id: 2,
+                title: 'Review Cell Biology Notes',
+                description: 'Review notes from last week',
+                subject: 'Biology',
+                duration: 30,
+                taskType: 'revision',
+                scheduledFor: new Date().toISOString(),
+                completed: false,
+              },
+            ],
+            weeklyGoals: ['Complete all math assignments', 'Improve biology test score by 10%'],
+          },
+        },
+      });
+    },
+
+    getBoardExamPredictions: async () => {
+      return Promise.resolve({
+        data: {
+          examName: 'Final Examination',
+          examDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+          predictedScore: 85,
+          confidence: 80,
+          questionBlueprint: [
+            {
+              id: 1,
+              section: 'Section A - Multiple Choice',
+              topic: 'Quadratic Equations',
+              questionType: 'MCQ',
+              difficulty: 'medium',
+              marks: 4,
+              expectedCount: 3,
+              subtopics: ['Solving quadratics', 'Discriminant', 'Roots'],
+            },
+            {
+              id: 2,
+              section: 'Section B - Short Answer',
+              topic: 'Cell Biology',
+              questionType: 'Short Answer',
+              difficulty: 'easy',
+              marks: 5,
+              expectedCount: 2,
+              subtopics: ['Cell structure', 'Cell division'],
+            },
+          ],
+        },
+      });
+    },
+
+    markTaskComplete: async (_taskId: number) => {
+      return Promise.resolve({ success: true });
+    },
+
+    regenerateStudyPlan: async () => {
+      return Promise.resolve({ success: true });
     },
   },
 };

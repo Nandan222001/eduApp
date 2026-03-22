@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { isDemoUser, demoDataApi } from './demoDataApi';
 import {
   Profile,
   AttendanceSummary,
@@ -53,10 +54,18 @@ export interface TimetableData {
 
 export const studentApi = {
   getProfile: async () => {
+    if (await isDemoUser()) {
+      const profile = await demoDataApi.student.getProfile();
+      return { data: profile };
+    }
     return apiClient.get<Profile>('/api/v1/profile');
   },
 
   getDashboard: async () => {
+    if (await isDemoUser()) {
+      const dashboard = await demoDataApi.student.getDashboard();
+      return { data: dashboard };
+    }
     return apiClient.get<DashboardData>('/api/v1/students/dashboard');
   },
 
@@ -145,6 +154,10 @@ export const studentApi = {
   },
 
   getGoals: async () => {
+    if (await isDemoUser()) {
+      const goals = await demoDataApi.student.getGoals();
+      return { data: goals.data };
+    }
     return apiClient.get<Goal[]>('/api/v1/goals');
   },
 

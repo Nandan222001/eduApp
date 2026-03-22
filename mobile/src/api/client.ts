@@ -28,6 +28,12 @@ class ApiClient {
         const token = await SecureStore.getItemAsync('accessToken');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+          
+          // Skip actual network call for demo users
+          if (token.startsWith('demo_student_access_token_') || token.startsWith('demo_parent_access_token_')) {
+            // For demo users, we should not make actual API calls
+            // The individual API methods should handle demo data
+          }
         }
         return config;
       },
