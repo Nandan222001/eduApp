@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { secureStorage } from '../utils/secureStorage';
-import { offlineQueueManager } from '../utils/offlineQueue';
+import { offlineQueueManager, QueuedRequestType } from '../utils/offlineQueue';
 import { networkStatusManager } from '../utils/networkStatus';
 import { STORAGE_KEYS } from '../constants';
 
@@ -84,6 +84,7 @@ class ApiClient {
     const headers = config.headers as Record<string, string>;
 
     await offlineQueueManager.addToQueue({
+      type: QueuedRequestType.PROFILE_UPDATE,
       url,
       method,
       data,

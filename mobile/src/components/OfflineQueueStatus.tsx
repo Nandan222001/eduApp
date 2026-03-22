@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useOfflineQueue } from '@hooks/useOfflineQueue';
-import { QueuedOperation, QueuedOperationType } from '@utils/offlineQueue';
+import { QueuedRequest, QueuedRequestType } from '@utils/offlineQueue';
 import { COLORS, SPACING, FONT_SIZES } from '@constants';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,26 +10,26 @@ interface OfflineQueueStatusProps {
   showDetails?: boolean;
 }
 
-const getOperationIcon = (type: QueuedOperationType): string => {
+const getOperationIcon = (type: QueuedRequestType): string => {
   switch (type) {
-    case QueuedOperationType.ASSIGNMENT_SUBMISSION:
+    case QueuedRequestType.ASSIGNMENT_SUBMISSION:
       return 'assignment';
-    case QueuedOperationType.ATTENDANCE_CHECK_IN:
+    case QueuedRequestType.ATTENDANCE_MARKING:
       return 'check-circle';
-    case QueuedOperationType.PROFILE_UPDATE:
+    case QueuedRequestType.PROFILE_UPDATE:
       return 'person';
     default:
       return 'sync';
   }
 };
 
-const getOperationTitle = (type: QueuedOperationType): string => {
+const getOperationTitle = (type: QueuedRequestType): string => {
   switch (type) {
-    case QueuedOperationType.ASSIGNMENT_SUBMISSION:
+    case QueuedRequestType.ASSIGNMENT_SUBMISSION:
       return 'Assignment Submission';
-    case QueuedOperationType.ATTENDANCE_CHECK_IN:
+    case QueuedRequestType.ATTENDANCE_MARKING:
       return 'Attendance Check-in';
-    case QueuedOperationType.PROFILE_UPDATE:
+    case QueuedRequestType.PROFILE_UPDATE:
       return 'Profile Update';
     default:
       return 'Unknown Operation';
@@ -43,12 +43,12 @@ export const OfflineQueueStatus: React.FC<OfflineQueueStatusProps> = ({ showDeta
     return null;
   }
 
-  const renderQueueItem = ({ item }: { item: QueuedOperation }) => (
+  const renderQueueItem = ({ item }: { item: QueuedRequest }) => (
     <View style={styles.queueItem}>
       <Icon
         name={getOperationIcon(item.type)}
         size={24}
-        color={item.error ? COLORS.error : COLORS.primary}
+        color={item.retryCount > 0 ? COLORS.error : COLORS.primary}
         style={styles.itemIcon}
       />
       <View style={styles.itemContent}>
@@ -56,9 +56,9 @@ export const OfflineQueueStatus: React.FC<OfflineQueueStatusProps> = ({ showDeta
         <Text style={styles.itemTime}>
           Queued {formatDistanceToNow(item.timestamp, { addSuffix: true })}
         </Text>
-        {item.error && (
+        {item.retryCount > 0 && (
           <Text style={styles.itemError}>
-            Error: {item.error} (Retry {item.retryCount}/{item.maxRetries})
+            Retry {item.retryCount}/{item.maxRetries}
           </Text>
         )}
       </View>

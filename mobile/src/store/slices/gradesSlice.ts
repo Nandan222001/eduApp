@@ -7,6 +7,7 @@ interface GradesState {
   isLoading: boolean;
   error: string | null;
   lastUpdated: number | null;
+  isSyncing: boolean;
 }
 
 const initialState: GradesState = {
@@ -14,6 +15,7 @@ const initialState: GradesState = {
   isLoading: false,
   error: null,
   lastUpdated: null,
+  isSyncing: false,
 };
 
 export const fetchGrades = createAsyncThunk(
@@ -37,6 +39,12 @@ const gradesSlice = createSlice({
       state.error = null;
       state.lastUpdated = null;
     },
+    setLastSynced: (state, action) => {
+      state.lastUpdated = new Date(action.payload).getTime();
+    },
+    setSyncing: (state, action) => {
+      state.isSyncing = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -57,5 +65,5 @@ const gradesSlice = createSlice({
   },
 });
 
-export const { clearGrades } = gradesSlice.actions;
+export const { clearGrades, setLastSynced, setSyncing } = gradesSlice.actions;
 export default gradesSlice.reducer;

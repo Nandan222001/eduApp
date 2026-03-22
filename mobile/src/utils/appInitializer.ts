@@ -49,7 +49,7 @@ export class AppInitializer {
   private async initializeBackgroundSync(): Promise<void> {
     try {
       console.log('[AppInitializer] Registering background sync...');
-      await backgroundSyncService.registerBackgroundSync();
+      await backgroundSyncService.register();
       console.log('[AppInitializer] Background sync registered');
     } catch (error) {
       console.error('[AppInitializer] Background sync registration failed:', error);

@@ -11,7 +11,9 @@
     "lint": "eslint . --ext .ts,.tsx",
     "type-check": "tsc --noEmit",
     "validate-ios": "node validate-ios-setup.js",
-    "test-ios": "npm run validate-ios && npm run type-check && npm run lint"
+    "validate-android": "node validate-android-setup.js",
+    "test-ios": "npm run validate-ios && npm run type-check && npm run lint",
+    "test-android": "npm run validate-android && npm run type-check && npm run lint"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.21.0",

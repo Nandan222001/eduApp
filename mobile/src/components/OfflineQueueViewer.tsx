@@ -43,7 +43,7 @@ const getRequestTypeColor = (type: QueuedRequestType): string => {
 };
 
 export const OfflineQueueViewer: React.FC<OfflineQueueViewerProps> = ({ style }) => {
-  const { queueState, clearQueue, retryFailedRequests } = useOfflineSync();
+  const { queue, queueState, clearQueue, retryFailedRequests } = useOfflineSync();
 
   const renderItem = ({ item }: { item: QueuedRequest }) => {
     const isFailed = item.retryCount >= item.maxRetries;
@@ -117,7 +117,7 @@ export const OfflineQueueViewer: React.FC<OfflineQueueViewerProps> = ({ style })
       </View>
 
       <FlatList
-        data={queueState.requests}
+        data={queue}
         renderItem={renderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}

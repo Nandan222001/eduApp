@@ -56,6 +56,21 @@ const assignmentsSlice = createSlice({
         assignment.status = action.payload.status;
       }
     },
+    optimisticUpdateAssignment: (state, action: PayloadAction<{ id: number; updates: Partial<Assignment> }>) => {
+      const assignment = state.assignments.find(a => a.id === action.payload.id);
+      if (assignment) {
+        Object.assign(assignment, action.payload.updates);
+      }
+    },
+    rollbackAssignment: (state, action: PayloadAction<Assignment>) => {
+      const index = state.assignments.findIndex(a => a.id === action.payload.id);
+      if (index !== -1) {
+        state.assignments[index] = action.payload;
+      }
+    },
+    setLastSynced: (state, action: PayloadAction<string>) => {
+      state.lastUpdated = new Date(action.payload).getTime();
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -88,5 +103,11 @@ const assignmentsSlice = createSlice({
   },
 });
 
-export const { clearAssignments, updateAssignmentStatus } = assignmentsSlice.actions;
+export const { 
+  clearAssignments, 
+  updateAssignmentStatus,
+  optimisticUpdateAssignment,
+  rollbackAssignment,
+  setLastSynced,
+} = assignmentsSlice.actions;
 export default assignmentsSlice.reducer;

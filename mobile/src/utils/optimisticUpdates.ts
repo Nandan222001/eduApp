@@ -3,7 +3,7 @@ import {
   updateAssignmentOptimistic,
   updateProfileOptimistic,
 } from '@store/slices/studentDataSlice';
-import { offlineQueueManager, QueuedOperationType } from './offlineQueue';
+import { offlineQueueManager, QueuedRequestType } from './offlineQueue';
 import { SubmitAssignmentData, assignmentsApi } from '@api/assignments';
 import { apiClient } from '@api/client';
 import type { Profile, Assignment } from '../types/student';
@@ -19,13 +19,18 @@ export const submitAssignmentWithOptimisticUpdate = async (
       id: assignmentId,
       updates: {
         status: 'submitted',
-        submittedAt: new Date().toISOString(),
+        submission_date: new Date().toISOString(),
       },
     })
   );
 
   if (!isOnline) {
-    await offlineQueueManager.addToQueue(QueuedOperationType.ASSIGNMENT_SUBMISSION, submissionData);
+    await offlineQueueManager.addRequest(
+      QueuedRequestType.ASSIGNMENT_SUBMISSION,
+      '/api/v1/submissions',
+      'POST',
+      submissionData
+    );
     return;
   }
 
@@ -37,12 +42,17 @@ export const submitAssignmentWithOptimisticUpdate = async (
         id: assignmentId,
         updates: {
           status: 'pending',
-          submittedAt: undefined,
+          submission_date: undefined,
         },
       })
     );
 
-    await offlineQueueManager.addToQueue(QueuedOperationType.ASSIGNMENT_SUBMISSION, submissionData);
+    await offlineQueueManager.addRequest(
+      QueuedRequestType.ASSIGNMENT_SUBMISSION,
+      '/api/v1/submissions',
+      'POST',
+      submissionData
+    );
     throw error;
   }
 };
@@ -59,14 +69,24 @@ export const checkInAttendanceWithOptimisticUpdate = async (
   };
 
   if (!isOnline) {
-    await offlineQueueManager.addToQueue(QueuedOperationType.ATTENDANCE_CHECK_IN, checkInData);
+    await offlineQueueManager.addRequest(
+      QueuedRequestType.ATTENDANCE_MARKING,
+      '/api/v1/attendance/check-in',
+      'POST',
+      checkInData
+    );
     return;
   }
 
   try {
     await apiClient.post('/api/v1/attendance/check-in', checkInData);
   } catch (error) {
-    await offlineQueueManager.addToQueue(QueuedOperationType.ATTENDANCE_CHECK_IN, checkInData);
+    await offlineQueueManager.addRequest(
+      QueuedRequestType.ATTENDANCE_MARKING,
+      '/api/v1/attendance/check-in',
+      'POST',
+      checkInData
+    );
     throw error;
   }
 };
@@ -79,14 +99,24 @@ export const updateProfileWithOptimisticUpdate = async (
   dispatch(updateProfileOptimistic(updates));
 
   if (!isOnline) {
-    await offlineQueueManager.addToQueue(QueuedOperationType.PROFILE_UPDATE, updates);
+    await offlineQueueManager.addRequest(
+      QueuedRequestType.PROFILE_UPDATE,
+      '/api/v1/profile',
+      'PUT',
+      updates
+    );
     return;
   }
 
   try {
     await apiClient.put('/api/v1/profile', updates);
   } catch (error) {
-    await offlineQueueManager.addToQueue(QueuedOperationType.PROFILE_UPDATE, updates);
+    await offlineQueueManager.addRequest(
+      QueuedRequestType.PROFILE_UPDATE,
+      '/api/v1/profile',
+      'PUT',
+      updates
+    );
     throw error;
   }
 };

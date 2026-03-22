@@ -44,10 +44,14 @@ function RootLayoutNav() {
   useEffect(() => {
     const initApp = async () => {
       try {
-        // Initialize iOS-specific features first
+        // Initialize platform-specific features first
         if (Platform.OS === 'ios') {
           await checkIOSCompatibility();
           await initializeIOSPlatform();
+        } else if (Platform.OS === 'android') {
+          const { checkAndroidCompatibility, initializeAndroidPlatform } = await import('@utils/androidInit');
+          await checkAndroidCompatibility();
+          await initializeAndroidPlatform();
         }
 
         // Load stored authentication

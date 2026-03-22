@@ -10,12 +10,12 @@ class NetworkStatusManager {
 
   private initialize() {
     NetInfo.fetch().then((state: NetInfoState) => {
-      this.isConnected = state.isConnected ?? false;
+      this.isConnected = state.isConnected === true && state.isInternetReachable !== false;
     });
 
     NetInfo.addEventListener((state: NetInfoState) => {
       const wasConnected = this.isConnected;
-      this.isConnected = state.isConnected ?? false;
+      this.isConnected = state.isConnected === true && state.isInternetReachable !== false;
 
       if (wasConnected !== this.isConnected) {
         this.notifyListeners();
@@ -40,7 +40,7 @@ class NetworkStatusManager {
 
   public async checkConnection(): Promise<boolean> {
     const state = await NetInfo.fetch();
-    this.isConnected = state.isConnected ?? false;
+    this.isConnected = state.isConnected === true && state.isInternetReachable !== false;
     return this.isConnected;
   }
 }

@@ -2,8 +2,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { apiClient } from '../api/client';
 
+export enum QueuedRequestType {
+  ASSIGNMENT_SUBMISSION = 'ASSIGNMENT_SUBMISSION',
+  DOUBT_POST = 'DOUBT_POST',
+  DOUBT_ANSWER = 'DOUBT_ANSWER',
+  ATTENDANCE_MARKING = 'ATTENDANCE_MARKING',
+  PROFILE_UPDATE = 'PROFILE_UPDATE',
+  SETTINGS_UPDATE = 'SETTINGS_UPDATE',
+}
+
 export interface QueuedRequest {
   id: string;
+  type: QueuedRequestType;
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   data?: any;
@@ -11,6 +21,13 @@ export interface QueuedRequest {
   timestamp: number;
   retryCount: number;
   maxRetries: number;
+  metadata?: Record<string, any>;
+}
+
+export interface OfflineQueueState {
+  totalCount: number;
+  pendingCount: number;
+  failedCount: number;
 }
 
 const QUEUE_STORAGE_KEY = '@offline_queue';
@@ -20,6 +37,7 @@ class OfflineQueueManager {
   private queue: QueuedRequest[] = [];
   private isProcessing = false;
   private listeners: Array<(queue: QueuedRequest[]) => void> = [];
+  private isOnline = true;
 
   constructor() {
     this.loadQueue();
@@ -48,8 +66,13 @@ class OfflineQueueManager {
   }
 
   private setupNetworkListener() {
+    NetInfo.fetch().then((state: any) => {
+      this.isOnline = state.isConnected === true && state.isInternetReachable !== false;
+    });
+
     NetInfo.addEventListener((state: any) => {
-      if (state.isConnected && this.queue.length > 0 && !this.isProcessing) {
+      this.isOnline = state.isConnected === true && state.isInternetReachable !== false;
+      if (this.isOnline && this.queue.length > 0 && !this.isProcessing) {
         this.processQueue();
       }
     });
@@ -163,6 +186,53 @@ class OfflineQueueManager {
 
   private notifyListeners() {
     this.listeners.forEach(listener => listener([...this.queue]));
+  }
+
+  public async addRequest(
+    type: QueuedRequestType,
+    url: string,
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+    data?: any,
+    headers?: Record<string, string>,
+    metadata?: Record<string, any>
+  ): Promise<string> {
+    return this.addToQueue({ type, url, method, data, headers, metadata });
+  }
+
+  public isConnected(): boolean {
+    return this.isOnline;
+  }
+
+  public getQueueState(): OfflineQueueState {
+    return {
+      totalCount: this.queue.length,
+      pendingCount: this.queue.filter(r => r.retryCount === 0).length,
+      failedCount: this.queue.filter(r => r.retryCount > 0).length,
+    };
+  }
+
+  public dispose(): void {
+    this.listeners = [];
+  }
+
+  public async clearFailedRequests(): Promise<void> {
+    this.queue = this.queue.filter(r => r.retryCount === 0);
+    await this.saveQueue();
+  }
+
+  public async retryFailedRequests(): Promise<void> {
+    const failedRequests = this.queue.filter(r => r.retryCount > 0);
+    failedRequests.forEach(r => {
+      r.retryCount = 0;
+    });
+    await this.saveQueue();
+    if (this.isOnline) {
+      await this.processQueue();
+    }
+  }
+
+  public getRequestsByType(type: QueuedRequestType): QueuedRequest[] {
+    return this.queue.filter(r => r.type === type);
   }
 }
 

@@ -1,7 +1,7 @@
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
 import type { RootState, AppDispatch } from './index';
-import { offlineQueueManager, QueuedRequest } from '../utils/offlineQueue';
+import { offlineQueueManager, QueuedRequest, QueuedRequestType } from '../utils/offlineQueue';
 import { networkStatusManager } from '../utils/networkStatus';
 
 export const useAppDispatch = () => useDispatch<AppDispatch>();
@@ -25,12 +25,14 @@ export const useOfflineQueue = () => {
   }, []);
 
   const addToQueue = async (
+    type: QueuedRequestType,
     url: string,
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     data?: any,
     headers?: Record<string, string>
   ) => {
     return await offlineQueueManager.addToQueue({
+      type,
       url,
       method,
       data,

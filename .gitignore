@@ -300,4 +300,3 @@ mobile/offline_cache/
 
 # Node modules at root (if any)
 node_modules/
-package-lock.json

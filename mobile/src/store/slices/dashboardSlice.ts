@@ -8,6 +8,7 @@ interface DashboardState {
   isLoading: boolean;
   error: string | null;
   lastUpdated: number | null;
+  isSyncing: boolean;
 }
 
 const initialState: DashboardState = {
@@ -16,6 +17,7 @@ const initialState: DashboardState = {
   isLoading: false,
   error: null,
   lastUpdated: null,
+  isSyncing: false,
 };
 
 export const fetchDashboardData = createAsyncThunk(
@@ -43,6 +45,12 @@ const dashboardSlice = createSlice({
       state.error = null;
       state.lastUpdated = null;
     },
+    setLastSynced: (state, action) => {
+      state.lastUpdated = new Date(action.payload).getTime();
+    },
+    setSyncing: (state, action) => {
+      state.isSyncing = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -64,5 +72,5 @@ const dashboardSlice = createSlice({
   },
 });
 
-export const { clearDashboard } = dashboardSlice.actions;
+export const { clearDashboard, setLastSynced, setSyncing } = dashboardSlice.actions;
 export default dashboardSlice.reducer;

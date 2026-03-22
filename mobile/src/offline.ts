@@ -9,7 +9,6 @@
 export { offlineQueueManager, QueuedRequestType } from './utils/offlineQueue';
 export type { QueuedRequest, OfflineQueueState } from './utils/offlineQueue';
 export { backgroundSyncService } from './utils/backgroundSync';
-export type { BackgroundSyncResult } from './utils/backgroundSync';
 export { appInitializer } from './utils/appInitializer';
 
 // API

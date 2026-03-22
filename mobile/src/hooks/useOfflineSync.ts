@@ -1,23 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { offlineQueueManager, OfflineQueueState, QueuedRequestType } from '@utils/offlineQueue';
-import { backgroundSyncService, BackgroundSyncResult } from '@utils/backgroundSync';
+import { offlineQueueManager, OfflineQueueState, QueuedRequest, QueuedRequestType } from '@utils/offlineQueue';
+import { backgroundSyncService } from '@utils/backgroundSync';
 
 export const useOfflineSync = () => {
+  const [queue, setQueue] = useState<QueuedRequest[]>(offlineQueueManager.getQueue());
   const [queueState, setQueueState] = useState<OfflineQueueState>(
     offlineQueueManager.getQueueState()
   );
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncResult, setLastSyncResult] = useState<BackgroundSyncResult | null>(null);
+  const [lastSyncResult, setLastSyncResult] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(offlineQueueManager.isConnected());
 
   useEffect(() => {
-    const unsubscribe = offlineQueueManager.subscribe(state => {
-      setQueueState(state);
+    const unsubscribe = offlineQueueManager.subscribe(newQueue => {
+      setQueue(newQueue);
+      setQueueState(offlineQueueManager.getQueueState());
       setIsOnline(offlineQueueManager.isConnected());
     });
 
-    backgroundSyncService.getLastSyncResult().then(result => {
-      setLastSyncResult(result);
+    backgroundSyncService.getLastSyncTimestamp().then(timestamp => {
+      setLastSyncResult(timestamp);
     });
 
     return () => {
@@ -66,6 +68,7 @@ export const useOfflineSync = () => {
   }, []);
 
   return {
+    queue,
     queueState,
     isOnline,
     isSyncing,
