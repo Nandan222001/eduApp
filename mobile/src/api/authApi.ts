@@ -10,7 +10,7 @@ import {
   RoleInfo,
 } from '../types/auth';
 import { demoStudentUser, demoParentUser } from '../data/dummyData';
-import * as SecureStore from 'expo-secure-store';
+import { secureStorage } from '../utils/secureStorage';
 
 interface BackendUserResponse extends Omit<User, 'role'> {
   role: RoleInfo;
@@ -74,7 +74,7 @@ export const authApi = {
 
   getCurrentUser: async (): Promise<User> => {
     try {
-      const token = await SecureStore.getItemAsync('accessToken');
+      const token = await secureStorage.getAccessToken();
       
       if (token) {
         if (token.startsWith('demo_student_access_token_')) {
