@@ -30,6 +30,11 @@ export const login = createAsyncThunk(
       const user = await authApi.getCurrentUser();
       await secureStorage.setUserEmail(user.email);
 
+      const isDemoUser = 
+        (credentials.email === 'demo@example.com' && credentials.password === 'Demo@123') ||
+        (credentials.email === 'parent@demo.com' && credentials.password === 'Demo@123');
+      await secureStorage.setIsDemoUser(isDemoUser);
+
       return {
         user,
         accessToken: tokenResponse.access_token,
@@ -121,11 +126,11 @@ export const logout = createAsyncThunk('auth/logout', async (_, { getState, reje
       await authApi.logout(refreshToken);
     }
 
-    await secureStorage.clearTokens();
+    await secureStorage.clearAll();
 
     return null;
   } catch (error: any) {
-    await secureStorage.clearTokens();
+    await secureStorage.clearAll();
     return rejectWithValue(error.response?.data?.detail || 'Logout failed');
   }
 });
@@ -135,12 +140,17 @@ export const loadStoredAuth = createAsyncThunk('auth/loadStoredAuth', async (_, 
     const accessToken = await secureStorage.getAccessToken();
     const refreshToken = await secureStorage.getRefreshToken();
     const biometricEnabled = await secureStorage.getBiometricEnabled();
+    const isDemoUser = await secureStorage.getIsDemoUser();
 
     if (!accessToken || !refreshToken) {
       return null;
     }
 
     const user = await authApi.getCurrentUser();
+
+    if (isDemoUser) {
+      await secureStorage.setIsDemoUser(true);
+    }
 
     return {
       user,

@@ -5,6 +5,7 @@ const TOKEN_KEYS = {
   REFRESH_TOKEN: 'refreshToken',
   BIOMETRIC_ENABLED: 'biometricEnabled',
   USER_EMAIL: 'userEmail',
+  IS_DEMO_USER: 'isDemoUser',
 } as const;
 
 export const secureStorage = {
@@ -55,12 +56,22 @@ export const secureStorage = {
     return await SecureStore.getItemAsync(TOKEN_KEYS.USER_EMAIL);
   },
 
+  setIsDemoUser: async (isDemoUser: boolean): Promise<void> => {
+    await SecureStore.setItemAsync(TOKEN_KEYS.IS_DEMO_USER, isDemoUser.toString());
+  },
+
+  getIsDemoUser: async (): Promise<boolean> => {
+    const value = await SecureStore.getItemAsync(TOKEN_KEYS.IS_DEMO_USER);
+    return value === 'true';
+  },
+
   clearAll: async (): Promise<void> => {
     await Promise.all([
       SecureStore.deleteItemAsync(TOKEN_KEYS.ACCESS_TOKEN),
       SecureStore.deleteItemAsync(TOKEN_KEYS.REFRESH_TOKEN),
       SecureStore.deleteItemAsync(TOKEN_KEYS.BIOMETRIC_ENABLED),
       SecureStore.deleteItemAsync(TOKEN_KEYS.USER_EMAIL),
+      SecureStore.deleteItemAsync(TOKEN_KEYS.IS_DEMO_USER),
     ]);
   },
 };
