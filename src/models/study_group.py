@@ -1,7 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Index, UniqueConstraint, Enum as SQLEnum, Float, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import ARRAY
 from enum import Enum
 from src.database import Base
 
@@ -133,7 +132,7 @@ class GroupMessage(Base):
     
     content = Column(Text, nullable=False)
     message_type = Column(SQLEnum(MessageType), default=MessageType.TEXT, nullable=False)
-    attachments = Column(ARRAY(String), nullable=True)
+    attachments = Column(JSON, nullable=True)
     is_pinned = Column(Boolean, default=False, nullable=False)
     reply_to_id = Column(Integer, ForeignKey('group_messages.id', ondelete='SET NULL'), nullable=True)
     
@@ -248,13 +247,13 @@ class StudyBuddyProfile(Base):
     student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
-    subjects = Column(ARRAY(Integer), nullable=False)
+    subjects = Column(JSON, nullable=False)
     performance_level = Column(String(50), nullable=False)
     study_schedule = Column(JSON, nullable=True)
-    preferred_study_times = Column(ARRAY(String), nullable=True)
+    preferred_study_times = Column(JSON, nullable=True)
     study_goals = Column(Text, nullable=True)
     learning_style = Column(String(50), nullable=True)
-    availability_days = Column(ARRAY(String), nullable=True)
+    availability_days = Column(JSON, nullable=True)
     preferred_group_size = Column(Integer, default=4, nullable=False)
     is_available = Column(Boolean, default=True, nullable=False)
     bio = Column(Text, nullable=True)
@@ -285,7 +284,7 @@ class StudyBuddyMatch(Base):
     matched_student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False, index=True)
     
     match_score = Column(Float, nullable=False)
-    common_subjects = Column(ARRAY(Integer), nullable=True)
+    common_subjects = Column(JSON, nullable=True)
     match_reason = Column(Text, nullable=True)
     status = Column(SQLEnum(MatchStatus), default=MatchStatus.PENDING, nullable=False)
     
@@ -334,7 +333,7 @@ class StudySession(Base):
     status = Column(SQLEnum(SessionStatus), default=SessionStatus.SCHEDULED, nullable=False)
     
     notes = Column(Text, nullable=True)
-    tags = Column(ARRAY(String), nullable=True)
+    tags = Column(JSON, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -406,7 +405,7 @@ class CollaborativeNote(Base):
     view_count = Column(Integer, default=0, nullable=False)
     edit_count = Column(Integer, default=0, nullable=False)
     
-    tags = Column(ARRAY(String), nullable=True)
+    tags = Column(JSON, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -486,7 +485,7 @@ class PeerTutorProfile(Base):
     student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
-    expertise_subjects = Column(ARRAY(Integer), nullable=False)
+    expertise_subjects = Column(JSON, nullable=False)
     hourly_rate = Column(Float, nullable=True)
     availability_schedule = Column(JSON, nullable=True)
     bio = Column(Text, nullable=True)
