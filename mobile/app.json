@@ -25,7 +25,10 @@
         "NSMicrophoneUsageDescription": "Allow EduTrack to use your microphone for voice features",
         "UIBackgroundModes": ["fetch", "remote-notification"]
       },
-      "associatedDomains": ["applinks:edutrack.app"]
+      "associatedDomains": [
+        "applinks:edutrack.app",
+        "applinks:*.edutrack.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -52,6 +55,20 @@
               "scheme": "https",
               "host": "edutrack.app",
               "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.edutrack.app",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "edutrack"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]

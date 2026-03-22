@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
@@ -14,6 +14,13 @@ import { loadStoredAuth } from '@store/slices/authSlice';
 import { Loading, OfflineDataRefresher } from '@components';
 import { theme } from '@config/theme';
 import { authService } from '@utils/authService';
+import { 
+  getInitialURL, 
+  addDeepLinkListener, 
+  parseDeepLink, 
+  isValidDeepLink,
+  normalizeDeepLink 
+} from '@utils/deepLinking';
 
 // Prevent splash screen from auto-hiding (only on native platforms)
 if (Platform.OS !== 'web') {
@@ -38,6 +45,46 @@ function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
   const { isAuthenticated, isLoading, activeRole } = useAppSelector(state => state.auth);
+  const initialURLHandled = useRef(false);
+
+  const handleDeepLink = React.useCallback((url: string) => {
+    if (!isValidDeepLink(url)) {
+      console.warn('Invalid deep link:', url);
+      return;
+    }
+
+    const normalizedUrl = normalizeDeepLink(url);
+    const route = parseDeepLink(normalizedUrl);
+    
+    if (!route) {
+      console.warn('Failed to parse deep link:', url);
+      return;
+    }
+
+    console.log('Deep link navigation:', route);
+
+    if (!isAuthenticated && !route.path.startsWith('(auth)')) {
+      console.log('User not authenticated, redirecting to login with return path');
+      router.replace({
+        pathname: '/(auth)/login',
+        params: { returnPath: route.path, ...route.params }
+      } as never);
+      return;
+    }
+
+    try {
+      if (route.params && Object.keys(route.params).length > 0) {
+        router.push({
+          pathname: route.path as never,
+          params: route.params
+        });
+      } else {
+        router.push(route.path as never);
+      }
+    } catch (error) {
+      console.error('Failed to navigate to deep link:', error);
+    }
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     const initApp = async () => {
@@ -76,6 +123,36 @@ function RootLayoutNav() {
 
     initApp();
   }, [dispatch]);
+
+  useEffect(() => {
+    const handleInitialURL = async () => {
+      if (initialURLHandled.current || isLoading) return;
+      
+      try {
+        const url = await getInitialURL();
+        if (url) {
+          initialURLHandled.current = true;
+          console.log('Initial URL:', url);
+          handleDeepLink(url);
+        }
+      } catch (error) {
+        console.error('Failed to get initial URL:', error);
+      }
+    };
+
+    handleInitialURL();
+  }, [isLoading, isAuthenticated, handleDeepLink]);
+
+  useEffect(() => {
+    const subscription = addDeepLinkListener((url) => {
+      console.log('Deep link received:', url);
+      handleDeepLink(url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [handleDeepLink]);
 
   useEffect(() => {
     if (isAuthenticated) {

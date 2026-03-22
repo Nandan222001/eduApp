@@ -19,3 +19,19 @@ export { secureStorage } from './secureStorage';
 export { fileManager } from './fileManager';
 
 export { authService } from './authService';
+
+export {
+  parseDeepLink,
+  createDeepLink,
+  createWebLink,
+  getInitialURL,
+  addDeepLinkListener,
+  isValidDeepLink,
+  normalizeDeepLink,
+  deepLinkRoutes,
+  linkingConfig,
+  DEEP_LINK_SCHEME,
+  DEEP_LINK_PREFIX,
+  WEB_LINK_PREFIX,
+} from './deepLinking';
+export type { DeepLinkRoute } from './deepLinking';
