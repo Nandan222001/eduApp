@@ -312,7 +312,7 @@ class DatabaseMaintenanceRepository:
     
     @staticmethod
     def get_autovacuum_progress(db: Session) -> List[Dict[str, Any]]:
-        """Get current autovacuum progress (not applicable to MySQL)."""
+        """Get current database maintenance progress (not applicable to MySQL - auto-optimization is handled differently)."""
         return []
     
     @staticmethod

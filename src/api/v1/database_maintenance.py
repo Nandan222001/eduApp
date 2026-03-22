@@ -16,7 +16,7 @@ async def trigger_vacuum_analyze(
     current_user: User = Depends(require_super_admin)
 ):
     """
-    Trigger VACUUM ANALYZE on all tables.
+    Trigger OPTIMIZE TABLE on all tables (MySQL database maintenance).
     Requires super admin privileges.
     """
     result = DatabaseMaintenanceService.run_vacuum_analyze()
@@ -40,7 +40,7 @@ async def cleanup_dead_tuples(
     current_user: User = Depends(require_super_admin)
 ):
     """
-    Trigger dead tuple cleanup task.
+    Trigger table optimization task (MySQL database maintenance).
     Requires super admin privileges.
     """
     result = DatabaseMaintenanceService.cleanup_dead_tuples()
@@ -52,7 +52,7 @@ async def get_slow_queries(
     current_user: User = Depends(require_super_admin)
 ):
     """
-    Get slow query report from pg_stat_statements.
+    Get slow query report from performance_schema.
     Requires super admin privileges.
     """
     result = DatabaseMaintenanceService.get_slow_queries()
@@ -114,7 +114,7 @@ async def update_statistics(
     current_user: User = Depends(require_super_admin)
 ):
     """
-    Force update of table statistics for query planner.
+    Force update of table statistics for query optimizer (ANALYZE TABLE).
     Requires super admin privileges.
     """
     result = DatabaseMaintenanceService.update_statistics()
@@ -171,15 +171,15 @@ async def drop_unused_index(
     return result
 
 
-@router.post("/enable-pg-stat-statements", status_code=status.HTTP_201_CREATED)
-async def enable_pg_stat_statements(
+@router.post("/enable-performance-schema", status_code=status.HTTP_201_CREATED)
+async def enable_performance_schema(
     current_user: User = Depends(require_super_admin)
 ):
     """
-    Enable pg_stat_statements extension for query performance tracking.
+    Enable performance_schema for query performance tracking in MySQL.
     Requires super admin privileges.
     """
-    result = DatabaseMaintenanceService.enable_pg_stat_statements()
+    result = DatabaseMaintenanceService.enable_performance_schema()
     return result
 
 
@@ -284,13 +284,13 @@ async def get_bloat_estimate(
     return {"status": "success", "count": len(bloat), "data": bloat}
 
 
-@router.get("/autovacuum-progress")
-async def get_autovacuum_progress(
+@router.get("/maintenance-progress")
+async def get_maintenance_progress(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_super_admin)
 ):
     """
-    Get current autovacuum progress.
+    Get current database maintenance progress.
     Requires super admin privileges.
     """
     progress = DatabaseMaintenanceRepository.get_autovacuum_progress(db)
@@ -303,7 +303,7 @@ async def reset_query_statistics(
     current_user: User = Depends(require_super_admin)
 ):
     """
-    Reset pg_stat_statements statistics.
+    Reset performance_schema statistics.
     Requires super admin privileges.
     WARNING: This will clear all query statistics.
     """

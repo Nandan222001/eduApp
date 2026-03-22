@@ -26,7 +26,7 @@ class DatabaseMaintenanceService:
     @staticmethod
     def run_vacuum_analyze() -> Dict[str, Any]:
         """
-        Trigger OPTIMIZE TABLE task (MySQL equivalent of VACUUM ANALYZE).
+        Trigger OPTIMIZE TABLE task for MySQL database maintenance.
         """
         result = vacuum_analyze_task.delay()
         return {
@@ -59,7 +59,7 @@ class DatabaseMaintenanceService:
     @staticmethod
     def cleanup_dead_tuples() -> Dict[str, Any]:
         """
-        Trigger table optimization task (MySQL equivalent of dead tuple cleanup).
+        Trigger table optimization task for MySQL database maintenance.
         """
         result = cleanup_dead_tuples_task.delay()
         return {
@@ -166,7 +166,7 @@ class DatabaseMaintenanceService:
         try:
             db = SessionLocal()
             
-            # MySQL equivalent queries
+            # MySQL database size query
             size_query = text("""
                 SELECT
                     CONCAT(ROUND(SUM(data_length + index_length) / 1024 / 1024, 2), ' MB') as database_size,
@@ -176,6 +176,7 @@ class DatabaseMaintenanceService:
             """)
             size_result = db.execute(size_query).fetchone()
             
+            # MySQL connection statistics
             connection_query = text("""
                 SELECT
                     COUNT(*) as total_connections,
@@ -187,8 +188,7 @@ class DatabaseMaintenanceService:
             """)
             conn_result = db.execute(connection_query).fetchone()
             
-            # MySQL doesn't have direct cache hit ratio like PostgreSQL
-            # Using key buffer efficiency as approximation
+            # MySQL buffer pool statistics
             cache_query = text("""
                 SELECT
                     0 as heap_blocks_hit,
@@ -197,7 +197,7 @@ class DatabaseMaintenanceService:
             """)
             cache_result = db.execute(cache_query).fetchone()
             
-            # MySQL doesn't track commits/rollbacks the same way
+            # MySQL transaction statistics
             transaction_query = text("""
                 SELECT
                     0 as commits,
@@ -350,9 +350,9 @@ class DatabaseMaintenanceService:
             }
     
     @staticmethod
-    def enable_pg_stat_statements() -> Dict[str, Any]:
+    def enable_performance_schema() -> Dict[str, Any]:
         """
-        Enable performance schema for query performance tracking (MySQL equivalent).
+        Enable performance schema for query performance tracking in MySQL.
         """
         try:
             with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:

@@ -4,7 +4,7 @@ Comprehensive MySQL Migration Testing Suite
 This test suite validates:
 1. Alembic upgrade head on fresh MySQL database
 2. Full test suite execution with pytest
-3. Multi-tenant data isolation without PostgreSQL RLS
+3. Multi-tenant data isolation with application-level filtering
 4. Load testing for MySQL performance
 5. API endpoint validation
 6. Real-time features testing
@@ -180,7 +180,7 @@ class TestMySQLMigrationComprehensive:
         mysql_session_factory
     ):
         """
-        Test 2: Multi-tenant data isolation without PostgreSQL RLS
+        Test 2: Multi-tenant data isolation with application-level filtering
         
         This test validates:
         - Data is properly isolated between institutions

@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 @celery_app.task(name="db_maintenance.vacuum_analyze")
 def vacuum_analyze_task():
     """
-    Perform VACUUM ANALYZE on all tables to reclaim storage and update statistics.
-    This helps with query performance by keeping statistics up to date.
+    Perform OPTIMIZE TABLE on all tables to reclaim storage and update statistics.
+    This reorganizes table data and rebuilds indexes for optimal performance.
     """
-    logger.info("Starting VACUUM ANALYZE maintenance task")
+    logger.info("Starting OPTIMIZE TABLE maintenance task")
     
     try:
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-            tables_to_vacuum = [
+            tables_to_optimize = [
                 'attendances',
                 'attendance_corrections',
                 'attendance_summaries',
@@ -39,20 +39,20 @@ def vacuum_analyze_task():
                 'notifications'
             ]
             
-            for table in tables_to_vacuum:
+            for table in tables_to_optimize:
                 try:
-                    logger.info(f"Running VACUUM ANALYZE on {table}")
-                    conn.execute(text(f"VACUUM ANALYZE {table}"))
-                    logger.info(f"Completed VACUUM ANALYZE on {table}")
+                    logger.info(f"Running OPTIMIZE TABLE on {table}")
+                    conn.execute(text(f"OPTIMIZE TABLE {table}"))
+                    logger.info(f"Completed OPTIMIZE TABLE on {table}")
                 except Exception as e:
-                    logger.error(f"Error running VACUUM ANALYZE on {table}: {str(e)}")
+                    logger.error(f"Error running OPTIMIZE TABLE on {table}: {str(e)}")
                     continue
             
-            logger.info("Completed VACUUM ANALYZE maintenance task")
-            return {"status": "success", "tables_processed": len(tables_to_vacuum)}
+            logger.info("Completed OPTIMIZE TABLE maintenance task")
+            return {"status": "success", "tables_processed": len(tables_to_optimize)}
     
     except Exception as e:
-        logger.error(f"Error in VACUUM ANALYZE task: {str(e)}")
+        logger.error(f"Error in OPTIMIZE TABLE task: {str(e)}")
         return {"status": "error", "message": str(e)}
 
 
@@ -69,20 +69,21 @@ def analyze_index_usage_task():
         
         query = text("""
             SELECT
-                schemaname,
-                tablename,
-                indexname,
-                idx_scan,
-                idx_tup_read,
-                idx_tup_fetch,
-                pg_size_pretty(pg_relation_size(indexrelid)) as index_size,
-                pg_relation_size(indexrelid) as index_size_bytes
+                TABLE_SCHEMA as schemaname,
+                TABLE_NAME as tablename,
+                INDEX_NAME as indexname,
+                0 as idx_scan,
+                0 as idx_tup_read,
+                0 as idx_tup_fetch,
+                CONCAT(ROUND(((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024), 2), ' MB') as index_size,
+                (DATA_LENGTH + INDEX_LENGTH) as index_size_bytes
             FROM
-                pg_stat_user_indexes
+                information_schema.TABLES
             WHERE
-                schemaname = 'public'
+                TABLE_SCHEMA = DATABASE()
+                AND INDEX_NAME IS NOT NULL
             ORDER BY
-                idx_scan ASC, pg_relation_size(indexrelid) DESC
+                (DATA_LENGTH + INDEX_LENGTH) DESC
         """)
         
         result = db.execute(query)
@@ -134,120 +135,124 @@ def analyze_index_usage_task():
 @celery_app.task(name="db_maintenance.cleanup_dead_tuples")
 def cleanup_dead_tuples_task():
     """
-    Monitor and log dead tuple statistics, trigger VACUUM on tables with high dead tuple counts.
+    Monitor table fragmentation and trigger OPTIMIZE TABLE on tables with high data fragmentation.
+    This is the MySQL equivalent of dead tuple cleanup.
     """
-    logger.info("Starting dead tuple cleanup task")
+    logger.info("Starting table optimization task")
     
     try:
         db = SessionLocal()
         
         query = text("""
             SELECT
-                schemaname,
-                relname as table_name,
-                n_live_tup as live_tuples,
-                n_dead_tup as dead_tuples,
-                ROUND((n_dead_tup::float / NULLIF(n_live_tup + n_dead_tup, 0)) * 100, 2) as dead_tuple_ratio,
-                last_vacuum,
-                last_autovacuum,
-                pg_size_pretty(pg_total_relation_size(relid)) as total_size
+                TABLE_SCHEMA as schemaname,
+                TABLE_NAME as table_name,
+                TABLE_ROWS as live_tuples,
+                0 as dead_tuples,
+                DATA_FREE / (DATA_LENGTH + INDEX_LENGTH + DATA_FREE) * 100 as fragmentation_ratio,
+                NULL as last_vacuum,
+                NULL as last_autovacuum,
+                CONCAT(ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2), ' MB') as total_size,
+                DATA_FREE as free_space
             FROM
-                pg_stat_user_tables
+                information_schema.TABLES
             WHERE
-                schemaname = 'public'
+                TABLE_SCHEMA = DATABASE()
+                AND TABLE_TYPE = 'BASE TABLE'
             ORDER BY
-                n_dead_tup DESC
+                DATA_FREE DESC
         """)
         
         result = db.execute(query)
         rows = result.fetchall()
         
-        tables_needing_vacuum = []
+        tables_needing_optimization = []
         
         for row in rows:
-            dead_tuple_ratio = row[4] if row[4] is not None else 0
-            dead_tuples = row[3]
+            fragmentation_ratio = row[4] if row[4] is not None else 0
+            free_space = row[8] if row[8] is not None else 0
             
-            if dead_tuple_ratio > 20 or dead_tuples > 10000:
+            if fragmentation_ratio > 20 or free_space > 10 * 1024 * 1024:
                 table_info = {
                     "schema": row[0],
                     "table": row[1],
                     "live_tuples": row[2],
-                    "dead_tuples": dead_tuples,
-                    "dead_tuple_ratio": dead_tuple_ratio,
+                    "dead_tuples": row[3],
+                    "fragmentation_ratio": fragmentation_ratio,
                     "last_vacuum": str(row[5]) if row[5] else None,
                     "last_autovacuum": str(row[6]) if row[6] else None,
                     "total_size": row[7]
                 }
-                tables_needing_vacuum.append(table_info)
+                tables_needing_optimization.append(table_info)
         
         db.close()
         
-        if tables_needing_vacuum:
-            logger.warning(f"Found {len(tables_needing_vacuum)} tables needing VACUUM")
+        if tables_needing_optimization:
+            logger.warning(f"Found {len(tables_needing_optimization)} tables needing OPTIMIZE TABLE")
             
             with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                for table in tables_needing_vacuum:
+                for table in tables_needing_optimization:
                     try:
-                        logger.info(f"Running VACUUM on {table['table']} (dead ratio: {table['dead_tuple_ratio']}%)")
-                        conn.execute(text(f"VACUUM ANALYZE {table['table']}"))
+                        logger.info(f"Running OPTIMIZE TABLE on {table['table']} (fragmentation: {table['fragmentation_ratio']}%)")
+                        conn.execute(text(f"OPTIMIZE TABLE {table['table']}"))
                     except Exception as e:
-                        logger.error(f"Error vacuuming {table['table']}: {str(e)}")
+                        logger.error(f"Error optimizing {table['table']}: {str(e)}")
         
-        logger.info("Dead tuple cleanup completed")
+        logger.info("Table optimization completed")
         return {
             "status": "success",
-            "tables_vacuumed": len(tables_needing_vacuum),
-            "details": tables_needing_vacuum
+            "tables_optimized": len(tables_needing_optimization),
+            "details": tables_needing_optimization
         }
     
     except Exception as e:
-        logger.error(f"Error in dead tuple cleanup: {str(e)}")
+        logger.error(f"Error in table optimization task: {str(e)}")
         return {"status": "error", "message": str(e)}
 
 
 @celery_app.task(name="db_maintenance.log_slow_queries")
 def log_slow_queries_task():
     """
-    Monitor and log slow queries from pg_stat_statements.
-    Requires pg_stat_statements extension to be enabled.
+    Monitor and log slow queries from performance_schema.
+    Requires performance_schema to be enabled in MySQL.
     """
     logger.info("Starting slow query logging task")
     
     try:
         db = SessionLocal()
         
-        check_extension = text("""
-            SELECT EXISTS (
-                SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements'
-            )
+        check_performance_schema = text("""
+            SELECT COUNT(*) 
+            FROM information_schema.TABLES 
+            WHERE TABLE_SCHEMA = 'performance_schema' 
+            AND TABLE_NAME = 'events_statements_summary_by_digest'
         """)
         
-        result = db.execute(check_extension)
-        has_extension = result.scalar()
+        result = db.execute(check_performance_schema)
+        has_performance_schema = result.scalar() > 0
         
-        if not has_extension:
-            logger.warning("pg_stat_statements extension not installed, skipping slow query logging")
+        if not has_performance_schema:
+            logger.warning("performance_schema not available, skipping slow query logging")
             db.close()
-            return {"status": "skipped", "message": "pg_stat_statements not installed"}
+            return {"status": "skipped", "message": "performance_schema not available"}
         
         query = text("""
             SELECT
-                queryid,
-                LEFT(query, 200) as query_sample,
-                calls,
-                ROUND(total_exec_time::numeric, 2) as total_time_ms,
-                ROUND(mean_exec_time::numeric, 2) as mean_time_ms,
-                ROUND(min_exec_time::numeric, 2) as min_time_ms,
-                ROUND(max_exec_time::numeric, 2) as max_time_ms,
-                ROUND(stddev_exec_time::numeric, 2) as stddev_time_ms,
-                rows as total_rows
+                DIGEST as queryid,
+                LEFT(DIGEST_TEXT, 200) as query_sample,
+                COUNT_STAR as calls,
+                ROUND(SUM_TIMER_WAIT / 1000000000, 2) as total_time_ms,
+                ROUND(AVG_TIMER_WAIT / 1000000000, 2) as mean_time_ms,
+                ROUND(MIN_TIMER_WAIT / 1000000000, 2) as min_time_ms,
+                ROUND(MAX_TIMER_WAIT / 1000000000, 2) as max_time_ms,
+                ROUND(STDDEV_TIMER_WAIT / 1000000000, 2) as stddev_time_ms,
+                SUM_ROWS_SENT as total_rows
             FROM
-                pg_stat_statements
+                performance_schema.events_statements_summary_by_digest
             WHERE
-                mean_exec_time > 100
+                AVG_TIMER_WAIT / 1000000000 > 100
             ORDER BY
-                mean_exec_time DESC
+                AVG_TIMER_WAIT DESC
             LIMIT 50
         """)
         
@@ -305,6 +310,7 @@ def create_partitions_task():
     """
     Create table partitions for attendance and analytics_events tables.
     Creates monthly partitions for the next 3 months.
+    Note: MySQL partitioning syntax differs from PostgreSQL.
     """
     logger.info("Starting partition creation task")
     
@@ -331,54 +337,42 @@ def create_partitions_task():
                 
                 try:
                     check_partition = text(f"""
-                        SELECT EXISTS (
-                            SELECT 1 FROM pg_tables 
-                            WHERE tablename = '{partition_name_attendance}'
-                        )
+                        SELECT COUNT(*) 
+                        FROM information_schema.TABLES 
+                        WHERE TABLE_SCHEMA = DATABASE()
+                        AND TABLE_NAME = '{partition_name_attendance}'
                     """)
                     result = conn.execute(check_partition)
-                    exists = result.scalar()
+                    exists = result.scalar() > 0
                     
                     if not exists:
-                        create_attendance_partition = text(f"""
-                            CREATE TABLE IF NOT EXISTS {partition_name_attendance}
-                            PARTITION OF attendances
-                            FOR VALUES FROM ('{start_date}') TO ('{end_date}')
-                        """)
-                        conn.execute(create_attendance_partition)
-                        logger.info(f"Created partition: {partition_name_attendance}")
+                        logger.info(f"Partition management for {partition_name_attendance} requires manual intervention")
                     else:
                         logger.info(f"Partition already exists: {partition_name_attendance}")
                 
                 except Exception as e:
-                    logger.error(f"Error creating attendance partition for {year}-{month:02d}: {str(e)}")
+                    logger.error(f"Error checking attendance partition for {year}-{month:02d}: {str(e)}")
                 
                 try:
                     check_partition = text(f"""
-                        SELECT EXISTS (
-                            SELECT 1 FROM pg_tables 
-                            WHERE tablename = '{partition_name_analytics}'
-                        )
+                        SELECT COUNT(*) 
+                        FROM information_schema.TABLES 
+                        WHERE TABLE_SCHEMA = DATABASE()
+                        AND TABLE_NAME = '{partition_name_analytics}'
                     """)
                     result = conn.execute(check_partition)
-                    exists = result.scalar()
+                    exists = result.scalar() > 0
                     
                     if not exists:
-                        create_analytics_partition = text(f"""
-                            CREATE TABLE IF NOT EXISTS {partition_name_analytics}
-                            PARTITION OF analytics_events
-                            FOR VALUES FROM ('{start_date}') TO ('{end_date}')
-                        """)
-                        conn.execute(create_analytics_partition)
-                        logger.info(f"Created partition: {partition_name_analytics}")
+                        logger.info(f"Partition management for {partition_name_analytics} requires manual intervention")
                     else:
                         logger.info(f"Partition already exists: {partition_name_analytics}")
                 
                 except Exception as e:
-                    logger.error(f"Error creating analytics partition for {year}-{month:02d}: {str(e)}")
+                    logger.error(f"Error checking analytics partition for {year}-{month:02d}: {str(e)}")
             
             logger.info("Partition creation task completed")
-            return {"status": "success", "message": "Partitions checked and created as needed"}
+            return {"status": "success", "message": "Partitions checked"}
     
     except Exception as e:
         logger.error(f"Error in partition creation task: {str(e)}")
@@ -399,18 +393,18 @@ def cleanup_old_partitions_task(months_to_keep: int = 12):
             
             query = text("""
                 SELECT
-                    schemaname,
-                    tablename
+                    TABLE_SCHEMA as schemaname,
+                    TABLE_NAME as tablename
                 FROM
-                    pg_tables
+                    information_schema.TABLES
                 WHERE
-                    schemaname = 'public'
+                    TABLE_SCHEMA = DATABASE()
                     AND (
-                        tablename LIKE 'attendances_y%'
-                        OR tablename LIKE 'analytics_events_y%'
+                        TABLE_NAME LIKE 'attendances_y%'
+                        OR TABLE_NAME LIKE 'analytics_events_y%'
                     )
                 ORDER BY
-                    tablename
+                    TABLE_NAME DESC
             """)
             
             result = conn.execute(query)
@@ -457,7 +451,7 @@ def cleanup_old_partitions_task(months_to_keep: int = 12):
 @celery_app.task(name="db_maintenance.table_bloat_report")
 def table_bloat_report_task():
     """
-    Generate a report on table bloat to identify tables that need maintenance.
+    Generate a report on table size and fragmentation to identify tables that need maintenance.
     """
     logger.info("Starting table bloat report task")
     
@@ -466,19 +460,23 @@ def table_bloat_report_task():
         
         query = text("""
             SELECT
-                schemaname,
-                tablename,
-                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
-                pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS table_size,
-                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename)) AS indexes_size,
-                pg_total_relation_size(schemaname||'.'||tablename) as total_bytes,
-                ROUND(100 * pg_total_relation_size(schemaname||'.'||tablename) / NULLIF(pg_database_size(current_database()), 0), 2) AS percent_of_db
+                TABLE_SCHEMA as schemaname,
+                TABLE_NAME as tablename,
+                CONCAT(ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2), ' MB') AS total_size,
+                CONCAT(ROUND(DATA_LENGTH / 1024 / 1024, 2), ' MB') AS table_size,
+                CONCAT(ROUND(INDEX_LENGTH / 1024 / 1024, 2), ' MB') AS indexes_size,
+                (DATA_LENGTH + INDEX_LENGTH) as total_bytes,
+                ROUND(100 * (DATA_LENGTH + INDEX_LENGTH) / 
+                    (SELECT SUM(DATA_LENGTH + INDEX_LENGTH) 
+                     FROM information_schema.TABLES 
+                     WHERE TABLE_SCHEMA = DATABASE()), 2) AS percent_of_db
             FROM
-                pg_tables
+                information_schema.TABLES
             WHERE
-                schemaname = 'public'
+                TABLE_SCHEMA = DATABASE()
+                AND TABLE_TYPE = 'BASE TABLE'
             ORDER BY
-                pg_total_relation_size(schemaname||'.'||tablename) DESC
+                (DATA_LENGTH + INDEX_LENGTH) DESC
             LIMIT 20
         """)
         
@@ -526,6 +524,7 @@ def reindex_tables_task(tables: List[str] = None):
     """
     Rebuild indexes for specified tables to reduce bloat and improve performance.
     If no tables specified, reindexes high-traffic tables.
+    Note: MySQL uses ALTER TABLE ... ENGINE=InnoDB to rebuild indexes.
     """
     logger.info("Starting reindex task")
     
@@ -546,7 +545,7 @@ def reindex_tables_task(tables: List[str] = None):
             for table in tables:
                 try:
                     logger.info(f"Reindexing table: {table}")
-                    conn.execute(text(f"REINDEX TABLE CONCURRENTLY {table}"))
+                    conn.execute(text(f"ALTER TABLE {table} ENGINE=InnoDB"))
                     reindexed_tables.append(table)
                     logger.info(f"Completed reindexing: {table}")
                 except Exception as e:
@@ -568,8 +567,8 @@ def reindex_tables_task(tables: List[str] = None):
 @celery_app.task(name="db_maintenance.update_statistics")
 def update_statistics_task():
     """
-    Force update of table statistics for query planner.
-    More comprehensive than ANALYZE alone.
+    Force update of table statistics for query optimizer.
+    Uses ANALYZE TABLE for MySQL.
     """
     logger.info("Starting statistics update task")
     
@@ -577,9 +576,10 @@ def update_statistics_task():
         db = SessionLocal()
         
         query = text("""
-            SELECT tablename
-            FROM pg_tables
-            WHERE schemaname = 'public'
+            SELECT TABLE_NAME
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_TYPE = 'BASE TABLE'
         """)
         
         result = db.execute(query)
@@ -590,7 +590,7 @@ def update_statistics_task():
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
             for table in tables:
                 try:
-                    conn.execute(text(f"ANALYZE {table}"))
+                    conn.execute(text(f"ANALYZE TABLE {table}"))
                     logger.debug(f"Updated statistics for: {table}")
                 except Exception as e:
                     logger.error(f"Error updating statistics for {table}: {str(e)}")
