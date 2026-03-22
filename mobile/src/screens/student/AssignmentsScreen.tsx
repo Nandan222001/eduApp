@@ -32,7 +32,7 @@ export const AssignmentsScreen: React.FC = () => {
   const loadAssignments = async () => {
     try {
       let data;
-      if (isDemoUser()) {
+      if (await isDemoUser()) {
         const allAssignments = await demoDataApi.student.getAssignments();
         data = allAssignments.filter(a => a.status === activeTab);
       } else {

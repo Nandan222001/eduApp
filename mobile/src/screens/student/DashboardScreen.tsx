@@ -36,7 +36,7 @@ export const DashboardScreen: React.FC = () => {
   } = useQuery({
     queryKey: ['student-dashboard'],
     queryFn: async () => {
-      if (isDemoUser()) {
+      if (await isDemoUser()) {
         return await demoDataApi.student.getDashboard();
       }
       const response = await studentApi.getDashboard();
@@ -50,7 +50,7 @@ export const DashboardScreen: React.FC = () => {
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
-      if (isDemoUser()) {
+      if (await isDemoUser()) {
         return await demoDataApi.student.getProfile();
       }
       const response = await studentApi.getProfile();
@@ -62,7 +62,7 @@ export const DashboardScreen: React.FC = () => {
   const { data: goalsData } = useQuery({
     queryKey: ['goals'],
     queryFn: async () => {
-      if (isDemoUser()) {
+      if (await isDemoUser()) {
         const response = await demoDataApi.student.getGoals();
         return response.data;
       }

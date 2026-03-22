@@ -208,7 +208,7 @@ export const GradesScreen: React.FC<Props> = ({ navigation }) => {
   } = useQuery({
     queryKey: ['grades', termParam],
     queryFn: async () => {
-      if (isDemoUser()) {
+      if (await isDemoUser()) {
         const allGrades = await demoDataApi.student.getGrades();
         return termParam ? allGrades.filter((g: any) => g.term === termParam) : allGrades;
       }

@@ -51,6 +51,81 @@ const parentDemoData = dummyData.parents.demo;
 
 export const demoDataApi = {
   student: {
+    getProfile: async () => {
+      return Promise.resolve(studentDemoData.profile);
+    },
+
+    getDashboard: async () => {
+      const summary = studentDemoData.attendance.summary;
+      const attendance = {
+        todayStatus: summary.todayStatus,
+        monthlyPercentage: summary.monthlyPercentage,
+        totalClasses: summary.totalClasses,
+        attendedClasses: summary.attendedClasses,
+        absentClasses: summary.absentClasses,
+        lateClasses: summary.lateClasses,
+      };
+
+      const upcomingAssignments = studentDemoData.assignments
+        .filter(a => a.status === 'pending')
+        .slice(0, 3);
+
+      const recentGrades = studentDemoData.exams.results
+        .map(result => ({
+          id: result.id,
+          subject: result.subjectName,
+          examName: result.examName,
+          obtainedMarks: result.obtainedMarks,
+          totalMarks: result.totalMarks,
+          percentage: result.percentage,
+          examDate: result.examDate,
+          grade: result.grade,
+        }))
+        .slice(0, 5);
+
+      const aiPredictions = studentDemoData.ai.predictions[0] || {
+        subject: 'Overall',
+        predicted_grade: 85,
+        predictedPercentage: 85,
+        confidence: 0.8,
+        trend: 'stable',
+      };
+
+      const weakAreas = studentDemoData.ai.weakAreas;
+
+      const gamification = {
+        totalPoints: studentDemoData.gamification.points.total,
+        rank: studentDemoData.gamification.leaderboard.userRank,
+        badges: studentDemoData.gamification.badges.map(badge => ({
+          id: badge.id,
+          name: badge.name,
+          icon: badge.icon,
+          description: badge.description,
+          earnedAt: badge.earnedAt,
+        })),
+        activeGoalsCount: studentDemoData.goals.filter(g => g.status === 'in_progress' || g.status === 'active').length,
+        streak: studentDemoData.gamification.streaks[0] || {
+          type: 'attendance',
+          currentStreak: 0,
+          longestStreak: 0,
+          lastActivityDate: new Date().toISOString(),
+        },
+      };
+
+      return Promise.resolve({
+        attendance,
+        upcomingAssignments,
+        recentGrades,
+        aiPredictions,
+        weakAreas,
+        gamification,
+      });
+    },
+
+    getGoals: async () => {
+      return Promise.resolve({ data: studentDemoData.goals });
+    },
+
     getStats: async (): Promise<StudentStats> => {
       return Promise.resolve(studentDemoData.stats);
     },
