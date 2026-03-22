@@ -8,7 +8,6 @@ This migration creates a table to track migration execution metrics.
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '041'
 down_revision = '040'

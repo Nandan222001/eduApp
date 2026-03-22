@@ -7,7 +7,6 @@ Create Date: 2024-01-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = 'add_analytics_001'
 down_revision = '005'
@@ -136,7 +135,7 @@ def upgrade() -> None:
         op.create_index('idx_institution_metrics_academic_year', 'institution_performance_metrics', ['academic_year_id'])
         op.create_index('idx_institution_metrics_period', 'institution_performance_metrics', ['period_start', 'period_end'])
 
-        report_type_enum = postgresql.ENUM(
+        report_type_enum = sa.Enum(
                 'STUDENT_PERFORMANCE',
                 'CLASS_PERFORMANCE',
                 'INSTITUTION_PERFORMANCE',
@@ -166,7 +165,7 @@ END$$;
 """,
         )
 
-        report_status_enum = postgresql.ENUM(
+        report_status_enum = sa.Enum(
                 'PENDING',
                 'PROCESSING',
                 'COMPLETED',

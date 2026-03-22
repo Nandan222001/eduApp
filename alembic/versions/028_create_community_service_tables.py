@@ -7,7 +7,6 @@ Create Date: 2024-01-15 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '028'
@@ -18,7 +17,7 @@ depends_on = None
 
 def upgrade():
     # Create service activity type enum
-    service_activity_type_enum = postgresql.ENUM(
+    service_activity_type_enum = sa.Enum(
         'volunteer', 'fundraising', 'environmental', 
         'tutoring', 'healthcare', 'animal_welfare',
         name='serviceactivitytype'
@@ -33,7 +32,7 @@ def upgrade():
     ).scalar()
     
     if not result:
-        verification_status_enum = postgresql.ENUM(
+        verification_status_enum = sa.Enum(
             'pending', 'verified', 'rejected',
             name='verificationstatus'
         )
@@ -56,13 +55,13 @@ def upgrade():
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('impact_statement', sa.Text(), nullable=True),
         sa.Column('reflection_essay', sa.Text(), nullable=True),
-        sa.Column('verification_status', postgresql.ENUM('pending', 'verified', 'rejected', name='verificationstatus'), nullable=False),
+        sa.Column('verification_status', sa.Enum('pending', 'verified', 'rejected', name='verificationstatus'), nullable=False),
         sa.Column('verifier_signature_url', sa.String(length=500), nullable=True),
         sa.Column('verification_date', sa.Date(), nullable=True),
         sa.Column('verification_token', sa.String(length=255), nullable=True),
         sa.Column('verification_token_expires', sa.DateTime(), nullable=True),
-        sa.Column('attachments', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('attachments', sa.JSON(), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -93,7 +92,7 @@ def upgrade():
         sa.Column('is_verified', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('notes', sa.Text(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -149,7 +148,7 @@ def upgrade():
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('academic_year_id', sa.Integer(), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -204,7 +203,7 @@ def upgrade():
         sa.Column('signed_by', sa.Integer(), nullable=True),
         sa.Column('purpose', sa.String(length=100), nullable=True),
         sa.Column('notes', sa.Text(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -267,7 +266,7 @@ def downgrade():
     op.drop_table('service_activities')
     
     # Drop enum
-    service_activity_type_enum = postgresql.ENUM(
+    service_activity_type_enum = sa.Enum(
         'volunteer', 'fundraising', 'environmental', 
         'tutoring', 'healthcare', 'animal_welfare',
         name='serviceactivitytype'

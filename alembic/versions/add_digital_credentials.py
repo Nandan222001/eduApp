@@ -7,7 +7,6 @@ Create Date: 2024-01-01 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_digital_credentials'
@@ -28,8 +27,8 @@ def upgrade() -> None:
         sa.Column('title', sa.String(length=255), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('certificate_number', sa.String(length=100), nullable=False),
-        sa.Column('skills', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('skills', sa.JSON(), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('blockchain_hash', sa.String(length=255), nullable=True),
         sa.Column('blockchain_credential_id', sa.String(length=255), nullable=True),
         sa.Column('blockchain_status', sa.String(length=50), nullable=True),
@@ -78,7 +77,7 @@ def upgrade() -> None:
         sa.Column('verifier_ip', sa.String(length=50), nullable=True),
         sa.Column('verification_method', sa.String(length=50), nullable=False),
         sa.Column('verification_result', sa.String(length=50), nullable=False),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('verified_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['credential_id'], ['digital_credentials.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
@@ -114,7 +113,7 @@ def upgrade() -> None:
         sa.Column('name', sa.String(length=255), nullable=False),
         sa.Column('credential_type', sa.Enum('DIGITAL_BADGE', 'CERTIFICATE', name='credentialtype'), nullable=False),
         sa.Column('sub_type', sa.Enum('ACADEMIC', 'SKILL_BASED', 'PARTICIPATION', name='credentialsubtype'), nullable=False),
-        sa.Column('template_data', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('template_data', sa.JSON(), nullable=False),
         sa.Column('is_active', sa.Boolean(), nullable=False),
         sa.Column('created_by', sa.Integer(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),

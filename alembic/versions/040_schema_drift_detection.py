@@ -12,7 +12,6 @@ This migration detects and remediates common schema drift issues:
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '040'
 down_revision = '039'

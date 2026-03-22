@@ -7,7 +7,6 @@ Create Date: 2024-01-15 12:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '015a_add_user_device_table'
 down_revision = '014'
@@ -25,7 +24,7 @@ def upgrade():
         sa.Column('device_name', sa.String(length=255), nullable=True),
         sa.Column('app_version', sa.String(length=50), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
-        sa.Column('topics', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('topics', sa.JSON(), nullable=True),
         sa.Column('last_used_at', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),

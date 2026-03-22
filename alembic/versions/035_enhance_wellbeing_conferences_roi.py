@@ -8,7 +8,6 @@ Create Date: 2024-01-20 10:00:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '035_enhance_wellbeing_conferences_roi'
@@ -54,9 +53,9 @@ def upgrade() -> None:
         sa.Column('fees_paid', sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column('money_saved', sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column('tuition_cost_avoidance', sa.Numeric(precision=10, scale=2), nullable=False),
-        sa.Column('performance_improvement', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('performance_improvement', sa.JSON(), nullable=False),
         sa.Column('time_saved_hours', sa.Float(), nullable=False),
-        sa.Column('features_used', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('features_used', sa.JSON(), nullable=False),
         sa.Column('engagement_score', sa.Float(), nullable=False),
         sa.Column('roi_percentage', sa.Float(), nullable=False),
         sa.Column('report_generated_at', sa.DateTime(), nullable=False),
@@ -76,7 +75,7 @@ def upgrade() -> None:
 
     # Add speed_round and auto_talking_points to conference_bookings
     op.add_column('conference_bookings', sa.Column('speed_round', sa.Boolean(), nullable=False, server_default='false'))
-    op.add_column('conference_bookings', sa.Column('auto_talking_points', postgresql.JSON(astext_type=sa.Text()), nullable=True))
+    op.add_column('conference_bookings', sa.Column('auto_talking_points', sa.JSON(), nullable=True))
     op.create_index('idx_conference_booking_speed_round', 'conference_bookings', ['speed_round'])
     
     # Update conference_bookings to replace parent_topics with topic field if not exists

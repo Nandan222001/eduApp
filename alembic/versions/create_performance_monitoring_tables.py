@@ -7,7 +7,6 @@ Create Date: 2024-01-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'performance_monitoring_001'
@@ -35,7 +34,7 @@ def upgrade() -> None:
         sa.Column('user_id', sa.Integer(), nullable=True),
         sa.Column('institution_id', sa.Integer(), nullable=True),
         sa.Column('error_message', sa.Text(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
@@ -108,7 +107,7 @@ def upgrade() -> None:
         sa.Column('worker_name', sa.String(length=100), nullable=True),
         sa.Column('error_message', sa.Text(), nullable=True),
         sa.Column('institution_id', sa.Integer(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
@@ -152,8 +151,8 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('timestamp', sa.DateTime(), nullable=False),
         sa.Column('alert_type', sa.String(length=100), nullable=False),
-        sa.Column('severity', postgresql.ENUM('low', 'medium', 'high', 'critical', name='alertseverity'), nullable=False),
-        sa.Column('status', postgresql.ENUM('active', 'acknowledged', 'resolved', name='alertstatus'), nullable=False, server_default='active'),
+        sa.Column('severity', sa.Enum('low', 'medium', 'high', 'critical', name='alertseverity'), nullable=False),
+        sa.Column('status', sa.Enum('active', 'acknowledged', 'resolved', name='alertstatus'), nullable=False, server_default='active'),
         sa.Column('title', sa.String(length=255), nullable=False),
         sa.Column('description', sa.Text(), nullable=False),
         sa.Column('metric_value', sa.Float(), nullable=True),
@@ -163,7 +162,7 @@ def upgrade() -> None:
         sa.Column('acknowledged_by', sa.Integer(), nullable=True),
         sa.Column('acknowledged_at', sa.DateTime(), nullable=True),
         sa.Column('resolved_at', sa.DateTime(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )

@@ -7,7 +7,6 @@ Create Date: 2024-01-15 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '017'
 down_revision = '016'
@@ -40,7 +39,7 @@ def upgrade() -> None:
         sa.Column('adaptation_score', sa.Float(), nullable=False),
         sa.Column('completion_percentage', sa.Float(), nullable=False),
         sa.Column('estimated_completion_date', sa.Date(), nullable=True),
-        sa.Column('personalization_metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('personalization_metadata', sa.JSON(), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -64,7 +63,7 @@ def upgrade() -> None:
         sa.Column('learning_path_id', sa.Integer(), nullable=False),
         sa.Column('topic_id', sa.Integer(), nullable=False),
         sa.Column('sequence_order', sa.Integer(), nullable=False),
-        sa.Column('prerequisite_topic_ids', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('prerequisite_topic_ids', sa.JSON(), nullable=True),
         sa.Column('difficulty_level', sa.Enum('beginner', 'elementary', 'intermediate', 'advanced', 'expert', name='difficultylevel'), nullable=False),
         sa.Column('mastery_level', sa.Enum('not_started', 'learning', 'practicing', 'mastered', 'needs_review', name='masterylevel'), nullable=False),
         sa.Column('mastery_score', sa.Float(), nullable=False),
@@ -105,7 +104,7 @@ def upgrade() -> None:
         sa.Column('attempts_count', sa.Integer(), nullable=False),
         sa.Column('correct_answers', sa.Integer(), nullable=False),
         sa.Column('total_questions', sa.Integer(), nullable=False),
-        sa.Column('struggle_indicators', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('struggle_indicators', sa.JSON(), nullable=True),
         sa.Column('performance_trend', sa.String(length=20), nullable=True),
         sa.Column('ai_confidence_score', sa.Float(), nullable=True),
         sa.Column('recorded_at', sa.DateTime(), nullable=False),
@@ -128,10 +127,10 @@ def upgrade() -> None:
         sa.Column('title', sa.String(length=200), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('milestone_order', sa.Integer(), nullable=False),
-        sa.Column('required_topic_ids', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('required_topic_ids', sa.JSON(), nullable=False),
         sa.Column('status', sa.Enum('locked', 'unlocked', 'in_progress', 'completed', name='milestonestatus'), nullable=False),
         sa.Column('target_date', sa.Date(), nullable=True),
-        sa.Column('completion_criteria', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('completion_criteria', sa.JSON(), nullable=True),
         sa.Column('reward_points', sa.Integer(), nullable=False),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -219,7 +218,7 @@ def upgrade() -> None:
         sa.Column('efficiency_rating', sa.Float(), nullable=True),
         sa.Column('consistency_score', sa.Float(), nullable=True),
         sa.Column('recommended_pace_adjustment', sa.Float(), nullable=False),
-        sa.Column('metrics', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metrics', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['learning_path_id'], ['learning_paths.id'], ondelete='CASCADE'),
@@ -243,7 +242,7 @@ def upgrade() -> None:
         sa.Column('recommended_difficulty', sa.Enum('beginner', 'elementary', 'intermediate', 'advanced', 'expert', name='difficultylevel'), nullable=False),
         sa.Column('performance_score', sa.Float(), nullable=False),
         sa.Column('adaptation_reason', sa.String(length=200), nullable=True),
-        sa.Column('confidence_interval', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('confidence_interval', sa.JSON(), nullable=True),
         sa.Column('adjusted_at', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),

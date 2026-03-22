@@ -7,7 +7,6 @@ Create Date: 2024-01-16 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'study_buddy_001'
@@ -18,7 +17,7 @@ depends_on = None
 
 def upgrade():
     # Create insight type enum
-    insight_type_enum = postgresql.ENUM(
+    insight_type_enum = sa.Enum(
         'schedule_suggestion', 'weakness_alert', 'celebration', 
         'exam_prep', 'stress_check',
         name='insighttype'
@@ -31,11 +30,11 @@ def upgrade():
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('institution_id', sa.Integer(), nullable=False),
         sa.Column('student_id', sa.Integer(), nullable=False),
-        sa.Column('conversation_history', postgresql.JSON(astext_type=sa.Text()), nullable=False),
-        sa.Column('study_patterns', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('optimal_study_times', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('streak_data', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('mood_tracking', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('conversation_history', sa.JSON(), nullable=False),
+        sa.Column('study_patterns', sa.JSON(), nullable=True),
+        sa.Column('optimal_study_times', sa.JSON(), nullable=True),
+        sa.Column('streak_data', sa.JSON(), nullable=True),
+        sa.Column('mood_tracking', sa.JSON(), nullable=True),
         sa.Column('last_interaction', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -78,8 +77,8 @@ def upgrade():
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('institution_id', sa.Integer(), nullable=False),
         sa.Column('student_id', sa.Integer(), nullable=False),
-        sa.Column('preferred_study_times', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('notification_preferences', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('preferred_study_times', sa.JSON(), nullable=True),
+        sa.Column('notification_preferences', sa.JSON(), nullable=True),
         sa.Column('learning_style', sa.String(length=50), nullable=True),
         sa.Column('motivation_style', sa.String(length=50), nullable=True),
         sa.Column('ai_personality', sa.String(length=50), nullable=True, server_default='friendly'),
@@ -119,7 +118,7 @@ def downgrade():
     op.drop_table('study_buddy_sessions')
     
     # Drop enum
-    insight_type_enum = postgresql.ENUM(
+    insight_type_enum = sa.Enum(
         'schedule_suggestion', 'weakness_alert', 'celebration', 
         'exam_prep', 'stress_check',
         name='insighttype'

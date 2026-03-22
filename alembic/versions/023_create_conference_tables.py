@@ -8,7 +8,6 @@ Create Date: 2024-01-17 10:00:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '023_create_conference'
@@ -57,7 +56,7 @@ def upgrade() -> None:
         sa.Column('parent_id', sa.Integer(), nullable=False),
         sa.Column('student_id', sa.Integer(), nullable=False),
         sa.Column('conference_type', sa.String(length=50), nullable=False),
-        sa.Column('parent_topics', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('parent_topics', sa.JSON(), nullable=True),
         sa.Column('teacher_notes', sa.Text(), nullable=True),
         sa.Column('parent_notes', sa.Text(), nullable=True),
         sa.Column('video_meeting_link', sa.String(length=500), nullable=True),

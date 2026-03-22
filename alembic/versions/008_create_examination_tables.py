@@ -10,7 +10,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision: str = '008'
 down_revision: Union[str, None] = '007'
@@ -19,11 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    exam_type_enum = postgresql.ENUM('unit', 'mid_term', 'final', 'mock', name='examtype')
-    exam_status_enum = postgresql.ENUM('scheduled', 'ongoing', 'completed', 'cancelled', name='examstatus')
-    
-    exam_type_enum.create(op.get_bind(), checkfirst=True)
-    exam_status_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("CREATE TYPE examtype AS ENUM ('unit', 'mid_term', 'final', 'mock')")
+    op.execute("CREATE TYPE examstatus AS ENUM ('scheduled', 'ongoing', 'completed', 'cancelled')")
     
     op.create_table(
         'exams',
@@ -32,11 +28,11 @@ def upgrade() -> None:
         sa.Column('academic_year_id', sa.Integer(), nullable=False),
         sa.Column('grade_id', sa.Integer(), nullable=False),
         sa.Column('name', sa.String(length=200), nullable=False),
-        sa.Column('exam_type', exam_type_enum, nullable=False),
+        sa.Column('exam_type', sa.Enum('unit', 'mid_term', 'final', 'mock', name='examtype'), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('start_date', sa.Date(), nullable=False),
         sa.Column('end_date', sa.Date(), nullable=False),
-        sa.Column('status', exam_status_enum, nullable=False, server_default='scheduled'),
+        sa.Column('status', sa.Enum('scheduled', 'ongoing', 'completed', 'cancelled', name='examstatus'), nullable=False, server_default='scheduled'),
         sa.Column('total_marks', sa.Numeric(precision=10, scale=2), nullable=True),
         sa.Column('passing_marks', sa.Numeric(precision=10, scale=2), nullable=True),
         sa.Column('is_published', sa.Boolean(), nullable=False, server_default='false'),

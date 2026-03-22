@@ -7,7 +7,6 @@ Create Date: 2024-03-14 12:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_institution_branding'
@@ -45,8 +44,8 @@ def upgrade():
         sa.Column('login_welcome_message', sa.Text(), nullable=True),
         sa.Column('institution_name_override', sa.String(length=255), nullable=True),
         sa.Column('custom_css', sa.Text(), nullable=True),
-        sa.Column('custom_meta_tags', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('social_links', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('custom_meta_tags', sa.JSON(), nullable=True),
+        sa.Column('social_links', sa.JSON(), nullable=True),
         sa.Column('show_powered_by', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),

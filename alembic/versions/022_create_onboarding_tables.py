@@ -8,7 +8,6 @@ Create Date: 2024-01-16 10:00:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '022_create_onboarding'
@@ -53,9 +52,9 @@ def upgrade() -> None:
         sa.Column('step_type', sa.String(length=50), nullable=False),
         sa.Column('title', sa.String(length=255), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('step_content', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('step_content', sa.JSON(), nullable=True),
         sa.Column('is_required', sa.Boolean(), nullable=False),
-        sa.Column('conditional_logic', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('conditional_logic', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['flow_id'], ['onboarding_flows.id'], ondelete='CASCADE'),
@@ -99,7 +98,7 @@ def upgrade() -> None:
         sa.Column('step_id', sa.Integer(), nullable=False),
         sa.Column('is_completed', sa.Boolean(), nullable=False),
         sa.Column('is_skipped', sa.Boolean(), nullable=False),
-        sa.Column('response_data', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('response_data', sa.JSON(), nullable=True),
         sa.Column('started_at', sa.DateTime(), nullable=False),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=False),

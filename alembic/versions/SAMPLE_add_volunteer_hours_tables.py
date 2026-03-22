@@ -7,7 +7,6 @@ Create Date: 2024-01-01 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'volunteer_hours_001'
@@ -18,26 +17,13 @@ depends_on = None
 
 def upgrade():
     # Create activity type enum
-    activity_type_enum = postgresql.ENUM(
-        'classroom_help', 'event_support', 'fundraising', 
-        'field_trip_chaperone', 'committee_work',
-        name='activitytype', create_type=False
-    )
-    activity_type_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("CREATE TYPE IF NOT EXISTS activitytype AS ENUM ('classroom_help', 'event_support', 'fundraising', 'field_trip_chaperone', 'committee_work')")
     
     # Create verification status enum
-    verification_status_enum = postgresql.ENUM(
-        'pending', 'approved', 'rejected',
-        name='verificationstatus', create_type=False
-    )
-    verification_status_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("CREATE TYPE IF NOT EXISTS verificationstatus AS ENUM ('pending', 'approved', 'rejected')")
     
     # Create badge tier enum
-    badge_tier_enum = postgresql.ENUM(
-        'bronze', 'silver', 'gold', 'platinum',
-        name='badgetier', create_type=False
-    )
-    badge_tier_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("CREATE TYPE IF NOT EXISTS badgetier AS ENUM ('bronze', 'silver', 'gold', 'platinum')")
     
     # Create volunteer_hour_logs table
     op.create_table(
@@ -57,8 +43,8 @@ def upgrade():
         sa.Column('verification_notes', sa.Text(), nullable=True),
         sa.Column('verified_at', sa.DateTime(), nullable=True),
         sa.Column('verified_by', sa.Integer(), nullable=True),
-        sa.Column('attachments', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('attachments', sa.JSON(), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['academic_year_id'], ['academic_years.id'], ondelete='CASCADE'),
@@ -142,7 +128,7 @@ def upgrade():
         sa.Column('academic_year_id', sa.Integer(), nullable=False),
         sa.Column('earned_at', sa.DateTime(), nullable=False),
         sa.Column('hours_at_earning', sa.Numeric(precision=8, scale=2), nullable=False),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['academic_year_id'], ['academic_years.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['badge_id'], ['volunteer_badges.id'], ondelete='CASCADE'),
@@ -201,7 +187,7 @@ def upgrade():
         sa.Column('is_tax_deductible', sa.Boolean(), nullable=False),
         sa.Column('tax_year', sa.Integer(), nullable=True),
         sa.Column('notes', sa.Text(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['academic_year_id'], ['academic_years.id'], ondelete='CASCADE'),
@@ -270,15 +256,6 @@ def downgrade():
     op.drop_table('volunteer_hour_logs')
     
     # Drop enums
-    badge_tier_enum = postgresql.ENUM('bronze', 'silver', 'gold', 'platinum', name='badgetier')
-    badge_tier_enum.drop(op.get_bind())
-    
-    verification_status_enum = postgresql.ENUM('pending', 'approved', 'rejected', name='verificationstatus')
-    verification_status_enum.drop(op.get_bind())
-    
-    activity_type_enum = postgresql.ENUM(
-        'classroom_help', 'event_support', 'fundraising', 
-        'field_trip_chaperone', 'committee_work',
-        name='activitytype'
-    )
-    activity_type_enum.drop(op.get_bind())
+    op.execute('DROP TYPE IF EXISTS badgetier')
+    op.execute('DROP TYPE IF EXISTS verificationstatus')
+    op.execute('DROP TYPE IF EXISTS activitytype')

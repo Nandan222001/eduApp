@@ -7,7 +7,6 @@ Create Date: 2024-01-01 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'create_analytics_tables'
@@ -20,13 +19,13 @@ def upgrade() -> None:
     # Create analytics_events table
     op.create_table(
         'analytics_events',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('id', sa.String(36), nullable=False),
         sa.Column('event_name', sa.String(length=255), nullable=False),
         sa.Column('event_type', sa.String(length=50), nullable=False),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('user_id', sa.String(36), nullable=True),
         sa.Column('session_id', sa.String(length=255), nullable=True),
-        sa.Column('institution_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('properties', postgresql.JSON, nullable=True),
+        sa.Column('institution_id', sa.String(36), nullable=True),
+        sa.Column('properties', sa.JSON(), nullable=True),
         sa.Column('user_agent', sa.String(length=500), nullable=True),
         sa.Column('ip_address', sa.String(length=50), nullable=True),
         sa.Column('referrer', sa.String(length=500), nullable=True),
@@ -49,14 +48,14 @@ def upgrade() -> None:
     # Create performance_metrics table
     op.create_table(
         'performance_metrics',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('id', sa.String(36), nullable=False),
         sa.Column('metric_name', sa.String(length=100), nullable=False),
         sa.Column('metric_value', sa.Float(), nullable=False),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('user_id', sa.String(36), nullable=True),
         sa.Column('session_id', sa.String(length=255), nullable=True),
         sa.Column('url', sa.String(length=1000), nullable=True),
         sa.Column('rating', sa.String(length=20), nullable=True),
-        sa.Column('metadata', postgresql.JSON, nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
@@ -70,10 +69,10 @@ def upgrade() -> None:
     # Create user_sessions table
     op.create_table(
         'user_sessions',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('id', sa.String(36), nullable=False),
         sa.Column('session_id', sa.String(length=255), nullable=False),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('institution_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('user_id', sa.String(36), nullable=True),
+        sa.Column('institution_id', sa.String(36), nullable=True),
         sa.Column('first_seen', sa.DateTime(), nullable=False),
         sa.Column('last_seen', sa.DateTime(), nullable=False),
         sa.Column('page_views', sa.Integer(), nullable=True),
@@ -100,14 +99,14 @@ def upgrade() -> None:
     # Create feature_usage table
     op.create_table(
         'feature_usage',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('id', sa.String(36), nullable=False),
         sa.Column('feature_name', sa.String(length=255), nullable=False),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('institution_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('user_id', sa.String(36), nullable=True),
+        sa.Column('institution_id', sa.String(36), nullable=True),
         sa.Column('usage_count', sa.Integer(), nullable=True),
         sa.Column('first_used_at', sa.DateTime(), nullable=False),
         sa.Column('last_used_at', sa.DateTime(), nullable=False),
-        sa.Column('properties', postgresql.JSON, nullable=True),
+        sa.Column('properties', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint('id')
@@ -122,9 +121,9 @@ def upgrade() -> None:
     # Create user_retention table
     op.create_table(
         'user_retention',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('institution_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('id', sa.String(36), nullable=False),
+        sa.Column('user_id', sa.String(36), nullable=False),
+        sa.Column('institution_id', sa.String(36), nullable=True),
         sa.Column('cohort_date', sa.DateTime(), nullable=False),
         sa.Column('activity_date', sa.DateTime(), nullable=False),
         sa.Column('days_since_cohort', sa.Integer(), nullable=False),

@@ -13,7 +13,6 @@ This is an example migration demonstrating all safety best practices:
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 from alembic.migration_utils import migration_transaction, track_migration_duration
 
 revision = '042'

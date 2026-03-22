@@ -7,7 +7,6 @@ Create Date: 2024-01-19 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = 'reverse_classroom_001'
 down_revision = 'mistake_analysis_001'
@@ -17,13 +16,13 @@ depends_on = None
 
 def upgrade():
     # Create enums
-    explanation_type_enum = postgresql.ENUM(
+    explanation_type_enum = sa.Enum(
         'text', 'voice', 'video',
         name='explanationtype'
     )
     explanation_type_enum.create(op.get_bind())
     
-    difficulty_level_enum = postgresql.ENUM(
+    difficulty_level_enum = sa.Enum(
         'explain_to_5yo', 'explain_to_10yo', 'explain_to_college', 'explain_in_30s',
         name='difficultylevel'
     )
@@ -38,10 +37,10 @@ def upgrade():
         sa.Column('topic_id', sa.Integer(), nullable=False),
         sa.Column('explanation_type', explanation_type_enum, nullable=False),
         sa.Column('explanation_content', sa.Text(), nullable=False),
-        sa.Column('ai_analysis', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('correctly_explained', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('missing_concepts', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('confused_concepts', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('ai_analysis', sa.JSON(), nullable=True),
+        sa.Column('correctly_explained', sa.JSON(), nullable=True),
+        sa.Column('missing_concepts', sa.JSON(), nullable=True),
+        sa.Column('confused_concepts', sa.JSON(), nullable=True),
         sa.Column('understanding_level_percent', sa.Float(), nullable=True),
         sa.Column('clarity_score', sa.Float(), nullable=True),
         sa.Column('duration_seconds', sa.Integer(), nullable=True),
@@ -75,9 +74,9 @@ def upgrade():
         sa.Column('student_response', sa.Text(), nullable=True),
         sa.Column('completed', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('score', sa.Float(), nullable=True),
-        sa.Column('ai_feedback', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('strengths', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('areas_for_improvement', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('ai_feedback', sa.JSON(), nullable=True),
+        sa.Column('strengths', sa.JSON(), nullable=True),
+        sa.Column('areas_for_improvement', sa.JSON(), nullable=True),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -116,8 +115,8 @@ def downgrade():
     op.drop_table('teaching_sessions')
     
     # Drop enums
-    difficulty_level_enum = postgresql.ENUM(name='difficultylevel')
+    difficulty_level_enum = sa.Enum(name='difficultylevel')
     difficulty_level_enum.drop(op.get_bind())
     
-    explanation_type_enum = postgresql.ENUM(name='explanationtype')
+    explanation_type_enum = sa.Enum(name='explanationtype')
     explanation_type_enum.drop(op.get_bind())

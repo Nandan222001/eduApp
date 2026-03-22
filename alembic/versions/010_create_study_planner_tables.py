@@ -7,7 +7,6 @@ Create Date: 2024-01-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '010_study_planner'
 down_revision = '009'
@@ -34,7 +33,7 @@ def upgrade():
         sa.Column('calendar_sync_url', sa.String(length=500), nullable=True),
         sa.Column('adaptive_rescheduling_enabled', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('last_rescheduled_at', sa.DateTime(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -107,7 +106,7 @@ def upgrade():
         sa.Column('rescheduled_to_date', sa.Date(), nullable=True),
         sa.Column('rescheduled_reason', sa.Text(), nullable=True),
         sa.Column('calendar_event_id', sa.String(length=200), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -175,7 +174,7 @@ def upgrade():
         sa.Column('completion_rate', sa.Numeric(precision=5, scale=2), nullable=False),
         sa.Column('adherence_score', sa.Numeric(precision=5, scale=2), nullable=True),
         sa.Column('productivity_score', sa.Numeric(precision=5, scale=2), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
