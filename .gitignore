@@ -171,6 +171,7 @@ frontend/.env
 frontend/.env.local
 frontend/.vite/
 frontend/coverage/
+frontend/mobile/
 
 # Mobile (React Native/Expo)
 mobile/node_modules/

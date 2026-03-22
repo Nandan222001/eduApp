@@ -16,9 +16,6 @@ export default function Root({ children }: { children: React.ReactNode }) {
         {/* Preconnect to improve performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-
-        {/* Ensures proper MIME types for JavaScript modules */}
-        <meta httpEquiv="Content-Type" content="text/html; charset=UTF-8" />
         
         {/*
           Disable body scrolling on web. This makes ScrollView components work closer to how they do on native.

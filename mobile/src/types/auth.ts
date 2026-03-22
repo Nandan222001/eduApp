@@ -72,8 +72,8 @@ export interface AuthState {
   isLoading: boolean;
   error: string | null;
   biometricEnabled: boolean;
-  activeRole: UserRole | null;
-  availableRoles: UserRole[];
+  activeRole: string | null;
+  availableRoles: string[];
 }
 
 export interface BiometricConfig {

@@ -1,28 +1,43 @@
-import * as BackgroundFetch from 'expo-background-fetch';
-import * as TaskManager from 'expo-task-manager';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { offlineQueueManager } from './offlineQueue';
+
+// Lazy load expo modules only on native platforms
+let BackgroundFetch: any = null;
+let TaskManager: any = null;
+
+if (Platform.OS !== 'web') {
+  BackgroundFetch = require('expo-background-fetch');
+  TaskManager = require('expo-task-manager');
+}
 
 const BACKGROUND_SYNC_TASK = 'background-sync-task';
 const LAST_SYNC_KEY = '@last_sync_timestamp';
 
-TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
-  try {
-    console.log('Background sync task running...');
-    
-    await offlineQueueManager.processQueue();
-    
-    await AsyncStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
-    
-    return BackgroundFetch.BackgroundFetchResult.NewData;
-  } catch (error) {
-    console.error('Background sync failed:', error);
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
+if (Platform.OS !== 'web' && TaskManager) {
+  TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
+    try {
+      console.log('Background sync task running...');
+      
+      await offlineQueueManager.processQueue();
+      
+      await AsyncStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
+      
+      return BackgroundFetch.BackgroundFetchResult.NewData;
+    } catch (error) {
+      console.error('Background sync failed:', error);
+      return BackgroundFetch.BackgroundFetchResult.Failed;
+    }
+  });
+}
 
 export const backgroundSyncService = {
   async register(): Promise<void> {
+    if (Platform.OS === 'web') {
+      console.log('Background sync not available on web');
+      return;
+    }
+    
     try {
       await BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
         minimumInterval: 15 * 60,
@@ -36,6 +51,11 @@ export const backgroundSyncService = {
   },
 
   async unregister(): Promise<void> {
+    if (Platform.OS === 'web') {
+      console.log('Background sync not available on web');
+      return;
+    }
+    
     try {
       await BackgroundFetch.unregisterTaskAsync(BACKGROUND_SYNC_TASK);
       console.log('Background sync unregistered successfully');
@@ -44,7 +64,11 @@ export const backgroundSyncService = {
     }
   },
 
-  async getStatus(): Promise<BackgroundFetch.BackgroundFetchStatus | null> {
+  async getStatus(): Promise<any | null> {
+    if (Platform.OS === 'web') {
+      return null;
+    }
+    
     try {
       return await BackgroundFetch.getStatusAsync();
     } catch (error) {
@@ -73,3 +97,6 @@ export const backgroundSyncService = {
     }
   },
 };
+
+// Export with capital letter for backwards compatibility
+export const BackgroundSyncService = backgroundSyncService;

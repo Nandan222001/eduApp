@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Redirect, useRouter } from 'expo-router';
 import { useAppSelector } from '@store/hooks';
-import { UserRole } from '@types';
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -10,7 +9,7 @@ export default function TabsLayout() {
 
   useEffect(() => {
     if (previousRoleRef.current !== activeRole && activeRole) {
-      const targetRoute = activeRole === UserRole.PARENT ? '/(tabs)/parent' : '/(tabs)/student';
+      const targetRoute = activeRole === 'parent' ? '/(tabs)/parent' : '/(tabs)/student';
       router.replace(targetRoute);
       previousRoleRef.current = activeRole;
     }
@@ -20,9 +19,9 @@ export default function TabsLayout() {
     return <Redirect href="/(tabs)/student" />;
   }
 
-  if (activeRole === UserRole.STUDENT) {
+  if (activeRole === 'student') {
     return <Redirect href="/(tabs)/student" />;
-  } else if (activeRole === UserRole.PARENT) {
+  } else if (activeRole === 'parent') {
     return <Redirect href="/(tabs)/parent" />;
   }
 

@@ -122,4 +122,26 @@ export const secureStorage = {
       storage.deleteItem(TOKEN_KEYS.IS_DEMO_USER),
     ]);
   },
+
+  // Generic storage methods
+  setItem: async (key: string, value: string): Promise<void> => {
+    await storage.setItem(key, value);
+  },
+
+  getItem: async (key: string): Promise<string | null> => {
+    return await storage.getItem(key);
+  },
+
+  removeItem: async (key: string): Promise<void> => {
+    await storage.deleteItem(key);
+  },
+
+  setObject: async <T>(key: string, value: T): Promise<void> => {
+    await storage.setItem(key, JSON.stringify(value));
+  },
+
+  getObject: async <T>(key: string): Promise<T | null> => {
+    const value = await storage.getItem(key);
+    return value ? JSON.parse(value) : null;
+  },
 };
