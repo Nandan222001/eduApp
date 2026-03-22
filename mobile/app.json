@@ -51,7 +51,14 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "build": {
+        "babel": {
+          "use": {
+            "babel-preset-expo": true
+          }
+        }
+      }
     },
     "scheme": "edutrack",
     "experiments": {
