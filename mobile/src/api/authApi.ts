@@ -11,6 +11,7 @@ import {
 } from '../types/auth';
 import { demoStudentUser, demoParentUser } from '../data/dummyData';
 import { secureStorage } from '../utils/secureStorage';
+import { STORAGE_KEYS } from '../constants';
 
 interface BackendUserResponse extends Omit<User, 'role'> {
   role: RoleInfo;
@@ -74,7 +75,7 @@ export const authApi = {
 
   getCurrentUser: async (): Promise<User> => {
     try {
-      const token = await secureStorage.getAccessToken();
+      const token = await secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       
       if (token) {
         if (token.startsWith('demo_student_access_token_')) {

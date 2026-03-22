@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { iosConfig } from '@config/ios';
 
 // Lazy load LocalAuthentication only on native platforms
 let LocalAuthentication: any = null;
@@ -39,11 +40,14 @@ export const biometricUtils = {
     }
 
     try {
+      // Use iOS-specific config as defaults
+      const config = Platform.OS === 'ios' ? iosConfig.biometric : {};
+      
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: options?.promptMessage || 'Authenticate to continue',
-        cancelLabel: options?.cancelLabel || 'Cancel',
+        promptMessage: options?.promptMessage || config.promptMessage || 'Authenticate to continue',
+        cancelLabel: options?.cancelLabel || config.cancelLabel || 'Cancel',
         disableDeviceFallback: options?.disableDeviceFallback || false,
-        fallbackLabel: 'Use Passcode',
+        fallbackLabel: config.fallbackLabel || 'Use Passcode',
       });
 
       if (result.success) {

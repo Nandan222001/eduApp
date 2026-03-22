@@ -17,8 +17,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.edutrack.app",
+      "buildNumber": "1.0.0",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Allow EduTrack to use Face ID for secure authentication"
+        "NSFaceIDUsageDescription": "Allow EduTrack to use Face ID for secure authentication",
+        "NSCameraUsageDescription": "Allow EduTrack to use your camera to scan homework and QR codes",
+        "NSPhotoLibraryUsageDescription": "Allow EduTrack to access your photo library to upload assignments and documents",
+        "NSMicrophoneUsageDescription": "Allow EduTrack to use your microphone for voice features",
+        "UIBackgroundModes": ["fetch", "remote-notification"]
       },
       "associatedDomains": ["applinks:edutrack.app"]
     },

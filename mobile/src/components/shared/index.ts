@@ -22,3 +22,5 @@ export { Calendar, CalendarLegend } from './Calendar';
 export { CountdownTimer } from './CountdownTimer';
 export { EventCard } from './EventCard';
 export { ExamCountdownWidget } from './ExamCountdownWidget';
+export { RoleBadge } from './RoleBadge';
+export { RoleSwitcher } from './RoleSwitcher';

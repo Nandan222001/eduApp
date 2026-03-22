@@ -15,12 +15,16 @@ import { Loading, OfflineDataRefresher } from '@components';
 import { theme } from '@config/theme';
 import { authService } from '@utils/authService';
 import { initializeOfflineSupport } from '@utils/offlineInit';
+import { initializeIOSPlatform, checkIOSCompatibility } from '@utils/iosInit';
 
 // Prevent splash screen from auto-hiding (only on native platforms)
 if (Platform.OS !== 'web') {
   const SplashScreen = require('expo-splash-screen');
   SplashScreen.preventAutoHideAsync();
 }
+
+// Check iOS compatibility on iOS devices (will run on app init)
+// checkIOSCompatibility is called in the useEffect hook below
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,7 +44,16 @@ function RootLayoutNav() {
   useEffect(() => {
     const initApp = async () => {
       try {
+        // Initialize iOS-specific features first
+        if (Platform.OS === 'ios') {
+          await checkIOSCompatibility();
+          await initializeIOSPlatform();
+        }
+
+        // Load stored authentication
         await dispatch(loadStoredAuth()).unwrap();
+        
+        // Initialize offline support on native platforms
         if (Platform.OS !== 'web') {
           await initializeOfflineSupport();
         }
