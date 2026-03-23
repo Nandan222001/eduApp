@@ -7,7 +7,6 @@ Create Date: 2024-01-15 13:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '016'
 down_revision = '015'
@@ -16,10 +15,10 @@ depends_on = None
 
 
 def upgrade():
-    training_job_type = postgresql.ENUM('manual', 'scheduled', 'retraining', name='trainingjobtype')
+    training_job_type = sa.Enum('manual', 'scheduled', 'retraining', name='trainingjobtype')
     training_job_type.create(op.get_bind())
     
-    training_status = postgresql.ENUM('pending', 'running', 'completed', 'failed', 'cancelled', name='trainingstatus')
+    training_status = sa.Enum('pending', 'running', 'completed', 'failed', 'cancelled', name='trainingstatus')
     training_status.create(op.get_bind())
     
     op.create_table(
@@ -34,8 +33,8 @@ def upgrade():
         sa.Column('model_name', sa.String(200), nullable=False),
         sa.Column('algorithm', sa.String(100), nullable=False),
         sa.Column('prediction_type', sa.String(100), nullable=False),
-        sa.Column('hyperparameters', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('training_config', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('hyperparameters', sa.JSON(), nullable=True),
+        sa.Column('training_config', sa.JSON(), nullable=True),
         sa.Column('started_at', sa.DateTime(), nullable=True),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('duration_seconds', sa.Float(), nullable=True),
@@ -74,7 +73,7 @@ def upgrade():
         sa.Column('average_prediction_time_ms', sa.Float(), nullable=True),
         sa.Column('error_rate', sa.Float(), nullable=True),
         sa.Column('traffic_percentage', sa.Float(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.ForeignKeyConstraint(['model_version_id'], ['ml_model_versions.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
@@ -123,8 +122,8 @@ def downgrade():
     op.drop_index('idx_training_job_institution', table_name='ml_training_jobs')
     op.drop_table('ml_training_jobs')
     
-    training_status = postgresql.ENUM('pending', 'running', 'completed', 'failed', 'cancelled', name='trainingstatus')
+    training_status = sa.Enum('pending', 'running', 'completed', 'failed', 'cancelled', name='trainingstatus')
     training_status.drop(op.get_bind())
     
-    training_job_type = postgresql.ENUM('manual', 'scheduled', 'retraining', name='trainingjobtype')
+    training_job_type = sa.Enum('manual', 'scheduled', 'retraining', name='trainingjobtype')
     training_job_type.drop(op.get_bind())

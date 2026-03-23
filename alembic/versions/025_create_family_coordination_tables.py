@@ -7,7 +7,6 @@ Create Date: 2024-01-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '025_family_coordination'
@@ -64,7 +63,7 @@ def upgrade() -> None:
         sa.Column('start_date', sa.DateTime(), nullable=False),
         sa.Column('end_date', sa.DateTime(), nullable=True),
         sa.Column('location', sa.String(length=255), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.PrimaryKeyConstraint('id'),
@@ -84,8 +83,8 @@ def upgrade() -> None:
         sa.Column('metric_type', sa.String(length=50), nullable=False),
         sa.Column('period_start', sa.Date(), nullable=False),
         sa.Column('period_end', sa.Date(), nullable=False),
-        sa.Column('comparison_data', postgresql.JSON(astext_type=sa.Text()), nullable=False),
-        sa.Column('insights', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('comparison_data', sa.JSON(), nullable=False),
+        sa.Column('insights', sa.JSON(), nullable=True),
         sa.Column('privacy_level', sa.String(length=20), nullable=False, server_default='aggregated'),
         sa.Column('generated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
@@ -104,7 +103,7 @@ def upgrade() -> None:
         sa.Column('family_group_id', sa.Integer(), nullable=False),
         sa.Column('batch_date', sa.Date(), nullable=False),
         sa.Column('notification_count', sa.Integer(), nullable=False, server_default='0'),
-        sa.Column('summary', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('summary', sa.JSON(), nullable=False),
         sa.Column('is_read', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('read_at', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
@@ -125,7 +124,7 @@ def upgrade() -> None:
         sa.Column('title', sa.String(length=255), nullable=False),
         sa.Column('message', sa.Text(), nullable=False),
         sa.Column('priority', sa.String(length=20), nullable=False, server_default='medium'),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.PrimaryKeyConstraint('id'),
         sa.ForeignKeyConstraint(['batch_id'], ['family_notification_batches.id'], ondelete='CASCADE'),
@@ -191,7 +190,7 @@ def upgrade() -> None:
         sa.Column('widget_type', sa.String(length=50), nullable=False),
         sa.Column('title', sa.String(length=255), nullable=False),
         sa.Column('position', sa.Integer(), nullable=False, server_default='0'),
-        sa.Column('config', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('config', sa.JSON(), nullable=True),
         sa.Column('is_visible', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),

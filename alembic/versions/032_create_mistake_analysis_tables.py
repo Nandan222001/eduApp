@@ -7,7 +7,6 @@ Create Date: 2024-01-18 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = 'mistake_analysis_001'
 down_revision = 'homework_scanner_001'
@@ -16,20 +15,20 @@ depends_on = None
 
 
 def upgrade():
-    mistake_type_enum = postgresql.ENUM(
+    mistake_type_enum = sa.Enum(
         'silly_calculation', 'sign_error', 'unit_missing', 'concept_wrong',
         'misread_question', 'incomplete_steps', 'presentation',
         name='mistaketype_v2'
     )
     mistake_type_enum.create(op.get_bind())
     
-    remediation_status_enum = postgresql.ENUM(
+    remediation_status_enum = sa.Enum(
         'unresolved', 'in_progress', 'mastered',
         name='remediationstatus'
     )
     remediation_status_enum.create(op.get_bind())
     
-    earned_via_enum = postgresql.ENUM(
+    earned_via_enum = sa.Enum(
         'study_streak', 'homework_complete', 'help_classmates', 'attendance', 'perfect_score',
         name='earnedvia'
     )
@@ -47,7 +46,7 @@ def upgrade():
         sa.Column('first_detected_at', sa.DateTime(), nullable=False),
         sa.Column('last_detected_at', sa.DateTime(), nullable=False),
         sa.Column('remediation_status', remediation_status_enum, nullable=False, server_default='unresolved'),
-        sa.Column('examples', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('examples', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
@@ -90,7 +89,7 @@ def upgrade():
         sa.Column('exam_id', sa.Integer(), nullable=False),
         sa.Column('original_score', sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column('revised_score', sa.Numeric(precision=10, scale=2), nullable=False),
-        sa.Column('mistakes_corrected', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('mistakes_corrected', sa.JSON(), nullable=False),
         sa.Column('student_explanation', sa.Text(), nullable=True),
         sa.Column('reviewed_at', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -127,11 +126,11 @@ def downgrade():
     op.drop_index('idx_mistake_pattern_student', 'mistake_patterns')
     op.drop_table('mistake_patterns')
     
-    earned_via_enum = postgresql.ENUM(name='earnedvia')
+    earned_via_enum = sa.Enum(name='earnedvia')
     earned_via_enum.drop(op.get_bind())
     
-    remediation_status_enum = postgresql.ENUM(name='remediationstatus')
+    remediation_status_enum = sa.Enum(name='remediationstatus')
     remediation_status_enum.drop(op.get_bind())
     
-    mistake_type_enum = postgresql.ENUM(name='mistaketype_v2')
+    mistake_type_enum = sa.Enum(name='mistaketype_v2')
     mistake_type_enum.drop(op.get_bind())

@@ -7,7 +7,6 @@ Create Date: 2024-01-19 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSON
 
 revision = '009'
 down_revision = '008'
@@ -25,7 +24,7 @@ def upgrade():
         sa.Column('rarity', sa.Enum('common', 'rare', 'epic', 'legendary', name='badgerarity'), nullable=False, server_default='common'),
         sa.Column('icon_url', sa.String(length=500), nullable=True),
         sa.Column('points_required', sa.Integer(), nullable=True),
-        sa.Column('criteria', JSON, nullable=True),
+        sa.Column('criteria', sa.JSON(), nullable=True),
         sa.Column('auto_award', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
@@ -46,7 +45,7 @@ def upgrade():
         sa.Column('badge_id', sa.Integer(), nullable=False),
         sa.Column('earned_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.Column('points_awarded', sa.Integer(), nullable=False, server_default='0'),
-        sa.Column('metadata', JSON, nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
@@ -91,7 +90,7 @@ def upgrade():
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('reference_id', sa.Integer(), nullable=True),
         sa.Column('reference_type', sa.String(length=50), nullable=True),
-        sa.Column('metadata', JSON, nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['user_points_id'], ['user_points.id'], ondelete='CASCADE'),
@@ -111,7 +110,7 @@ def upgrade():
         sa.Column('achievement_type', sa.Enum('attendance', 'assignment', 'exam', 'goal', 'streak', 'level', 'points', 'social', name='achievementtype'), nullable=False),
         sa.Column('icon_url', sa.String(length=500), nullable=True),
         sa.Column('points_reward', sa.Integer(), nullable=False, server_default='0'),
-        sa.Column('requirements', JSON, nullable=False),
+        sa.Column('requirements', sa.JSON(), nullable=False),
         sa.Column('is_secret', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('is_repeatable', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
@@ -134,7 +133,7 @@ def upgrade():
         sa.Column('is_completed', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('times_completed', sa.Integer(), nullable=False, server_default='0'),
-        sa.Column('metadata', JSON, nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -188,7 +187,7 @@ def upgrade():
         sa.Column('rank', sa.Integer(), nullable=False),
         sa.Column('score', sa.Integer(), nullable=False),
         sa.Column('previous_rank', sa.Integer(), nullable=True),
-        sa.Column('metadata', JSON, nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -211,7 +210,7 @@ def upgrade():
         sa.Column('current_streak', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('longest_streak', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('last_activity_date', sa.DateTime(), nullable=True),
-        sa.Column('metadata', JSON, nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),

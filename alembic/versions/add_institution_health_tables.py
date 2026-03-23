@@ -7,7 +7,6 @@ Create Date: 2024-01-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_institution_health'
@@ -34,9 +33,9 @@ def upgrade() -> None:
         sa.Column('health_trend', sa.String(length=20), nullable=False, server_default='stable'),
         sa.Column('previous_score', sa.Float(), nullable=True),
         sa.Column('score_change_percentage', sa.Float(), nullable=True),
-        sa.Column('metrics_data', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('risk_factors', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('recommended_actions', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metrics_data', sa.JSON(), nullable=True),
+        sa.Column('risk_factors', sa.JSON(), nullable=True),
+        sa.Column('recommended_actions', sa.JSON(), nullable=True),
         sa.Column('last_calculated_at', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -96,7 +95,7 @@ def upgrade() -> None:
         sa.Column('churn_risk_score', sa.Float(), nullable=False),
         sa.Column('churn_probability', sa.Float(), nullable=False),
         sa.Column('risk_level', sa.String(length=20), nullable=False),
-        sa.Column('metrics_snapshot', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metrics_snapshot', sa.JSON(), nullable=True),
         sa.Column('recorded_at', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['health_score_id'], ['institution_health_scores.id'], ondelete='CASCADE'),
@@ -118,10 +117,10 @@ def upgrade() -> None:
         sa.Column('precision', sa.Float(), nullable=True),
         sa.Column('recall', sa.Float(), nullable=True),
         sa.Column('f1_score', sa.Float(), nullable=True),
-        sa.Column('feature_importances', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('feature_names', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('training_metrics', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('hyperparameters', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('feature_importances', sa.JSON(), nullable=True),
+        sa.Column('feature_names', sa.JSON(), nullable=True),
+        sa.Column('training_metrics', sa.JSON(), nullable=True),
+        sa.Column('hyperparameters', sa.JSON(), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('trained_at', sa.DateTime(), nullable=False),
         sa.Column('trained_by', sa.Integer(), nullable=True),

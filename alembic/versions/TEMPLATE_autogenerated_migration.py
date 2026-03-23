@@ -17,7 +17,6 @@ Best Practices Demonstrated:
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '041'
@@ -82,7 +81,7 @@ def upgrade() -> None:
             sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('institution_id', sa.Integer(), nullable=False),
             sa.Column('name', sa.String(length=255), nullable=False),
-            sa.Column('status', postgresql.ENUM('pending', 'approved', 'rejected', 
+            sa.Column('status', sa.Enum('pending', 'approved', 'rejected', 
                                                 name='statusenum', create_type=False), 
                       nullable=False, server_default='pending'),
             sa.Column('count', sa.Integer(), nullable=False, server_default='0'),

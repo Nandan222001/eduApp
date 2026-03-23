@@ -8,7 +8,6 @@ Creates tables for parent volunteer hour tracking with proper foreign keys
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '037'
 down_revision = '036'
@@ -67,18 +66,18 @@ def upgrade() -> None:
             sa.Column('parent_id', sa.Integer(), nullable=False),
             sa.Column('academic_year_id', sa.Integer(), nullable=False),
             sa.Column('activity_name', sa.String(length=255), nullable=False),
-            sa.Column('activity_type', postgresql.ENUM('classroom_help', 'event_support', 'fundraising', 'field_trip_chaperone', 'committee_work', name='activitytype', create_type=False), nullable=False),
+            sa.Column('activity_type', sa.Enum('classroom_help', 'event_support', 'fundraising', 'field_trip_chaperone', 'committee_work', name='activitytype', create_type=False), nullable=False),
             sa.Column('date', sa.Date(), nullable=False),
             sa.Column('hours_logged', sa.Numeric(precision=5, scale=2), nullable=False),
             sa.Column('description', sa.Text(), nullable=True),
             sa.Column('location', sa.String(length=255), nullable=True),
             sa.Column('supervisor_teacher_id', sa.Integer(), nullable=True),
-            sa.Column('verification_status', postgresql.ENUM('pending', 'approved', 'rejected', name='verificationstatus', create_type=False), nullable=False),
+            sa.Column('verification_status', sa.Enum('pending', 'approved', 'rejected', name='verificationstatus', create_type=False), nullable=False),
             sa.Column('verification_notes', sa.Text(), nullable=True),
             sa.Column('verified_at', sa.DateTime(), nullable=True),
             sa.Column('verified_by', sa.Integer(), nullable=True),
-            sa.Column('attachments', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-            sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+            sa.Column('attachments', sa.JSON(), nullable=True),
+            sa.Column('metadata', sa.JSON(), nullable=True),
             sa.Column('created_at', sa.DateTime(), nullable=False),
             sa.Column('updated_at', sa.DateTime(), nullable=False),
             sa.ForeignKeyConstraint(['academic_year_id'], ['academic_years.id'], ondelete='CASCADE'),
@@ -148,7 +147,7 @@ def upgrade() -> None:
             sa.Column('institution_id', sa.Integer(), nullable=False),
             sa.Column('name', sa.String(length=100), nullable=False),
             sa.Column('description', sa.Text(), nullable=True),
-            sa.Column('badge_tier', postgresql.ENUM('bronze', 'silver', 'gold', 'platinum', name='badgetier', create_type=False), nullable=False),
+            sa.Column('badge_tier', sa.Enum('bronze', 'silver', 'gold', 'platinum', name='badgetier', create_type=False), nullable=False),
             sa.Column('hours_required', sa.Numeric(precision=8, scale=2), nullable=False),
             sa.Column('icon_url', sa.String(length=500), nullable=True),
             sa.Column('color_code', sa.String(length=7), nullable=True),
@@ -180,7 +179,7 @@ def upgrade() -> None:
             sa.Column('academic_year_id', sa.Integer(), nullable=False),
             sa.Column('earned_at', sa.DateTime(), nullable=False),
             sa.Column('hours_at_earning', sa.Numeric(precision=8, scale=2), nullable=False),
-            sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+            sa.Column('metadata', sa.JSON(), nullable=True),
             sa.Column('created_at', sa.DateTime(), nullable=False),
             sa.ForeignKeyConstraint(['academic_year_id'], ['academic_years.id'], ondelete='CASCADE'),
             sa.ForeignKeyConstraint(['badge_id'], ['volunteer_badges.id'], ondelete='CASCADE'),
@@ -251,7 +250,7 @@ def upgrade() -> None:
             sa.Column('is_tax_deductible', sa.Boolean(), nullable=False, server_default='false'),
             sa.Column('tax_year', sa.Integer(), nullable=True),
             sa.Column('notes', sa.Text(), nullable=True),
-            sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+            sa.Column('metadata', sa.JSON(), nullable=True),
             sa.Column('created_at', sa.DateTime(), nullable=False),
             sa.Column('updated_at', sa.DateTime(), nullable=False),
             sa.ForeignKeyConstraint(['academic_year_id'], ['academic_years.id'], ondelete='CASCADE'),

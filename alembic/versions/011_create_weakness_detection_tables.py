@@ -7,7 +7,6 @@ Create Date: 2024-01-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '011'
 down_revision = '010_study_planner'
@@ -72,7 +71,7 @@ def upgrade():
         sa.Column('last_performance', sa.Numeric(5, 2), nullable=True),
         sa.Column('is_completed', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -109,7 +108,7 @@ def upgrade():
         sa.Column('estimated_improvement', sa.Numeric(5, 2), nullable=True),
         sa.Column('confidence_level', sa.String(50), nullable=True),
         sa.Column('reasoning', sa.Text(), nullable=True),
-        sa.Column('ai_insights', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('ai_insights', sa.JSON(), nullable=True),
         sa.Column('status', sa.String(50), nullable=False, server_default='active'),
         sa.Column('started_at', sa.DateTime(), nullable=True),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
@@ -143,11 +142,11 @@ def upgrade():
         sa.Column('severity', sa.String(50), nullable=False),
         sa.Column('priority', sa.Integer(), nullable=False),
         sa.Column('is_actionable', sa.Boolean(), nullable=False, server_default='true'),
-        sa.Column('actionable_items', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('recommendations', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('supporting_data', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('affected_subjects', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('affected_chapters', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('actionable_items', sa.JSON(), nullable=True),
+        sa.Column('recommendations', sa.JSON(), nullable=True),
+        sa.Column('supporting_data', sa.JSON(), nullable=True),
+        sa.Column('affected_subjects', sa.JSON(), nullable=True),
+        sa.Column('affected_chapters', sa.JSON(), nullable=True),
         sa.Column('ai_generated', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('confidence_score', sa.Numeric(5, 2), nullable=True),
         sa.Column('is_acknowledged', sa.Boolean(), nullable=False, server_default='false'),

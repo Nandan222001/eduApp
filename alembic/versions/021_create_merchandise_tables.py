@@ -8,7 +8,6 @@ Create Date: 2024-01-15 10:00:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '021_create_merchandise'
@@ -27,9 +26,9 @@ def upgrade() -> None:
         sa.Column('category', sa.String(length=50), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('base_price', sa.Numeric(precision=10, scale=2), nullable=False),
-        sa.Column('size_options', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('color_options', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('mockup_images', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('size_options', sa.JSON(), nullable=True),
+        sa.Column('color_options', sa.JSON(), nullable=True),
+        sa.Column('mockup_images', sa.JSON(), nullable=True),
         sa.Column('print_provider', sa.String(length=50), nullable=False),
         sa.Column('product_template_id', sa.String(length=255), nullable=True),
         sa.Column('inventory_tracking', sa.Boolean(), nullable=False),
@@ -68,7 +67,7 @@ def upgrade() -> None:
         sa.Column('shipping_cost', sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column('total_amount', sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column('currency', sa.String(length=3), nullable=False),
-        sa.Column('customization', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('customization', sa.JSON(), nullable=True),
         sa.Column('order_status', sa.String(length=50), nullable=False),
         sa.Column('tracking_number', sa.String(length=255), nullable=True),
         sa.Column('payment_status', sa.String(length=50), nullable=False),
@@ -83,7 +82,7 @@ def upgrade() -> None:
         sa.Column('printful_order_id', sa.String(length=255), nullable=True),
         sa.Column('external_order_id', sa.String(length=255), nullable=True),
         sa.Column('fulfillment_status', sa.String(length=50), nullable=True),
-        sa.Column('metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
         sa.Column('notes', sa.Text(), nullable=True),
         sa.Column('confirmed_at', sa.DateTime(), nullable=True),
         sa.Column('shipped_at', sa.DateTime(), nullable=True),
@@ -122,7 +121,7 @@ def upgrade() -> None:
         sa.Column('quantity', sa.Integer(), nullable=False),
         sa.Column('unit_price', sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column('total_price', sa.Numeric(precision=10, scale=2), nullable=False),
-        sa.Column('personalization', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('personalization', sa.JSON(), nullable=True),
         sa.Column('printful_item_id', sa.String(length=255), nullable=True),
         sa.Column('external_item_id', sa.String(length=255), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),

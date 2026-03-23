@@ -7,7 +7,6 @@ Create Date: 2024-03-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_extended_branding_fields'
@@ -31,7 +30,7 @@ def upgrade():
     
     # Add branded notification sounds (JSON field)
     op.add_column('institution_branding', 
-        sa.Column('branded_notification_sounds', postgresql.JSON(astext_type=sa.Text()), nullable=True))
+        sa.Column('branded_notification_sounds', sa.JSON(), nullable=True))
     
     # Add loading screen and animations
     op.add_column('institution_branding', 
@@ -39,7 +38,7 @@ def upgrade():
     op.add_column('institution_branding', 
         sa.Column('loading_screen_animation_s3_key', sa.String(length=500), nullable=True))
     op.add_column('institution_branding', 
-        sa.Column('splash_screen_config', postgresql.JSON(astext_type=sa.Text()), nullable=True))
+        sa.Column('splash_screen_config', sa.JSON(), nullable=True))
     
     # Add custom help docs and merchandise
     op.add_column('institution_branding', 

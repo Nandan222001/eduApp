@@ -7,7 +7,6 @@ Create Date: 2024-01-01 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_user_settings'
@@ -34,7 +33,7 @@ def upgrade():
         sa.Column('show_phone', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('allow_messages', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('show_online_status', sa.Boolean(), nullable=False, server_default='true'),
-        sa.Column('notification_preferences', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('notification_preferences', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),

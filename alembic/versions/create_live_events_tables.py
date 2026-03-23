@@ -7,7 +7,6 @@ Create Date: 2024-01-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'create_live_events_001'
@@ -47,8 +46,8 @@ def upgrade():
         sa.Column('chat_moderated', sa.Boolean(), nullable=False, server_default='true'),
         
         sa.Column('restricted_access', sa.String(length=20), nullable=False),
-        sa.Column('allowed_grade_ids', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('allowed_section_ids', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('allowed_grade_ids', sa.JSON(), nullable=True),
+        sa.Column('allowed_section_ids', sa.JSON(), nullable=True),
         
         sa.Column('monetization_enabled', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('ticket_price', sa.Integer(), nullable=True),
@@ -60,9 +59,9 @@ def upgrade():
         sa.Column('recording_archived_at', sa.DateTime(), nullable=True),
         
         sa.Column('thumbnail_url', sa.String(length=500), nullable=True),
-        sa.Column('tags', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('tags', sa.JSON(), nullable=True),
         sa.Column('external_stream_id', sa.String(length=255), nullable=True),
-        sa.Column('stream_metadata', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('stream_metadata', sa.JSON(), nullable=True),
         
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -132,7 +131,7 @@ def upgrade():
         sa.Column('moderation_reason', sa.Text(), nullable=True),
         
         sa.Column('parent_message_id', sa.Integer(), nullable=True),
-        sa.Column('reactions', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('reactions', sa.JSON(), nullable=True),
         
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),

@@ -9,7 +9,6 @@ across all tables to prevent schema drift issues.
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = '039'
 down_revision = '038'

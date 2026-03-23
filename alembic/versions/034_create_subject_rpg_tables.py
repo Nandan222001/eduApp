@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision: str = '034_create_subject_rpg'
 down_revision: Union[str, None] = 'reverse_classroom_001'
@@ -28,7 +27,7 @@ def upgrade() -> None:
         sa.Column('xp', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('health', sa.Integer(), nullable=False, server_default='100'),
         sa.Column('mana', sa.Integer(), nullable=False, server_default='50'),
-        sa.Column('equipment', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('equipment', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.ForeignKeyConstraint(['institution_id'], ['institutions.id'], ondelete='CASCADE'),
@@ -46,7 +45,7 @@ def upgrade() -> None:
         sa.Column('institution_id', sa.Integer(), nullable=False),
         sa.Column('subject_id', sa.Integer(), nullable=False),
         sa.Column('world_name', sa.String(length=200), nullable=False),
-        sa.Column('chapters_as_regions', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('chapters_as_regions', sa.JSON(), nullable=False),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
@@ -67,11 +66,11 @@ def upgrade() -> None:
         sa.Column('character_id', sa.Integer(), nullable=False),
         sa.Column('chapter_id', sa.Integer(), nullable=True),
         sa.Column('boss_name', sa.String(length=200), nullable=False),
-        sa.Column('questions', postgresql.JSON(astext_type=sa.Text()), nullable=False),
-        sa.Column('answers', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('questions', sa.JSON(), nullable=False),
+        sa.Column('answers', sa.JSON(), nullable=True),
         sa.Column('score', sa.Float(), nullable=False, server_default='0'),
         sa.Column('xp_earned', sa.Integer(), nullable=False, server_default='0'),
-        sa.Column('loot', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('loot', sa.JSON(), nullable=True),
         sa.Column('is_completed', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
@@ -95,7 +94,7 @@ def upgrade() -> None:
         sa.Column('institution_id', sa.Integer(), nullable=False),
         sa.Column('student_id', sa.Integer(), nullable=False),
         sa.Column('subject_id', sa.Integer(), nullable=False),
-        sa.Column('stamps', postgresql.JSON(astext_type=sa.Text()), nullable=False, server_default='[]'),
+        sa.Column('stamps', sa.JSON(), nullable=False, server_default='[]'),
         sa.Column('overall_progress_percent', sa.Float(), nullable=False, server_default='0.0'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),

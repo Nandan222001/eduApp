@@ -7,7 +7,6 @@ Create Date: 2024-01-15 10:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSON
 
 revision = '018'
 down_revision = '018a_impersonation_debug'
@@ -31,7 +30,7 @@ def upgrade() -> None:
         sa.Column('total_comparisons', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('matches_found', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('processing_time_seconds', sa.Float(), nullable=True),
-        sa.Column('check_settings', JSON, nullable=True),
+        sa.Column('check_settings', sa.JSON(), nullable=True),
         sa.Column('started_at', sa.DateTime(), nullable=True),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -58,11 +57,11 @@ def upgrade() -> None:
         sa.Column('matched_segments_count', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('matched_text_percentage', sa.Float(), nullable=False, server_default='0.0'),
         sa.Column('is_external_source', sa.Boolean(), nullable=False, server_default='false'),
-        sa.Column('external_source_info', JSON, nullable=True),
+        sa.Column('external_source_info', sa.JSON(), nullable=True),
         sa.Column('is_cross_institution', sa.Boolean(), nullable=False, server_default='false'),
-        sa.Column('anonymized_match_info', JSON, nullable=True),
+        sa.Column('anonymized_match_info', sa.JSON(), nullable=True),
         sa.Column('has_citations', sa.Boolean(), nullable=False, server_default='false'),
-        sa.Column('citation_info', JSON, nullable=True),
+        sa.Column('citation_info', sa.JSON(), nullable=True),
         sa.Column('is_false_positive', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('false_positive_reason', sa.Text(), nullable=True),
         sa.Column('review_status', sa.String(50), nullable=True),
@@ -98,7 +97,7 @@ def upgrade() -> None:
         sa.Column('segment_similarity', sa.Float(), nullable=False),
         sa.Column('segment_length', sa.Integer(), nullable=False),
         sa.Column('is_code_segment', sa.Boolean(), nullable=False, server_default='false'),
-        sa.Column('code_analysis', JSON, nullable=True),
+        sa.Column('code_analysis', sa.JSON(), nullable=True),
         sa.Column('is_citation', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('citation_context', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -116,7 +115,7 @@ def upgrade() -> None:
         sa.Column('structure_hash', sa.String(64), nullable=False),
         sa.Column('variable_pattern_hash', sa.String(64), nullable=False),
         sa.Column('function_pattern_hash', sa.String(64), nullable=False),
-        sa.Column('ast_features', JSON, nullable=False),
+        sa.Column('ast_features', sa.JSON(), nullable=False),
         sa.Column('total_nodes', sa.Integer(), nullable=False),
         sa.Column('total_functions', sa.Integer(), nullable=False),
         sa.Column('total_variables', sa.Integer(), nullable=False),
@@ -139,7 +138,7 @@ def upgrade() -> None:
         sa.Column('citation_text', sa.Text(), nullable=False),
         sa.Column('start_position', sa.Integer(), nullable=False),
         sa.Column('end_position', sa.Integer(), nullable=False),
-        sa.Column('reference_info', JSON, nullable=True),
+        sa.Column('reference_info', sa.JSON(), nullable=True),
         sa.Column('is_valid', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('validation_notes', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -158,7 +157,7 @@ def upgrade() -> None:
         sa.Column('data_retention_days', sa.Integer(), nullable=False, server_default='365'),
         sa.Column('consent_given_by', sa.Integer(), nullable=True),
         sa.Column('consent_given_at', sa.DateTime(), nullable=True),
-        sa.Column('privacy_settings', JSON, nullable=True),
+        sa.Column('privacy_settings', sa.JSON(), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),

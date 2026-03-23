@@ -7,7 +7,6 @@ Create Date: 2024-01-01 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_ml_prediction_001'
@@ -27,8 +26,8 @@ def upgrade() -> None:
         sa.Column('model_type', sa.Enum('REGRESSION', 'CLASSIFICATION', 'TIME_SERIES', name='modeltype'), nullable=False),
         sa.Column('prediction_type', sa.Enum('EXAM_PERFORMANCE', 'OVERALL_PERCENTAGE', 'SUBJECT_SCORE', 'PASS_FAIL', name='predictiontype'), nullable=False),
         sa.Column('algorithm', sa.String(length=100), nullable=False),
-        sa.Column('hyperparameters', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('feature_names', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('hyperparameters', sa.JSON(), nullable=True),
+        sa.Column('feature_names', sa.JSON(), nullable=False),
         sa.Column('target_column', sa.String(length=100), nullable=False),
         sa.Column('status', sa.Enum('TRAINING', 'ACTIVE', 'DEPRECATED', 'FAILED', name='modelstatus'), nullable=False),
         sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -53,11 +52,11 @@ def upgrade() -> None:
         sa.Column('s3_key', sa.String(length=500), nullable=True),
         sa.Column('scaler_path', sa.String(length=500), nullable=True),
         sa.Column('scaler_s3_key', sa.String(length=500), nullable=True),
-        sa.Column('training_metrics', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('validation_metrics', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('test_metrics', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('cross_validation_scores', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('feature_importance', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('training_metrics', sa.JSON(), nullable=True),
+        sa.Column('validation_metrics', sa.JSON(), nullable=True),
+        sa.Column('test_metrics', sa.JSON(), nullable=True),
+        sa.Column('cross_validation_scores', sa.JSON(), nullable=True),
+        sa.Column('feature_importance', sa.JSON(), nullable=True),
         sa.Column('training_samples', sa.Integer(), nullable=False),
         sa.Column('training_date', sa.DateTime(), nullable=False),
         sa.Column('is_deployed', sa.Boolean(), nullable=False),
@@ -84,9 +83,9 @@ def upgrade() -> None:
         sa.Column('confidence_lower', sa.Float(), nullable=True),
         sa.Column('confidence_upper', sa.Float(), nullable=True),
         sa.Column('confidence_level', sa.Float(), nullable=True),
-        sa.Column('input_features', postgresql.JSON(astext_type=sa.Text()), nullable=False),
-        sa.Column('feature_contributions', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column('prediction_context', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('input_features', sa.JSON(), nullable=False),
+        sa.Column('feature_contributions', sa.JSON(), nullable=True),
+        sa.Column('prediction_context', sa.JSON(), nullable=True),
         sa.Column('is_scenario', sa.Boolean(), nullable=False),
         sa.Column('predicted_at', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -110,13 +109,13 @@ def upgrade() -> None:
         sa.Column('base_prediction_id', sa.Integer(), nullable=False),
         sa.Column('scenario_name', sa.String(length=200), nullable=False),
         sa.Column('scenario_description', sa.Text(), nullable=True),
-        sa.Column('modified_features', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('modified_features', sa.JSON(), nullable=False),
         sa.Column('predicted_value', sa.Float(), nullable=False),
         sa.Column('confidence_lower', sa.Float(), nullable=True),
         sa.Column('confidence_upper', sa.Float(), nullable=True),
         sa.Column('value_change', sa.Float(), nullable=False),
         sa.Column('percentage_change', sa.Float(), nullable=False),
-        sa.Column('recommendations', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('recommendations', sa.JSON(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['base_prediction_id'], ['performance_predictions.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')

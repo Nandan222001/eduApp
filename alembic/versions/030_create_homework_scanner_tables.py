@@ -7,7 +7,6 @@ Create Date: 2024-01-17 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = 'homework_scanner_001'
 down_revision = 'study_buddy_001'
@@ -16,7 +15,7 @@ depends_on = None
 
 
 def upgrade():
-    mistake_type_enum = postgresql.ENUM(
+    mistake_type_enum = sa.Enum(
         'calculation', 'sign_error', 'concept', 'unit', 'incomplete',
         name='mistaketype'
     )
@@ -27,9 +26,9 @@ def upgrade():
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('student_id', sa.Integer(), nullable=False),
         sa.Column('subject_id', sa.Integer(), nullable=False),
-        sa.Column('scan_image_urls', postgresql.JSON(astext_type=sa.Text()), nullable=False),
+        sa.Column('scan_image_urls', sa.JSON(), nullable=False),
         sa.Column('ocr_text', sa.Text(), nullable=True),
-        sa.Column('processed_results', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('processed_results', sa.JSON(), nullable=True),
         sa.Column('total_score', sa.Numeric(precision=10, scale=2), nullable=True),
         sa.Column('scan_date', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -71,7 +70,7 @@ def downgrade():
     op.drop_index('idx_homework_scan_student', 'homework_scans')
     op.drop_table('homework_scans')
     
-    mistake_type_enum = postgresql.ENUM(
+    mistake_type_enum = sa.Enum(
         'calculation', 'sign_error', 'concept', 'unit', 'incomplete',
         name='mistaketype'
     )
