@@ -149,3 +149,7 @@ export const secureStorage = {
     return value ? JSON.parse(value) : null;
   },
 };
+
+// Named exports for convenience
+export const getAccessToken = secureStorage.getAccessToken;
+export const getRefreshToken = secureStorage.getRefreshToken;
