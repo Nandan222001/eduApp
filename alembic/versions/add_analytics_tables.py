@@ -135,60 +135,6 @@ def upgrade() -> None:
         op.create_index('idx_institution_metrics_academic_year', 'institution_performance_metrics', ['academic_year_id'])
         op.create_index('idx_institution_metrics_period', 'institution_performance_metrics', ['period_start', 'period_end'])
 
-        report_type_enum = sa.Enum(
-                'STUDENT_PERFORMANCE',
-                'CLASS_PERFORMANCE',
-                'INSTITUTION_PERFORMANCE',
-                'ATTENDANCE_SUMMARY',
-                'ASSIGNMENT_SUMMARY',
-                'EXAM_ANALYSIS',
-                'YOY_COMPARISON',
-                'SUBJECT_ANALYSIS',
-                name='reporttype',
-                create_type=False,
-        )
-        report_type_enum.create(op.get_bind(), checkfirst=True)
-
-        # Create the enum types only if they don't already exist (works across PG versions)
-        op.execute(
-                """
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'reporttype') THEN
-        CREATE TYPE reporttype AS ENUM (
-          'STUDENT_PERFORMANCE', 'CLASS_PERFORMANCE', 'INSTITUTION_PERFORMANCE',
-          'ATTENDANCE_SUMMARY', 'ASSIGNMENT_SUMMARY', 'EXAM_ANALYSIS',
-          'YOY_COMPARISON', 'SUBJECT_ANALYSIS'
-        );
-  END IF;
-END$$;
-""",
-        )
-
-        report_status_enum = sa.Enum(
-                'PENDING',
-                'PROCESSING',
-                'COMPLETED',
-                'FAILED',
-                name='reportstatus',
-                create_type=False,
-        )
-        report_status_enum.create(op.get_bind(), checkfirst=True)
-
-        op.execute(
-                """
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'reportstatus') THEN
-        CREATE TYPE reportstatus AS ENUM ('PENDING','PROCESSING','COMPLETED','FAILED');
-  END IF;
-END$$;
-""",
-        )
-
-        # Use string columns for report_type and status to avoid enum creation issues
-        # (enum types may already exist in the DB from previous partial runs). Converting
-        # to proper ENUMs can be done in a later, idempotent migration if desired.
         op.create_table(
                 'generated_reports',
                 sa.Column('id', sa.Integer(), nullable=False),
@@ -252,6 +198,3 @@ def downgrade() -> None:
     op.drop_index('idx_analytics_cache_key', table_name='analytics_cache')
     op.drop_index('idx_analytics_cache_institution', table_name='analytics_cache')
     op.drop_table('analytics_cache')
-    
-    op.execute('DROP TYPE IF EXISTS reportstatus')
-    op.execute('DROP TYPE IF EXISTS reporttype')
