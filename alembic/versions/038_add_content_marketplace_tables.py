@@ -20,7 +20,7 @@ def upgrade() -> None:
     
     # Create content marketplace enums
     result = conn.execute(
-        "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'contenttype')"
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'student_contents' AND column_name = 'content_type'"
     ).scalar()
     
     if not result:
@@ -32,7 +32,7 @@ def upgrade() -> None:
         """)
     
     result = conn.execute(
-        "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'contentstatus')"
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'student_contents' AND column_name = 'status'"
     ).scalar()
     
     if not result:
@@ -43,7 +43,7 @@ def upgrade() -> None:
         """)
     
     result = conn.execute(
-        "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'moderationstatus')"
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'student_contents' AND column_name = 'moderation_status'"
     ).scalar()
     
     if not result:
@@ -54,7 +54,7 @@ def upgrade() -> None:
         """)
     
     result = conn.execute(
-        "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'plagiarismstatus')"
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'student_contents' AND column_name = 'plagiarism_status'"
     ).scalar()
     
     if not result:
@@ -65,7 +65,7 @@ def upgrade() -> None:
         """)
     
     result = conn.execute(
-        "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transactiontype')"
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'credit_transactions' AND column_name = 'transaction_type'"
     ).scalar()
     
     if not result:
