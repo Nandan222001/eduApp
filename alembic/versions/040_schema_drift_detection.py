@@ -12,6 +12,7 @@ This migration detects and remediates common schema drift issues:
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import text
 
 revision = '040'
 down_revision = '039'
@@ -39,32 +40,32 @@ def upgrade() -> None:
     
     for table_name, column_name in critical_fk_columns:
         # Check if table and column exist
-        result = conn.execute(f"""
-            SELECT EXISTS (
-                SELECT 1 
-                FROM information_schema.columns 
-                WHERE table_name = '{table_name}' 
-                AND column_name = '{column_name}'
-            )
-        """).scalar()
+        result = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM information_schema.columns 
+            WHERE table_schema = DATABASE()
+            AND table_name = :table_name
+            AND column_name = :column_name
+        """), {'table_name': table_name, 'column_name': column_name}).scalar()
         
-        if result:
+        if result > 0:
             # Check if column is nullable
-            result = conn.execute(f"""
+            result = conn.execute(text("""
                 SELECT is_nullable 
                 FROM information_schema.columns 
-                WHERE table_name = '{table_name}' 
-                AND column_name = '{column_name}'
-            """).scalar()
+                WHERE table_schema = DATABASE()
+                AND table_name = :table_name
+                AND column_name = :column_name
+            """), {'table_name': table_name, 'column_name': column_name}).scalar()
             
             # If it's nullable but shouldn't be, we need to handle it carefully
             # Only set NOT NULL if there are no NULL values
             if result == 'YES':
-                null_count = conn.execute(f"""
+                null_count = conn.execute(text(f"""
                     SELECT COUNT(*) 
                     FROM {table_name} 
                     WHERE {column_name} IS NULL
-                """).scalar()
+                """)).scalar()
                 
                 if null_count == 0:
                     op.alter_column(table_name, column_name, nullable=False)
@@ -84,23 +85,23 @@ def upgrade() -> None:
     
     for table_name, column_name, default_value in numeric_defaults:
         # Check if table and column exist
-        result = conn.execute(f"""
-            SELECT EXISTS (
-                SELECT 1 
-                FROM information_schema.columns 
-                WHERE table_name = '{table_name}' 
-                AND column_name = '{column_name}'
-            )
-        """).scalar()
+        result = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM information_schema.columns 
+            WHERE table_schema = DATABASE()
+            AND table_name = :table_name
+            AND column_name = :column_name
+        """), {'table_name': table_name, 'column_name': column_name}).scalar()
         
-        if result:
+        if result > 0:
             # Check if it has a default
-            result = conn.execute(f"""
+            result = conn.execute(text("""
                 SELECT column_default 
                 FROM information_schema.columns 
-                WHERE table_name = '{table_name}' 
-                AND column_name = '{column_name}'
-            """).scalar()
+                WHERE table_schema = DATABASE()
+                AND table_name = :table_name
+                AND column_name = :column_name
+            """), {'table_name': table_name, 'column_name': column_name}).scalar()
             
             if result is None:
                 op.alter_column(
@@ -120,28 +121,28 @@ def upgrade() -> None:
     ]
     
     for table_name, column_name in timestamp_columns:
-        result = conn.execute(f"""
-            SELECT EXISTS (
-                SELECT 1 
-                FROM information_schema.columns 
-                WHERE table_name = '{table_name}' 
-                AND column_name = '{column_name}'
-            )
-        """).scalar()
+        result = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM information_schema.columns 
+            WHERE table_schema = DATABASE()
+            AND table_name = :table_name
+            AND column_name = :column_name
+        """), {'table_name': table_name, 'column_name': column_name}).scalar()
         
-        if result:
-            result = conn.execute(f"""
+        if result > 0:
+            result = conn.execute(text("""
                 SELECT column_default 
                 FROM information_schema.columns 
-                WHERE table_name = '{table_name}' 
-                AND column_name = '{column_name}'
-            """).scalar()
+                WHERE table_schema = DATABASE()
+                AND table_name = :table_name
+                AND column_name = :column_name
+            """), {'table_name': table_name, 'column_name': column_name}).scalar()
             
             if result is None and column_name == 'created_at':
                 op.alter_column(
                     table_name,
                     column_name,
-                    server_default=sa.text('now()')
+                    server_default=sa.text('CURRENT_TIMESTAMP')
                 )
     
     # Verify all foreign keys have corresponding indexes
@@ -158,26 +159,24 @@ def upgrade() -> None:
     
     for table_name, columns, index_name in fk_indexes:
         # Check if table exists
-        result = conn.execute(f"""
-            SELECT EXISTS (
-                SELECT 1 
-                FROM information_schema.tables 
-                WHERE table_name = '{table_name}'
-            )
-        """).scalar()
+        result = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = DATABASE()
+            AND table_name = :table_name
+        """), {'table_name': table_name}).scalar()
         
-        if result:
+        if result > 0:
             # Check if index exists
-            result = conn.execute(f"""
-                SELECT EXISTS (
-                    SELECT 1 
-                    FROM pg_indexes 
-                    WHERE tablename = '{table_name}' 
-                    AND indexname = '{index_name}'
-                )
-            """).scalar()
+            result = conn.execute(text("""
+                SELECT COUNT(*) 
+                FROM information_schema.statistics 
+                WHERE table_schema = DATABASE()
+                AND table_name = :table_name
+                AND index_name = :index_name
+            """), {'table_name': table_name, 'index_name': index_name}).scalar()
             
-            if not result:
+            if result == 0:
                 op.create_index(index_name, table_name, columns)
     
     # Check for orphaned records (records with missing foreign key references)
@@ -191,26 +190,28 @@ def upgrade() -> None:
     
     for child_table, child_fk, parent_table, parent_pk in orphan_checks:
         # Check if both tables exist
-        child_exists = conn.execute(f"""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.tables WHERE table_name = '{child_table}'
-            )
-        """).scalar()
+        child_exists = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = DATABASE()
+            AND table_name = :table_name
+        """), {'table_name': child_table}).scalar()
         
-        parent_exists = conn.execute(f"""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.tables WHERE table_name = '{parent_table}'
-            )
-        """).scalar()
+        parent_exists = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = DATABASE()
+            AND table_name = :table_name
+        """), {'table_name': parent_table}).scalar()
         
-        if child_exists and parent_exists:
+        if child_exists > 0 and parent_exists > 0:
             # Count orphaned records
-            orphan_count = conn.execute(f"""
+            orphan_count = conn.execute(text(f"""
                 SELECT COUNT(*) 
                 FROM {child_table} c
                 LEFT JOIN {parent_table} p ON c.{child_fk} = p.{parent_pk}
                 WHERE c.{child_fk} IS NOT NULL AND p.{parent_pk} IS NULL
-            """).scalar()
+            """)).scalar()
             
             if orphan_count > 0:
                 # Log warning - don't delete automatically
