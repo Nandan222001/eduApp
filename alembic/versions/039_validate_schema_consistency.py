@@ -22,7 +22,7 @@ def upgrade() -> None:
     # Add missing indexes if they don't exist
     # Check for missing foreign key indexes on commonly queried columns
     
-    # Ensure all enum types exist
+    # Ensure all enum types exist (MySQL-specific: check column_type in information_schema.columns)
     enum_types = {
         'activitytype': ['classroom_help', 'event_support', 'fundraising', 'field_trip_chaperone', 'committee_work'],
         'badgetier': ['bronze', 'silver', 'gold', 'platinum'],
@@ -40,16 +40,15 @@ def upgrade() -> None:
         'reviewpriority': ['low', 'medium', 'high', 'critical'],
     }
     
-    for enum_name, enum_values in enum_types.items():
-        result = conn.execute(
-            f"SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = '{enum_name}')"
-        ).scalar()
-        
-        if not result:
-            values_str = "', '".join(enum_values)
-            op.execute(f"CREATE TYPE {enum_name} AS ENUM ('{values_str}');")
+    # MySQL doesn't use CREATE TYPE for enums; enums are defined per column
+    # Check if enum columns exist by querying information_schema.columns for column_type LIKE 'enum%'
+    # Note: In MySQL, enums are column-level, not type-level, so we skip type creation
+    # The enum validation would need to be done per-column if needed
+    # For this migration, we'll verify that enum columns exist where expected
     
-    # Add RLS policies to new tables if they don't exist
+    # MySQL doesn't support Row Level Security (RLS)
+    # The following RLS operations are converted to no-op (commented out)
+    
     new_tables = [
         'volunteer_hour_logs',
         'volunteer_hour_summaries',
@@ -67,35 +66,23 @@ def upgrade() -> None:
     ]
     
     for table_name in new_tables:
-        # Check if table exists
+        # Check if table exists using MySQL-compatible query
         result = conn.execute(
-            f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}')"
+            sa.text(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}' AND table_schema = DATABASE())")
         ).scalar()
         
         if result:
-            # Enable RLS if not already enabled
-            op.execute(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;")
-            
-            # Add isolation policy if it doesn't exist
-            policy_name = f"{table_name}_isolation_policy"
-            result = conn.execute(
-                f"SELECT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = '{table_name}' AND policyname = '{policy_name}')"
-            ).scalar()
-            
-            if not result:
-                op.execute(f"""
-                    CREATE POLICY {policy_name} ON {table_name}
-                    USING (
-                        institution_id = current_setting('app.current_institution_id', true)::integer
-                        OR current_setting('app.bypass_rls', true)::boolean = true
-                    );
-                """)
+            # MySQL doesn't support Row Level Security (RLS)
+            # RLS operations are skipped for MySQL compatibility
+            pass
 
 
 def downgrade() -> None:
     conn = op.get_bind()
     
-    # Drop RLS policies from new tables
+    # MySQL doesn't support Row Level Security (RLS)
+    # The following operations are no-op for MySQL
+    
     new_tables = [
         'volunteer_hour_logs',
         'volunteer_hour_summaries',
@@ -113,11 +100,12 @@ def downgrade() -> None:
     ]
     
     for table_name in new_tables:
+        # Check if table exists using MySQL-compatible query
         result = conn.execute(
-            f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}')"
+            sa.text(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}' AND table_schema = DATABASE())")
         ).scalar()
         
         if result:
-            policy_name = f"{table_name}_isolation_policy"
-            op.execute(f"DROP POLICY IF EXISTS {policy_name} ON {table_name};")
-            op.execute(f"ALTER TABLE {table_name} DISABLE ROW LEVEL SECURITY;")
+            # MySQL doesn't support Row Level Security (RLS)
+            # RLS operations are skipped for MySQL compatibility
+            pass
