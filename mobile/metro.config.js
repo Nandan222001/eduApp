@@ -96,24 +96,28 @@ config.server = {
   ...config.server,
   enhanceMiddleware: (middleware) => {
     return (req, res, next) => {
+      // Get the path without query parameters
+      const urlPath = req.url.split('?')[0];
+      
       // Set proper MIME types for web
-      if (req.url.endsWith('.bundle') || req.url.endsWith('.js') || req.url.endsWith('.mjs') || req.url.endsWith('.cjs')) {
+      // Handle both forward and backward slashes (common on Windows)
+      if (urlPath.endsWith('.bundle') || urlPath.endsWith('.js') || urlPath.endsWith('.mjs') || urlPath.endsWith('.cjs')) {
         res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-      } else if (req.url.endsWith('.json')) {
+      } else if (urlPath.endsWith('.json')) {
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      } else if (req.url.endsWith('.css')) {
+      } else if (urlPath.endsWith('.css')) {
         res.setHeader('Content-Type', 'text/css; charset=utf-8');
-      } else if (req.url.endsWith('.html')) {
+      } else if (urlPath.endsWith('.html')) {
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      } else if (req.url.endsWith('.map')) {
+      } else if (urlPath.endsWith('.map')) {
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      } else if (req.url.match(/\.(png|jpg|jpeg|gif|webp)$/)) {
-        const ext = req.url.split('.').pop();
+      } else if (urlPath.match(/\.(png|jpg|jpeg|gif|webp)$/)) {
+        const ext = urlPath.split('.').pop();
         res.setHeader('Content-Type', `image/${ext === 'jpg' ? 'jpeg' : ext}`);
-      } else if (req.url.endsWith('.svg')) {
+      } else if (urlPath.endsWith('.svg')) {
         res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
-      } else if (req.url.match(/\.(woff|woff2|ttf|otf|eot)$/)) {
-        const ext = req.url.split('.').pop();
+      } else if (urlPath.match(/\.(woff|woff2|ttf|otf|eot)$/)) {
+        const ext = urlPath.split('.').pop();
         const mimeTypes = {
           woff: 'font/woff',
           woff2: 'font/woff2',
