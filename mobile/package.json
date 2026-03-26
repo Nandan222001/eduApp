@@ -16,8 +16,10 @@
     "type-check": "tsc --noEmit",
     "validate-ios": "node validate-ios-setup.js",
     "validate-android": "node validate-android-setup.js",
+    "validate-deep-linking": "node scripts/validate-deep-linking.js",
     "test-ios": "npm run validate-ios && npm run type-check && npm run lint",
-    "test-android": "npm run validate-android && npm run type-check && npm run lint"
+    "test-android": "npm run validate-android && npm run type-check && npm run lint",
+    "test-deep-links": "npm run validate-deep-linking && npm test -- deepLinking"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",

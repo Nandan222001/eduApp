@@ -35,3 +35,24 @@ export {
   WEB_LINK_PREFIX,
 } from './deepLinking';
 export type { DeepLinkRoute } from './deepLinking';
+
+export {
+  shareAssignment,
+  shareCourse,
+  copyAssignmentLink,
+  copyCourseLink,
+  createNotificationDeepLink,
+  createEmailDeepLink,
+  createQRCodeDeepLink,
+  createParentInvitationLink,
+  createEnrollmentLink,
+  createAssignmentReminderLink,
+  createMessageThreadLink,
+  extractDeepLinkTracking,
+  logDeepLinkNavigation,
+  sanitizeDeepLinkId,
+  requiresAuthentication,
+  getHomeRouteForRole,
+  createDeferredDeepLink,
+  parseDeferredDeepLink,
+} from './deepLinkingHelpers';

@@ -1,311 +1,507 @@
-# Deep Linking Implementation Summary
+# Deep Linking Implementation Guide
 
-## Overview
+This document provides a complete overview of the deep linking implementation in the EduTrack mobile app.
 
-This document provides a complete overview of the deep linking implementation for the EduTrack mobile application.
+## ✅ Configuration Status
 
-## ✅ Implementation Completed
+### App Configuration (app.json)
+- **URL Scheme**: `edutrack` ✅
+- **iOS Bundle ID**: `com.edutrack.app` ✅
+- **Android Package**: `com.edutrack.app` ✅
+- **iOS Associated Domains**: Configured ✅
+- **Android Intent Filters**: Configured ✅
 
-### 1. Configuration Files
+## 📁 File Structure
 
-#### app.json
-- ✅ Custom scheme configured: `edutrack`
-- ✅ iOS associated domains for Universal Links
-- ✅ Android intent filters for App Links
-- ✅ Support for both custom scheme and web URLs
+```
+mobile/
+├── app.json                          # Deep linking configuration
+├── app/
+│   ├── _layout.tsx                   # Deep link handling logic
+│   └── assignments/
+│       └── [id].tsx                  # Dynamic route example
+├── src/
+│   ├── utils/
+│   │   ├── deepLinking.ts           # Core deep linking utilities
+│   │   └── deepLinkingHelpers.ts    # Helper functions for common tasks
+│   └── components/
+│       └── DeepLinkingExample.tsx   # Usage example component
+├── __tests__/
+│   ├── unit/
+│   │   └── deepLinking.test.ts      # Unit tests
+│   ├── integration/
+│   │   └── deepLinking.test.tsx     # Integration tests
+│   └── DEEP_LINKING_TEST_GUIDE.md   # Comprehensive testing guide
+└── scripts/
+    ├── validate-deep-linking.js     # Configuration validator
+    ├── test-ios-deep-links.sh       # iOS testing script
+    └── test-android-deep-links.sh   # Android testing script
+```
 
-### 2. Core Utilities
+## 🔧 Core Components
 
-#### src/utils/deepLinking.ts
-Complete deep linking utility module with:
-- ✅ URL parsing and validation
-- ✅ Deep link creation (custom scheme and web links)
-- ✅ Route configuration for Expo Router
-- ✅ Event listeners for incoming deep links
-- ✅ URL normalization between schemes
+### 1. Deep Linking Utilities (`src/utils/deepLinking.ts`)
 
-### 3. Integration
+Core functions for handling deep links:
 
-#### app/_layout.tsx
-Root layout updated with:
-- ✅ Initial URL handling on app launch
-- ✅ Real-time deep link event listeners
-- ✅ Authentication flow integration
-- ✅ Proper navigation routing
-- ✅ Error handling and logging
+```typescript
+// Parse a deep link URL
+parseDeepLink(url: string): DeepLinkRoute | null
 
-### 4. Testing Scripts
+// Create custom scheme deep link
+createDeepLink(path: string, params?: Record<string, string>): string
 
-#### iOS Testing
-- ✅ `scripts/test-deep-links-ios.sh` (Bash)
-- ✅ `scripts/test-deep-links-ios.ps1` (PowerShell)
+// Create web link (HTTPS)
+createWebLink(path: string, params?: Record<string, string>): string
 
-#### Android Testing
-- ✅ `scripts/test-deep-links-android.sh` (Bash)
-- ✅ `scripts/test-deep-links-android.ps1` (PowerShell)
+// Get initial URL on app launch
+getInitialURL(): Promise<string | null>
 
-### 5. Documentation
+// Listen for deep link events
+addDeepLinkListener(callback: (url: string) => void): { remove: () => void }
 
-- ✅ `DEEP_LINKING_GUIDE.md` - Comprehensive guide
-- ✅ `DEEP_LINK_TEST_COMMANDS.md` - Quick test reference
-- ✅ `docs/DEEP_LINK_INTEGRATION_EXAMPLES.md` - Code examples
-- ✅ `docs/WELL_KNOWN_FILES.md` - Web server configuration
+// Validate deep link
+isValidDeepLink(url: string): boolean
 
-## Supported Routes
+// Normalize deep link to custom scheme
+normalizeDeepLink(url: string): string
+```
 
-### Dynamic Routes
-- `/assignments/[id]` - Assignment details
-- `/courses/[id]` - Course details
-- `/children/[id]` - Child profile (parent view)
-- `/messages/[id]` - Message thread
-- `/notifications/[id]` - Notification details
+### 2. Helper Functions (`src/utils/deepLinkingHelpers.ts`)
 
-### Static Routes
-- `/profile` - User profile
-- `/settings` - App settings
-- `/(tabs)/student` - Student home
-- `/(tabs)/parent` - Parent home
+High-level utilities for common deep linking tasks:
 
-### Authentication Routes
-- `/(auth)/login`
-- `/(auth)/register`
-- `/(auth)/forgot-password`
-- `/(auth)/reset-password`
-- `/(auth)/otp-verify`
-- `/(auth)/otp-login`
+```typescript
+// Share assignment via deep link
+shareAssignment(assignmentId: string, assignmentTitle: string): Promise<void>
 
-## URL Schemes
+// Copy link to clipboard
+copyAssignmentLink(assignmentId: string): Promise<void>
 
-### Custom Scheme URLs
-Format: `edutrack://[path]`
+// Create notification deep link
+createNotificationDeepLink(type, id, params): string
 
-Examples:
-- `edutrack://assignments/123`
-- `edutrack://courses/math-101`
-- `edutrack://profile`
+// Create email deep link with tracking
+createEmailDeepLink(type, id, campaign): string
 
-### Universal/App Links
-Format: `https://edutrack.app/[path]`
+// Create QR code deep link
+createQRCodeDeepLink(type, id, action): string
 
-Examples:
-- `https://edutrack.app/assignments/123`
-- `https://edutrack.app/courses/math-101`
-- `https://edutrack.app/profile`
+// Extract tracking parameters
+extractDeepLinkTracking(params): TrackingData
 
-### With Query Parameters
-- `edutrack://assignments/123?tab=details`
-- `https://edutrack.app/courses/math-101?section=homework`
+// Log navigation for analytics
+logDeepLinkNavigation(path, params, userId): void
 
-## Testing
+// Sanitize ID parameter
+sanitizeDeepLinkId(id): string | null
+```
 
-### iOS Simulator
+### 3. Pre-defined Routes (`deepLinkRoutes`)
 
-#### Quick Test
+```typescript
+deepLinkRoutes.assignments(id)      // /assignments/[id]
+deepLinkRoutes.courses(id)          // /courses/[id]
+deepLinkRoutes.children(id)         // /children/[id]
+deepLinkRoutes.messages(id)         // /messages/[id]
+deepLinkRoutes.notifications(id)    // /notifications/[id]
+deepLinkRoutes.profile()            // /profile
+deepLinkRoutes.settings()           // /settings
+deepLinkRoutes.studentHome()        // /(tabs)/student
+deepLinkRoutes.parentHome()         // /(tabs)/parent
+deepLinkRoutes.login()              // /(auth)/login
+deepLinkRoutes.register()           // /(auth)/register
+```
+
+## 🧪 Testing
+
+### Automated Tests
+
 ```bash
+# Run all deep linking tests
+npm test -- deepLinking
+
+# Run unit tests only
+npm test -- unit/deepLinking.test.ts
+
+# Run integration tests only
+npm test -- integration/deepLinking.test.tsx
+
+# Run with coverage
+npm test -- --coverage deepLinking
+```
+
+### Manual Testing
+
+#### Validate Configuration
+```bash
+node scripts/validate-deep-linking.js
+```
+
+#### iOS Simulator Testing
+```bash
+# Run all iOS tests
+./scripts/test-ios-deep-links.sh
+
+# Manual test
 xcrun simctl openurl booted edutrack://assignments/123
 ```
 
-#### Run Full Test Suite
+#### Android Emulator/Device Testing
 ```bash
-./scripts/test-deep-links-ios.sh
+# Run all Android tests
+./scripts/test-android-deep-links.sh
+
+# Manual test
+adb shell am start -W -a android.intent.action.VIEW \
+  -d "edutrack://assignments/123" com.edutrack.app
 ```
 
-### Android Emulator/Device
+See `__tests__/DEEP_LINKING_TEST_GUIDE.md` for comprehensive testing instructions.
 
-#### Quick Test
-```bash
-adb shell am start -a android.intent.action.VIEW -d "edutrack://assignments/123" com.edutrack.app
+## 📱 Supported URL Patterns
+
+### Custom Scheme URLs
+```
+edutrack://assignments/123
+edutrack://courses/456
+edutrack://children/789
+edutrack://messages/101
+edutrack://notifications/202
+edutrack://profile
+edutrack://settings
 ```
 
-#### Run Full Test Suite
-```bash
-./scripts/test-deep-links-android.sh
+### Universal/App Links (HTTPS)
+```
+https://edutrack.app/assignments/123
+https://www.edutrack.app/courses/456
+https://mobile.edutrack.app/profile
 ```
 
-## Key Features
+### With Query Parameters
+```
+edutrack://assignments/123?source=notification&priority=high
+https://edutrack.app/assignments/123?utm_source=email&utm_campaign=reminder
+```
 
-### ✅ Authentication Handling
-- Unauthenticated users are redirected to login
-- Return path is preserved after authentication
-- Authenticated users navigate directly to target
+## 🚀 Usage Examples
 
-### ✅ Parameter Support
-- Dynamic route parameters (e.g., assignment ID)
-- Query string parameters
-- Multiple parameters support
+### In a Screen Component
 
-### ✅ Error Handling
-- URL validation before processing
-- Graceful handling of invalid links
-- Console logging for debugging
+```typescript
+import { useLocalSearchParams } from 'expo-router';
+import { 
+  shareAssignment, 
+  sanitizeDeepLinkId, 
+  extractDeepLinkTracking 
+} from '@utils';
 
-### ✅ Platform Support
-- iOS (Custom scheme + Universal Links)
-- Android (Custom scheme + App Links)
-- Web (URL routing)
+export default function AssignmentDetailScreen() {
+  const params = useLocalSearchParams();
+  const assignmentId = sanitizeDeepLinkId(params.id);
+  const tracking = extractDeepLinkTracking(params);
 
-### ✅ Navigation Features
-- Initial URL handling (app opened from deep link)
-- Runtime deep link handling (app already running)
-- Proper navigation stack management
+  const handleShare = async () => {
+    await shareAssignment(assignmentId, 'Math Homework');
+  };
 
-## Usage Examples
+  return (
+    <View>
+      <Text>Assignment {assignmentId}</Text>
+      <Text>Source: {tracking.source}</Text>
+      <Button title="Share" onPress={handleShare} />
+    </View>
+  );
+}
+```
 
 ### Creating Deep Links
 
 ```typescript
-import { createDeepLink, createWebLink, deepLinkRoutes } from '@utils/deepLinking';
+import { createDeepLink, deepLinkRoutes } from '@utils';
 
-// Custom scheme link
+// Simple deep link
 const link = createDeepLink(deepLinkRoutes.assignments('123'));
-// Result: "edutrack://assignments/123"
-
-// Web link (Universal/App Link)
-const webLink = createWebLink(deepLinkRoutes.assignments('123'));
-// Result: "https://edutrack.app/assignments/123"
+// Result: edutrack://assignments/123
 
 // With parameters
 const linkWithParams = createDeepLink(
   deepLinkRoutes.assignments('123'),
-  { tab: 'details' }
+  { source: 'notification', priority: 'high' }
 );
-// Result: "edutrack://assignments/123?tab=details"
+// Result: edutrack://assignments/123?source=notification&priority=high
 ```
 
-### Sharing Content
+### For Push Notifications
 
 ```typescript
-import { Share } from 'react-native';
-import { createWebLink, deepLinkRoutes } from '@utils/deepLinking';
+import { createNotificationDeepLink } from '@utils';
 
-const shareAssignment = async (id: string, title: string) => {
-  const link = createWebLink(deepLinkRoutes.assignments(id));
-  
-  await Share.share({
-    message: `Check out this assignment: ${title}\n\n${link}`,
-    url: link,
-  });
+const notificationPayload = {
+  title: 'New Assignment',
+  body: 'Math homework is due tomorrow',
+  data: {
+    deepLink: createNotificationDeepLink('assignment', '123', {
+      priority: 'high'
+    })
+  }
 };
 ```
 
-### Parsing Deep Links
+### For Email Links
 
 ```typescript
-import { parseDeepLink, isValidDeepLink } from '@utils/deepLinking';
+import { createEmailDeepLink } from '@utils';
 
-if (isValidDeepLink(url)) {
-  const route = parseDeepLink(url);
-  // route: { path: 'assignments/123', params: { tab: 'details' } }
+const emailLink = createEmailDeepLink(
+  'assignment',
+  '123',
+  'weekly_reminder'
+);
+// Result: https://edutrack.app/assignments/123?utm_source=email&utm_medium=deep_link&utm_campaign=weekly_reminder
+```
+
+## 🔐 Security
+
+### Input Sanitization
+
+All ID parameters are sanitized to prevent injection attacks:
+
+```typescript
+import { sanitizeDeepLinkId } from '@utils';
+
+// Removes potentially malicious characters
+const safeId = sanitizeDeepLinkId(params.id);
+// Only allows: a-zA-Z0-9-_
+```
+
+### Authentication Checks
+
+Deep links to protected routes require authentication:
+
+```typescript
+import { requiresAuthentication } from '@utils';
+
+if (requiresAuthentication(route.path) && !isAuthenticated) {
+  // Redirect to login with return path
+  router.replace({
+    pathname: '/(auth)/login',
+    params: { returnPath: route.path }
+  });
 }
 ```
 
-## Web Server Setup (Universal/App Links)
+## 🎯 Dynamic Routes with Expo Router
 
-### iOS - apple-app-site-association
+The app supports the following dynamic routes:
 
-Host at: `https://edutrack.app/.well-known/apple-app-site-association`
+| Route Pattern | File Location | Example URL |
+|--------------|---------------|-------------|
+| `/assignments/[id]` | `app/assignments/[id].tsx` | `edutrack://assignments/123` |
+| `/courses/[id]` | `app/courses/[id].tsx` | `edutrack://courses/456` |
+| `/children/[id]` | `app/children/[id].tsx` | `edutrack://children/789` |
+| `/messages/[id]` | `app/messages/[id].tsx` | `edutrack://messages/101` |
+| `/notifications/[id]` | `app/notifications/[id].tsx` | `edutrack://notifications/202` |
 
-See: `docs/WELL_KNOWN_FILES.md` for complete file content
+### Accessing Route Parameters
 
-Requirements:
-- HTTPS required
-- Content-Type: `application/json`
-- Replace `TEAMID` with Apple Developer Team ID
+```typescript
+import { useLocalSearchParams } from 'expo-router';
 
-### Android - assetlinks.json
+function Screen() {
+  const params = useLocalSearchParams();
+  const id = params.id; // Route parameter
+  const source = params.source; // Query parameter
+  
+  return <View>...</View>;
+}
+```
 
-Host at: `https://edutrack.app/.well-known/assetlinks.json`
+## 🌐 Platform-Specific Configuration
 
-See: `docs/WELL_KNOWN_FILES.md` for complete file content
+### iOS (app.json)
 
-Requirements:
-- HTTPS required
-- Content-Type: `application/json`
-- Replace fingerprint with app signing certificate SHA256
+```json
+{
+  "ios": {
+    "bundleIdentifier": "com.edutrack.app",
+    "associatedDomains": [
+      "applinks:edutrack.app",
+      "applinks:*.edutrack.app"
+    ]
+  }
+}
+```
 
-## Verification
+**Required Files:**
+- `.well-known/apple-app-site-association` on server
 
-### iOS Universal Links
-1. Host apple-app-site-association file
-2. Verify accessibility: `curl https://edutrack.app/.well-known/apple-app-site-association`
-3. Test: `xcrun simctl openurl booted https://edutrack.app/assignments/123`
-4. Use [Apple's Validator](https://search.developer.apple.com/appsearch-validation-tool/)
+### Android (app.json)
 
-### Android App Links
-1. Host assetlinks.json file
-2. Verify accessibility: `curl https://edutrack.app/.well-known/assetlinks.json`
-3. Test: `adb shell am start -a android.intent.action.VIEW -d "https://edutrack.app/assignments/123" com.edutrack.app`
-4. Verify intent filters: `adb shell dumpsys package com.edutrack.app | grep -A 20 "android.intent.action.VIEW"`
+```json
+{
+  "android": {
+    "package": "com.edutrack.app",
+    "intentFilters": [
+      {
+        "action": "VIEW",
+        "autoVerify": true,
+        "data": [
+          { "scheme": "https", "host": "edutrack.app" }
+        ],
+        "category": ["BROWSABLE", "DEFAULT"]
+      },
+      {
+        "action": "VIEW",
+        "data": [{ "scheme": "edutrack" }],
+        "category": ["BROWSABLE", "DEFAULT"]
+      }
+    ]
+  }
+}
+```
 
-## Files Modified
+**Required Files:**
+- `.well-known/assetlinks.json` on server
 
-1. `mobile/app.json` - Added iOS and Android deep link configuration
-2. `mobile/app/_layout.tsx` - Integrated deep link handling
-3. `mobile/src/utils/index.ts` - Exported deep linking utilities
+## 📊 Analytics & Tracking
 
-## Files Created
+Deep link navigation is automatically tracked:
 
-1. `mobile/src/utils/deepLinking.ts` - Core deep linking utilities
-2. `mobile/scripts/test-deep-links-ios.sh` - iOS test script
-3. `mobile/scripts/test-deep-links-ios.ps1` - iOS test script (PowerShell)
-4. `mobile/scripts/test-deep-links-android.sh` - Android test script
-5. `mobile/scripts/test-deep-links-android.ps1` - Android test script (PowerShell)
-6. `mobile/DEEP_LINKING_GUIDE.md` - Comprehensive documentation
-7. `mobile/DEEP_LINK_TEST_COMMANDS.md` - Quick test reference
-8. `mobile/docs/DEEP_LINK_INTEGRATION_EXAMPLES.md` - Code examples
-9. `mobile/docs/WELL_KNOWN_FILES.md` - Web server configuration
+```typescript
+// Automatic tracking on navigation
+logDeepLinkNavigation(
+  '/assignments/123',
+  { source: 'notification', priority: 'high' },
+  userId
+);
 
-## Next Steps
+// Logged data includes:
+// - path: Route path
+// - source: Traffic source (notification, email, qr_code, etc.)
+// - utm_source, utm_medium, utm_campaign: Marketing parameters
+// - userId: Current user ID
+// - timestamp: Navigation time
+```
 
-To fully enable Universal/App Links in production:
+## 🔄 Navigation Flow
 
-1. **Replace Placeholders**:
-   - In `apple-app-site-association`: Replace `TEAMID` with your Apple Developer Team ID
-   - In `assetlinks.json`: Replace `YOUR_SHA256_CERT_FINGERPRINT_HERE` with your app's signing certificate fingerprint
+1. **App receives deep link**
+   - From notification tap
+   - From email click
+   - From xcrun simctl (iOS)
+   - From adb intent (Android)
 
-2. **Deploy Well-Known Files**:
-   - Upload files to your web server at `/.well-known/` directory
-   - Ensure files are accessible via HTTPS
-   - Set correct content-type headers
+2. **URL is validated**
+   - `isValidDeepLink()` checks format
+   - `normalizeDeepLink()` converts to standard format
 
-3. **Test on Real Devices**:
-   - Test custom scheme deep links
-   - Test Universal/App Links
-   - Verify authentication flow
-   - Test with query parameters
+3. **Route is parsed**
+   - `parseDeepLink()` extracts path and parameters
+   - `sanitizeDeepLinkId()` validates route parameters
 
-4. **Monitor and Track**:
-   - Add analytics tracking for deep link opens
-   - Monitor error rates
-   - Track which deep links are most used
+4. **Authentication check**
+   - If route requires auth and user not logged in
+   - Redirect to login with return path
 
-## Troubleshooting
+5. **Navigation**
+   - Expo Router navigates to the screen
+   - Parameters passed to screen component
 
-See `DEEP_LINKING_GUIDE.md` for detailed troubleshooting steps.
+6. **Tracking**
+   - Navigation logged for analytics
+   - Tracking parameters extracted
+
+## 🐛 Troubleshooting
+
+### iOS Issues
+
+**Deep link doesn't open app:**
+```bash
+# Check if app is installed
+xcrun simctl listapps booted | grep -i edutrack
+
+# Verify scheme in app.json
+node scripts/validate-deep-linking.js
+
+# Try reinstalling
+# In Xcode: Product > Clean Build Folder
+# Then rebuild and install
+```
+
+**Universal links not working:**
+- Verify `apple-app-site-association` file on server
+- Check associated domains in entitlements
+- Ensure bundle identifier matches
+
+### Android Issues
+
+**Intent not opening app:**
+```bash
+# Check if app is installed
+adb shell pm list packages | grep edutrack
+
+# Verify intent filters
+adb shell dumpsys package com.edutrack.app | grep -A 10 "android.intent.action.VIEW"
+
+# Check logs
+adb logcat | grep -i edutrack
+```
+
+**App Links not verified:**
+- Check `assetlinks.json` file on server
+- Verify `autoVerify="true"` in intent filters
+- Ensure package signing matches
 
 ### Common Issues
 
-**iOS Universal Links not working**:
-- Verify associated domains in app.json
-- Check apple-app-site-association file is accessible
-- Links must be opened from outside the app
+**Query parameters not working:**
+- Use quotes around URLs in terminal: `"edutrack://assignments/123?source=test"`
+- Check URL encoding for special characters
 
-**Android App Links not verified**:
-- Check assetlinks.json is accessible
-- Verify SHA256 fingerprint matches
-- Run: `adb shell pm get-app-links com.edutrack.app`
+**Dynamic routes not matching:**
+- Verify file structure matches route pattern
+- Check case sensitivity in route paths
+- Ensure `[id]` parameter is correctly defined
 
-**Deep links not navigating**:
-- Check console logs for errors
-- Verify route exists in app directory
-- Check authentication state
+## 📚 Additional Resources
 
-## Resources
-
-- [Deep Linking Guide](./DEEP_LINKING_GUIDE.md)
-- [Test Commands Reference](./DEEP_LINK_TEST_COMMANDS.md)
-- [Integration Examples](./docs/DEEP_LINK_INTEGRATION_EXAMPLES.md)
-- [Well-Known Files](./docs/WELL_KNOWN_FILES.md)
 - [Expo Linking Documentation](https://docs.expo.dev/guides/linking/)
+- [Expo Router Deep Linking](https://docs.expo.dev/router/reference/linking/)
 - [iOS Universal Links](https://developer.apple.com/ios/universal-links/)
 - [Android App Links](https://developer.android.com/training/app-links)
+
+## ✅ Verification Checklist
+
+Before deploying:
+
+- [ ] Run `node scripts/validate-deep-linking.js`
+- [ ] Run automated tests: `npm test -- deepLinking`
+- [ ] Test on iOS simulator: `./scripts/test-ios-deep-links.sh`
+- [ ] Test on Android emulator: `./scripts/test-android-deep-links.sh`
+- [ ] Test on physical iOS device
+- [ ] Test on physical Android device
+- [ ] Test from push notifications
+- [ ] Test from email links
+- [ ] Test authentication flow with deep links
+- [ ] Verify analytics tracking
+- [ ] Check `apple-app-site-association` file on server
+- [ ] Check `assetlinks.json` file on server
+
+## 🎉 Summary
+
+The EduTrack app has comprehensive deep linking support with:
+
+✅ Custom scheme (`edutrack://`) configured
+✅ Universal/App Links (HTTPS) configured
+✅ Dynamic routes for all major screens
+✅ Utility functions for common tasks
+✅ Comprehensive test coverage
+✅ Platform-specific testing scripts
+✅ Example components and documentation
+✅ Security measures (input sanitization)
+✅ Analytics tracking
+✅ Authentication flow integration
+
+All configuration, tests, helpers, and documentation are complete and ready to use!
