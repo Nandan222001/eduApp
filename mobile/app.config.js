@@ -73,11 +73,6 @@ export default ({ config }) => ({
     fallbackToCacheTimeout: 0,
     url: `https://u.expo.dev/${process.env.EXPO_PROJECT_ID}`,
     checkAutomatically: 'ON_LOAD',
-    codeSigningCertificate: './certificates/code-signing.pem',
-    codeSigningMetadata: {
-      keyid: 'main',
-      alg: 'rsa-v1_5-sha256',
-    },
   },
   assetBundlePatterns: ['**/*'],
   ios: {
@@ -170,7 +165,6 @@ export default ({ config }) => ({
       {
         icon: './assets/notification-icon.png',
         color: '#ffffff',
-        sounds: ['./assets/notification-sound.wav'],
         mode: IS_PROD ? 'production' : 'default',
       },
     ],
