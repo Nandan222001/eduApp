@@ -12,7 +12,7 @@ import { Platform } from 'react-native';
 import { store, persistor } from '@store';
 import { useAppDispatch, useAppSelector } from '@store/hooks';
 import { loadStoredAuth } from '@store/slices/authSlice';
-import { Loading, OfflineDataRefresher } from '@components';
+import { Loading, OfflineDataRefresher, NavigationDebugger } from '@components';
 import { theme } from '@config/theme';
 import { authService } from '@utils/authService';
 import { 
@@ -217,6 +217,7 @@ function RootLayoutNav() {
   return (
     <OfflineDataRefresher autoRefresh={true} refreshIntervalMinutes={15}>
       <Slot />
+      <NavigationDebugger enabled={__DEV__} />
     </OfflineDataRefresher>
   );
 }

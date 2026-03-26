@@ -22,6 +22,8 @@
     "validate-android": "node validate-android-setup.js",
     "validate-deep-linking": "node scripts/validate-deep-linking.js",
     "validate-offline": "node scripts/validate-offline-functionality.js",
+    "validate-navigation": "node scripts/validate-navigation-setup.js",
+    "test-navigation": "node scripts/test-expo-router.js && node scripts/test-web-navigation.js",
     "test-offline": "npm test -- --testPathPattern=offline",
     "test-offline-unit": "npm test -- __tests__/unit/offline",
     "test-offline-integration": "npm test -- __tests__/integration/offline",

@@ -8,5 +8,6 @@ export { OfflineDemo } from './OfflineDemo';
 export { LazyScreen } from './LazyScreen';
 export { DeepLinkingExample } from './DeepLinkingExample';
 export { DeepLinkTester } from './DeepLinkTester';
+export { NavigationDebugger } from './NavigationDebugger';
 
 export * from './shared';
