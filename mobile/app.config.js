@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { existsSync } from 'fs';
 
 const IS_DEV = process.env.APP_ENV === 'development';
 const IS_STAGING = process.env.APP_ENV === 'staging';
@@ -95,11 +96,9 @@ export default ({ config }) => ({
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
     },
-    googleServicesFile: IS_PROD
-      ? './GoogleService-Info-prod.plist'
-      : IS_STAGING
-      ? './GoogleService-Info-staging.plist'
-      : './GoogleService-Info-dev.plist',
+    ...(existsSync('./GoogleService-Info-dev.plist') && IS_DEV && { googleServicesFile: './GoogleService-Info-dev.plist' }),
+    ...(existsSync('./GoogleService-Info-staging.plist') && IS_STAGING && { googleServicesFile: './GoogleService-Info-staging.plist' }),
+    ...(existsSync('./GoogleService-Info-prod.plist') && IS_PROD && { googleServicesFile: './GoogleService-Info-prod.plist' }),
     associatedDomains: [`applinks:${IS_PROD ? 'app' : IS_STAGING ? 'staging-app' : 'dev-app'}.eduplatform.com`],
   },
   android: {
@@ -122,11 +121,9 @@ export default ({ config }) => ({
       'USE_BIOMETRIC',
       'USE_FINGERPRINT',
     ],
-    googleServicesFile: IS_PROD
-      ? './google-services-prod.json'
-      : IS_STAGING
-      ? './google-services-staging.json'
-      : './google-services-dev.json',
+    ...(existsSync('./google-services-dev.json') && IS_DEV && { googleServicesFile: './google-services-dev.json' }),
+    ...(existsSync('./google-services-staging.json') && IS_STAGING && { googleServicesFile: './google-services-staging.json' }),
+    ...(existsSync('./google-services-prod.json') && IS_PROD && { googleServicesFile: './google-services-prod.json' }),
     useNextNotificationsApi: true,
     config: {
       googleMaps: {
