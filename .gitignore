@@ -313,3 +313,7 @@ mobile/offline_cache/
 
 # Node modules at root (if any)
 node_modules/
+
+# Presentation - generated PowerPoint files
+presentation/*.pptx
+!presentation/.gitkeep
