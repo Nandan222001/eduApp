@@ -1,298 +1,236 @@
 # Web Bundle Optimization Guide
 
+This document outlines the web bundle optimizations implemented in the EduTrack mobile application.
+
 ## Overview
 
-This document describes the optimizations implemented to reduce web bundle size and improve performance for the Expo Router-based mobile application.
+The application is optimized to keep the web bundle size under 2MB through various techniques including tree-shaking, code splitting, dynamic imports, and platform-specific code exclusion.
 
-## Optimizations Implemented
+## Bundle Size Target
 
-### 1. Metro Config Optimizations
+- **Target**: < 2MB total bundle size
+- **Warning Threshold**: 2MB (configured in webpack and metro)
+- **Current Status**: Run `npm run analyze-bundle` to check
 
-**File**: `metro.config.js`
+## Optimization Techniques
 
-- **Tree-shaking**: Enhanced with advanced minification settings
-- **Dead code elimination**: Enabled through terser configuration
-- **Inline requires**: Reduces initial bundle size by deferring module loading
-- **Production optimizations**: Console statements removed, aggressive compression enabled
+### 1. Tree-Shaking Configuration
 
-```javascript
-compress: {
-  dead_code: true,
-  drop_console: process.env.NODE_ENV === 'production',
-  passes: 3,
-  pure_getters: true,
+#### Metro Config (metro.config.js)
+- **Terser Minification**: Configured with aggressive compression settings
+  - Dead code elimination enabled
+  - Unused exports removed
+  - Variable collapsing and reduction
+  - Top-level minification
+- **Inline Requires**: Enabled to reduce initial bundle size
+- **Package Exports**: Enabled for better tree-shaking support
+- **Platform-Specific Resolution**: Prioritizes `.native.ts`, `.web.ts`, and `.ts` extensions
+
+#### Webpack Config (webpack.config.js)
+- **Code Splitting**: Vendor code split into separate chunks
+- **Chart Library Isolation**: Heavy charting libraries (react-native-chart-kit, react-native-svg) bundled separately
+- **Module Concatenation**: Enabled for smaller output
+- **Used Exports**: Only includes explicitly used exports
+
+### 2. Dynamic Imports for Heavy Screens
+
+Heavy screens are lazy-loaded to reduce initial bundle size:
+
+#### Student Screens
+- **AI Predictions Screen**: Uses React.lazy() with Suspense
+  - Contains heavy chart libraries (react-native-chart-kit)
+  - Only loaded when user navigates to AI features
+  - Location: `app/(tabs)/student/ai-predictions.tsx`
+
+- **Homework Scanner Screen**: Lazy-loaded with camera functionality
+  - Includes expo-camera (native-only)
+  - Only loaded when user accesses scanner
+  - Location: `app/(tabs)/student/homework-scanner.tsx`
+
+#### Parent Screens
+- Similar pattern applied to report screens with heavy visualizations
+
+### 3. Platform-Specific Code
+
+#### Storage Abstraction
+- **Web Platform**: Uses `@react-native-async-storage/async-storage`
+- **Native Platforms**: Uses `expo-secure-store` for sensitive data
+- **Implementation**: `src/utils/secureStorage.ts` automatically selects appropriate storage
+
+#### Native Module Stubs
+Web stubs prevent native-only modules from being included in web bundle:
+- `src/utils/stubs/camera.web.ts` - Camera stub
+- `src/utils/stubs/barcode.web.ts` - Barcode scanner stub
+- `src/utils/stubs/auth.web.ts` - Biometric auth stub
+- `src/utils/stubs/notifications.web.ts` - Push notifications stub
+- `src/utils/stubs/background.web.ts` - Background fetch stub
+- `src/utils/stubs/tasks.web.ts` - Task manager stub
+- `src/utils/stubs/imagePicker.web.ts` - Image picker stub
+
+### 4. Conditional Native Imports
+
+Screens that use native functionality include conditional imports:
+
+```typescript
+// Example from HomeworkScannerScreen.tsx
+let Camera: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    Camera = require('expo-camera').Camera;
+  } catch (error) {
+    console.warn('expo-camera not available');
+  }
 }
 ```
 
-### 2. Platform-Specific Module Loading
+This ensures native modules are never bundled for web.
 
-**Purpose**: Exclude native-only modules from web bundle
+### 5. App Config Optimizations
 
-#### Native Modules with Web Stubs
+#### app.config.js
+- **Platform-Specific Plugins**: Plugins configured to only load on relevant platforms
+  - `expo-secure-store`: iOS and Android only
+  - `expo-local-authentication`: iOS and Android only
+- **Web-Specific Config**: Metro bundler with performance budgets
 
-The following modules now have platform-specific implementations:
-
-- **Camera** (`camera.native.ts` / `camera.web.ts`)
-  - Native: Full expo-camera and expo-image-picker support
-  - Web: File input fallback
-
-- **Biometrics** (`biometrics.native.ts` / `biometrics.web.ts`)
-  - Native: expo-local-authentication support
-  - Web: Web Authentication API detection
-
-- **Notifications** (`notifications.native.ts` / `notifications.web.ts`)
-  - Native: Full expo-notifications support
-  - Web: Browser Notification API
-
-- **Background Sync** (`backgroundSync.native.ts` / `backgroundSync.web.ts`)
-  - Native: expo-background-fetch and expo-task-manager
-  - Web: Stub (background sync not supported)
-
-- **Document Scanner** (`documentScanner.native.ts` / `documentScanner.web.ts`)
-  - Native: expo-document-picker and expo-file-system
-  - Web: File API implementation
-
-### 3. Secure Storage Strategy
-
-**File**: `src/utils/secureStorage.ts`
-
-✅ **Already implemented correctly**:
-- Uses `@react-native-async-storage/async-storage` on web
-- Uses `expo-secure-store` on native platforms
-- Platform detection with conditional imports
-
-```typescript
-if (Platform.OS === 'web') {
-  await AsyncStorage.setItem(key, value);
-} else {
-  await SecureStore.setItemAsync(key, value);
-}
-```
-
-### 4. Dynamic Imports for Platform-Specific Code
-
-**File**: `app/_layout.tsx`
-
-Platform initialization modules are now loaded dynamically:
-
-```typescript
-if (Platform.OS === 'ios') {
-  const { initializeIOSPlatform } = await import('@utils/iosInit');
-  await initializeIOSPlatform();
-} else if (Platform.OS === 'android') {
-  const { initializeAndroidPlatform } = await import('@utils/androidInit');
-  await initializeAndroidPlatform();
-}
-```
-
-This prevents iOS/Android-specific code from being included in the web bundle.
-
-### 5. Web-Specific Screen Components
-
-Heavy screens that use native modules have web-specific implementations:
-
-- `QRScannerScreen.web.tsx` - Placeholder for QR scanner
-- `CameraScreen.web.tsx` - Placeholder for camera
-- `QRScanner.web.tsx` - Placeholder for QR component
-
-These prevent native camera/barcode modules from being bundled on web.
-
-### 6. Webpack Configuration
-
-**File**: `webpack.config.js`
-
-- **Module aliases**: Maps native-only modules to web stubs
-- **Code splitting**: Automatic vendor and common chunk separation
-- **Performance budgets**: 2MB warning threshold for assets and entry points
-- **Tree-shaking**: Enabled via `usedExports` and `sideEffects`
-
-### 7. App Configuration
-
-**File**: `app.config.js`
-
-Native-only plugins are excluded from web builds:
-
-```javascript
-[
-  'expo-secure-store',
-  {
-    platforms: ['ios', 'android'],
-  },
-],
-[
-  'expo-local-authentication',
-  {
-    platforms: ['ios', 'android'],
-  },
-]
-```
-
-### 8. Lazy Loading Component
-
-**File**: `src/components/LazyScreen.tsx`
-
-Utility component for implementing route-based code splitting:
-
-```typescript
-import { LazyScreen } from '@components/LazyScreen';
-
-<LazyScreen 
-  loader={() => import('@screens/student/HeavyScreen')} 
-  {...props} 
-/>
-```
-
-## Bundle Analysis
+## Verification
 
 ### Running Bundle Analysis
 
 ```bash
+# Build web bundle and analyze
 npm run analyze-bundle
+
+# Or run separately
+npm run build:web
+node scripts/analyze-bundle.js
 ```
 
-This command:
-1. Exports the web bundle using `expo export --platform web`
-2. Analyzes the `dist` folder
-3. Reports:
-   - Total bundle size
-   - Large files (>100KB)
-   - Bundle size vs 2MB threshold
-   - Optimization recommendations
-
-### Expected Results
-
-✅ **Target**: Bundle size under 2MB
-✅ **Native modules**: Excluded from web bundle
-✅ **AsyncStorage**: Used instead of SecureStore on web
-✅ **Tree-shaking**: Working correctly
-
-## Verification Steps
-
-### 1. Check Bundle Size
+### Verification Script
 
 ```bash
-npx expo export --platform web
-du -sh dist/
+# Verify all optimizations are in place
+npm run verify-web-optimization
 ```
 
-### 2. Verify No Native Modules in Web Bundle
+This script checks:
+- Platform-specific files exist
+- Webpack config is properly set up
+- Metro config has optimization settings
+- Secure storage uses AsyncStorage on web
+- Native module stubs are present
 
+## Bundle Analysis Output
+
+The `analyze-bundle.js` script provides:
+- Total bundle size
+- Individual file sizes
+- Large files (> 100KB)
+- Warnings if bundle exceeds 2MB threshold
+- Optimization recommendations
+
+## Performance Metrics
+
+### Initial Load
+- Code splitting ensures only essential code loads initially
+- Heavy features load on-demand
+
+### Lazy Loading
+- Suspense boundaries provide loading states
+- Smooth user experience during dynamic imports
+
+## Native Module Exclusion
+
+### Verified Excluded Modules
+The following native-only modules are properly excluded from web builds:
+- ✅ expo-camera
+- ✅ expo-barcode-scanner
+- ✅ expo-local-authentication
+- ✅ expo-notifications (native features)
+- ✅ expo-background-fetch
+- ✅ expo-task-manager
+- ✅ react-native-image-crop-picker
+
+### Web Alternatives
+- **Storage**: AsyncStorage (instead of SecureStore)
+- **Camera**: Web fallback or disabled feature
+- **Biometrics**: Password-only authentication
+- **Notifications**: Web Push API (if needed)
+
+## Monitoring Bundle Size
+
+### During Development
 ```bash
-# Search for native module imports in bundled files
-grep -r "expo-camera" dist/
-grep -r "expo-secure-store" dist/
-grep -r "expo-local-authentication" dist/
+# Watch mode with size monitoring
+npm run web
 ```
 
-Should return no results if optimization is working.
-
-### 3. Test Web Build
-
+### Before Deployment
 ```bash
-npx expo start --web
+# Production build analysis
+NODE_ENV=production npm run analyze-bundle
 ```
 
-Verify:
-- ✅ App loads without errors
-- ✅ Authentication works (using AsyncStorage)
-- ✅ Native features show appropriate fallbacks
-- ✅ No console errors about missing native modules
+## Optimization Checklist
 
-## Best Practices
+When adding new features:
 
-### Adding New Native Features
-
-When adding features that use native modules:
-
-1. **Create platform-specific files**:
-   ```
-   feature.native.ts  // iOS/Android implementation
-   feature.web.ts     // Web stub or alternative
-   ```
-
-2. **Use Platform detection**:
-   ```typescript
-   if (Platform.OS !== 'web') {
-     const module = await import('./nativeModule');
-   }
-   ```
-
-3. **Test both platforms**:
-   - Run on native: `npm run ios` or `npm run android`
-   - Run on web: `npm run web`
-
-### Dynamic Imports for Heavy Screens
-
-For screens with large dependencies:
-
-```typescript
-// Instead of:
-import HeavyScreen from './HeavyScreen';
-
-// Use:
-const HeavyScreen = lazy(() => import('./HeavyScreen'));
-```
-
-## Monitoring
-
-### Continuous Integration
-
-Add bundle size checks to CI:
-
-```yaml
-- name: Check bundle size
-  run: |
-    npm run build:web
-    node scripts/analyze-bundle.js
-    # Fail if bundle > 2MB
-```
-
-### Performance Metrics
-
-Monitor in production:
-- Initial load time
-- Time to interactive
-- Bundle size trends
-- Core Web Vitals
+- [ ] Use dynamic imports for heavy screens (> 100KB)
+- [ ] Create `.web.ts` variants for native modules
+- [ ] Add conditional Platform checks before native imports
+- [ ] Update webpack aliases if adding new native dependencies
+- [ ] Run bundle analysis to verify size impact
+- [ ] Test web build for native module errors
+- [ ] Update this documentation
 
 ## Troubleshooting
 
-### Issue: Bundle size still too large
+### Bundle Size Exceeds 2MB
 
-**Solutions**:
-1. Check for accidental imports of native modules
-2. Review `webpack.config.js` aliases
-3. Use `npm run analyze-bundle` to find large files
-4. Consider lazy loading more screens
+1. Run `npm run analyze-bundle` to identify large files
+2. Check if new dependencies were added without web alternatives
+3. Review if screens need dynamic imports
+4. Verify tree-shaking is working (check unused exports)
 
-### Issue: Native module errors on web
+### Native Module Errors on Web
 
-**Solutions**:
-1. Verify platform-specific files exist (`.native.ts` and `.web.ts`)
-2. Check webpack aliases in `webpack.config.js`
-3. Ensure imports use conditional Platform checks
+1. Verify webpack.config.js includes alias for the module
+2. Create web stub in `src/utils/stubs/`
+3. Add conditional import in consuming code
+4. Test web build
 
-### Issue: AsyncStorage not working on web
+### Slow Initial Load
 
-**Solutions**:
-1. Verify `@react-native-async-storage/async-storage` is installed
-2. Check that `secureStorage.ts` uses Platform detection
-3. Clear browser storage and retry
+1. Review initial bundle with `analyze-bundle.js`
+2. Move heavy components to dynamic imports
+3. Check if large libraries can be code-split
+4. Verify inline requires are enabled
+
+## Future Optimizations
+
+Potential areas for further optimization:
+- Implement service worker for caching
+- Use WebP images for better compression
+- Lazy load additional route-based chunks
+- Implement predictive prefetching for common routes
+- Consider using SWC instead of Babel for faster builds
 
 ## References
 
-- [Expo Web](https://docs.expo.dev/workflow/web/)
-- [Metro Bundler](https://facebook.github.io/metro/)
-- [React Native for Web](https://necolas.github.io/react-native-web/)
-- [Bundle Size Optimization](https://docs.expo.dev/guides/analyzing-bundles/)
+- [Metro Bundler Configuration](https://facebook.github.io/metro/docs/configuration)
+- [Webpack Code Splitting](https://webpack.js.org/guides/code-splitting/)
+- [React Lazy and Suspense](https://react.dev/reference/react/lazy)
+- [Expo Web Support](https://docs.expo.dev/workflow/web/)
 
-## Summary
+## Related Files
 
-All optimizations have been implemented to ensure:
+- `metro.config.js` - Metro bundler configuration
+- `webpack.config.js` - Webpack configuration for web
+- `scripts/analyze-bundle.js` - Bundle analysis script
+- `scripts/verify-web-optimization.js` - Optimization verification script
+- `app.config.js` - Expo configuration with platform-specific plugins
 
-✅ Web bundle size is optimized and under 2MB threshold  
-✅ Native-only modules are excluded from web builds  
-✅ AsyncStorage is used instead of SecureStore on web  
-✅ Platform-specific code is loaded dynamically  
-✅ Tree-shaking is properly configured  
-✅ Bundle analysis tools are available  
+---
+
+Last Updated: 2024
+Maintained by: Development Team

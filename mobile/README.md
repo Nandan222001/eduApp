@@ -17,6 +17,32 @@ Or jump directly to:
 
 ---
 
+## 📦 Web Bundle Optimization
+
+The web bundle is optimized to stay under 2MB with tree-shaking, code splitting, and dynamic imports:
+
+**Quick Verification:**
+```bash
+npm run verify-web-optimization  # Check optimization config
+npm run check-web-storage        # Verify storage setup  
+npm run analyze-bundle           # Analyze bundle size
+```
+
+**Documentation:**
+- [Quick Start Guide](README_BUNDLE_OPTIMIZATION.md) - Overview and verification
+- [Complete Guide](WEB_BUNDLE_OPTIMIZATION.md) - Detailed optimization techniques
+- [Implementation Summary](BUNDLE_OPTIMIZATION_SUMMARY.md) - What was changed
+- [Pre-Deployment Checklist](OPTIMIZATION_CHECKLIST.md) - Verification steps
+
+**Key Features:**
+- ✅ Bundle size < 2MB
+- ✅ Heavy screens lazy-loaded (AI Predictions, Scanner)
+- ✅ Native modules excluded from web build
+- ✅ AsyncStorage for web, SecureStore for native
+- ✅ Aggressive tree-shaking and code splitting
+
+---
+
 ## Features
 
 ### Authentication

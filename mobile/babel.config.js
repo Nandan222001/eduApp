@@ -33,5 +33,10 @@ module.exports = function(api) {
         ],
       },
     },
+    assumptions: {
+      // Enable assumptions for better optimization
+      setPublicClassFields: true,
+      privateFieldsAsProperties: true,
+    },
   };
 };

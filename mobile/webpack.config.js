@@ -85,21 +85,41 @@ module.exports = async function (env, argv) {
       ...config.optimization,
       splitChunks: {
         chunks: 'all',
+        maxInitialRequests: Infinity,
+        minSize: 20000,
         cacheGroups: {
-          vendors: {
+          // Split vendor code into separate chunks
+          vendor: {
             test: /[\\/]node_modules[\\/]/,
-            priority: -10,
+            name(module) {
+              // Get the package name from node_modules path
+              const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
+              // npm package names are URL-safe, but some servers don't like @ symbols
+              return `vendor.${packageName.replace('@', '')}`;
+            },
+            priority: 10,
             reuseExistingChunk: true,
           },
+          // Split react-native-chart-kit separately as it's heavy
+          chartKit: {
+            test: /[\\/]node_modules[\\/](react-native-chart-kit|react-native-svg)[\\/]/,
+            name: 'vendor.chart-kit',
+            priority: 20,
+            reuseExistingChunk: true,
+          },
+          // Common code used across multiple chunks
           common: {
             minChunks: 2,
-            priority: -20,
+            priority: -10,
             reuseExistingChunk: true,
+            enforce: true,
           },
         },
       },
       usedExports: true,
       sideEffects: true,
+      minimize: true,
+      concatenateModules: true,
     };
   }
 

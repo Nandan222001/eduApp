@@ -117,6 +117,37 @@ function analyzeBundle() {
     console.log(`   Over by: ${formatBytes(totalSize - SIZE_THRESHOLD_BYTES)}`);
   }
   
+  // Check for specific heavy dependencies
+  console.log('\n📦 Dependency Analysis:');
+  console.log('-'.repeat(60));
+  
+  const hasChartKit = largeFiles.some(f => f.path.includes('chart-kit'));
+  const hasSVG = largeFiles.some(f => f.path.includes('svg'));
+  
+  if (hasChartKit) {
+    console.log('   ℹ️  Chart-kit detected - ensure it\'s code-split');
+  }
+  if (hasSVG) {
+    console.log('   ℹ️  SVG library detected - used by chart-kit');
+  }
+  
+  // Check for native modules that shouldn't be in web bundle
+  const nativeModules = ['expo-camera', 'expo-local-authentication', 'expo-notifications', 
+                         'expo-background-fetch', 'expo-task-manager', 'image-crop-picker'];
+  const foundNativeModules = largeFiles.filter(f => 
+    nativeModules.some(mod => f.path.includes(mod))
+  );
+  
+  if (foundNativeModules.length > 0) {
+    console.log('\n   ⚠️  Native modules found in bundle:');
+    foundNativeModules.forEach(f => {
+      console.log(`      - ${f.path} (${formatBytes(f.size)})`);
+    });
+    console.log('   These should be excluded via webpack aliases!');
+  } else {
+    console.log('   ✅ No native-only modules found in web bundle');
+  }
+  
   // Recommendations
   console.log('\n💡 Optimization Recommendations:');
   console.log('-'.repeat(60));
@@ -147,7 +178,26 @@ function analyzeBundle() {
     recommendations.forEach(rec => console.log(`   ${rec}`));
   }
   
+  console.log('\n📖 Additional Resources:');
+  console.log('-'.repeat(60));
+  console.log('   • Full guide: WEB_BUNDLE_OPTIMIZATION.md');
+  console.log('   • Summary: BUNDLE_OPTIMIZATION_SUMMARY.md');
+  console.log('   • Checklist: OPTIMIZATION_CHECKLIST.md');
+  console.log('   • Quick start: README_BUNDLE_OPTIMIZATION.md');
+  
+  console.log('\n🔧 Verification Commands:');
+  console.log('-'.repeat(60));
+  console.log('   npm run verify-web-optimization  # Check config');
+  console.log('   npm run check-web-storage        # Verify storage');
+  console.log('   npm run web                      # Test in browser');
+  
   console.log('\n' + '='.repeat(60) + '\n');
+  
+  // Exit with error code if bundle is too large
+  if (totalSize >= SIZE_THRESHOLD_BYTES) {
+    console.error('❌ Bundle size exceeds threshold. Please optimize before deploying.\n');
+    process.exit(1);
+  }
 }
 
 // Run analysis

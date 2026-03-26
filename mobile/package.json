@@ -11,6 +11,7 @@
     "build:web": "expo export --platform web",
     "analyze-bundle": "npm run build:web && node scripts/analyze-bundle.js",
     "verify-web-optimization": "node scripts/verify-web-optimization.js",
+    "check-web-storage": "node scripts/check-web-storage.js",
     "lint": "eslint . --ext .ts,.tsx",
     "type-check": "tsc --noEmit",
     "validate-ios": "node validate-ios-setup.js",
@@ -81,5 +82,12 @@
   "private": true,
   "bundleDependencies": [
     "ajv"
+  ],
+  "sideEffects": [
+    "*.css",
+    "*.scss",
+    "*.sass",
+    "src/config/sentry.ts",
+    "src/utils/appInitializer.ts"
   ]
 }

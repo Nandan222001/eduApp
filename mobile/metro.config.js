@@ -45,10 +45,14 @@ config.resolver = {
   },
   // Platform-specific extensions for better tree-shaking
   platforms: ['ios', 'android', 'web'],
+  // Prioritize platform-specific extensions for tree-shaking
+  resolverMainFields: ['react-native', 'browser', 'main'],
   // Exclude native-only modules from web bundle
   blockList: [
     // Will be filtered during runtime based on platform
   ],
+  unstable_enablePackageExports: true,
+  unstable_conditionNames: ['require', 'import', 'react-native'],
 };
 
 config.transformer = {
@@ -78,6 +82,12 @@ config.transformer = {
       unsafe_comps: true,
       unsafe_math: true,
       unsafe_methods: true,
+      // Additional optimizations for tree-shaking
+      side_effects: true,
+      unused: true,
+      collapse_vars: true,
+      reduce_vars: true,
+      toplevel: true,
     },
     output: {
       comments: false,
