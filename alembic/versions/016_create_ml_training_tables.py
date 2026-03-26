@@ -43,7 +43,7 @@ def upgrade():
         sa.Column('validation_r2_score', sa.Float(), nullable=True),
         sa.Column('error_message', sa.Text(), nullable=True),
         sa.Column('error_traceback', sa.Text(), nullable=True),
-        sa.Column('auto_promoted', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('auto_promoted', sa.Boolean(), nullable=False, server_default=sa.text('0')),
         sa.Column('promotion_threshold', sa.Float(), nullable=True),
         sa.Column('triggered_by', sa.Integer(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),

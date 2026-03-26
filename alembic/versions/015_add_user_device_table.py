@@ -23,7 +23,7 @@ def upgrade():
         sa.Column('device_type', sa.String(length=20), nullable=False),
         sa.Column('device_name', sa.String(length=255), nullable=True),
         sa.Column('app_version', sa.String(length=50), nullable=True),
-        sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
+        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('1')),
         sa.Column('topics', sa.JSON(), nullable=True),
         sa.Column('last_used_at', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
