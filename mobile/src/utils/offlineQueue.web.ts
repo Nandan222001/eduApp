@@ -66,7 +66,7 @@ class OfflineQueueManager {
 
   private setupNetworkListener() {
     // Use browser's online/offline events
-    if (typeof navigator !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
       this.isOnline = navigator.onLine;
 
       window.addEventListener('online', () => {
@@ -96,7 +96,7 @@ class OfflineQueueManager {
     this.queue.push(queuedRequest);
     await this.saveQueue();
 
-    if (typeof navigator !== 'undefined' && navigator.onLine && !this.isProcessing) {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && navigator.onLine && !this.isProcessing) {
       this.processQueue();
     }
 
@@ -108,7 +108,7 @@ class OfflineQueueManager {
       return;
     }
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && !navigator.onLine) {
       console.log('[Web] Browser is offline, skipping queue processing');
       return;
     }
@@ -211,7 +211,7 @@ class OfflineQueueManager {
     request.retryCount = 0;
     await this.saveQueue();
 
-    if (typeof navigator !== 'undefined' && navigator.onLine && !this.isProcessing) {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && navigator.onLine && !this.isProcessing) {
       this.processQueue();
     }
 
@@ -227,7 +227,7 @@ class OfflineQueueManager {
 
     await this.saveQueue();
 
-    if (typeof navigator !== 'undefined' && navigator.onLine && !this.isProcessing) {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && navigator.onLine && !this.isProcessing) {
       this.processQueue();
     }
   }

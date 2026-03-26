@@ -2,7 +2,7 @@
 export const biometricsService = {
   async isAvailable(): Promise<boolean> {
     // Check for Web Authentication API
-    if (window.PublicKeyCredential) {
+    if (typeof window !== 'undefined' && window.PublicKeyCredential) {
       return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     }
     return false;

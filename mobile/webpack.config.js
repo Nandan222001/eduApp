@@ -28,46 +28,58 @@ module.exports = async function (env, argv) {
 
   // Ensure proper MIME types via dev server configuration
   if (config.devServer) {
+    const mimeTypeMiddleware = (req, res, next) => {
+      // Get the path without query parameters
+      const urlPath = req.url.split('?')[0];
+      
+      // Set proper MIME types for JavaScript bundles
+      if (urlPath.match(/\.(bundle|js|mjs|cjs)$/)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      } else if (urlPath.endsWith('.json')) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      } else if (urlPath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      } else if (urlPath.endsWith('.html')) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      } else if (urlPath.endsWith('.map')) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      } else if (urlPath.match(/\.(png|jpg|jpeg|gif|webp)$/)) {
+        const ext = urlPath.split('.').pop();
+        res.setHeader('Content-Type', `image/${ext === 'jpg' ? 'jpeg' : ext}`);
+      } else if (urlPath.endsWith('.svg')) {
+        res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+      } else if (urlPath.match(/\.(woff|woff2|ttf|otf|eot)$/)) {
+        const ext = urlPath.split('.').pop();
+        const mimeTypes = {
+          woff: 'font/woff',
+          woff2: 'font/woff2',
+          ttf: 'font/ttf',
+          otf: 'font/otf',
+          eot: 'application/vnd.ms-fontobject',
+        };
+        res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+      }
+      next();
+    };
+
     config.devServer = {
       ...config.devServer,
       headers: {
         'Content-Type': 'application/javascript; charset=utf-8',
       },
+      // Support both old and new webpack-dev-server API
+      setupMiddlewares: (middlewares, devServer) => {
+        if (!devServer) {
+          throw new Error('webpack-dev-server is not defined');
+        }
+        devServer.app.use(mimeTypeMiddleware);
+        return middlewares;
+      },
       onBeforeSetupMiddleware: (devServer) => {
         if (!devServer) {
           throw new Error('webpack-dev-server is not defined');
         }
-
-        devServer.app.use((req, res, next) => {
-          // Set proper MIME types for JavaScript bundles
-          if (req.url.match(/\.(bundle|js|mjs|cjs)$/)) {
-            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-          } else if (req.url.endsWith('.json')) {
-            res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          } else if (req.url.endsWith('.css')) {
-            res.setHeader('Content-Type', 'text/css; charset=utf-8');
-          } else if (req.url.endsWith('.html')) {
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          } else if (req.url.endsWith('.map')) {
-            res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          } else if (req.url.match(/\.(png|jpg|jpeg|gif|webp)$/)) {
-            const ext = req.url.split('.').pop();
-            res.setHeader('Content-Type', `image/${ext === 'jpg' ? 'jpeg' : ext}`);
-          } else if (req.url.endsWith('.svg')) {
-            res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
-          } else if (req.url.match(/\.(woff|woff2|ttf|otf|eot)$/)) {
-            const ext = req.url.split('.').pop();
-            const mimeTypes = {
-              woff: 'font/woff',
-              woff2: 'font/woff2',
-              ttf: 'font/ttf',
-              otf: 'font/otf',
-              eot: 'application/vnd.ms-fontobject',
-            };
-            res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
-          }
-          next();
-        });
+        devServer.app.use(mimeTypeMiddleware);
       },
     };
   }

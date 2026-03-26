@@ -9,7 +9,7 @@ class NetworkStatusManager {
 
   private initialize() {
     // Use browser's navigator.onLine
-    if (typeof navigator !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
       this.isConnected = navigator.onLine;
 
       window.addEventListener('online', () => {
