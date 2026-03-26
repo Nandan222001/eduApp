@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column('grace_period_end', sa.DateTime(), nullable=True),
         sa.Column('canceled_at', sa.DateTime(), nullable=True),
         sa.Column('next_billing_date', sa.DateTime(), nullable=True),
-        sa.Column('auto_renew', sa.Boolean(), nullable=False, server_default='true'),
+        sa.Column('auto_renew', sa.Boolean(), nullable=False, server_default=sa.text('1')),
         sa.Column('external_subscription_id', sa.String(length=255), nullable=True),
         sa.Column('razorpay_subscription_id', sa.String(length=255), nullable=True),
         sa.Column('razorpay_customer_id', sa.String(length=255), nullable=True),
