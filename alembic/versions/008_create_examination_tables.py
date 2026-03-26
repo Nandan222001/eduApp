@@ -18,9 +18,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE TYPE examtype AS ENUM ('unit', 'mid_term', 'final', 'mock')")
-    op.execute("CREATE TYPE examstatus AS ENUM ('scheduled', 'ongoing', 'completed', 'cancelled')")
-    
     op.create_table(
         'exams',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -235,6 +232,3 @@ def downgrade() -> None:
     op.drop_table('exam_schedules')
     op.drop_table('exam_subjects')
     op.drop_table('exams')
-    
-    op.execute('DROP TYPE IF EXISTS examstatus')
-    op.execute('DROP TYPE IF EXISTS examtype')
