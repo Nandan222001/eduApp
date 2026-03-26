@@ -17,6 +17,10 @@
     "validate-ios": "node validate-ios-setup.js",
     "validate-android": "node validate-android-setup.js",
     "validate-deep-linking": "node scripts/validate-deep-linking.js",
+    "validate-offline": "node scripts/validate-offline-functionality.js",
+    "test-offline": "npm test -- --testPathPattern=offline",
+    "test-offline-unit": "npm test -- __tests__/unit/offline",
+    "test-offline-integration": "npm test -- __tests__/integration/offline",
     "test-ios": "npm run validate-ios && npm run type-check && npm run lint",
     "test-android": "npm run validate-android && npm run type-check && npm run lint",
     "test-deep-links": "npm run validate-deep-linking && npm test -- deepLinking"

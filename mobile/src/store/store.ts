@@ -44,7 +44,7 @@ const studentDataPersistConfig = {
 const offlinePersistConfig = {
   key: 'offline',
   storage: AsyncStorage,
-  whitelist: ['queuedOperations', 'lastSyncTime', 'autoSyncEnabled'],
+  whitelist: ['queuedOperations', 'pendingActions', 'lastSyncTime', 'autoSyncEnabled'],
 };
 
 const rootReducer = combineReducers({
