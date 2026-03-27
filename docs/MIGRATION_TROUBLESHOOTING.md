@@ -37,6 +37,7 @@ This document provides comprehensive troubleshooting guidance for database migra
 | Duplicate Revision IDs | 5 | Critical | ✅ Resolved |
 | Missing Tables | 13 | Critical | ✅ Resolved |
 | Foreign Key Violations | ~30 | High | ✅ Resolved |
+| Missing Referenced Tables (FK) | 1+ | High | ✅ Resolved |
 | Enum Type Mismatches | 9 | Medium | ✅ Resolved |
 | Missing Indexes | 60+ | Medium | ✅ Resolved |
 | Schema Drift | Multiple | Medium | ✅ Resolved |
@@ -355,6 +356,225 @@ Created migration `039_validate_schema_consistency.py` that:
        )
    """))
    ```
+
+---
+
+### 10. Foreign Key Constraint Error Due to Missing Referenced Table
+
+**Error Message:**
+```
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) 
+(1215, 'Cannot add foreign key constraint')
+
+OR
+
+sqlalchemy.exc.IntegrityError: (pymysql.err.IntegrityError) 
+(1452, 'Cannot add or update a child row: a foreign key constraint fails')
+```
+
+**Root Cause:**
+A migration attempts to create a foreign key constraint to a table that doesn't exist yet in the database. This occurs when:
+1. The referenced table is created in a migration that hasn't run yet
+2. Migration dependencies are not properly specified
+3. Migrations run in the wrong order
+
+**Example Case - Migration 011:**
+Migration `011_add_student_learning_path.py` creates a foreign key to `questions_bank` table:
+```python
+op.create_foreign_key(
+    'fk_path_questions_question_id',
+    'student_learning_path_questions', 'questions_bank',
+    ['question_id'], ['id'],
+    ondelete='CASCADE'
+)
+```
+
+However, `questions_bank` is created in migration `006a_add_exam_platform_schema.py`. When migration 011 runs before 006a completes, the foreign key creation fails because the referenced table doesn't exist.
+
+**How to Diagnose:**
+
+1. **Identify the Missing Table:**
+   ```sql
+   -- Check if table exists
+   SELECT table_name 
+   FROM information_schema.tables 
+   WHERE table_schema = 'your_database_name' 
+     AND table_name = 'questions_bank';
+   ```
+   
+   If this returns no rows, the table doesn't exist.
+
+2. **Verify Foreign Key Column Types:**
+   ```sql
+   -- Check column types match
+   SELECT column_name, data_type, is_nullable
+   FROM information_schema.columns
+   WHERE table_schema = 'your_database_name'
+     AND table_name = 'student_learning_path_questions'
+     AND column_name = 'question_id';
+   
+   SELECT column_name, data_type, is_nullable
+   FROM information_schema.columns
+   WHERE table_schema = 'your_database_name'
+     AND table_name = 'questions_bank'
+     AND column_name = 'id';
+   ```
+   
+   Both columns should have matching types (e.g., both INTEGER).
+
+3. **Check for Indexes on Referenced Columns:**
+   ```sql
+   -- MySQL: Check if primary key or unique index exists
+   SELECT index_name, column_name
+   FROM information_schema.statistics
+   WHERE table_schema = 'your_database_name'
+     AND table_name = 'questions_bank'
+     AND column_name = 'id';
+   ```
+   
+   The referenced column must have a PRIMARY KEY or UNIQUE constraint.
+
+4. **Check Migration Order and Dependencies:**
+   ```bash
+   # View migration history
+   alembic history
+   
+   # Check current migration state
+   alembic current
+   
+   # Look for the migration that creates the referenced table
+   grep -r "create_table.*questions_bank" alembic/versions/
+   ```
+
+**Resolution Steps:**
+
+1. **Add Explicit Dependency:**
+   
+   Update the migration to explicitly depend on the migration that creates the referenced table:
+   ```python
+   # In 011_add_student_learning_path.py
+   revision = '011'
+   down_revision = '010'
+   depends_on = ('006a',)  # Ensure 006a runs before this migration
+   ```
+
+2. **Add Defensive Check:**
+   
+   Add a check to verify the table exists before creating the foreign key:
+   ```python
+   def upgrade() -> None:
+       conn = op.get_bind()
+       
+       # Check if referenced table exists
+       result = conn.execute(sa.text("""
+           SELECT COUNT(*) 
+           FROM information_schema.tables 
+           WHERE table_schema = DATABASE()
+             AND table_name = 'questions_bank'
+       """)).scalar()
+       
+       if result == 0:
+           raise Exception(
+               "Cannot create foreign key: questions_bank table does not exist. "
+               "Ensure migration 006a runs before this migration."
+           )
+       
+       # Proceed with foreign key creation
+       op.create_foreign_key(
+           'fk_path_questions_question_id',
+           'student_learning_path_questions', 'questions_bank',
+           ['question_id'], ['id'],
+           ondelete='CASCADE'
+       )
+   ```
+
+3. **Verify Column Type Compatibility:**
+   
+   Ensure the foreign key column and referenced column have the same type:
+   ```python
+   # In the migration creating the child table
+   op.create_table(
+       'student_learning_path_questions',
+       sa.Column('id', sa.Integer(), nullable=False),
+       sa.Column('question_id', sa.Integer(), nullable=False),  # Must match questions_bank.id
+       # ... other columns
+   )
+   ```
+
+4. **Test the Fix:**
+   ```bash
+   # Start fresh
+   alembic downgrade base
+   
+   # Run all migrations
+   alembic upgrade head
+   
+   # Verify foreign key was created
+   mysql -e "SHOW CREATE TABLE student_learning_path_questions\G"
+   ```
+
+**Prevention Strategies:**
+
+1. **Use `depends_on` for Cross-Branch Dependencies:**
+   ```python
+   # When migration B needs a table from migration A in a different branch
+   revision = 'B'
+   down_revision = 'previous_revision'
+   depends_on = ('A',)  # Explicit dependency
+   ```
+
+2. **Document Table Creation in Migration Headers:**
+   ```python
+   """Add student learning path tables
+   
+   Revision ID: 011
+   Revises: 010
+   Depends on: 006a (requires questions_bank table)
+   Create Date: 2024-01-20
+   
+   Tables created:
+   - student_learning_paths
+   - student_learning_path_questions (foreign key to questions_bank)
+   """
+   ```
+
+3. **Add Table Existence Checks in Complex Migrations:**
+   ```python
+   def verify_prerequisites(conn, required_tables):
+       """Verify all required tables exist before proceeding."""
+       for table in required_tables:
+           result = conn.execute(sa.text("""
+               SELECT COUNT(*) 
+               FROM information_schema.tables 
+               WHERE table_schema = DATABASE()
+                 AND table_name = :table
+           """), {"table": table}).scalar()
+           
+           if result == 0:
+               raise Exception(f"Required table '{table}' does not exist")
+   
+   def upgrade() -> None:
+       conn = op.get_bind()
+       verify_prerequisites(conn, ['questions_bank', 'students', 'institutions'])
+       # ... proceed with migration
+   ```
+
+4. **Use Migration Testing Framework:**
+   ```bash
+   # Test migrations on fresh database
+   ./run_migration_006a_diagnostic.ps1
+   
+   # Test specific migration
+   python test_migration_011.py
+   ```
+
+**Similar Issues to Watch For:**
+
+- Foreign keys to tables in feature branch migrations
+- Foreign keys to tables created by parallel development efforts
+- Cross-schema foreign keys (if using multiple schemas)
+- Foreign keys to views instead of tables
+- Circular foreign key dependencies between tables
 
 ---
 
@@ -1517,6 +1737,7 @@ After resolving a migration issue:
 | Date | Version | Author | Changes |
 |------|---------|--------|---------|
 | 2024-01-20 | 1.0 | System | Initial creation with comprehensive troubleshooting guide |
+| 2024-01-20 | 1.1 | System | Added section 10: Foreign Key Constraint Error Due to Missing Referenced Table - documents migration 011 fix with diagnostic steps and prevention strategies |
 
 ---
 
