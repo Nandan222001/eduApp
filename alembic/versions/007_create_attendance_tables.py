@@ -1,7 +1,7 @@
 """create attendance tables
 
 Revision ID: 007
-Revises: 006
+Revises: 006a
 Create Date: 2024-01-17 10:00:00.000000
 
 """
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = '007'
-down_revision = '006'
+down_revision = '006a'
 branch_labels = None
 depends_on = None
 
