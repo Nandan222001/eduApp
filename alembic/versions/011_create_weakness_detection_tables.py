@@ -62,6 +62,9 @@ def upgrade():
     if 'idx_chapter_perf_proficiency' not in existing_indexes:
         op.create_index('idx_chapter_perf_proficiency', 'chapter_performance', ['proficiency_level'])
 
+    if 'questions_bank' not in inspector.get_table_names():
+        raise ValueError('questions_bank table must exist before creating question_recommendations')
+    
     if 'question_recommendations' not in inspector.get_table_names():
         op.create_table(
             'question_recommendations',
