@@ -11,7 +11,7 @@ import sqlalchemy as sa
 revision = '011'
 down_revision = '010_study_planner'
 branch_labels = None
-depends_on = None
+depends_on = ('006a',)
 
 
 def upgrade():
