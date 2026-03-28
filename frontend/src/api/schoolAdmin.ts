@@ -176,6 +176,14 @@ export interface Staff {
   joining_date?: string;
   leaving_date?: string;
   salary?: number;
+  bank_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
+  pan_number?: string;
+  address?: string;
+  emergency_contact?: string;
+  qualification?: string;
+  experience_years?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -191,6 +199,14 @@ export interface StaffCreate {
   designation?: string;
   joining_date?: string;
   salary?: number;
+  bank_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
+  pan_number?: string;
+  address?: string;
+  emergency_contact?: string;
+  qualification?: string;
+  experience_years?: number;
   is_active?: boolean;
 }
 
@@ -205,6 +221,14 @@ export interface StaffUpdate {
   joining_date?: string;
   leaving_date?: string;
   salary?: number;
+  bank_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
+  pan_number?: string;
+  address?: string;
+  emergency_contact?: string;
+  qualification?: string;
+  experience_years?: number;
   is_active?: boolean;
 }
 
@@ -230,11 +254,16 @@ export interface PayrollRecord {
   institution_id: number;
   staff_id: number;
   staff_name?: string;
+  employee_id?: string;
+  department?: string;
   month: string;
   year: number;
   basic_salary: number;
+  hra?: number;
+  da?: number;
   allowances?: number;
   deductions?: number;
+  gross_salary: number;
   net_salary: number;
   payment_date?: string;
   payment_status: 'pending' | 'paid' | 'cancelled';
@@ -247,6 +276,8 @@ export interface PayrollRecordCreate {
   month: string;
   year: number;
   basic_salary: number;
+  hra?: number;
+  da?: number;
   allowances?: number;
   deductions?: number;
   payment_date?: string;
@@ -254,6 +285,8 @@ export interface PayrollRecordCreate {
 
 export interface PayrollRecordUpdate {
   basic_salary?: number;
+  hra?: number;
+  da?: number;
   allowances?: number;
   deductions?: number;
   payment_date?: string;
@@ -274,6 +307,31 @@ export interface PayrollListResponse {
   total: number;
   skip: number;
   limit: number;
+}
+
+export interface GeneratePayrollRequest {
+  month: string;
+  year: number;
+  department?: string;
+}
+
+export interface PayrollSummary {
+  total_staff: number;
+  total_gross: number;
+  total_deductions: number;
+  total_net: number;
+  department_breakdown: Array<{
+    department: string;
+    staff_count: number;
+    total_gross: number;
+    total_net: number;
+  }>;
+}
+
+export interface BulkPayrollUpdateRequest {
+  payroll_ids: number[];
+  payment_status?: 'pending' | 'paid' | 'cancelled';
+  payment_date?: string;
 }
 
 // SMS Template Types
@@ -522,6 +580,26 @@ const schoolAdminApi = {
     delete: async (id: number): Promise<void> => {
       await axios.delete(`/api/v1/staff/${id}`);
     },
+
+    bulkImport: async (
+      file: File
+    ): Promise<{ imported: number; failed: number; errors?: string[] }> => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await axios.post('/api/v1/staff/bulk-import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    },
+
+    downloadTemplate: async (): Promise<Blob> => {
+      const response = await axios.get('/api/v1/staff/import-template', {
+        responseType: 'blob',
+      });
+      return response.data;
+    },
   },
 
   // Payroll APIs
@@ -552,6 +630,33 @@ const schoolAdminApi = {
 
     generatePayslip: async (id: number): Promise<Blob> => {
       const response = await axios.get(`/api/v1/payroll/${id}/payslip`, {
+        responseType: 'blob',
+      });
+      return response.data;
+    },
+
+    generatePayroll: async (
+      data: GeneratePayrollRequest
+    ): Promise<{ created: number; message: string }> => {
+      const response = await axios.post('/api/v1/payroll/generate', data);
+      return response.data;
+    },
+
+    getSummary: async (month: string, year: number): Promise<PayrollSummary> => {
+      const response = await axios.get('/api/v1/payroll/summary', {
+        params: { month, year },
+      });
+      return response.data;
+    },
+
+    bulkUpdate: async (data: BulkPayrollUpdateRequest): Promise<{ updated: number }> => {
+      const response = await axios.post('/api/v1/payroll/bulk-update', data);
+      return response.data;
+    },
+
+    exportReport: async (month: string, year: number, format: 'excel' | 'pdf'): Promise<Blob> => {
+      const response = await axios.get('/api/v1/payroll/export', {
+        params: { month, year, format },
         responseType: 'blob',
       });
       return response.data;
