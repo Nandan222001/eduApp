@@ -174,6 +174,13 @@ from src.models.subject_rpg import (
     StudentCharacter, SubjectWorld, BattleSession, SubjectPassport, QuestLog, QuestType
 )
 from src.models.feedback import Feedback
+from src.models.school_admin import (
+    CertificateTemplate, IssuedCertificate, IDCardTemplate, StaffMember,
+    StaffPayroll, SMSTemplate, EnquiryRecord,
+    CertificateType, IssuedCertificateStatus, IDCardOrientation,
+    StaffDepartment, StaffStatus, PayrollPaymentStatus, SMSTemplateType,
+    EnquirySource, EnquiryStatus
+)
 
 __all__ = [
     "Institution",
@@ -596,4 +603,20 @@ __all__ = [
     "QuestLog",
     "QuestType",
     "Feedback",
+    "CertificateTemplate",
+    "IssuedCertificate",
+    "IDCardTemplate",
+    "StaffMember",
+    "StaffPayroll",
+    "SMSTemplate",
+    "EnquiryRecord",
+    "CertificateType",
+    "IssuedCertificateStatus",
+    "IDCardOrientation",
+    "StaffDepartment",
+    "StaffStatus",
+    "PayrollPaymentStatus",
+    "SMSTemplateType",
+    "EnquirySource",
+    "EnquiryStatus",
 ]

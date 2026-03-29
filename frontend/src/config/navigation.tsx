@@ -28,6 +28,13 @@ import {
   Store as StoreIcon,
   EmojiEvents as TrophyIcon,
   Favorite as HeartIcon,
+  CardMembership as CertificateIcon,
+  Badge as IDCardIcon,
+  Work as StaffIcon,
+  AccountBalance as PayrollIcon,
+  ContactMail as EnquiryIcon,
+  Sms as SmsIcon,
+  AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import { NavigationItem } from '@/types/navigation';
 
@@ -136,6 +143,50 @@ export const navigationConfig: NavigationItem[] = [
         title: 'Syllabus',
         path: '/admin/academic/syllabus',
         icon: <BookIcon />,
+      },
+    ],
+  },
+  {
+    id: 'school-admin',
+    title: 'School Admin',
+    icon: <AdminIcon />,
+    roles: ['admin', 'institution_admin'],
+    children: [
+      {
+        id: 'school-admin-certificates',
+        title: 'Certificates',
+        path: '/admin/school-admin/certificates',
+        icon: <CertificateIcon />,
+      },
+      {
+        id: 'school-admin-id-cards',
+        title: 'ID Cards',
+        path: '/admin/school-admin/id-cards',
+        icon: <IDCardIcon />,
+      },
+      {
+        id: 'school-admin-staff',
+        title: 'Staff',
+        path: '/admin/school-admin/staff',
+        icon: <StaffIcon />,
+      },
+      {
+        id: 'school-admin-payroll',
+        title: 'Payroll',
+        path: '/admin/school-admin/payroll',
+        icon: <PayrollIcon />,
+      },
+      {
+        id: 'school-admin-enquiries',
+        title: 'Enquiries',
+        path: '/admin/school-admin/enquiries',
+        icon: <EnquiryIcon />,
+      },
+      {
+        id: 'school-admin-sms-templates',
+        title: 'SMS Templates',
+        path: '/admin/school-admin/sms-templates',
+        icon: <SmsIcon />,
       },
     ],
   },

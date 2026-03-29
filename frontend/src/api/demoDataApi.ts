@@ -4204,6 +4204,277 @@ const demoOlympicsApi = {
   getCertificates: async (_userId: number) => [],
 };
 
+export const demoCertificatesApi = {
+  list: async (params?: { student_id?: number; certificate_type?: string }) => {
+    let certificates = [...demoData.certificates];
+
+    if (params?.student_id) {
+      certificates = certificates.filter((c) => c.student_id === params.student_id);
+    }
+    if (params?.certificate_type) {
+      certificates = certificates.filter((c) => c.certificate_type === params.certificate_type);
+    }
+
+    return Promise.resolve(certificates);
+  },
+
+  generate: async (data: Record<string, unknown>) => {
+    const newCertificate = {
+      id: demoData.certificates.length + 1,
+      institution_id: 1,
+      student_id: data.student_id as number,
+      certificate_type: data.certificate_type as string,
+      certificate_number: `${(data.certificate_type as string).toUpperCase().substring(0, 2)}-2024-${String(demoData.certificates.length + 1).padStart(3, '0')}`,
+      issue_date: new Date().toISOString().split('T')[0],
+      data: data.data as Record<string, unknown>,
+      issued_by: 3001,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return Promise.resolve(newCertificate);
+  },
+
+  download: async (_certificateId: number): Promise<Blob> => {
+    return Promise.resolve(new Blob(['Certificate PDF content'], { type: 'application/pdf' }));
+  },
+};
+
+export const demoStaffApi = {
+  list: async (params?: {
+    skip?: number;
+    limit?: number;
+    department?: string;
+    search?: string;
+  }) => {
+    let staff = [...demoData.staff];
+
+    if (params?.department) {
+      staff = staff.filter((s) => s.department === params.department);
+    }
+    if (params?.search) {
+      const searchLower = params.search.toLowerCase();
+      staff = staff.filter(
+        (s) =>
+          s.first_name.toLowerCase().includes(searchLower) ||
+          s.last_name.toLowerCase().includes(searchLower) ||
+          s.employee_id.toLowerCase().includes(searchLower)
+      );
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedStaff = staff.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedStaff,
+      total: staff.length,
+      skip,
+      limit,
+    });
+  },
+
+  get: async (staffId: number) => {
+    const staff = demoData.staff.find((s) => s.id === staffId);
+    return Promise.resolve(staff || demoData.staff[0]);
+  },
+
+  create: async (data: Record<string, unknown>) => {
+    const newStaff = {
+      id: demoData.staff.length + 1,
+      institution_id: 1,
+      employee_id: `EMP${String(demoData.staff.length + 1).padStart(3, '0')}`,
+      ...data,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return Promise.resolve(newStaff);
+  },
+
+  update: async (staffId: number, data: Record<string, unknown>) => {
+    const staff = demoData.staff.find((s) => s.id === staffId);
+    return Promise.resolve({
+      ...(staff || demoData.staff[0]),
+      ...data,
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  delete: async (_staffId: number): Promise<void> => {
+    return Promise.resolve();
+  },
+};
+
+export const demoPayrollApi = {
+  list: async (params?: { skip?: number; limit?: number; month?: string; staff_id?: number }) => {
+    let payroll = [...demoData.payroll];
+
+    if (params?.month) {
+      payroll = payroll.filter((p) => p.month === params.month);
+    }
+    if (params?.staff_id) {
+      payroll = payroll.filter((p) => p.staff_id === params.staff_id);
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedPayroll = payroll.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedPayroll,
+      total: payroll.length,
+      skip,
+      limit,
+    });
+  },
+
+  get: async (payrollId: number) => {
+    const payroll = demoData.payroll.find((p) => p.id === payrollId);
+    return Promise.resolve(payroll || demoData.payroll[0]);
+  },
+
+  generate: async (data: Record<string, unknown>) => {
+    const newPayroll = {
+      id: demoData.payroll.length + 1,
+      institution_id: 1,
+      ...data,
+      payment_status: 'pending' as const,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return Promise.resolve(newPayroll);
+  },
+
+  processPayment: async (payrollId: number) => {
+    const payroll = demoData.payroll.find((p) => p.id === payrollId);
+    return Promise.resolve({
+      ...(payroll || demoData.payroll[0]),
+      payment_status: 'paid' as const,
+      payment_date: new Date().toISOString().split('T')[0],
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  downloadPayslip: async (_payrollId: number): Promise<Blob> => {
+    return Promise.resolve(new Blob(['Payslip PDF content'], { type: 'application/pdf' }));
+  },
+};
+
+export const demoEnquiriesApi = {
+  list: async (params?: {
+    skip?: number;
+    limit?: number;
+    status?: string;
+    grade_interested?: string;
+    from_date?: string;
+  }) => {
+    let enquiries = [...demoData.enquiries];
+
+    if (params?.status) {
+      enquiries = enquiries.filter((e) => e.status === params.status);
+    }
+    if (params?.grade_interested) {
+      enquiries = enquiries.filter((e) => e.grade_interested === params.grade_interested);
+    }
+    if (params?.from_date) {
+      enquiries = enquiries.filter((e) => e.enquiry_date >= params.from_date!);
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedEnquiries = enquiries.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedEnquiries,
+      total: enquiries.length,
+      skip,
+      limit,
+    });
+  },
+
+  get: async (enquiryId: number) => {
+    const enquiry = demoData.enquiries.find((e) => e.id === enquiryId);
+    return Promise.resolve(enquiry || demoData.enquiries[0]);
+  },
+
+  create: async (data: Record<string, unknown>) => {
+    const newEnquiry = {
+      id: demoData.enquiries.length + 1,
+      institution_id: 1,
+      enquiry_date: new Date().toISOString().split('T')[0],
+      status: 'new' as const,
+      ...data,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return Promise.resolve(newEnquiry);
+  },
+
+  update: async (enquiryId: number, data: Record<string, unknown>) => {
+    const enquiry = demoData.enquiries.find((e) => e.id === enquiryId);
+    return Promise.resolve({
+      ...(enquiry || demoData.enquiries[0]),
+      ...data,
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  delete: async (_enquiryId: number): Promise<void> => {
+    return Promise.resolve();
+  },
+};
+
+export const demoSMSTemplatesApi = {
+  list: async () => {
+    return Promise.resolve(demoData.smsTemplates);
+  },
+
+  get: async (templateId: number) => {
+    const template = demoData.smsTemplates.find((t) => t.id === templateId);
+    return Promise.resolve(template || demoData.smsTemplates[0]);
+  },
+
+  create: async (data: Record<string, unknown>) => {
+    const newTemplate = {
+      id: demoData.smsTemplates.length + 1,
+      institution_id: 1,
+      ...data,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return Promise.resolve(newTemplate);
+  },
+
+  update: async (templateId: number, data: Record<string, unknown>) => {
+    const template = demoData.smsTemplates.find((t) => t.id === templateId);
+    return Promise.resolve({
+      ...(template || demoData.smsTemplates[0]),
+      ...data,
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  delete: async (_templateId: number): Promise<void> => {
+    return Promise.resolve();
+  },
+
+  sendSMS: async (_data: Record<string, unknown>) => {
+    return Promise.resolve({
+      message: 'SMS sent successfully',
+      sent_count: 1,
+      failed_count: 0,
+    });
+  },
+
+  sendTestSMS: async (_templateId: number, _phone: string) => {
+    return Promise.resolve({
+      message: 'Test SMS sent successfully',
+      status: 'sent',
+    });
+  },
+};
+
 export const demoDataApi = {
   students: demoStudentsApi,
   assignments: demoAssignmentsApi,
@@ -4227,6 +4498,11 @@ export const demoDataApi = {
   studyMaterials: demoStudyMaterialsApi,
   documentVault: demoDocumentVaultApi,
   olympics: demoOlympicsApi,
+  certificates: demoCertificatesApi,
+  staff: demoStaffApi,
+  payroll: demoPayrollApi,
+  enquiries: demoEnquiriesApi,
+  smsTemplates: demoSMSTemplatesApi,
 };
 
 export type {

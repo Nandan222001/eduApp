@@ -92,7 +92,8 @@ from src.api.v1 import (
     wellbeing,
     parent_roi,
     feedback,
-    migrations
+    migrations,
+    school_admin
 )
 from src.api import ml
 
@@ -193,3 +194,4 @@ api_router.include_router(wellbeing.router, prefix="/wellbeing", tags=["wellbein
 api_router.include_router(parent_roi.router, prefix="/parent-roi", tags=["parent-roi"])
 api_router.include_router(feedback.router, prefix="", tags=["feedback"])
 api_router.include_router(migrations.router, prefix="", tags=["migrations"])
+api_router.include_router(school_admin.router, prefix="/school-admin", tags=["school-admin"])

@@ -243,6 +243,12 @@ class StudentPromotionRequest(BaseModel):
     effective_date: Optional[date] = None
 
 
+class StudentPromotionCriteria(BaseModel):
+    minimum_attendance_percentage: Optional[float] = Field(None, ge=0, le=100)
+    minimum_pass_percentage: Optional[float] = Field(None, ge=0, le=100)
+    subject_wise_pass_required: Optional[bool] = None
+
+
 class StudentTransferRequest(BaseModel):
     student_id: int
     target_section_id: int
