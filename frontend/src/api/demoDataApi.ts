@@ -275,6 +275,25 @@ export const generateDemoExams = (count: number) => {
   return exams;
 };
 
+export const demoIDCardsApi = {
+  getStudentIDCardData: async (_id: number) => {
+    return Promise.resolve(demoData.idCard.data);
+  },
+
+  downloadIDCard: async (_id: number): Promise<Blob> => {
+    const content = `Student ID Card
+Name: ${demoData.idCard.data.student_name}
+Admission Number: ${demoData.idCard.data.admission_number}
+Class: ${demoData.idCard.data.class_section}
+Valid Until: ${demoData.idCard.data.valid_until}`;
+    return Promise.resolve(new Blob([content], { type: 'application/pdf' }));
+  },
+
+  getTemplates: async () => {
+    return Promise.resolve(demoData.idCard.templates);
+  },
+};
+
 export const demoStudentsApi = {
   getStudentProfile: async (_id: number): Promise<StudentProfile> => {
     return Promise.resolve(demoData.student.profile);
