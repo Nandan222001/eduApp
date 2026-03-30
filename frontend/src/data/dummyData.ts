@@ -4080,6 +4080,36 @@ export const demoSMSTemplates = [
   },
 ];
 
+/**
+ * Demo certificate templates for different certificate types
+ * 
+ * Contains HTML templates with variable placeholders for generating certificates.
+ * Each template can be customized by institution admins and supports dynamic data insertion.
+ * 
+ * Available Certificate Types:
+ * - transfer_certificate: Issued when student transfers to another institution
+ * - character_certificate: Certifies student's conduct and character
+ * - bonafide_certificate: Certifies student enrollment (for bank, scholarship, etc.)
+ * - study_certificate: Certifies enrollment and academic progress
+ * - completion_certificate: Awarded upon course/program completion
+ * 
+ * Template Variables Supported:
+ * - {{student_name}}, {{grade}}, {{admission_number}}
+ * - {{admission_date}}, {{leaving_date}}, {{issue_date}}
+ * - {{certificate_number}}, {{institution_name}}, {{principal_name}}
+ * - {{reason}}, {{purpose}}, {{conduct}}, {{course_name}}
+ * 
+ * @type {Array<{
+ *   id: number,
+ *   institution_id: number,
+ *   certificate_type: string,
+ *   template_name: string,
+ *   template_content: string,
+ *   is_active: boolean,
+ *   created_at: string,
+ *   updated_at: string
+ * }>}
+ */
 export const demoCertificateTemplates = [
   {
     id: 1,
@@ -4280,6 +4310,41 @@ export const demoCertificateTemplates = [
   },
 ];
 
+/**
+ * Demo issued certificates for students
+ * 
+ * Contains sample certificates of all types that have been issued to students.
+ * Each certificate has a unique certificate number and tracks issuer and issue date.
+ * 
+ * Certificate Structure:
+ * - id: Unique identifier for the certificate record
+ * - institution_id: The institution that issued the certificate
+ * - student_id: The student who received the certificate
+ * - certificate_type: Type of certificate (transfer/character/bonafide/study/completion)
+ * - certificate_number: Unique certificate number (format: TYPE-YYYY-XXX)
+ * - issue_date: Date when certificate was issued
+ * - data: Type-specific certificate data (student info, grades, dates, etc.)
+ * - issued_by: User ID of the admin/teacher who issued the certificate
+ * 
+ * Sample Certificates:
+ * - Alex Johnson (1001): Transfer Certificate (TC-2024-001), Completion Certificate (COMP-2024-001)
+ * - Emma Wilson (1005): Character Certificate (CC-2024-001)
+ * - Michael Brown (1002): Bonafide Certificate (BC-2024-001)
+ * - Sophia Davis (1003): Study Certificate (SC-2024-001)
+ * 
+ * @type {Array<{
+ *   id: number,
+ *   institution_id: number,
+ *   student_id: number,
+ *   certificate_type: string,
+ *   certificate_number: string,
+ *   issue_date: string,
+ *   data: object,
+ *   issued_by: number,
+ *   created_at: string,
+ *   updated_at: string
+ * }>}
+ */
 export const demoCertificates = [
   {
     id: 1,
@@ -4410,6 +4475,52 @@ export const demoCertificates = [
   },
 ];
 
+/**
+ * Demo ID card templates with different design styles
+ * 
+ * Provides three template variations for student ID cards with different visual styles,
+ * color schemes, and feature sets (photo, barcode, QR code).
+ * 
+ * Template Types:
+ * 
+ * 1. Standard Template (Blue) - Template ID: 1
+ *    - Classic blue background with white text
+ *    - Includes: Student photo, barcode
+ *    - Use case: Basic daily school identification
+ * 
+ * 2. Premium Template (Green) - Template ID: 2
+ *    - Professional green background with white text
+ *    - Includes: Student photo, barcode, QR code
+ *    - Use case: Enhanced security with dual verification (barcode + QR)
+ * 
+ * 3. Minimal Template (White) - Template ID: 3
+ *    - Clean white background with black text
+ *    - Includes: Student photo, QR code only
+ *    - Use case: Modern, minimalist design for senior students
+ * 
+ * Template Features:
+ * - Customizable colors (background and text)
+ * - Optional student photo display
+ * - Optional barcode for traditional scanning
+ * - Optional QR code for digital verification
+ * - All templates support bulk generation
+ * - Print-ready format support
+ * 
+ * @type {Array<{
+ *   id: number,
+ *   institution_id: number,
+ *   template_name: string,
+ *   template_design: 'standard' | 'premium' | 'minimal',
+ *   background_color: string,
+ *   text_color: string,
+ *   include_photo: boolean,
+ *   include_barcode: boolean,
+ *   include_qr_code: boolean,
+ *   is_active: boolean,
+ *   created_at: string,
+ *   updated_at: string
+ * }>}
+ */
 export const demoIDCardTemplates = [
   {
     id: 1,
@@ -4455,6 +4566,62 @@ export const demoIDCardTemplates = [
   },
 ];
 
+/**
+ * Demo issued ID card data for students
+ * 
+ * Contains sample ID cards that have been generated for students.
+ * Each ID card includes student information, photo, barcode/QR code, and validity dates.
+ * 
+ * ID Card Structure:
+ * - id: Unique identifier for the ID card record
+ * - student_id: Reference to the student
+ * - institution_id: Reference to the institution
+ * - card_number: Unique card number (format: ID-YYYY-XXXX)
+ * - student_name: Full name of the student
+ * - grade: Student's current grade/class
+ * - section: Student's section
+ * - admission_number: Student's admission number
+ * - photo_url: URL to student's photo
+ * - blood_group: Student's blood group (for emergency)
+ * - emergency_contact: Emergency contact number
+ * - valid_from: Start date of card validity
+ * - valid_until: End date of card validity
+ * - barcode_data: Data encoded in barcode (typically admission number)
+ * - qr_code_data: Data encoded in QR code (verification URL)
+ * - template_id: Reference to the template used
+ * - issued_at: Timestamp when card was issued
+ * 
+ * Sample ID Cards:
+ * - Alex Johnson (1001): Standard Template (Blue) with barcode - ID-2024-1001
+ * - Emma Wilson (1005): Premium Template (Green) with barcode and QR code - ID-2024-1005
+ * 
+ * Features:
+ * - Each card has unique card number
+ * - Barcode encodes admission number for quick scanning
+ * - QR code contains verification URL for digital validation
+ * - Emergency contact and blood group for safety
+ * - Valid from/until dates for annual renewal tracking
+ * 
+ * @type {Array<{
+ *   id: number,
+ *   student_id: number,
+ *   institution_id: number,
+ *   card_number: string,
+ *   student_name: string,
+ *   grade: string,
+ *   section: string,
+ *   admission_number: string,
+ *   photo_url: string,
+ *   blood_group: string,
+ *   emergency_contact: string,
+ *   valid_from: string,
+ *   valid_until: string,
+ *   barcode_data: string,
+ *   qr_code_data: string,
+ *   template_id: number,
+ *   issued_at: string
+ * }>}
+ */
 export const demoIDCardData = [
   {
     id: 1,
@@ -4497,8 +4664,77 @@ export const demoIDCardData = [
 ];
 
 /**
- * Demo digital credentials (certificates and badges) for student Alex Johnson
- * Blockchain-verified certificates and digital badges with verification URLs
+ * Demo digital credentials (blockchain-verified certificates and badges)
+ * 
+ * Modern blockchain-verified digital credentials that students can share on professional platforms.
+ * Each credential is stored on blockchain for tamper-proof verification and includes a public
+ * verification URL that employers/institutions can use to validate authenticity.
+ * 
+ * Credential Types:
+ * 
+ * 1. Academic Certificates (credential_type: 'certificate', sub_type: 'academic')
+ *    - Course completion certificates with grades and scores
+ *    - Blockchain-verified for authenticity
+ *    - Example: Mathematics Excellence Certificate (95% score)
+ * 
+ * 2. Skill-Based Certificates (credential_type: 'certificate', sub_type: 'skill_based')
+ *    - Certifies specific competencies and skills
+ *    - Linked to competition results or achievements
+ *    - Example: English Debate Champion Certificate
+ * 
+ * 3. Digital Badges (credential_type: 'digital_badge')
+ *    - Micro-credentials for specific achievements
+ *    - Sub-types: skill_based, participation, achievement
+ *    - Example: Coding Champion Badge, Science Fair Participant Badge
+ * 
+ * Structure:
+ * - id: Unique credential identifier
+ * - credential_type: 'certificate' or 'digital_badge'
+ * - sub_type: 'academic', 'skill_based', 'participation', 'achievement'
+ * - title: Display name of the credential
+ * - description: Detailed description of the achievement
+ * - certificate_number: Unique certificate number (e.g., CERT-MATH-2024-001)
+ * - skills: Array of skills associated with the credential
+ * - metadata: Additional contextual information (course name, rank, competition, etc.)
+ * - blockchain_hash: Ethereum-style hash for blockchain verification
+ * - blockchain_credential_id: Unique blockchain credential identifier
+ * - blockchain_status: 'verified', 'pending', or 'failed'
+ * - verification_url: Public URL for credential verification
+ * - qr_code_url: QR code image URL for mobile verification
+ * - verification_count: Number of times credential has been verified
+ * - share_count: Number of times credential has been shared
+ * 
+ * Features:
+ * - Blockchain verification ensures authenticity and prevents tampering
+ * - Public verification URLs allow anyone to validate credentials
+ * - QR codes enable easy mobile verification
+ * - Share functionality for LinkedIn, email, and social media
+ * - Analytics tracking (verification count, share count)
+ * - Skills tagging for searchability
+ * - Issuer information for credibility
+ * 
+ * Sample Credentials for Alex Johnson (student_id: 1001):
+ * 1. Mathematics Excellence Certificate - 95% score (CERT-MATH-2024-001)
+ * 2. Physics Laboratory Excellence - 93% score (CERT-PHY-2024-002)
+ * 3. Coding Champion Badge - 1st place (BADGE-CODE-2024-001)
+ * 4. Science Fair Participant Badge (BADGE-SCIF-2024-001)
+ * 5. English Debate Champion Certificate (CERT-ENG-2024-003)
+ * 
+ * Usage:
+ * ```javascript
+ * // Get all credentials for a student
+ * const studentCredentials = demoCredentials.filter(c => c.recipient_id === 1001);
+ * 
+ * // Verify a credential
+ * const cert = demoCredentials.find(c => c.certificate_number === 'CERT-MATH-2024-001');
+ * console.log(cert.verification_url); // Open for public verification
+ * console.log(cert.blockchain_status); // Check if verified on blockchain
+ * 
+ * // Get only digital badges
+ * const badges = demoCredentials.filter(c => c.credential_type === 'digital_badge');
+ * ```
+ * 
+ * @type {Credential[]}
  */
 export const demoCredentials: Credential[] = [
   {
