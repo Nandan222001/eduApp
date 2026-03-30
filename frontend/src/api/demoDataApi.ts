@@ -10,6 +10,10 @@ import {
   parentDashboardData,
   adminDashboardData,
   superadminDashboardData,
+  demoCertificateTemplates,
+  demoCertificates,
+  demoIDCardTemplates,
+  demoIDCardData,
   type ClassRosterStudent,
   type StudentSubmissionDetail,
   type ExamMarkEntry,
@@ -4204,9 +4208,131 @@ const demoOlympicsApi = {
   getCertificates: async (_userId: number) => [],
 };
 
+export interface CertificateTemplate {
+  id: number;
+  institution_id: number;
+  certificate_type: string;
+  template_name: string;
+  template_content: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IssuedCertificate {
+  id: number;
+  institution_id: number;
+  student_id: number;
+  certificate_type: string;
+  certificate_number: string;
+  issue_date: string;
+  data: Record<string, unknown>;
+  issued_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CertificatePreviewData {
+  template_id: number;
+  student_data: Record<string, unknown>;
+  preview_html: string;
+  generated_at: string;
+}
+
+export interface IDCardTemplate {
+  id: number;
+  institution_id: number;
+  template_name: string;
+  template_design: string;
+  background_color: string;
+  text_color: string;
+  include_photo: boolean;
+  include_barcode: boolean;
+  include_qr_code: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentIDCardData {
+  id: number;
+  student_id: number;
+  institution_id: number;
+  card_number: string;
+  student_name: string;
+  grade: string;
+  section: string;
+  admission_number: string;
+  photo_url: string;
+  blood_group: string;
+  emergency_contact: string;
+  valid_from: string;
+  valid_until: string;
+  barcode_data: string;
+  qr_code_data: string;
+  template_id: number;
+  issued_at: string;
+}
+
+export interface IDCardGenerationResult {
+  success: boolean;
+  card_data: StudentIDCardData;
+  message: string;
+}
+
+export interface BulkIDCardGenerationResult {
+  successful: number[];
+  failed: number[];
+  total_processed: number;
+  cards_generated: StudentIDCardData[];
+}
+
 export const demoCertificatesApi = {
+  getCertificateTemplates: async (
+    certificate_type?: string
+  ): Promise<CertificateTemplate[]> => {
+    let templates = [...demoCertificateTemplates];
+
+    if (certificate_type) {
+      templates = templates.filter((t) => t.certificate_type === certificate_type);
+    }
+
+    return Promise.resolve(templates);
+  },
+
+  getIssuedCertificates: async (student_id: number): Promise<IssuedCertificate[]> => {
+    const certificates = demoCertificates.filter((c) => c.student_id === student_id);
+    return Promise.resolve(certificates);
+  },
+
+  getCertificateById: async (id: number): Promise<IssuedCertificate | undefined> => {
+    const certificate = demoCertificates.find((c) => c.id === id);
+    return Promise.resolve(certificate);
+  },
+
+  downloadCertificatePDF: async (id: number): Promise<Blob> => {
+    const certificate = demoCertificates.find((c) => c.id === id);
+    const content = certificate
+      ? `Certificate PDF - ${certificate.certificate_number}`
+      : 'Certificate PDF content';
+    return Promise.resolve(new Blob([content], { type: 'application/pdf' }));
+  },
+
+  previewCertificateTemplate: async (
+    template_id: number,
+    student_data: object
+  ): Promise<CertificatePreviewData> => {
+    const template = demoCertificateTemplates.find((t) => t.id === template_id);
+    return Promise.resolve({
+      template_id,
+      student_data: student_data as Record<string, unknown>,
+      preview_html: template?.template_content || '<html>Certificate Preview</html>',
+      generated_at: new Date().toISOString(),
+    });
+  },
+
   list: async (params?: { student_id?: number; certificate_type?: string }) => {
-    let certificates = [...demoData.certificates];
+    let certificates = [...demoCertificates];
 
     if (params?.student_id) {
       certificates = certificates.filter((c) => c.student_id === params.student_id);
@@ -4220,11 +4346,11 @@ export const demoCertificatesApi = {
 
   generate: async (data: Record<string, unknown>) => {
     const newCertificate = {
-      id: demoData.certificates.length + 1,
+      id: demoCertificates.length + 1,
       institution_id: 1,
       student_id: data.student_id as number,
       certificate_type: data.certificate_type as string,
-      certificate_number: `${(data.certificate_type as string).toUpperCase().substring(0, 2)}-2024-${String(demoData.certificates.length + 1).padStart(3, '0')}`,
+      certificate_number: `${(data.certificate_type as string).toUpperCase().substring(0, 2)}-2024-${String(demoCertificates.length + 1).padStart(3, '0')}`,
       issue_date: new Date().toISOString().split('T')[0],
       data: data.data as Record<string, unknown>,
       issued_by: 3001,
@@ -4238,6 +4364,92 @@ export const demoCertificatesApi = {
     return Promise.resolve(new Blob(['Certificate PDF content'], { type: 'application/pdf' }));
   },
 };
+
+export const demoIDCardsApi = {
+  getIDCardTemplates: async (): Promise<IDCardTemplate[]> => {
+    return Promise.resolve(demoIDCardTemplates);
+  },
+
+  getStudentIDCardData: async (student_id: number): Promise<StudentIDCardData | undefined> => {
+    const cardData = demoIDCardData.find((card) => card.student_id === student_id);
+    return Promise.resolve(cardData);
+  },
+
+  generateIDCard: async (
+    student_id: number,
+    template_id: number
+  ): Promise<IDCardGenerationResult> => {
+    const template = demoIDCardTemplates.find((t) => t.id === template_id);
+    const student = demoData.student.profile;
+
+    if (!template) {
+      return Promise.resolve({
+        success: false,
+        card_data: {} as StudentIDCardData,
+        message: 'Template not found',
+      });
+    }
+
+    const newCard: StudentIDCardData = {
+      id: demoIDCardData.length + 1,
+      student_id,
+      institution_id: 1,
+      card_number: `ID-2024-${student_id}`,
+      student_name: student_id === student.id ? `${student.first_name} ${student.last_name}` : 'Student Name',
+      grade: student_id === student.id ? student.section?.grade?.name || '10th Grade' : '10th Grade',
+      section: student_id === student.id ? student.section?.name || 'A' : 'A',
+      admission_number: student_id === student.id ? student.admission_number : `STD2023${String(student_id).padStart(3, '0')}`,
+      photo_url: student_id === student.id ? student.photo_url || 'https://i.pravatar.cc/150?img=12' : 'https://i.pravatar.cc/150?img=12',
+      blood_group: student_id === student.id ? student.blood_group || 'O+' : 'O+',
+      emergency_contact: student_id === student.id ? student.parent_phone || '+1-555-0000' : '+1-555-0000',
+      valid_from: new Date().toISOString().split('T')[0],
+      valid_until: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+        .toISOString()
+        .split('T')[0],
+      barcode_data: student_id === student.id ? student.admission_number : `STD2023${String(student_id).padStart(3, '0')}`,
+      qr_code_data: `https://school.edu/verify/${student_id === student.id ? student.admission_number : `STD2023${String(student_id).padStart(3, '0')}`}`,
+      template_id,
+      issued_at: new Date().toISOString(),
+    };
+
+    return Promise.resolve({
+      success: true,
+      card_data: newCard,
+      message: 'ID card generated successfully',
+    });
+  },
+
+  bulkGenerateIDCards: async (
+    student_ids: number[],
+    template_id: number
+  ): Promise<BulkIDCardGenerationResult> => {
+    const successful: number[] = [];
+    const failed: number[] = [];
+    const cards_generated: StudentIDCardData[] = [];
+
+    for (const student_id of student_ids) {
+      try {
+        const result = await demoIDCardsApi.generateIDCard(student_id, template_id);
+        if (result.success) {
+          successful.push(student_id);
+          cards_generated.push(result.card_data);
+        } else {
+          failed.push(student_id);
+        }
+      } catch {
+        failed.push(student_id);
+      }
+    }
+
+    return Promise.resolve({
+      successful,
+      failed,
+      total_processed: student_ids.length,
+      cards_generated,
+    });
+  },
+};
+
 
 export const demoStaffApi = {
   list: async (params?: {
@@ -4499,6 +4711,7 @@ export const demoDataApi = {
   documentVault: demoDocumentVaultApi,
   olympics: demoOlympicsApi,
   certificates: demoCertificatesApi,
+  idCards: demoIDCardsApi,
   staff: demoStaffApi,
   payroll: demoPayrollApi,
   enquiries: demoEnquiriesApi,
@@ -4512,3 +4725,4 @@ export type {
   ParentMessage,
   StudentPerformanceMetric,
 };
+
