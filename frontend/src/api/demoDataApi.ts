@@ -291,6 +291,100 @@ Valid Until: ${demoData.idCard.data.valid_until}`;
   getTemplates: async () => {
     return Promise.resolve(demoData.idCard.templates);
   },
+
+  bulkGenerateIDCards: async (params: {
+    template_id: number;
+    student_ids: number[];
+    grade_id?: number;
+    section_id?: number;
+  }) => {
+    const jobId = `JOB-2024-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+    const studentCount = params.student_ids.length;
+
+    const jobData = {
+      job_id: jobId,
+      template_id: params.template_id,
+      generation_date: new Date().toISOString(),
+      student_count: studentCount,
+      status: 'in_progress',
+      progress: 0,
+      students_processed: 0,
+      students_list: [],
+      created_by: 'Michael Anderson',
+      created_at: new Date().toISOString(),
+      completed_at: null,
+    };
+
+    setTimeout(() => {
+      jobData.progress = 25;
+      jobData.students_processed = Math.floor(studentCount * 0.25);
+    }, 1000);
+
+    setTimeout(() => {
+      jobData.progress = 50;
+      jobData.students_processed = Math.floor(studentCount * 0.5);
+    }, 2000);
+
+    setTimeout(() => {
+      jobData.progress = 75;
+      jobData.students_processed = Math.floor(studentCount * 0.75);
+    }, 3000);
+
+    setTimeout(() => {
+      jobData.progress = 100;
+      jobData.students_processed = studentCount;
+      jobData.status = 'completed';
+      jobData.completed_at = new Date().toISOString();
+      jobData.students_list = params.student_ids.map((id, index) => ({
+        student_id: id,
+        student_name: `Student ${id}`,
+        admission_number: `STD2023${String(id).padStart(3, '0')}`,
+        generated_card_url: `https://storage.example.com/idcards/2024/STD2023${String(id).padStart(3, '0')}.pdf`,
+      }));
+    }, 4000);
+
+    return Promise.resolve(jobData);
+  },
+
+  getBulkGenerationHistory: async (params?: {
+    status?: string;
+    skip?: number;
+    limit?: number;
+  }) => {
+    let history = [...demoData.idCard.bulkGeneration];
+
+    if (params?.status) {
+      history = history.filter((job) => job.status === params.status);
+    }
+
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 50;
+    const paginatedHistory = history.slice(skip, skip + limit);
+
+    return Promise.resolve({
+      items: paginatedHistory,
+      total: history.length,
+      skip,
+      limit,
+    });
+  },
+
+  getBulkGenerationJob: async (jobId: string) => {
+    const job = demoData.idCard.bulkGeneration.find((j) => j.job_id === jobId);
+    if (!job) {
+      return Promise.reject(new Error('Job not found'));
+    }
+    return Promise.resolve(job);
+  },
+
+  downloadBulkGeneratedCards: async (jobId: string): Promise<Blob> => {
+    const job = demoData.idCard.bulkGeneration.find((j) => j.job_id === jobId);
+    if (!job) {
+      return Promise.reject(new Error('Job not found'));
+    }
+    const content = `Bulk ID Cards - Job: ${jobId}\nTotal Cards: ${job.student_count}\nStatus: ${job.status}`;
+    return Promise.resolve(new Blob([content], { type: 'application/zip' }));
+  },
 };
 
 export const demoStudentsApi = {

@@ -4663,6 +4663,147 @@ export const demoIDCardData = [
   },
 ];
 
+export const bulkIDCardGeneration = [
+  {
+    job_id: 'JOB-2024-001',
+    template_id: 1,
+    generation_date: '2024-02-01T10:00:00Z',
+    student_count: 45,
+    status: 'completed',
+    students_list: [
+      {
+        student_id: 1001,
+        student_name: 'Alex Johnson',
+        admission_number: 'STD2023001',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023001.pdf',
+      },
+      {
+        student_id: 1005,
+        student_name: 'Emma Wilson',
+        admission_number: 'STD2023005',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023005.pdf',
+      },
+      {
+        student_id: 1003,
+        student_name: 'Michael Chen',
+        admission_number: 'STD2023003',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023003.pdf',
+      },
+      {
+        student_id: 1007,
+        student_name: 'Sophia Martinez',
+        admission_number: 'STD2023007',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023007.pdf',
+      },
+      {
+        student_id: 1009,
+        student_name: 'Oliver Davis',
+        admission_number: 'STD2023009',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023009.pdf',
+      },
+    ],
+    created_by: 'Michael Anderson',
+    created_at: '2024-02-01T10:00:00Z',
+    completed_at: '2024-02-01T10:15:00Z',
+  },
+  {
+    job_id: 'JOB-2024-002',
+    template_id: 2,
+    generation_date: '2024-02-10T14:30:00Z',
+    student_count: 38,
+    status: 'completed',
+    students_list: [
+      {
+        student_id: 1011,
+        student_name: 'Isabella Garcia',
+        admission_number: 'STD2023011',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023011.pdf',
+      },
+      {
+        student_id: 1013,
+        student_name: 'Ethan Brown',
+        admission_number: 'STD2023013',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023013.pdf',
+      },
+      {
+        student_id: 1015,
+        student_name: 'Mia Taylor',
+        admission_number: 'STD2023015',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023015.pdf',
+      },
+    ],
+    created_by: 'Michael Anderson',
+    created_at: '2024-02-10T14:30:00Z',
+    completed_at: '2024-02-10T14:42:00Z',
+  },
+  {
+    job_id: 'JOB-2024-003',
+    template_id: 1,
+    generation_date: '2024-02-14T09:00:00Z',
+    student_count: 52,
+    status: 'in_progress',
+    students_list: [
+      {
+        student_id: 1020,
+        student_name: 'Lucas Anderson',
+        admission_number: 'STD2023020',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023020.pdf',
+      },
+      {
+        student_id: 1021,
+        student_name: 'Ava Thompson',
+        admission_number: 'STD2023021',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023021.pdf',
+      },
+    ],
+    created_by: 'Michael Anderson',
+    created_at: '2024-02-14T09:00:00Z',
+    completed_at: null,
+  },
+  {
+    job_id: 'JOB-2024-004',
+    template_id: 3,
+    generation_date: '2024-01-25T11:00:00Z',
+    student_count: 42,
+    status: 'completed',
+    students_list: [
+      {
+        student_id: 1030,
+        student_name: 'Noah Walker',
+        admission_number: 'STD2023030',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023030.pdf',
+      },
+      {
+        student_id: 1031,
+        student_name: 'Charlotte White',
+        admission_number: 'STD2023031',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023031.pdf',
+      },
+      {
+        student_id: 1032,
+        student_name: 'Liam Harris',
+        admission_number: 'STD2023032',
+        generated_card_url: 'https://storage.example.com/idcards/2024/STD2023032.pdf',
+      },
+    ],
+    created_by: 'Michael Anderson',
+    created_at: '2024-01-25T11:00:00Z',
+    completed_at: '2024-01-25T11:18:00Z',
+  },
+  {
+    job_id: 'JOB-2024-005',
+    template_id: 2,
+    generation_date: '2024-01-15T15:30:00Z',
+    student_count: 28,
+    status: 'failed',
+    students_list: [],
+    created_by: 'Michael Anderson',
+    created_at: '2024-01-15T15:30:00Z',
+    completed_at: null,
+    error_message: 'Template rendering failed due to missing student photos',
+  },
+];
+
 /**
  * Demo digital credentials (blockchain-verified certificates and badges)
  * 
@@ -5205,6 +5346,7 @@ export const demoData = {
   idCard: {
     templates: demoIDCardTemplates,
     data: demoIDCardData,
+    bulkGeneration: bulkIDCardGeneration,
   },
 };
 
@@ -5831,6 +5973,34 @@ export const adminDashboardData: InstitutionAdminDashboard = {
       value: '94.4%',
       trend: '+1.2%',
       icon: 'award',
+    },
+  ],
+  recent_bulk_id_card_generation: [
+    {
+      job_id: 'JOB-2024-003',
+      template_name: 'Standard Student ID Card',
+      generation_date: '2024-02-14T09:00:00Z',
+      student_count: 52,
+      status: 'in_progress',
+      created_by: 'Michael Anderson',
+    },
+    {
+      job_id: 'JOB-2024-002',
+      template_name: 'Premium Student ID Card',
+      generation_date: '2024-02-10T14:30:00Z',
+      student_count: 38,
+      status: 'completed',
+      created_by: 'Michael Anderson',
+      completed_at: '2024-02-10T14:42:00Z',
+    },
+    {
+      job_id: 'JOB-2024-001',
+      template_name: 'Standard Student ID Card',
+      generation_date: '2024-02-01T10:00:00Z',
+      student_count: 45,
+      status: 'completed',
+      created_by: 'Michael Anderson',
+      completed_at: '2024-02-01T10:15:00Z',
     },
   ],
 };
