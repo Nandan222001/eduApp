@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -26,6 +26,9 @@ import {
   Divider,
   Alert,
   Snackbar,
+  Checkbox,
+  FormGroup,
+  FormLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -33,17 +36,27 @@ import {
   Edit as EditIcon,
   Upload as UploadIcon,
   Save as SaveIcon,
+  DragIndicator as DragIndicatorIcon,
 } from '@mui/icons-material';
 import schoolAdminApi, {
   IDCardTemplate,
   IDCardTemplateCreate,
   IDCardFaceConfig,
 } from '../api/schoolAdmin';
+import { demoIDCardsApi, isDemoUser } from '../api/demoDataApi';
+
+interface FieldPosition {
+  field: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export const IDCardTemplateManager: React.FC = () => {
   const [templates, setTemplates] = useState<IDCardTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<IDCardTemplate | null>(null);
-  const [_loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [snackbar, setSnackbar] = useState<{
@@ -88,15 +101,32 @@ export const IDCardTemplateManager: React.FC = () => {
     is_default: false,
   });
 
+  const [draggedField, setDraggedField] = useState<string | null>(null);
+  const [_fieldPositions, setFieldPositions] = useState<{
+    front: FieldPosition[];
+    back: FieldPosition[];
+  }>({
+    front: [],
+    back: [],
+  });
+
+  const isDemo = isDemoUser();
+
   useEffect(() => {
     loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await schoolAdminApi.idCardTemplates.list();
+      let data: IDCardTemplate[];
+      if (isDemo) {
+        const demoTemplates = await demoIDCardsApi.getTemplates();
+        data = demoTemplates as IDCardTemplate[];
+      } else {
+        data = await schoolAdminApi.idCardTemplates.list();
+      }
       setTemplates(data);
       if (data.length > 0 && !selectedTemplate) {
         setSelectedTemplate(data[0]);
@@ -106,7 +136,7 @@ export const IDCardTemplateManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isDemo, selectedTemplate]);
 
   const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' = 'success') => {
     setSnackbar({ open: true, message, severity });
@@ -173,16 +203,27 @@ export const IDCardTemplateManager: React.FC = () => {
 
     setLoading(true);
     try {
-      if (isEditing && selectedTemplate) {
-        await schoolAdminApi.idCardTemplates.update(selectedTemplate.id, formData);
-        showSnackbar('Template updated successfully', 'success');
+      if (isDemo) {
+        showSnackbar(
+          isEditing
+            ? 'Template updated successfully (Demo)'
+            : 'Template created successfully (Demo)',
+          'success'
+        );
+        setDialogOpen(false);
+        loadTemplates();
       } else {
-        const newTemplate = await schoolAdminApi.idCardTemplates.create(formData);
-        showSnackbar('Template created successfully', 'success');
-        setSelectedTemplate(newTemplate);
+        if (isEditing && selectedTemplate) {
+          await schoolAdminApi.idCardTemplates.update(selectedTemplate.id, formData);
+          showSnackbar('Template updated successfully', 'success');
+        } else {
+          const newTemplate = await schoolAdminApi.idCardTemplates.create(formData);
+          showSnackbar('Template created successfully', 'success');
+          setSelectedTemplate(newTemplate);
+        }
+        setDialogOpen(false);
+        loadTemplates();
       }
-      setDialogOpen(false);
-      loadTemplates();
     } catch (error) {
       showSnackbar('Failed to save template', 'error');
     } finally {
@@ -195,12 +236,20 @@ export const IDCardTemplateManager: React.FC = () => {
 
     setLoading(true);
     try {
-      await schoolAdminApi.idCardTemplates.delete(id);
-      showSnackbar('Template deleted successfully', 'success');
-      if (selectedTemplate?.id === id) {
-        setSelectedTemplate(null);
+      if (isDemo) {
+        showSnackbar('Template deleted successfully (Demo)', 'success');
+        if (selectedTemplate?.id === id) {
+          setSelectedTemplate(null);
+        }
+        loadTemplates();
+      } else {
+        await schoolAdminApi.idCardTemplates.delete(id);
+        showSnackbar('Template deleted successfully', 'success');
+        if (selectedTemplate?.id === id) {
+          setSelectedTemplate(null);
+        }
+        loadTemplates();
       }
-      loadTemplates();
     } catch (error) {
       showSnackbar('Failed to delete template', 'error');
     } finally {
@@ -213,9 +262,14 @@ export const IDCardTemplateManager: React.FC = () => {
 
     setLoading(true);
     try {
-      await schoolAdminApi.idCardTemplates.uploadLogo(selectedTemplate.id, file);
-      showSnackbar('Logo uploaded successfully', 'success');
-      loadTemplates();
+      if (isDemo) {
+        showSnackbar('Logo uploaded successfully (Demo)', 'success');
+        loadTemplates();
+      } else {
+        await schoolAdminApi.idCardTemplates.uploadLogo(selectedTemplate.id, file);
+        showSnackbar('Logo uploaded successfully', 'success');
+        loadTemplates();
+      }
     } catch (error) {
       showSnackbar('Failed to upload logo', 'error');
     } finally {
@@ -243,36 +297,256 @@ export const IDCardTemplateManager: React.FC = () => {
     });
   };
 
+  const _handleDragStart = (field: string) => {
+    setDraggedField(field);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, side: 'front' | 'back') => {
+    e.preventDefault();
+    if (!draggedField) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const newPosition: FieldPosition = {
+      field: draggedField,
+      x,
+      y,
+      width: 100,
+      height: 20,
+    };
+
+    setFieldPositions((prev) => ({
+      ...prev,
+      [side]: [...prev[side].filter((p) => p.field !== draggedField), newPosition],
+    }));
+
+    setDraggedField(null);
+  };
+
+  // Define all available fields with their labels
+  const availableFields = [
+    { key: 'show_photo', label: 'Photo', frontDefault: true },
+    { key: 'show_name', label: 'Name', frontDefault: true },
+    { key: 'show_admission_number', label: 'Admission Number', frontDefault: true },
+    { key: 'show_class', label: 'Class', frontDefault: true },
+    { key: 'show_dob', label: 'Date of Birth', frontDefault: false },
+    { key: 'show_blood_group', label: 'Blood Group', frontDefault: false },
+    { key: 'show_address', label: 'Address', frontDefault: false },
+    { key: 'show_phone', label: 'Phone', frontDefault: false },
+    { key: 'show_parent_phone', label: 'Parent Phone', frontDefault: true },
+    { key: 'show_emergency_contact', label: 'Emergency Contact', frontDefault: false },
+  ];
+
+  const renderPreviewCard = (side: 'front' | 'back') => {
+    const config = side === 'front' ? formData.front_config : formData.back_config;
+    const isPortrait = formData.orientation === 'portrait';
+
+    return (
+      <Card
+        sx={{
+          height: isPortrait ? 400 : 280,
+          width: '100%',
+          backgroundColor: config.background_color,
+          border: `2px solid ${config.border_color}`,
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleDrop(e, side)}
+      >
+        <Box
+          sx={{
+            backgroundColor: config.header_color,
+            p: 2,
+            textAlign: 'center',
+            color: 'white',
+          }}
+        >
+          <Typography variant="h6">{side === 'front' ? 'School Name' : 'Instructions'}</Typography>
+          {side === 'front' && config.logo_url && (
+            <img src={config.logo_url} alt="Logo" style={{ maxHeight: '50px', marginTop: '8px' }} />
+          )}
+        </Box>
+        <CardContent sx={{ flexGrow: 1, position: 'relative' }}>
+          {side === 'front' ? (
+            <>
+              {config.show_photo && (
+                <Box
+                  sx={{
+                    width: 100,
+                    height: 100,
+                    backgroundColor: '#ddd',
+                    margin: '0 auto 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px dashed #999',
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    PHOTO
+                  </Typography>
+                </Box>
+              )}
+              {config.show_name && (
+                <Typography variant="body1" fontWeight="bold" textAlign="center" sx={{ mb: 1 }}>
+                  Alex Johnson
+                </Typography>
+              )}
+              {config.show_admission_number && (
+                <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
+                  Adm. No: STD2023001
+                </Typography>
+              )}
+              {config.show_class && (
+                <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
+                  Class: 10-A
+                </Typography>
+              )}
+              {config.show_dob && (
+                <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
+                  DOB: 15/05/2008
+                </Typography>
+              )}
+              {config.show_blood_group && (
+                <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
+                  Blood Group: O+
+                </Typography>
+              )}
+              {config.show_phone && (
+                <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
+                  Phone: +1-555-1001
+                </Typography>
+              )}
+              {config.show_parent_phone && (
+                <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
+                  Parent: +1-555-0101
+                </Typography>
+              )}
+              {config.show_emergency_contact && (
+                <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
+                  Emergency: +1-555-0102
+                </Typography>
+              )}
+            </>
+          ) : (
+            <>
+              <Typography variant="body2" sx={{ mb: 2, fontStyle: 'italic' }}>
+                Card holder information and emergency details
+              </Typography>
+              {config.show_name && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Name:</strong> Alex Johnson
+                </Typography>
+              )}
+              {config.show_address && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Address:</strong> 123 Maple Street, Springfield, IL
+                </Typography>
+              )}
+              {config.show_phone && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Phone:</strong> +1-555-1001
+                </Typography>
+              )}
+              {config.show_dob && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>DOB:</strong> 15/05/2008
+                </Typography>
+              )}
+              {config.show_blood_group && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Blood Group:</strong> O+
+                </Typography>
+              )}
+              {config.show_parent_phone && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Parent Contact:</strong> +1-555-0101
+                </Typography>
+              )}
+              {config.show_emergency_contact && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Emergency:</strong> +1-555-0102 (Sarah Johnson - Mother)
+                </Typography>
+              )}
+            </>
+          )}
+
+          {/* Drag overlay indicator */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              border: '2px dashed transparent',
+              pointerEvents: 'none',
+              transition: 'border-color 0.2s',
+              '&:hover': {
+                borderColor: 'primary.main',
+              },
+            }}
+          />
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <Container maxWidth="xl">
+    <Container maxWidth="xl" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
           ID Card Template Manager
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Design and configure ID card templates with visual preview
+          Design and configure ID card templates with visual preview and drag-drop field positioning
         </Typography>
+        {isDemo && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            You are in demo mode. Changes will not be saved permanently.
+          </Alert>
+        )}
       </Box>
 
       <Grid container spacing={3}>
+        {/* Template Sidebar */}
         <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2 }}>
+          <Paper sx={{ p: 2, position: 'sticky', top: 80 }}>
             <Box
               sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
             >
               <Typography variant="h6">Templates</Typography>
-              <IconButton onClick={handleCreateNew} color="primary">
+              <IconButton onClick={handleCreateNew} color="primary" size="small">
                 <AddIcon />
               </IconButton>
             </Box>
             <Divider sx={{ mb: 2 }} />
-            <List>
+            <List dense>
               {templates.map((template) => (
                 <ListItem
                   key={template.id}
                   button
                   selected={selectedTemplate?.id === template.id}
                   onClick={() => setSelectedTemplate(template)}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 0.5,
+                    '&.Mui-selected': {
+                      backgroundColor: 'primary.light',
+                      '&:hover': {
+                        backgroundColor: 'primary.light',
+                      },
+                    },
+                  }}
                   secondaryAction={
                     <Box>
                       <IconButton edge="end" size="small" onClick={() => handleEdit(template)}>
@@ -286,19 +560,55 @@ export const IDCardTemplateManager: React.FC = () => {
                 >
                   <ListItemText
                     primary={template.name}
-                    secondary={template.is_default ? 'Default' : template.orientation}
+                    secondary={
+                      <>
+                        {template.is_default && (
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            sx={{
+                              bgcolor: 'success.main',
+                              color: 'white',
+                              px: 0.5,
+                              py: 0.25,
+                              borderRadius: 0.5,
+                              mr: 1,
+                            }}
+                          >
+                            Default
+                          </Typography>
+                        )}
+                        {template.orientation}
+                      </>
+                    }
                   />
                 </ListItem>
               ))}
+              {templates.length === 0 && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ textAlign: 'center', py: 2 }}
+                >
+                  No templates yet
+                </Typography>
+              )}
             </List>
           </Paper>
         </Grid>
 
+        {/* Main Content Area */}
         <Grid item xs={12} md={9}>
           {selectedTemplate ? (
             <Paper sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h5">{selectedTemplate.name}</Typography>
+                <Box>
+                  <Typography variant="h5">{selectedTemplate.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedTemplate.orientation} •{' '}
+                    {selectedTemplate.is_default ? 'Default Template' : 'Custom Template'}
+                  </Typography>
+                </Box>
                 <Button
                   variant="contained"
                   startIcon={<EditIcon />}
@@ -309,164 +619,60 @@ export const IDCardTemplateManager: React.FC = () => {
               </Box>
 
               <Grid container spacing={3}>
+                {/* Front Side Preview */}
                 <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom>
-                    Front Side Preview
-                  </Typography>
-                  <Card
-                    sx={{
-                      height: selectedTemplate.orientation === 'portrait' ? 400 : 280,
-                      backgroundColor: selectedTemplate.front_config.background_color,
-                      border: `2px solid ${selectedTemplate.front_config.border_color}`,
-                      display: 'flex',
-                      flexDirection: 'column',
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        backgroundColor: selectedTemplate.front_config.header_color,
-                        p: 2,
-                        textAlign: 'center',
-                        color: 'white',
-                      }}
-                    >
-                      <Typography variant="h6">School Name</Typography>
-                      {selectedTemplate.front_config.logo_url && (
-                        <img
-                          src={selectedTemplate.front_config.logo_url}
-                          alt="Logo"
-                          style={{ maxHeight: '50px', marginTop: '8px' }}
-                        />
-                      )}
-                    </Box>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      {selectedTemplate.front_config.show_photo && (
-                        <Box
-                          sx={{
-                            width: 100,
-                            height: 100,
-                            backgroundColor: '#ddd',
-                            margin: '0 auto 16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Typography variant="caption">PHOTO</Typography>
-                        </Box>
-                      )}
-                      {selectedTemplate.front_config.show_name && (
-                        <Typography variant="body1" fontWeight="bold" textAlign="center">
-                          Student Name
-                        </Typography>
-                      )}
-                      {selectedTemplate.front_config.show_admission_number && (
-                        <Typography variant="body2" textAlign="center">
-                          Adm. No: 12345
-                        </Typography>
-                      )}
-                      {selectedTemplate.front_config.show_class && (
-                        <Typography variant="body2" textAlign="center">
-                          Class: 10-A
-                        </Typography>
-                      )}
-                      {selectedTemplate.front_config.show_dob && (
-                        <Typography variant="body2" textAlign="center">
-                          DOB: 01/01/2010
-                        </Typography>
-                      )}
-                      {selectedTemplate.front_config.show_blood_group && (
-                        <Typography variant="body2" textAlign="center">
-                          Blood Group: O+
-                        </Typography>
-                      )}
-                      {selectedTemplate.front_config.show_parent_phone && (
-                        <Typography variant="body2" textAlign="center">
-                          Parent: +91-9876543210
-                        </Typography>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <DragIndicatorIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="h6">Front Side Preview</Typography>
+                  </Box>
+                  {renderPreviewCard('front')}
                 </Grid>
 
+                {/* Back Side Preview */}
                 <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom>
-                    Back Side Preview
-                  </Typography>
-                  <Card
-                    sx={{
-                      height: selectedTemplate.orientation === 'portrait' ? 400 : 280,
-                      backgroundColor: selectedTemplate.back_config.background_color,
-                      border: `2px solid ${selectedTemplate.back_config.border_color}`,
-                      display: 'flex',
-                      flexDirection: 'column',
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        backgroundColor: selectedTemplate.back_config.header_color,
-                        p: 2,
-                        textAlign: 'center',
-                        color: 'white',
-                      }}
-                    >
-                      <Typography variant="h6">Instructions</Typography>
-                    </Box>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      {selectedTemplate.back_config.show_address && (
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                          <strong>Address:</strong> 123 School Street, City
-                        </Typography>
-                      )}
-                      {selectedTemplate.back_config.show_phone && (
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                          <strong>Phone:</strong> +91-9876543210
-                        </Typography>
-                      )}
-                      {selectedTemplate.back_config.show_dob && (
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                          <strong>DOB:</strong> 01/01/2010
-                        </Typography>
-                      )}
-                      {selectedTemplate.back_config.show_blood_group && (
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                          <strong>Blood Group:</strong> O+
-                        </Typography>
-                      )}
-                      {selectedTemplate.back_config.show_parent_phone && (
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                          <strong>Parent Contact:</strong> +91-9876543210
-                        </Typography>
-                      )}
-                      {selectedTemplate.back_config.show_emergency_contact && (
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                          <strong>Emergency:</strong> +91-9876543210
-                        </Typography>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <DragIndicatorIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="h6">Back Side Preview</Typography>
+                  </Box>
+                  {renderPreviewCard('back')}
                 </Grid>
 
+                {/* Configuration Details */}
                 <Grid item xs={12}>
                   <Divider sx={{ my: 2 }} />
                   <Typography variant="h6" gutterBottom>
-                    Configuration Details
+                    Template Configuration
                   </Typography>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Orientation: {selectedTemplate.orientation}
-                      </Typography>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Default: {selectedTemplate.is_default ? 'Yes' : 'No'}
-                      </Typography>
+                    <Grid item xs={12} md={4}>
+                      <Paper variant="outlined" sx={{ p: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Orientation
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {selectedTemplate.orientation === 'portrait'
+                            ? 'Portrait (Vertical)'
+                            : 'Landscape (Horizontal)'}
+                        </Typography>
+                      </Paper>
                     </Grid>
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={4}>
+                      <Paper variant="outlined" sx={{ p: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Default Template
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {selectedTemplate.is_default ? 'Yes' : 'No'}
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
                       <Button
                         variant="outlined"
                         startIcon={<UploadIcon />}
                         component="label"
                         fullWidth
+                        sx={{ height: '100%' }}
                       >
                         Upload Logo
                         <input
@@ -486,15 +692,18 @@ export const IDCardTemplateManager: React.FC = () => {
               </Grid>
             </Paper>
           ) : (
-            <Paper sx={{ p: 3, textAlign: 'center' }}>
-              <Typography variant="h6" color="text.secondary">
-                Select a template to view or create a new one
+            <Paper sx={{ p: 5, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No template selected
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Select a template from the sidebar to view or create a new one
               </Typography>
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={handleCreateNew}
-                sx={{ mt: 2 }}
+                size="large"
               >
                 Create New Template
               </Button>
@@ -503,20 +712,23 @@ export const IDCardTemplateManager: React.FC = () => {
         </Grid>
       </Grid>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
+      {/* Edit/Create Dialog */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle>{isEditing ? 'Edit Template' : 'Create New Template'}</DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
+          <Grid container spacing={3} sx={{ mt: 0.5 }}>
+            {/* Basic Info */}
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Template Name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Standard Student ID Card"
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} md={3}>
               <FormControl fullWidth>
                 <InputLabel>Orientation</InputLabel>
                 <Select
@@ -535,7 +747,7 @@ export const IDCardTemplateManager: React.FC = () => {
               </FormControl>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} md={3}>
               <FormControlLabel
                 control={
                   <Switch
@@ -543,14 +755,16 @@ export const IDCardTemplateManager: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
                   />
                 }
-                label="Set as Default Template"
+                label="Set as Default"
               />
             </Grid>
 
+            {/* Front Side Config */}
             <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                 Front Side Configuration
               </Typography>
+              <Divider sx={{ mb: 2 }} />
             </Grid>
 
             <Grid item xs={12} md={4}>
@@ -560,6 +774,7 @@ export const IDCardTemplateManager: React.FC = () => {
                 label="Background Color"
                 value={formData.front_config.background_color}
                 onChange={(e) => updateFrontConfig('background_color', e.target.value)}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
 
@@ -570,6 +785,7 @@ export const IDCardTemplateManager: React.FC = () => {
                 label="Header Color"
                 value={formData.front_config.header_color}
                 onChange={(e) => updateFrontConfig('header_color', e.target.value)}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
 
@@ -580,27 +796,18 @@ export const IDCardTemplateManager: React.FC = () => {
                 label="Border Color"
                 value={formData.front_config.border_color}
                 onChange={(e) => updateFrontConfig('border_color', e.target.value)}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
 
             <Grid item xs={12}>
-              <Typography variant="subtitle2" gutterBottom>
-                Fields to Show (Front):
-              </Typography>
-              <Grid container spacing={1}>
-                {[
-                  { key: 'show_photo', label: 'Photo' },
-                  { key: 'show_name', label: 'Name' },
-                  { key: 'show_admission_number', label: 'Admission Number' },
-                  { key: 'show_class', label: 'Class' },
-                  { key: 'show_dob', label: 'Date of Birth' },
-                  { key: 'show_blood_group', label: 'Blood Group' },
-                  { key: 'show_parent_phone', label: 'Parent Phone' },
-                ].map((field) => (
-                  <Grid item xs={6} md={4} key={field.key}>
+              <FormLabel component="legend">Fields to Display (Front):</FormLabel>
+              <FormGroup row>
+                {availableFields.map((field) => (
+                  <Grid item xs={6} sm={4} md={3} key={field.key}>
                     <FormControlLabel
                       control={
-                        <Switch
+                        <Checkbox
                           checked={
                             formData.front_config[field.key as keyof IDCardFaceConfig] as boolean
                           }
@@ -613,14 +820,15 @@ export const IDCardTemplateManager: React.FC = () => {
                     />
                   </Grid>
                 ))}
-              </Grid>
+              </FormGroup>
             </Grid>
 
+            {/* Back Side Config */}
             <Grid item xs={12}>
-              <Divider />
               <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                 Back Side Configuration
               </Typography>
+              <Divider sx={{ mb: 2 }} />
             </Grid>
 
             <Grid item xs={12} md={4}>
@@ -630,6 +838,7 @@ export const IDCardTemplateManager: React.FC = () => {
                 label="Background Color"
                 value={formData.back_config.background_color}
                 onChange={(e) => updateBackConfig('background_color', e.target.value)}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
 
@@ -640,6 +849,7 @@ export const IDCardTemplateManager: React.FC = () => {
                 label="Header Color"
                 value={formData.back_config.header_color}
                 onChange={(e) => updateBackConfig('header_color', e.target.value)}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
 
@@ -650,50 +860,75 @@ export const IDCardTemplateManager: React.FC = () => {
                 label="Border Color"
                 value={formData.back_config.border_color}
                 onChange={(e) => updateBackConfig('border_color', e.target.value)}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
 
             <Grid item xs={12}>
-              <Typography variant="subtitle2" gutterBottom>
-                Fields to Show (Back):
+              <FormLabel component="legend">Fields to Display (Back):</FormLabel>
+              <FormGroup row>
+                {availableFields
+                  .filter((f) => !['show_photo'].includes(f.key))
+                  .map((field) => (
+                    <Grid item xs={6} sm={4} md={3} key={field.key}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={
+                              formData.back_config[field.key as keyof IDCardFaceConfig] as boolean
+                            }
+                            onChange={(e) =>
+                              updateBackConfig(
+                                field.key as keyof IDCardFaceConfig,
+                                e.target.checked
+                              )
+                            }
+                          />
+                        }
+                        label={field.label}
+                      />
+                    </Grid>
+                  ))}
+              </FormGroup>
+            </Grid>
+
+            {/* Live Preview */}
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                Live Preview
               </Typography>
-              <Grid container spacing={1}>
-                {[
-                  { key: 'show_address', label: 'Address' },
-                  { key: 'show_phone', label: 'Phone' },
-                  { key: 'show_dob', label: 'Date of Birth' },
-                  { key: 'show_blood_group', label: 'Blood Group' },
-                  { key: 'show_parent_phone', label: 'Parent Phone' },
-                  { key: 'show_emergency_contact', label: 'Emergency Contact' },
-                ].map((field) => (
-                  <Grid item xs={6} md={4} key={field.key}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={
-                            formData.back_config[field.key as keyof IDCardFaceConfig] as boolean
-                          }
-                          onChange={(e) =>
-                            updateBackConfig(field.key as keyof IDCardFaceConfig, e.target.checked)
-                          }
-                        />
-                      }
-                      label={field.label}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                Front Side
+              </Typography>
+              {renderPreviewCard('front')}
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                Back Side
+              </Typography>
+              {renderPreviewCard('back')}
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" startIcon={<SaveIcon />}>
-            Save Template
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            startIcon={<SaveIcon />}
+            disabled={loading}
+          >
+            {loading ? 'Saving...' : 'Save Template'}
           </Button>
         </DialogActions>
       </Dialog>
 
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
