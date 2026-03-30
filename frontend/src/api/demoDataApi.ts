@@ -4616,6 +4616,128 @@ export const demoSMSTemplatesApi = {
   },
 };
 
+export const demoCredentialsApi = {
+  getMyCredentials: async (_skip = 0, _limit = 100) => {
+    return Promise.resolve(demoData.digitalCredentials);
+  },
+
+  getCredentialById: async (id: number) => {
+    const credential = demoData.digitalCredentials.find((c) => c.id === id);
+    return Promise.resolve(credential || demoData.digitalCredentials[0]);
+  },
+
+  getCredentialStatistics: async () => {
+    const credentials = demoData.digitalCredentials;
+    return Promise.resolve({
+      total_issued: credentials.length,
+      active_credentials: credentials.filter((c) => c.status === 'active').length,
+      revoked_credentials: 0,
+      expired_credentials: 0,
+      pending_credentials: 0,
+      by_type: {
+        certificate: credentials.filter((c) => c.credential_type === 'certificate').length,
+        digital_badge: credentials.filter((c) => c.credential_type === 'digital_badge').length,
+      },
+      by_subtype: {
+        academic: credentials.filter((c) => c.sub_type === 'academic').length,
+        skill_based: credentials.filter((c) => c.sub_type === 'skill_based').length,
+        participation: credentials.filter((c) => c.sub_type === 'participation').length,
+      },
+      recent_issuances: credentials.slice(0, 5),
+    });
+  },
+
+  createShareLink: async (credentialId: number, _data: Record<string, unknown>) => {
+    const shareToken = `share-${Math.random().toString(36).substring(7)}`;
+    return Promise.resolve({
+      id: Math.floor(Math.random() * 1000),
+      credential_id: credentialId,
+      share_token: shareToken,
+      share_url: `${window.location.origin}/credentials/shared/${shareToken}`,
+      is_active: true,
+      view_count: 0,
+      created_at: new Date().toISOString(),
+    });
+  },
+
+  verifyCredential: async (_request: Record<string, unknown>) => {
+    return Promise.resolve({
+      valid: true,
+      message: 'Credential verified successfully',
+      verified_at: new Date().toISOString(),
+      blockchain_verified: true,
+    });
+  },
+
+  verifyByCertificateNumber: async (certificateNumber: string) => {
+    const credential = demoData.digitalCredentials.find(
+      (c) => c.certificate_number === certificateNumber
+    );
+    return Promise.resolve({
+      valid: !!credential,
+      credential: credential || undefined,
+      message: credential ? 'Credential verified successfully' : 'Credential not found',
+      verified_at: new Date().toISOString(),
+      blockchain_verified: !!credential?.blockchain_status,
+    });
+  },
+
+  getSharedCredential: async (_shareToken: string) => {
+    return Promise.resolve(demoData.digitalCredentials[0]);
+  },
+
+  downloadCredentialAsJSON: async (credential: Record<string, unknown>) => {
+    const dataStr = JSON.stringify(credential, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const exportFileDefaultName = `credential-${credential.certificate_number}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    return Promise.resolve();
+  },
+
+  downloadCredentialAsPDF: async (credentialId: number): Promise<void> => {
+    const credential = demoData.digitalCredentials.find((c) => c.id === credentialId);
+    const blob = new Blob([`Demo PDF for ${credential?.title || 'Credential'}`], {
+      type: 'application/pdf',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `credential-${credentialId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return Promise.resolve();
+  },
+
+  getBlockchainHistory: async (certificateNumber: string) => {
+    const credential = demoData.digitalCredentials.find(
+      (c) => c.certificate_number === certificateNumber
+    );
+    return Promise.resolve({
+      certificate_number: certificateNumber,
+      blockchain_credential_id: credential?.blockchain_credential_id || 'N/A',
+      blockchain_hash: credential?.blockchain_hash || 'N/A',
+      verified: !!credential?.blockchain_status,
+      history: [
+        {
+          action: 'Credential Issued',
+          timestamp: credential?.issued_at || new Date().toISOString(),
+          transaction_hash: credential?.blockchain_hash,
+        },
+        {
+          action: 'Blockchain Verification',
+          timestamp: credential?.issued_at || new Date().toISOString(),
+          transaction_hash: credential?.blockchain_hash,
+        },
+      ],
+    });
+  },
+};
+
 export const demoDataApi = {
   students: demoStudentsApi,
   assignments: demoAssignmentsApi,
@@ -4641,6 +4763,7 @@ export const demoDataApi = {
   olympics: demoOlympicsApi,
   certificates: demoCertificatesApi,
   idCards: demoIDCardsApi,
+  credentials: demoCredentialsApi,
   staff: demoStaffApi,
   payroll: demoPayrollApi,
   enquiries: demoEnquiriesApi,

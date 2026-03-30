@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -52,8 +52,11 @@ import {
   Fingerprint as FingerprintIcon,
   AccountBalance as BlockchainIcon,
   History as HistoryIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { credentialsApi } from '@/api/credentials';
+import { isDemoUser } from '@/api/demoDataApi';
+import { demoDataApi } from '@/api/demoDataApi';
 import {
   Credential,
   CredentialType,
@@ -92,15 +95,13 @@ const StudentCredentials: React.FC = () => {
   const [privacySettings, setPrivacySettings] = useState<Record<number, CredentialPrivacy>>({});
   const [blockchainData, setBlockchainData] = useState<unknown>(null);
   const [blockchainLoading, setBlockchainLoading] = useState(false);
+  const isDemo = isDemoUser();
 
-  useEffect(() => {
-    loadCredentials();
-  }, []);
-
-  const loadCredentials = async () => {
+  const loadCredentials = React.useCallback(async () => {
     try {
       setLoading(true);
-      const data = await credentialsApi.getMyCredentials();
+      const api = isDemo ? demoDataApi.credentials : credentialsApi;
+      const data = await api.getMyCredentials();
       setCredentials(data);
       const initialPrivacy: Record<number, CredentialPrivacy> = {};
       data.forEach((cred) => {
@@ -113,7 +114,11 @@ const StudentCredentials: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isDemo]);
+
+  useEffect(() => {
+    loadCredentials();
+  }, [loadCredentials]);
 
   const handleViewDetails = (credential: Credential) => {
     setSelectedCredential(credential);
@@ -131,7 +136,8 @@ const StudentCredentials: React.FC = () => {
 
     try {
       setShareCreating(true);
-      const shareData = await credentialsApi.createShareLink(selectedCredential.id, {});
+      const api = isDemo ? demoDataApi.credentials : credentialsApi;
+      const shareData = await api.createShareLink(selectedCredential.id, {});
       setShareUrl(shareData.share_url);
     } catch (err) {
       alert('Failed to create share link: ' + (err as Error).message);
@@ -165,12 +171,14 @@ const StudentCredentials: React.FC = () => {
   };
 
   const handleDownloadJSON = async (credential: Credential) => {
-    await credentialsApi.downloadCredentialAsJSON(credential);
+    const api = isDemo ? demoDataApi.credentials : credentialsApi;
+    await api.downloadCredentialAsJSON(credential);
   };
 
   const handleDownloadPDF = async (credential: Credential) => {
     try {
-      await credentialsApi.downloadCredentialAsPDF(credential.id);
+      const api = isDemo ? demoDataApi.credentials : credentialsApi;
+      await api.downloadCredentialAsPDF(credential.id);
     } catch (err) {
       alert('PDF download not available yet');
     }
@@ -181,7 +189,8 @@ const StudentCredentials: React.FC = () => {
     setBlockchainDialogOpen(true);
     setBlockchainLoading(true);
     try {
-      const data = await credentialsApi.getBlockchainHistory(credential.certificate_number);
+      const api = isDemo ? demoDataApi.credentials : credentialsApi;
+      const data = await api.getBlockchainHistory(credential.certificate_number);
       setBlockchainData(data);
     } catch (err) {
       setBlockchainData({ error: (err as Error).message });
@@ -261,6 +270,11 @@ const StudentCredentials: React.FC = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
+      {isDemo && (
+        <Alert severity="info" icon={<WarningIcon />} sx={{ mb: 3 }}>
+          Demo Mode: Viewing sample credentials with mock blockchain verification
+        </Alert>
+      )}
       <Box mb={4}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
           <Box>
@@ -307,6 +321,7 @@ const StudentCredentials: React.FC = () => {
             getCredentialIcon={getCredentialIcon}
             getStatusColor={getStatusColor}
             privacySettings={privacySettings}
+            isDemo={isDemo}
           />
         </TabPanel>
 
@@ -323,6 +338,7 @@ const StudentCredentials: React.FC = () => {
             getCredentialIcon={getCredentialIcon}
             getStatusColor={getStatusColor}
             privacySettings={privacySettings}
+            isDemo={isDemo}
           />
         </TabPanel>
 
@@ -339,6 +355,7 @@ const StudentCredentials: React.FC = () => {
             getCredentialIcon={getCredentialIcon}
             getStatusColor={getStatusColor}
             privacySettings={privacySettings}
+            isDemo={isDemo}
           />
         </TabPanel>
       </Box>
@@ -349,6 +366,7 @@ const StudentCredentials: React.FC = () => {
         onClose={() => setDetailDialogOpen(false)}
         getCredentialIcon={getCredentialIcon}
         getStatusColor={getStatusColor}
+        isDemo={isDemo}
       />
 
       <ShareDialog
@@ -361,6 +379,7 @@ const StudentCredentials: React.FC = () => {
         onCopyToClipboard={handleCopyToClipboard}
         onShareToLinkedIn={handleShareToLinkedIn}
         onShareToTwitter={handleShareToTwitter}
+        isDemo={isDemo}
       />
 
       <BlockchainDialog
@@ -369,6 +388,7 @@ const StudentCredentials: React.FC = () => {
         blockchainData={blockchainData}
         loading={blockchainLoading}
         onClose={() => setBlockchainDialogOpen(false)}
+        isDemo={isDemo}
       />
 
       <PrivacyDialog
@@ -402,6 +422,7 @@ interface CredentialGridProps {
   getCredentialIcon: (credential: Credential) => React.ReactNode;
   getStatusColor: (status: CredentialStatus) => 'success' | 'warning' | 'error' | 'default';
   privacySettings: Record<number, CredentialPrivacy>;
+  isDemo: boolean;
 }
 
 const CredentialGrid: React.FC<CredentialGridProps> = ({
@@ -409,13 +430,14 @@ const CredentialGrid: React.FC<CredentialGridProps> = ({
   onViewDetails,
   onShare,
   onDownloadJSON,
-  _onDownloadPDF,
+  onDownloadPDF,
   onViewBlockchain,
   onPrivacySettings,
   _onEmbed,
   getCredentialIcon,
   getStatusColor,
   privacySettings,
+  isDemo,
 }) => {
   if (credentials.length === 0) {
     return (
@@ -513,7 +535,7 @@ const CredentialGrid: React.FC<CredentialGridProps> = ({
                   <Box display="flex" alignItems="center" gap={1}>
                     <VerifiedIcon fontSize="small" color="success" />
                     <Typography variant="caption" color="success.main">
-                      Blockchain Verified
+                      {isDemo ? 'Blockchain Verified (Demo)' : 'Blockchain Verified'}
                     </Typography>
                   </Box>
                 )}
@@ -548,6 +570,11 @@ const CredentialGrid: React.FC<CredentialGridProps> = ({
                     <CodeIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
+                <Tooltip title="Download PDF">
+                  <IconButton size="small" onClick={() => onDownloadPDF(credential)}>
+                    <VisibilityIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
                 {credential.blockchain_credential_id && (
                   <Tooltip title="Blockchain Verification">
                     <IconButton size="small" onClick={() => onViewBlockchain(credential)}>
@@ -570,6 +597,7 @@ interface DetailDialogProps {
   onClose: () => void;
   getCredentialIcon: (credential: Credential) => React.ReactNode;
   getStatusColor: (status: CredentialStatus) => 'success' | 'warning' | 'error' | 'default';
+  isDemo: boolean;
 }
 
 const DetailDialog: React.FC<DetailDialogProps> = ({
@@ -578,6 +606,7 @@ const DetailDialog: React.FC<DetailDialogProps> = ({
   onClose,
   getCredentialIcon,
   getStatusColor,
+  isDemo,
 }) => {
   if (!credential) return null;
 
@@ -592,6 +621,11 @@ const DetailDialog: React.FC<DetailDialogProps> = ({
         </Stack>
       </DialogTitle>
       <DialogContent dividers>
+        {isDemo && (
+          <Alert severity="info" icon={<WarningIcon />} sx={{ mb: 2 }}>
+            Demo Credential - Template preview with watermark
+          </Alert>
+        )}
         <Stack spacing={3}>
           <Box textAlign="center">
             {getCredentialIcon(credential)}
@@ -682,7 +716,9 @@ const DetailDialog: React.FC<DetailDialogProps> = ({
 
           {credential.blockchain_status && (
             <Alert severity="success" icon={<VerifiedIcon />}>
-              This credential is verified on the blockchain
+              {isDemo
+                ? 'This credential is verified on the blockchain (Demo)'
+                : 'This credential is verified on the blockchain'}
             </Alert>
           )}
 
@@ -715,6 +751,7 @@ interface ShareDialogProps {
   onCopyToClipboard: (text: string) => void;
   onShareToLinkedIn: () => void;
   onShareToTwitter: () => void;
+  isDemo: boolean;
 }
 
 const ShareDialog: React.FC<ShareDialogProps> = ({
@@ -727,6 +764,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
   onCopyToClipboard,
   onShareToLinkedIn,
   onShareToTwitter,
+  isDemo,
 }) => {
   if (!credential) return null;
 
@@ -741,6 +779,11 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
         </Stack>
       </DialogTitle>
       <DialogContent dividers>
+        {isDemo && (
+          <Alert severity="info" icon={<WarningIcon />} sx={{ mb: 2 }}>
+            Demo Mode - Mock share link generated
+          </Alert>
+        )}
         <Stack spacing={3}>
           <Box textAlign="center">
             <Typography variant="h6" gutterBottom>
@@ -781,7 +824,9 @@ const ShareDialog: React.FC<ShareDialogProps> = ({
                   }}
                   size="small"
                 />
-                <Alert severity="info">Link created successfully!</Alert>
+                <Alert severity="info">
+                  {isDemo ? 'Mock link created successfully!' : 'Link created successfully!'}
+                </Alert>
               </Stack>
             ) : (
               <Button
@@ -857,6 +902,7 @@ interface BlockchainDialogProps {
   blockchainData: unknown;
   loading: boolean;
   onClose: () => void;
+  isDemo: boolean;
 }
 
 const BlockchainDialog: React.FC<BlockchainDialogProps> = ({
@@ -865,6 +911,7 @@ const BlockchainDialog: React.FC<BlockchainDialogProps> = ({
   blockchainData,
   loading,
   onClose,
+  isDemo,
 }) => {
   if (!credential) return null;
 
@@ -879,6 +926,11 @@ const BlockchainDialog: React.FC<BlockchainDialogProps> = ({
         </Stack>
       </DialogTitle>
       <DialogContent dividers>
+        {isDemo && (
+          <Alert severity="info" icon={<WarningIcon />} sx={{ mb: 2 }}>
+            Demo Mode - Mock blockchain verification data
+          </Alert>
+        )}
         {loading ? (
           <Box display="flex" justifyContent="center" py={4}>
             <CircularProgress />
@@ -935,7 +987,9 @@ const BlockchainDialog: React.FC<BlockchainDialogProps> = ({
               <Alert severity="success" icon={<CheckCircleIcon />}>
                 <strong>Authenticity Verified</strong>
                 <br />
-                This credential has been verified on the blockchain and is authentic.
+                {isDemo
+                  ? 'This credential has been verified on the blockchain (Demo).'
+                  : 'This credential has been verified on the blockchain and is authentic.'}
               </Alert>
             )}
 
