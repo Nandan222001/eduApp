@@ -12,8 +12,6 @@ import {
   superadminDashboardData,
   demoCertificateTemplates,
   demoCertificates,
-  demoIDCardTemplates,
-  demoIDCardData,
   type ClassRosterStudent,
   type StudentSubmissionDetail,
   type ExamMarkEntry,
@@ -4307,9 +4305,7 @@ export interface BulkIDCardGenerationResult {
 }
 
 export const demoCertificatesApi = {
-  getCertificateTemplates: async (
-    certificate_type?: string
-  ): Promise<CertificateTemplate[]> => {
+  getCertificateTemplates: async (certificate_type?: string): Promise<CertificateTemplate[]> => {
     let templates = [...demoCertificateTemplates];
 
     if (certificate_type) {
@@ -4383,92 +4379,6 @@ export const demoCertificatesApi = {
     return Promise.resolve(new Blob(['Certificate PDF content'], { type: 'application/pdf' }));
   },
 };
-
-export const demoIDCardsApi = {
-  getIDCardTemplates: async (): Promise<IDCardTemplate[]> => {
-    return Promise.resolve(demoIDCardTemplates);
-  },
-
-  getStudentIDCardData: async (student_id: number): Promise<StudentIDCardData | undefined> => {
-    const cardData = demoIDCardData.find((card) => card.student_id === student_id);
-    return Promise.resolve(cardData);
-  },
-
-  generateIDCard: async (
-    student_id: number,
-    template_id: number
-  ): Promise<IDCardGenerationResult> => {
-    const template = demoIDCardTemplates.find((t) => t.id === template_id);
-    const student = demoData.student.profile;
-
-    if (!template) {
-      return Promise.resolve({
-        success: false,
-        card_data: {} as StudentIDCardData,
-        message: 'Template not found',
-      });
-    }
-
-    const newCard: StudentIDCardData = {
-      id: demoIDCardData.length + 1,
-      student_id,
-      institution_id: 1,
-      card_number: `ID-2024-${student_id}`,
-      student_name: student_id === student.id ? `${student.first_name} ${student.last_name}` : 'Student Name',
-      grade: student_id === student.id ? student.section?.grade?.name || '10th Grade' : '10th Grade',
-      section: student_id === student.id ? student.section?.name || 'A' : 'A',
-      admission_number: student_id === student.id ? student.admission_number : `STD2023${String(student_id).padStart(3, '0')}`,
-      photo_url: student_id === student.id ? student.photo_url || 'https://i.pravatar.cc/150?img=12' : 'https://i.pravatar.cc/150?img=12',
-      blood_group: student_id === student.id ? student.blood_group || 'O+' : 'O+',
-      emergency_contact: student_id === student.id ? student.parent_phone || '+1-555-0000' : '+1-555-0000',
-      valid_from: new Date().toISOString().split('T')[0],
-      valid_until: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-        .toISOString()
-        .split('T')[0],
-      barcode_data: student_id === student.id ? student.admission_number : `STD2023${String(student_id).padStart(3, '0')}`,
-      qr_code_data: `https://school.edu/verify/${student_id === student.id ? student.admission_number : `STD2023${String(student_id).padStart(3, '0')}`}`,
-      template_id,
-      issued_at: new Date().toISOString(),
-    };
-
-    return Promise.resolve({
-      success: true,
-      card_data: newCard,
-      message: 'ID card generated successfully',
-    });
-  },
-
-  bulkGenerateIDCards: async (
-    student_ids: number[],
-    template_id: number
-  ): Promise<BulkIDCardGenerationResult> => {
-    const successful: number[] = [];
-    const failed: number[] = [];
-    const cards_generated: StudentIDCardData[] = [];
-
-    for (const student_id of student_ids) {
-      try {
-        const result = await demoIDCardsApi.generateIDCard(student_id, template_id);
-        if (result.success) {
-          successful.push(student_id);
-          cards_generated.push(result.card_data);
-        } else {
-          failed.push(student_id);
-        }
-      } catch {
-        failed.push(student_id);
-      }
-    }
-
-    return Promise.resolve({
-      successful,
-      failed,
-      total_processed: student_ids.length,
-      cards_generated,
-    });
-  },
-};
-
 
 export const demoStaffApi = {
   list: async (params?: {
@@ -4744,4 +4654,3 @@ export type {
   ParentMessage,
   StudentPerformanceMetric,
 };
-

@@ -4411,66 +4411,6 @@ export const demoStaffMembers = [
   },
 ];
 
-export const demoIDCardTemplates = [
-  {
-    id: 1,
-    name: 'Classic Blue',
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    primaryColor: '#667eea',
-    secondaryColor: '#764ba2',
-  },
-  {
-    id: 2,
-    name: 'Green Professional',
-    gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    primaryColor: '#10b981',
-    secondaryColor: '#059669',
-  },
-  {
-    id: 3,
-    name: 'Red Modern',
-    gradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-    primaryColor: '#ef4444',
-    secondaryColor: '#dc2626',
-  },
-  {
-    id: 4,
-    name: 'Orange Vibrant',
-    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-    primaryColor: '#f59e0b',
-    secondaryColor: '#d97706',
-  },
-];
-
-export const demoIDCardData = {
-  student_id: 1001,
-  student_name: 'Alex Johnson',
-  admission_number: 'STD2023001',
-  roll_number: '12',
-  class_section: '10th Grade - Section A',
-  date_of_birth: '2008-05-15',
-  blood_group: 'O+',
-  phone: '+1-555-1001',
-  email: 'demo@example.com',
-  address: '123 Maple Street, Springfield, IL 62701',
-  emergency_contact_name: 'Sarah Johnson',
-  emergency_contact_phone: '+1-555-0102',
-  photo_url: 'https://i.pravatar.cc/150?img=12',
-  institution_name: 'Springfield High School',
-  institution_logo:
-    'https://ui-avatars.com/api/?name=Springfield+High+School&size=150&background=667eea&color=fff',
-  institution_address: '456 Education Lane, Springfield, IL 62701',
-  institution_phone: '+1-555-0100',
-  institution_email: 'info@springfieldhigh.edu',
-  valid_from: '2023-04-01',
-  valid_until: '2024-03-31',
-  issue_date: '2023-04-01',
-  principal_name: 'Dr. Michael Anderson',
-  principal_signature: 'https://via.placeholder.com/150x50?text=Signature',
-  qr_data: 'STD2023001|Alex Johnson|10th Grade|2024-03-31',
-  barcode_data: 'STD2023001',
-};
-
 export const demoPayrollRecords = [
   {
     id: 1,
