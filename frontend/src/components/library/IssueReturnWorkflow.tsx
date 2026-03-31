@@ -44,7 +44,7 @@ const IssueReturnWorkflow: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
-  const [selectedIssue, setSelectedIssue] = useState<BookIssueWithDetails | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<BookIssueWithDetails | undefined>(undefined);
   const queryClient = useQueryClient();
 
   const { data: issuesData } = useQuery({
@@ -73,7 +73,7 @@ const IssueReturnWorkflow: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['bookIssues'] });
       queryClient.invalidateQueries({ queryKey: ['books'] });
       setReturnDialogOpen(false);
-      setSelectedIssue(null);
+      setSelectedIssue(undefined);
     },
   });
 
@@ -91,9 +91,9 @@ const IssueReturnWorkflow: React.FC = () => {
       institution_id: 1,
       book_id: parseInt(formData.get('book_id') as string),
       student_id: parseInt(formData.get('student_id') as string),
-      issue_date: formData.get('issue_date'),
-      due_date: formData.get('due_date'),
-      remarks: formData.get('remarks'),
+      issue_date: (formData.get('issue_date') as string) || undefined,
+      due_date: (formData.get('due_date') as string) || undefined,
+      remarks: (formData.get('remarks') as string) || undefined,
     };
     issueMutation.mutate(data);
   };
@@ -105,11 +105,12 @@ const IssueReturnWorkflow: React.FC = () => {
 
   const handleReturnSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!selectedIssue) return;
     const formData = new FormData(event.currentTarget);
     const data = {
-      return_date: formData.get('return_date'),
+      return_date: (formData.get('return_date') as string) || undefined,
       fine_paid: formData.get('fine_paid') === 'on',
-      remarks: formData.get('remarks'),
+      remarks: (formData.get('remarks') as string) || undefined,
     };
     returnMutation.mutate({ id: selectedIssue.id, data });
   };

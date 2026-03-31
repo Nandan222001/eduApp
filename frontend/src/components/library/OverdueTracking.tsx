@@ -35,7 +35,9 @@ const OverdueTracking: React.FC = () => {
   const totalOverdue = overdueData?.length || 0;
   const totalFines =
     overdueData?.reduce(
-      (sum: number, item: OverdueBookReport) => sum + parseFloat(String(item.fine_amount)),
+      (sum: number, item: OverdueBookReport) =>
+        sum +
+        (typeof item.fine_amount === 'number' ? item.fine_amount : parseFloat(item.fine_amount)),
       0
     ) || 0;
 
@@ -183,7 +185,11 @@ const OverdueTracking: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <Typography color="error" fontWeight="bold">
-                      ₹{parseFloat(issue.fine_amount).toFixed(2)}
+                      ₹
+                      {(typeof issue.fine_amount === 'number'
+                        ? issue.fine_amount
+                        : parseFloat(issue.fine_amount)
+                      ).toFixed(2)}
                     </Typography>
                   </TableCell>
                   <TableCell>

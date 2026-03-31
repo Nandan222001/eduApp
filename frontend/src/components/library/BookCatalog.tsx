@@ -34,7 +34,7 @@ const BOOK_STATUS = ['available', 'issued', 'damaged', 'lost', 'maintenance'];
 
 const BookCatalog: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [editingBook, setEditingBook] = useState<Book | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
 
@@ -73,13 +73,13 @@ const BookCatalog: React.FC = () => {
   });
 
   const handleOpen = (book?: Book) => {
-    setEditingBook(book || null);
+    setEditingBook(book);
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
-    setEditingBook(null);
+    setEditingBook(undefined);
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -89,26 +89,26 @@ const BookCatalog: React.FC = () => {
       institution_id: 1,
       category_id: formData.get('category_id')
         ? parseInt(formData.get('category_id') as string)
-        : null,
-      title: formData.get('title'),
-      author: formData.get('author'),
-      isbn: formData.get('isbn'),
-      publisher: formData.get('publisher'),
+        : undefined,
+      title: (formData.get('title') as string) || undefined,
+      author: (formData.get('author') as string) || undefined,
+      isbn: (formData.get('isbn') as string) || undefined,
+      publisher: (formData.get('publisher') as string) || undefined,
       publication_year: formData.get('publication_year')
         ? parseInt(formData.get('publication_year') as string)
-        : null,
-      edition: formData.get('edition'),
-      accession_number: formData.get('accession_number'),
-      call_number: formData.get('call_number'),
+        : undefined,
+      edition: (formData.get('edition') as string) || undefined,
+      accession_number: (formData.get('accession_number') as string) || undefined,
+      call_number: (formData.get('call_number') as string) || undefined,
       total_copies: parseInt(formData.get('total_copies') as string),
       available_copies: parseInt(formData.get('available_copies') as string),
-      description: formData.get('description'),
-      language: formData.get('language'),
-      pages: formData.get('pages') ? parseInt(formData.get('pages') as string) : null,
-      price: formData.get('price') ? parseFloat(formData.get('price') as string) : null,
-      location: formData.get('location'),
-      rack_number: formData.get('rack_number'),
-      status: formData.get('status'),
+      description: (formData.get('description') as string) || undefined,
+      language: (formData.get('language') as string) || undefined,
+      pages: formData.get('pages') ? parseInt(formData.get('pages') as string) : undefined,
+      price: formData.get('price') ? parseFloat(formData.get('price') as string) : undefined,
+      location: (formData.get('location') as string) || undefined,
+      rack_number: (formData.get('rack_number') as string) || undefined,
+      status: (formData.get('status') as string) || undefined,
       is_reference_only: formData.get('is_reference_only') === 'on',
       is_active: true,
     };

@@ -38,24 +38,21 @@ export const DeckSharingDialog: React.FC<DeckSharingDialogProps> = ({
   currentShares,
 }) => {
   const [shareType, setShareType] = useState<'user' | 'grade' | 'section'>('grade');
-  const [selectedId, setSelectedId] = useState<number | ''>('');
+  const [selectedId, setSelectedId] = useState<number | undefined>(undefined);
   const [canEdit, setCanEdit] = useState(false);
 
   const handleShare = () => {
-    const shareData: Partial<Omit<FlashcardDeckShare, 'id' | 'deck_id' | 'shared_at'>> = {
+    if (!selectedId) return;
+
+    const shareData: Omit<FlashcardDeckShare, 'id' | 'deck_id' | 'shared_at'> = {
       can_edit: canEdit,
+      shared_with_user_id: shareType === 'user' ? selectedId : undefined,
+      shared_with_grade_id: shareType === 'grade' ? selectedId : undefined,
+      shared_with_section_id: shareType === 'section' ? selectedId : undefined,
     };
 
-    if (shareType === 'user') {
-      shareData.shared_with_user_id = selectedId;
-    } else if (shareType === 'grade') {
-      shareData.shared_with_grade_id = selectedId;
-    } else if (shareType === 'section') {
-      shareData.shared_with_section_id = selectedId;
-    }
-
     onShare(shareData);
-    setSelectedId('');
+    setSelectedId(undefined);
     setCanEdit(false);
   };
 
@@ -86,8 +83,8 @@ export const DeckSharingDialog: React.FC<DeckSharingDialogProps> = ({
             fullWidth
             label={`Select ${shareType === 'user' ? 'User' : shareType === 'grade' ? 'Grade' : 'Section'} ID`}
             type="number"
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value ? parseInt(e.target.value) : '')}
+            value={selectedId ?? ''}
+            onChange={(e) => setSelectedId(e.target.value ? parseInt(e.target.value) : undefined)}
             sx={{ mb: 2 }}
           />
 
