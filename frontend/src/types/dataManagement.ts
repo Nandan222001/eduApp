@@ -44,6 +44,8 @@ export interface ExportPreview {
   columns: string[];
   rows: Record<string, unknown>[];
   totalCount: number;
+  totalRecords: number;
+  sampleData?: Record<string, unknown>[];
 }
 
 export interface ImportValidationError {

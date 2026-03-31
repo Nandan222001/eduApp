@@ -76,10 +76,10 @@ export default function DataExport() {
           {
             entity,
             columns: [
-              { id: 'id', label: 'ID', type: 'number', required: true },
-              { id: 'name', label: 'Name', type: 'string', required: true },
-              { id: 'email', label: 'Email', type: 'string', required: true },
-              { id: 'phone', label: 'Phone', type: 'string', required: false },
+              { id: 'id', label: 'ID', type: 'number' as const, required: true },
+              { id: 'name', label: 'Name', type: 'string' as const, required: true },
+              { id: 'email', label: 'Email', type: 'string' as const, required: true },
+              { id: 'phone', label: 'Phone', type: 'string' as const, required: false },
             ],
           },
         ];
@@ -134,12 +134,15 @@ export default function DataExport() {
 
       if (isDemoUser()) {
         // Provide demo preview data
+        const demoRows = [
+          { id: 1, name: 'Sample Student 1', email: 'student1@example.com' },
+          { id: 2, name: 'Sample Student 2', email: 'student2@example.com' },
+        ];
         setPreviewData({
           totalRecords: 25,
-          sampleData: [
-            { id: 1, name: 'Sample Student 1', email: 'student1@example.com' },
-            { id: 2, name: 'Sample Student 2', email: 'student2@example.com' },
-          ],
+          totalCount: 25,
+          rows: demoRows,
+          sampleData: demoRows,
           columns: selectedColumns,
         });
       } else {

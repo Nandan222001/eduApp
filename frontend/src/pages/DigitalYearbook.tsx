@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -121,6 +121,36 @@ export default function DigitalYearbook() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragStart, setDragStart] = useState<number | null>(null);
 
+  const handleNextPage = useCallback(() => {
+    if (currentPage < pages.length - 2) {
+      setIsFlipping(true);
+      setTimeout(() => {
+        setCurrentPage(currentPage + 2);
+        setIsFlipping(false);
+      }, 600);
+    }
+  }, [currentPage, pages.length]);
+
+  const handlePrevPage = useCallback(() => {
+    if (currentPage > 0) {
+      setIsFlipping(true);
+      setTimeout(() => {
+        setCurrentPage(currentPage - 2);
+        setIsFlipping(false);
+      }, 600);
+    }
+  }, [currentPage]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!isFullscreen) {
+      containerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, [isFullscreen]);
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') handlePrevPage();
@@ -131,27 +161,7 @@ export default function DigitalYearbook() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentPage, isFullscreen, handlePrevPage, handleNextPage, toggleFullscreen]);
-
-  const handleNextPage = () => {
-    if (currentPage < pages.length - 2) {
-      setIsFlipping(true);
-      setTimeout(() => {
-        setCurrentPage(currentPage + 2);
-        setIsFlipping(false);
-      }, 600);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 0) {
-      setIsFlipping(true);
-      setTimeout(() => {
-        setCurrentPage(currentPage - 2);
-        setIsFlipping(false);
-      }, 600);
-    }
-  };
+  }, [handlePrevPage, handleNextPage, toggleFullscreen, isFullscreen]);
 
   const handleZoomIn = () => {
     setZoom(Math.min(zoom + 0.25, 3));
@@ -159,16 +169,6 @@ export default function DigitalYearbook() {
 
   const handleZoomOut = () => {
     setZoom(Math.max(zoom - 0.25, 0.5));
-  };
-
-  const toggleFullscreen = () => {
-    if (!isFullscreen) {
-      containerRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
   };
 
   const handleSearch = () => {
