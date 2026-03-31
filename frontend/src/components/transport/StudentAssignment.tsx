@@ -91,21 +91,41 @@ const StudentAssignment: React.FC = () => {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const stopIdValue = formData.get('stop_id');
+    const monthlyFeeValue = formData.get('monthly_fee');
+    const pickupLocationValue = formData.get('pickup_location');
+    const dropLocationValue = formData.get('drop_location');
+    const endDateValue = formData.get('end_date');
+    const emergencyContactNameValue = formData.get('emergency_contact_name');
+    const emergencyContactPhoneValue = formData.get('emergency_contact_phone');
+    const remarksValue = formData.get('remarks');
+
     const data = {
       institution_id: 1,
-      student_id: parseInt(formData.get('student_id') as string),
-      route_id: parseInt(formData.get('route_id') as string),
-      stop_id: formData.get('stop_id') ? parseInt(formData.get('stop_id') as string) : null,
-      pickup_location: formData.get('pickup_location'),
-      drop_location: formData.get('drop_location'),
-      monthly_fee: formData.get('monthly_fee')
-        ? parseFloat(formData.get('monthly_fee') as string)
-        : null,
-      start_date: formData.get('start_date'),
-      end_date: formData.get('end_date'),
-      emergency_contact_name: formData.get('emergency_contact_name'),
-      emergency_contact_phone: formData.get('emergency_contact_phone'),
-      remarks: formData.get('remarks'),
+      student_id: parseInt(formData.get('student_id') as string, 10),
+      route_id: parseInt(formData.get('route_id') as string, 10),
+      stop_id: stopIdValue && stopIdValue !== '' ? parseInt(stopIdValue as string, 10) : undefined,
+      pickup_location:
+        pickupLocationValue && pickupLocationValue !== ''
+          ? (pickupLocationValue as string)
+          : undefined,
+      drop_location:
+        dropLocationValue && dropLocationValue !== '' ? (dropLocationValue as string) : undefined,
+      monthly_fee:
+        monthlyFeeValue && monthlyFeeValue !== ''
+          ? parseFloat(monthlyFeeValue as string)
+          : undefined,
+      start_date: formData.get('start_date') as string,
+      end_date: endDateValue && endDateValue !== '' ? (endDateValue as string) : undefined,
+      emergency_contact_name:
+        emergencyContactNameValue && emergencyContactNameValue !== ''
+          ? (emergencyContactNameValue as string)
+          : undefined,
+      emergency_contact_phone:
+        emergencyContactPhoneValue && emergencyContactPhoneValue !== ''
+          ? (emergencyContactPhoneValue as string)
+          : undefined,
+      remarks: remarksValue && remarksValue !== '' ? (remarksValue as string) : undefined,
       is_active: true,
     };
 

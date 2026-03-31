@@ -106,18 +106,22 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({ timetableId }) => {
     if (!timetableId || !selectedSlot) return;
 
     const formData = new FormData(event.currentTarget);
+    const teacherIdValue = formData.get('teacher_id');
+    const roomNumberValue = formData.get('room_number');
+    const remarksValue = formData.get('remarks');
+
     const data = {
       subject_id: parseInt(formData.get('subject_id') as string),
-      teacher_id: formData.get('teacher_id')
-        ? parseInt(formData.get('teacher_id') as string)
-        : null,
+      teacher_id:
+        teacherIdValue && teacherIdValue !== '' ? parseInt(teacherIdValue as string) : undefined,
       day_of_week: selectedSlot.day,
       period_number: selectedSlot.period,
-      start_time: formData.get('start_time'),
-      end_time: formData.get('end_time'),
-      period_type: formData.get('period_type') || 'lecture',
-      room_number: formData.get('room_number'),
-      remarks: formData.get('remarks'),
+      start_time: formData.get('start_time') as string,
+      end_time: formData.get('end_time') as string,
+      period_type: (formData.get('period_type') as string) || 'lecture',
+      room_number:
+        roomNumberValue && roomNumberValue !== '' ? (roomNumberValue as string) : undefined,
+      remarks: remarksValue && remarksValue !== '' ? (remarksValue as string) : undefined,
       is_active: true,
     };
 

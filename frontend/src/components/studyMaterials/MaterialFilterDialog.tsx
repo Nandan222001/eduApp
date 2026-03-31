@@ -169,9 +169,10 @@ const MaterialFilterDialog: React.FC<MaterialFilterDialogProps> = ({
             onChange={(_, newValue) => setFilters({ ...filters, tags: newValue })}
             renderInput={(params) => <TextField {...params} label="Tags" />}
             renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip key={option} label={option} {...getTagProps({ index })} />
-              ))
+              value.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index });
+                return <Chip key={key} label={option} {...tagProps} />;
+              })
             }
           />
 

@@ -165,10 +165,12 @@ export default function MessagingCenter() {
   }, [isConnected, refetchInbox, refetchSent]);
 
   const handleSelectConversation = (message: Message) => {
-    const otherUserId = message.sender_id === user?.id ? message.recipient_id : message.sender_id;
+    const currentUserId = user?.id ? Number(user.id) : null;
+    const otherUserId =
+      message.sender_id === currentUserId ? message.recipient_id : message.sender_id;
     setSelectedConversationUserId(otherUserId);
 
-    if (!message.is_read && message.recipient_id === user?.id) {
+    if (!message.is_read && message.recipient_id === currentUserId) {
       markReadMutation.mutate(message.id);
     }
   };
@@ -236,7 +238,22 @@ export default function MessagingCenter() {
   const recipientOptions = useMemo(() => {
     const options: RecipientOption[] = [];
 
-    if (teachers.items) {
+    if (Array.isArray(teachers) && teachers.length > 0) {
+      teachers.forEach((t: Teacher) => {
+        options.push({
+          id: t.user_id || t.id,
+          first_name: t.first_name,
+          last_name: t.last_name,
+          email: t.email,
+          role: 'Teacher',
+        });
+      });
+    } else if (
+      teachers &&
+      typeof teachers === 'object' &&
+      'items' in teachers &&
+      Array.isArray(teachers.items)
+    ) {
       teachers.items.forEach((t: Teacher) => {
         options.push({
           id: t.user_id || t.id,
@@ -248,7 +265,24 @@ export default function MessagingCenter() {
       });
     }
 
-    if (students.items) {
+    if (Array.isArray(students) && students.length > 0) {
+      students.forEach((s: Student) => {
+        if (s.user_id) {
+          options.push({
+            id: s.user_id,
+            first_name: s.first_name,
+            last_name: s.last_name,
+            email: s.email || '',
+            role: 'Student',
+          });
+        }
+      });
+    } else if (
+      students &&
+      typeof students === 'object' &&
+      'items' in students &&
+      Array.isArray(students.items)
+    ) {
       students.items.forEach((s: Student) => {
         if (s.user_id) {
           options.push({
@@ -271,8 +305,9 @@ export default function MessagingCenter() {
   const filteredMessages = useMemo(() => {
     if (!searchQuery) return currentMessages;
 
+    const currentUserId = user?.id ? Number(user.id) : null;
     return currentMessages.filter((msg) => {
-      const otherUser = msg.sender_id === user?.id ? msg.recipient : msg.sender;
+      const otherUser = msg.sender_id === currentUserId ? msg.recipient : msg.sender;
       const name = otherUser ? `${otherUser.first_name} ${otherUser.last_name}`.toLowerCase() : '';
       const content = `${msg.subject || ''} ${msg.content}`.toLowerCase();
       return (
@@ -284,15 +319,16 @@ export default function MessagingCenter() {
   const selectedConversationName = useMemo(() => {
     if (!selectedConversationUserId) return '';
 
+    const currentUserId = user?.id ? Number(user.id) : null;
     const relevantMessages = tabValue === 0 ? inboxData : sentData;
     const message = relevantMessages.find(
       (msg) =>
-        (msg.sender_id === user?.id ? msg.recipient_id : msg.sender_id) ===
+        (msg.sender_id === currentUserId ? msg.recipient_id : msg.sender_id) ===
         selectedConversationUserId
     );
 
     if (!message) return 'User';
-    const otherUser = message.sender_id === user?.id ? message.recipient : message.sender;
+    const otherUser = message.sender_id === currentUserId ? message.recipient : message.sender;
     return otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : 'User';
   }, [selectedConversationUserId, inboxData, sentData, tabValue, user?.id]);
 
@@ -412,13 +448,14 @@ export default function MessagingCenter() {
               ) : (
                 <List disablePadding>
                   {filteredMessages.map((message, index) => {
+                    const currentUserId = user?.id ? Number(user.id) : null;
                     const otherUser =
-                      message.sender_id === user?.id ? message.recipient : message.sender;
+                      message.sender_id === currentUserId ? message.recipient : message.sender;
                     const displayName = otherUser
                       ? `${otherUser.first_name} ${otherUser.last_name}`
                       : 'Unknown User';
                     const isSelected =
-                      (message.sender_id === user?.id
+                      (message.sender_id === currentUserId
                         ? message.recipient_id
                         : message.sender_id) === selectedConversationUserId;
 
@@ -537,7 +574,8 @@ export default function MessagingCenter() {
                     </Box>
                   ) : (
                     conversation.map((message) => {
-                      const isSent = message.sender_id === user?.id;
+                      const currentUserId = user?.id ? Number(user.id) : null;
+                      const isSent = message.sender_id === currentUserId;
                       return (
                         <Box
                           key={message.id}

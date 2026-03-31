@@ -95,35 +95,71 @@ const RouteConfiguration: React.FC = () => {
   const handleRouteSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const totalDistanceKmValue = formData.get('total_distance_km');
+    const estimatedDurationMinutesValue = formData.get('estimated_duration_minutes');
+    const vehicleCapacityValue = formData.get('vehicle_capacity');
+    const monthlyFeeValue = formData.get('monthly_fee');
+    const descriptionValue = formData.get('description');
+    const pickupTimeValue = formData.get('pickup_time');
+    const dropTimeValue = formData.get('drop_time');
+    const vehicleTypeValue = formData.get('vehicle_type');
+    const vehicleNumberValue = formData.get('vehicle_number');
+    const driverNameValue = formData.get('driver_name');
+    const driverPhoneValue = formData.get('driver_phone');
+    const driverLicenseNumberValue = formData.get('driver_license_number');
+    const conductorNameValue = formData.get('conductor_name');
+    const conductorPhoneValue = formData.get('conductor_phone');
+
     const data = {
       institution_id: 1,
-      route_number: formData.get('route_number'),
-      route_name: formData.get('route_name'),
-      description: formData.get('description'),
-      start_location: formData.get('start_location'),
-      end_location: formData.get('end_location'),
-      total_distance_km: formData.get('total_distance_km')
-        ? parseFloat(formData.get('total_distance_km') as string)
-        : null,
-      estimated_duration_minutes: formData.get('estimated_duration_minutes')
-        ? parseInt(formData.get('estimated_duration_minutes') as string)
-        : null,
-      pickup_time: formData.get('pickup_time'),
-      drop_time: formData.get('drop_time'),
-      vehicle_type: formData.get('vehicle_type'),
-      vehicle_number: formData.get('vehicle_number'),
-      vehicle_capacity: formData.get('vehicle_capacity')
-        ? parseInt(formData.get('vehicle_capacity') as string)
-        : null,
-      driver_name: formData.get('driver_name'),
-      driver_phone: formData.get('driver_phone'),
-      driver_license_number: formData.get('driver_license_number'),
-      conductor_name: formData.get('conductor_name'),
-      conductor_phone: formData.get('conductor_phone'),
-      monthly_fee: formData.get('monthly_fee')
-        ? parseFloat(formData.get('monthly_fee') as string)
-        : null,
-      status: formData.get('status') || 'active',
+      route_number: formData.get('route_number') as string,
+      route_name: formData.get('route_name') as string,
+      description:
+        descriptionValue && descriptionValue !== '' ? (descriptionValue as string) : undefined,
+      start_location: formData.get('start_location') as string,
+      end_location: formData.get('end_location') as string,
+      total_distance_km:
+        totalDistanceKmValue && totalDistanceKmValue !== ''
+          ? parseFloat(totalDistanceKmValue as string)
+          : undefined,
+      estimated_duration_minutes:
+        estimatedDurationMinutesValue && estimatedDurationMinutesValue !== ''
+          ? parseInt(estimatedDurationMinutesValue as string, 10)
+          : undefined,
+      pickup_time:
+        pickupTimeValue && pickupTimeValue !== '' ? (pickupTimeValue as string) : undefined,
+      drop_time: dropTimeValue && dropTimeValue !== '' ? (dropTimeValue as string) : undefined,
+      vehicle_type:
+        vehicleTypeValue && vehicleTypeValue !== '' ? (vehicleTypeValue as string) : undefined,
+      vehicle_number:
+        vehicleNumberValue && vehicleNumberValue !== ''
+          ? (vehicleNumberValue as string)
+          : undefined,
+      vehicle_capacity:
+        vehicleCapacityValue && vehicleCapacityValue !== ''
+          ? parseInt(vehicleCapacityValue as string, 10)
+          : undefined,
+      driver_name:
+        driverNameValue && driverNameValue !== '' ? (driverNameValue as string) : undefined,
+      driver_phone:
+        driverPhoneValue && driverPhoneValue !== '' ? (driverPhoneValue as string) : undefined,
+      driver_license_number:
+        driverLicenseNumberValue && driverLicenseNumberValue !== ''
+          ? (driverLicenseNumberValue as string)
+          : undefined,
+      conductor_name:
+        conductorNameValue && conductorNameValue !== ''
+          ? (conductorNameValue as string)
+          : undefined,
+      conductor_phone:
+        conductorPhoneValue && conductorPhoneValue !== ''
+          ? (conductorPhoneValue as string)
+          : undefined,
+      monthly_fee:
+        monthlyFeeValue && monthlyFeeValue !== ''
+          ? parseFloat(monthlyFeeValue as string)
+          : undefined,
+      status: (formData.get('status') as string) || 'active',
       is_active: true,
     };
 
@@ -137,14 +173,24 @@ const RouteConfiguration: React.FC = () => {
   const handleStopSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const latitudeValue = formData.get('latitude');
+    const longitudeValue = formData.get('longitude');
+    const stopAddressValue = formData.get('stop_address');
+    const pickupTimeValue = formData.get('pickup_time');
+    const dropTimeValue = formData.get('drop_time');
+
     const data = {
-      stop_name: formData.get('stop_name'),
-      stop_address: formData.get('stop_address'),
-      latitude: formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : null,
-      longitude: formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : null,
-      stop_order: parseInt(formData.get('stop_order') as string),
-      pickup_time: formData.get('pickup_time'),
-      drop_time: formData.get('drop_time'),
+      stop_name: formData.get('stop_name') as string,
+      stop_address:
+        stopAddressValue && stopAddressValue !== '' ? (stopAddressValue as string) : undefined,
+      latitude:
+        latitudeValue && latitudeValue !== '' ? parseFloat(latitudeValue as string) : undefined,
+      longitude:
+        longitudeValue && longitudeValue !== '' ? parseFloat(longitudeValue as string) : undefined,
+      stop_order: parseInt(formData.get('stop_order') as string, 10),
+      pickup_time:
+        pickupTimeValue && pickupTimeValue !== '' ? (pickupTimeValue as string) : undefined,
+      drop_time: dropTimeValue && dropTimeValue !== '' ? (dropTimeValue as string) : undefined,
       is_active: true,
     };
 
