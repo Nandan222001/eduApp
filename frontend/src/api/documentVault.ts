@@ -24,6 +24,7 @@ export interface FamilyDocument {
   file_type: string;
   mime_type?: string;
   encrypted_file_url: string;
+  file_url?: string;
   ocr_text?: string;
   extracted_metadata?: Record<string, unknown>;
   tags?: string[];
@@ -31,10 +32,15 @@ export interface FamilyDocument {
   is_verified: boolean;
   issue_date?: string;
   expiry_date?: string;
+  upload_date?: string;
   created_at: string;
   updated_at: string;
   folder_id?: number;
   student_id?: number;
+  child_name?: string;
+  verified_by?: string;
+  verified_date?: string;
+  rejection_reason?: string;
 }
 
 export interface DocumentShare {
@@ -58,6 +64,10 @@ export interface DocumentAccessLog {
   user_agent?: string;
   metadata?: Record<string, unknown>;
   created_at: string;
+  accessed_by?: string;
+  accessed_by_role?: string;
+  access_type?: 'view' | 'download' | 'share';
+  accessed_date?: string;
 }
 
 export interface DocumentStatistics {

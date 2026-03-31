@@ -22,8 +22,8 @@ import {
 import { Close, GetApp, Share, Visibility, Delete } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { documentVaultApi } from '@/api/documentVault';
-import { DocumentStatus } from '@/types/documentVault';
+import { documentVaultApi, DocumentAccessLog } from '@/api/documentVault';
+import { DocumentStatus, AccessLog, RecipientRole } from '@/types/documentVault';
 import { SharingModal } from './SharingModal';
 import { AccessLogsPanel } from './AccessLogsPanel';
 
@@ -69,11 +69,27 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     enabled: open,
   });
 
-  const { data: accessLogs } = useQuery({
+  const { data: accessLogsData } = useQuery({
     queryKey: ['document-access-logs', documentId],
     queryFn: () => documentVaultApi.getAccessLogs(documentId),
     enabled: open && currentTab === 1,
   });
+
+  const mapAccessLogs = (logs: DocumentAccessLog[]): AccessLog[] => {
+    return logs.map((log) => ({
+      id: log.id,
+      document_id: log.document_id,
+      accessed_by: log.accessed_by || `User ${log.user_id}`,
+      accessed_by_role: (log.accessed_by_role as RecipientRole) || RecipientRole.ADMIN,
+      access_type:
+        log.access_type ||
+        (log.action === 'download' ? 'download' : log.action === 'share' ? 'share' : 'view'),
+      accessed_date: log.accessed_date || log.created_at,
+      ip_address: log.ip_address,
+    }));
+  };
+
+  const accessLogs = accessLogsData ? mapAccessLogs(accessLogsData) : [];
 
   const downloadMutation = useMutation({
     mutationFn: () => documentVaultApi.downloadDocument(documentId),
@@ -116,14 +132,18 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const getStatusColor = (status: DocumentStatus) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case DocumentStatus.VERIFIED:
+      case 'verified':
         return 'success';
       case DocumentStatus.PENDING:
+      case 'pending':
         return 'warning';
       case DocumentStatus.REJECTED:
       case DocumentStatus.EXPIRED:
+      case 'rejected':
+      case 'expired':
         return 'error';
       default:
         return 'default';
@@ -133,11 +153,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const renderContent = () => {
     if (!document) return null;
 
-    if (document.mime_type.startsWith('image/')) {
+    const mimeType = document.mime_type || document.file_type || '';
+    const fileUrl = document.file_url || document.encrypted_file_url || '';
+
+    if (mimeType.startsWith('image/')) {
       return (
         <Box sx={{ textAlign: 'center', bgcolor: 'grey.100', p: 2, borderRadius: 1 }}>
           <img
-            src={document.file_url}
+            src={fileUrl}
             alt={document.title}
             style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain' }}
           />
@@ -145,11 +168,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       );
     }
 
-    if (document.mime_type === 'application/pdf') {
+    if (mimeType === 'application/pdf') {
       return (
         <Box sx={{ height: '60vh', width: '100%', bgcolor: 'grey.100', borderRadius: 1 }}>
           <iframe
-            src={document.file_url}
+            src={fileUrl}
             style={{ width: '100%', height: '100%', border: 'none' }}
             title={document.title}
           />
@@ -212,9 +235,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                       variant="outlined"
                       size="small"
                     />
-                    {document.tags.map((tag) => (
-                      <Chip key={tag} label={tag} size="small" variant="outlined" />
-                    ))}
+                    {document.tags &&
+                      document.tags.map((tag) => (
+                        <Chip key={tag} label={tag} size="small" variant="outlined" />
+                      ))}
                   </Box>
 
                   {document.description && (
@@ -235,13 +259,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                   </Typography>
 
                   <List dense>
-                    <ListItem>
-                      <ListItemText
-                        primary="Child"
-                        secondary={document.child_name}
-                        primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                      />
-                    </ListItem>
+                    {document.child_name && (
+                      <ListItem>
+                        <ListItemText
+                          primary="Child"
+                          secondary={document.child_name}
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                        />
+                      </ListItem>
+                    )}
                     <ListItem>
                       <ListItemText
                         primary="File Name"
@@ -256,13 +282,18 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                         primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
                       />
                     </ListItem>
-                    <ListItem>
-                      <ListItemText
-                        primary="Upload Date"
-                        secondary={format(new Date(document.upload_date), 'PPP')}
-                        primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                      />
-                    </ListItem>
+                    {(document.upload_date || document.created_at) && (
+                      <ListItem>
+                        <ListItemText
+                          primary="Upload Date"
+                          secondary={format(
+                            new Date(document.upload_date || document.created_at),
+                            'PPP'
+                          )}
+                          primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                        />
+                      </ListItem>
+                    )}
                     {document.expiry_date && (
                       <ListItem>
                         <ListItemText
@@ -309,7 +340,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               </TabPanel>
 
               <TabPanel value={currentTab} index={2}>
-                <AccessLogsPanel logs={accessLogs || []} />
+                <AccessLogsPanel logs={accessLogs} />
               </TabPanel>
             </>
           )}
