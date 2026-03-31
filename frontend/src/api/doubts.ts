@@ -7,7 +7,7 @@ import {
   DoubtBookmark,
   DoubtSearchFilters,
   DoubtStats,
-  VoteType,
+  VoteTypeValue,
 } from '../types/doubt';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -87,7 +87,7 @@ const doubtsApi = {
     return response.data;
   },
 
-  voteDoubt: async (doubtId: number, voteType: VoteType): Promise<DoubtVote> => {
+  voteDoubt: async (doubtId: number, voteType: VoteTypeValue): Promise<DoubtVote> => {
     const response = await axios.post(`${API_BASE_URL}/api/v1/doubts/${doubtId}/vote`, {
       vote_type: voteType,
     });
@@ -98,7 +98,7 @@ const doubtsApi = {
     await axios.delete(`${API_BASE_URL}/api/v1/doubts/${doubtId}/vote`);
   },
 
-  voteAnswer: async (answerId: number, voteType: VoteType): Promise<DoubtVote> => {
+  voteAnswer: async (answerId: number, voteType: VoteTypeValue): Promise<DoubtVote> => {
     const response = await axios.post(`${API_BASE_URL}/api/v1/doubts/answers/${answerId}/vote`, {
       vote_type: voteType,
     });

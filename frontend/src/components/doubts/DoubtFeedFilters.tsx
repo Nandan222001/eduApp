@@ -14,7 +14,7 @@ import {
   Stack,
 } from '@mui/material';
 import { Search, HelpOutline, TrendingUp, Schedule } from '@mui/icons-material';
-import { DoubtStatus } from '../../types/doubt';
+import { DoubtStatus, DoubtSearchFilters } from '../../types/doubt';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';

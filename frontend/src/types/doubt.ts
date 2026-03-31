@@ -9,7 +9,7 @@ export interface DoubtPost {
   description: string;
   images?: string[];
   tags?: string[];
-  status: DoubtStatus;
+  status: DoubtStatus | 'unanswered' | 'answered' | 'resolved' | 'closed';
   view_count: number;
   answer_count: number;
   upvote_count: number;
@@ -31,6 +31,8 @@ export enum DoubtStatus {
   RESOLVED = 'resolved',
   CLOSED = 'closed',
 }
+
+export type DoubtStatusValue = DoubtStatus | 'unanswered' | 'answered' | 'resolved' | 'closed';
 
 export interface DoubtAnswer {
   id: number;
@@ -71,7 +73,7 @@ export interface DoubtVote {
   user_id: number;
   doubt_id?: number;
   answer_id?: number;
-  vote_type: VoteType;
+  vote_type: VoteType | 'upvote' | 'downvote';
   created_at: string;
 }
 
@@ -79,6 +81,8 @@ export enum VoteType {
   UPVOTE = 'upvote',
   DOWNVOTE = 'downvote',
 }
+
+export type VoteTypeValue = VoteType | 'upvote' | 'downvote';
 
 export interface DoubtBookmark {
   id: number;

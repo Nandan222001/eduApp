@@ -86,6 +86,8 @@ const DoubtForum: React.FC = () => {
         unanswered_doubts: 0,
         resolved_doubts: 0,
         my_doubts: 0,
+        my_answers: 0,
+        popular_tags: [],
       });
       return;
     }

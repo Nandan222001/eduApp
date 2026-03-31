@@ -31,22 +31,26 @@ interface DoubtCardProps {
 }
 
 const DoubtCard: React.FC<DoubtCardProps> = ({ doubt, onView, onUpvote, onBookmark }) => {
-  const getStatusColor = (status: DoubtStatus) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case DoubtStatus.RESOLVED:
+      case 'resolved':
         return 'success';
       case DoubtStatus.ANSWERED:
+      case 'answered':
         return 'info';
       case DoubtStatus.UNANSWERED:
+      case 'unanswered':
         return 'warning';
       case DoubtStatus.CLOSED:
+      case 'closed':
         return 'default';
       default:
         return 'default';
     }
   };
 
-  const getStatusLabel = (status: DoubtStatus) => {
+  const getStatusLabel = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
@@ -69,7 +73,7 @@ const DoubtCard: React.FC<DoubtCardProps> = ({ doubt, onView, onUpvote, onBookma
             label={getStatusLabel(doubt.status)}
             color={getStatusColor(doubt.status)}
             size="small"
-            icon={doubt.status === DoubtStatus.RESOLVED ? <CheckCircle /> : undefined}
+            icon={getStatusColor(doubt.status) === 'success' ? <CheckCircle /> : undefined}
           />
           <Typography variant="caption" color="text.secondary">
             {formatDistanceToNow(new Date(doubt.created_at), { addSuffix: true })}
