@@ -248,7 +248,7 @@ export const QuizTakingInterface: React.FC<QuizTakingInterfaceProps> = ({ quiz, 
             <Button
               startIcon={<FlagIcon />}
               onClick={toggleFlag}
-              color={flaggedQuestions.has(currentQuestion.id) ? 'warning' : 'default'}
+              color={flaggedQuestions.has(currentQuestion.id) ? 'warning' : 'primary'}
               size="small"
             >
               Flag
@@ -283,20 +283,28 @@ export const QuizTakingInterface: React.FC<QuizTakingInterfaceProps> = ({ quiz, 
         </Button>
 
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {questions.map((q, index) => (
-            <Button
-              key={q.id}
-              variant={index === currentQuestionIndex ? 'contained' : 'outlined'}
-              size="small"
-              onClick={() => setCurrentQuestionIndex(index)}
-              color={
-                answers.has(q.id) ? 'success' : flaggedQuestions.has(q.id) ? 'warning' : 'primary'
-              }
-              sx={{ minWidth: 40 }}
-            >
-              {index + 1}
-            </Button>
-          ))}
+          {questions.map((q, index) => {
+            const isAnswered = answers.has(q.id);
+            const isFlagged = flaggedQuestions.has(q.id);
+            let buttonColor: 'success' | 'warning' | 'primary' = 'primary';
+            if (isAnswered) {
+              buttonColor = 'success';
+            } else if (isFlagged) {
+              buttonColor = 'warning';
+            }
+            return (
+              <Button
+                key={q.id}
+                variant={index === currentQuestionIndex ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setCurrentQuestionIndex(index)}
+                color={buttonColor}
+                sx={{ minWidth: 40 }}
+              >
+                {index + 1}
+              </Button>
+            );
+          })}
         </Box>
 
         {currentQuestionIndex === questions.length - 1 ? (

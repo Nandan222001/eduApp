@@ -262,7 +262,7 @@ export default function EssayPeerReview() {
       await scholarshipEssayApi.submitPeerReview(selectedAssignment.id, {
         ...review,
         reviewerId: user?.id || '1',
-        reviewerName: user?.name || 'Anonymous',
+        reviewerName: user?.fullName || user?.email || 'Anonymous',
         status: 'completed',
       });
 

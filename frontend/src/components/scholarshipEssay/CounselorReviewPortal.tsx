@@ -146,7 +146,7 @@ export default function CounselorReviewPortal() {
       await scholarshipEssayApi.submitCounselorFeedback(selectedEssay.id, {
         ...feedback,
         counselorId: user?.id || '1',
-        counselorName: user?.name || 'Counselor',
+        counselorName: user?.fullName || user?.email || 'Counselor',
         approved,
         status: approved ? 'approved' : 'needs_revision',
       });
