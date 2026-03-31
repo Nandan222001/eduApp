@@ -106,7 +106,7 @@ function UploadWizard({ open, onClose, onSuccess, editContent }: UploadWizardPro
     tags: string[];
     learning_objectives: string[];
     prerequisites: string[];
-    difficulty: string;
+    difficulty_level: string;
   }>({
     title: '',
     description: '',

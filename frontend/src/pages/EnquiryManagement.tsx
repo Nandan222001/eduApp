@@ -178,10 +178,13 @@ export const EnquiryManagement: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (id: number, status: string) => {
+  const handleStatusChange = async (
+    id: number,
+    status: 'new' | 'contacted' | 'visited' | 'follow_up' | 'converted' | 'closed'
+  ) => {
     try {
       const api = isDemoUser() ? demoDataApi.enquiries : schoolAdminApi.enquiries;
-      await api.update(id, { status: status as Enquiry['status'] });
+      await api.update(id, { status });
       showSnackbar('Status updated successfully', 'success');
       loadEnquiries();
     } catch (error) {

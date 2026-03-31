@@ -53,7 +53,7 @@ interface Teacher {
 export const ClassManagement: React.FC = () => {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
-  const [_teachers, _setTeachers] = useState<Teacher[]>([]);
+  const [teachers] = useState<Teacher[]>([]);
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
   const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);

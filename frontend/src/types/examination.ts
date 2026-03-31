@@ -171,6 +171,7 @@ export interface ExamSubjectCreateInput {
   practical_max_marks: number;
   theory_passing_marks: number;
   practical_passing_marks: number;
+  [key: string]: string | number;
 }
 
 export interface ExamScheduleCreateInput {
@@ -184,6 +185,7 @@ export interface ExamScheduleCreateInput {
   room_number?: string;
   invigilator_id?: number;
   instructions?: string;
+  [key: string]: string | number | undefined;
 }
 
 export interface BulkMarksEntry {

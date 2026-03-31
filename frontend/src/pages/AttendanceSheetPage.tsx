@@ -58,8 +58,7 @@ export default function AttendanceSheetPage() {
 
   const loadSections = async () => {
     try {
-      const api = isDemoUser() ? demoDataApi.students : studentsApi;
-      const response = await api.listStudents({ limit: 1000 });
+      const response = await studentsApi.listStudents({ limit: 1000, skip: 0 });
       const uniqueSections = Array.from(
         new Map(
           response.items.filter((s) => s.section).map((s) => [s.section!.id, s.section!])
