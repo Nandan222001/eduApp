@@ -67,15 +67,21 @@ export const SideBySideComparison: React.FC<SideBySideComparisonProps> = ({ resu
     return <Alert severity="info">No visualization data available</Alert>;
   }
 
+  const similarityScore =
+    typeof visualization.similarity_score === 'number' ? visualization.similarity_score : 0;
+  const totalSegments =
+    typeof visualization.total_segments === 'number' ? visualization.total_segments : 0;
+  const contentComparison = visualization.content_comparison as Record<string, unknown> | undefined;
+
   return (
     <Box>
       <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
         <Typography variant="h6">Side-by-Side Comparison</Typography>
         <Chip
-          label={`${(visualization.similarity_score * 100).toFixed(1)}% Similar`}
-          color={visualization.similarity_score >= 0.8 ? 'error' : 'warning'}
+          label={`${(similarityScore * 100).toFixed(1)}% Similar`}
+          color={similarityScore >= 0.8 ? 'error' : 'warning'}
         />
-        <Chip label={`${visualization.total_segments} Matching Segments`} color="info" />
+        <Chip label={`${totalSegments} Matching Segments`} color="info" />
       </Box>
 
       <Grid container spacing={2}>
@@ -86,17 +92,17 @@ export const SideBySideComparison: React.FC<SideBySideComparisonProps> = ({ resu
             </Typography>
             <Divider sx={{ mb: 2 }} />
             <Box sx={{ fontSize: '14px', lineHeight: 1.6 }}>
-              {visualization.content_comparison.source.highlighted ? (
-                renderHighlightedText(visualization.content_comparison.source.highlighted)
+              {contentComparison?.source?.highlighted ? (
+                renderHighlightedText(contentComparison.source.highlighted)
               ) : (
                 <Typography variant="body2">
-                  {visualization.content_comparison.source.text}
+                  {String(contentComparison?.source?.text ?? '')}
                 </Typography>
               )}
             </Box>
             <Box sx={{ mt: 2 }}>
               <Chip
-                label={`${visualization.content_comparison.source.matched_percentage.toFixed(1)}% Matched`}
+                label={`${(typeof contentComparison?.source?.matched_percentage === 'number' ? contentComparison.source.matched_percentage : 0).toFixed(1)}% Matched`}
                 size="small"
                 color="warning"
               />
@@ -111,17 +117,17 @@ export const SideBySideComparison: React.FC<SideBySideComparisonProps> = ({ resu
             </Typography>
             <Divider sx={{ mb: 2 }} />
             <Box sx={{ fontSize: '14px', lineHeight: 1.6 }}>
-              {visualization.content_comparison.target.highlighted ? (
-                renderHighlightedText(visualization.content_comparison.target.highlighted)
+              {contentComparison?.target?.highlighted ? (
+                renderHighlightedText(contentComparison.target.highlighted)
               ) : (
                 <Typography variant="body2">
-                  {visualization.content_comparison.target.text}
+                  {String(contentComparison?.target?.text ?? '')}
                 </Typography>
               )}
             </Box>
             <Box sx={{ mt: 2 }}>
               <Chip
-                label={`${visualization.content_comparison.target.matched_percentage.toFixed(1)}% Matched`}
+                label={`${(typeof contentComparison?.target?.matched_percentage === 'number' ? contentComparison.target.matched_percentage : 0).toFixed(1)}% Matched`}
                 size="small"
                 color="warning"
               />
@@ -135,34 +141,46 @@ export const SideBySideComparison: React.FC<SideBySideComparisonProps> = ({ resu
           Matched Segments Details
         </Typography>
         <Box sx={{ maxHeight: '300px', overflow: 'auto' }}>
-          {(visualization.matched_segments as Array<Record<string, unknown>>).map(
-            (segment, index: number) => (
+          {(Array.isArray(visualization.matched_segments)
+            ? visualization.matched_segments
+            : []
+          ).map((segment, index: number) => {
+            const segmentData = segment as Record<string, unknown>;
+            const segmentSimilarity =
+              typeof segmentData.segment_similarity === 'number'
+                ? segmentData.segment_similarity
+                : 0;
+            return (
               <Box
-                key={segment.id}
+                key={String(segmentData.id ?? index)}
                 sx={{
                   p: 2,
                   mb: 1,
                   backgroundColor: '#f5f5f5',
                   borderRadius: 1,
-                  borderLeft: segment.is_citation ? '4px solid #2196f3' : '4px solid #ff9800',
+                  borderLeft: segmentData.is_citation ? '4px solid #2196f3' : '4px solid #ff9800',
                 }}
               >
                 <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
                   <Chip label={`Segment ${index + 1}`} size="small" variant="outlined" />
                   <Chip
-                    label={`${(segment.segment_similarity * 100).toFixed(1)}% Similar`}
+                    label={`${(segmentSimilarity * 100).toFixed(1)}% Similar`}
                     size="small"
-                    color={segment.segment_similarity >= 0.8 ? 'error' : 'warning'}
+                    color={segmentSimilarity >= 0.8 ? 'error' : 'warning'}
                   />
-                  {segment.is_citation && <Chip label="Has Citation" size="small" color="info" />}
-                  {segment.is_code_segment && <Chip label="Code" size="small" color="secondary" />}
+                  {Boolean(segmentData.is_citation) && (
+                    <Chip label="Has Citation" size="small" color="info" />
+                  )}
+                  {Boolean(segmentData.is_code_segment) && (
+                    <Chip label="Code" size="small" color="secondary" />
+                  )}
                 </Box>
                 <Typography variant="caption" color="text.secondary">
-                  Length: {segment.segment_length} characters
+                  Length: {String(segmentData.segment_length ?? 0)} characters
                 </Typography>
               </Box>
-            )
-          )}
+            );
+          })}
         </Box>
       </Paper>
     </Box>

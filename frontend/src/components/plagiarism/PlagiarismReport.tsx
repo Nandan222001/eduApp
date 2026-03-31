@@ -58,6 +58,13 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
     return <Alert severity="info">No report data available</Alert>;
   }
 
+  const averageSimilarity =
+    typeof report.average_similarity === 'number' ? report.average_similarity : 0;
+  const maxSimilarity = typeof report.max_similarity === 'number' ? report.max_similarity : 0;
+  const flaggedPairs = Array.isArray(report.flagged_pairs) ? report.flagged_pairs : [];
+  const processingTime =
+    typeof report.processing_time_seconds === 'number' ? report.processing_time_seconds : 0;
+
   const distributionData = [
     { name: 'High Similarity (≥80%)', value: report.high_similarity_count, color: '#f44336' },
     { name: 'Medium Similarity (50-80%)', value: report.medium_similarity_count, color: '#ff9800' },
@@ -72,7 +79,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
         Plagiarism Detection Report
       </Typography>
       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        {report.assignment_title}
+        {String(report.assignment_title ?? '')}
       </Typography>
 
       <Grid container spacing={3} sx={{ mt: 2 }}>
@@ -82,7 +89,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
               <Typography color="text.secondary" gutterBottom>
                 Total Submissions
               </Typography>
-              <Typography variant="h4">{report.total_submissions}</Typography>
+              <Typography variant="h4">{String(report.total_submissions ?? 0)}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -93,7 +100,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
               <Typography color="text.secondary" gutterBottom>
                 Submissions Checked
               </Typography>
-              <Typography variant="h4">{report.submissions_checked}</Typography>
+              <Typography variant="h4">{String(report.submissions_checked ?? 0)}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -104,7 +111,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
               <Typography color="text.secondary" gutterBottom>
                 Average Similarity
               </Typography>
-              <Typography variant="h4">{(report.average_similarity * 100).toFixed(1)}%</Typography>
+              <Typography variant="h4">{(averageSimilarity * 100).toFixed(1)}%</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -116,7 +123,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
                 Max Similarity
               </Typography>
               <Typography variant="h4" color="error">
-                {(report.max_similarity * 100).toFixed(1)}%
+                {(maxSimilarity * 100).toFixed(1)}%
               </Typography>
             </CardContent>
           </Card>
@@ -139,7 +146,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {distributionData.map((entry, index) => (
+                  {distributionData.map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -156,31 +163,34 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
               Flagged Pairs (High Similarity)
             </Typography>
             <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
-              {report.flagged_pairs.length === 0 ? (
+              {flaggedPairs.length === 0 ? (
                 <Alert severity="success">No high similarity pairs detected</Alert>
               ) : (
                 <List>
-                  {(report.flagged_pairs as Array<Record<string, unknown>>).map(
-                    (pair, index: number) => (
+                  {(flaggedPairs as Array<Record<string, unknown>>).map((pair, index: number) => {
+                    const similarityScore =
+                      typeof pair.similarity_score === 'number' ? pair.similarity_score : 0;
+                    return (
                       <ListItem key={index}>
                         <ListItemText
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Typography variant="body2">
-                                Submission {pair.submission_id_1} ↔ {pair.submission_id_2}
+                                Submission {String(pair.submission_id_1 ?? '')} ↔{' '}
+                                {String(pair.submission_id_2 ?? '')}
                               </Typography>
                               <Chip
-                                label={`${(pair.similarity_score * 100).toFixed(1)}%`}
+                                label={`${(similarityScore * 100).toFixed(1)}%`}
                                 color="error"
                                 size="small"
                               />
                             </Box>
                           }
-                          secondary={`${pair.matched_segments} matching segments`}
+                          secondary={`${String(pair.matched_segments ?? 0)} matching segments`}
                         />
                       </ListItem>
-                    )
-                  )}
+                    );
+                  })}
                 </List>
               )}
             </Box>
@@ -196,7 +206,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
               <Grid item xs={12} sm={6} md={3}>
                 <Box sx={{ textAlign: 'center', p: 2 }}>
                   <Typography variant="h3" color="error">
-                    {report.high_similarity_count}
+                    {String(report.high_similarity_count ?? 0)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     High Similarity Cases
@@ -206,7 +216,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
               <Grid item xs={12} sm={6} md={3}>
                 <Box sx={{ textAlign: 'center', p: 2 }}>
                   <Typography variant="h3" color="warning.main">
-                    {report.medium_similarity_count}
+                    {String(report.medium_similarity_count ?? 0)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Medium Similarity Cases
@@ -216,7 +226,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
               <Grid item xs={12} sm={6} md={3}>
                 <Box sx={{ textAlign: 'center', p: 2 }}>
                   <Typography variant="h3" color="success.main">
-                    {report.low_similarity_count}
+                    {String(report.low_similarity_count ?? 0)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Low Similarity Cases
@@ -226,7 +236,7 @@ export const PlagiarismReport: React.FC<PlagiarismReportProps> = ({ assignmentId
               <Grid item xs={12} sm={6} md={3}>
                 <Box sx={{ textAlign: 'center', p: 2 }}>
                   <Typography variant="h3" color="text.secondary">
-                    {report.processing_time_seconds.toFixed(2)}s
+                    {processingTime.toFixed(2)}s
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Processing Time

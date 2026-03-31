@@ -105,49 +105,56 @@ export const PlagiarismResultsList: React.FC<PlagiarismResultsListProps> = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {results.map((result) => (
-                <TableRow key={result.id}>
-                  <TableCell>{result.submission_id}</TableCell>
-                  <TableCell>{result.matched_submission_id || 'External Source'}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {getSimilarityIcon(result.similarity_score)}
-                      <Chip
-                        label={`${(result.similarity_score * 100).toFixed(1)}%`}
-                        color={getSimilarityColor(result.similarity_score)}
-                        size="small"
-                      />
-                    </Box>
-                  </TableCell>
-                  <TableCell>{result.matched_segments_count}</TableCell>
-                  <TableCell>
-                    {result.has_citations ? (
-                      <Chip label="Has Citations" color="info" size="small" />
-                    ) : (
-                      <Chip label="No Citations" color="default" size="small" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {result.is_false_positive ? (
-                      <Chip label="False Positive" color="success" size="small" />
-                    ) : result.review_status === 'reviewed' ? (
-                      <Chip label="Reviewed" color="primary" size="small" />
-                    ) : (
-                      <Chip label="Pending Review" color="warning" size="small" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip title="View Details">
-                      <IconButton
-                        size="small"
-                        onClick={() => onViewDetails && onViewDetails(result.id)}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {results.map((result) => {
+                const similarityScore =
+                  typeof result.similarity_score === 'number' ? result.similarity_score : 0;
+                const resultId = typeof result.id === 'number' ? result.id : 0;
+                return (
+                  <TableRow key={String(result.id)}>
+                    <TableCell>{String(result.submission_id ?? '')}</TableCell>
+                    <TableCell>
+                      {String(result.matched_submission_id ?? 'External Source')}
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {getSimilarityIcon(similarityScore)}
+                        <Chip
+                          label={`${(similarityScore * 100).toFixed(1)}%`}
+                          color={getSimilarityColor(similarityScore)}
+                          size="small"
+                        />
+                      </Box>
+                    </TableCell>
+                    <TableCell>{String(result.matched_segments_count ?? 0)}</TableCell>
+                    <TableCell>
+                      {result.has_citations ? (
+                        <Chip label="Has Citations" color="info" size="small" />
+                      ) : (
+                        <Chip label="No Citations" color="default" size="small" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {result.is_false_positive ? (
+                        <Chip label="False Positive" color="success" size="small" />
+                      ) : result.review_status === 'reviewed' ? (
+                        <Chip label="Reviewed" color="primary" size="small" />
+                      ) : (
+                        <Chip label="Pending Review" color="warning" size="small" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title="View Details">
+                        <IconButton
+                          size="small"
+                          onClick={() => onViewDetails && onViewDetails(resultId)}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>

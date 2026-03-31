@@ -85,6 +85,8 @@ export const TeacherReviewInterface: React.FC<TeacherReviewInterfaceProps> = ({
     return 'success';
   };
 
+  const similarityScore = typeof result.similarity_score === 'number' ? result.similarity_score : 0;
+
   return (
     <Box>
       <Card sx={{ mb: 3 }}>
@@ -96,12 +98,15 @@ export const TeacherReviewInterface: React.FC<TeacherReviewInterfaceProps> = ({
               </Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 <Chip
-                  label={`${(result.similarity_score * 100).toFixed(1)}% Similar`}
-                  color={getSimilarityColor(result.similarity_score)}
+                  label={`${(similarityScore * 100).toFixed(1)}% Similar`}
+                  color={getSimilarityColor(similarityScore)}
                 />
-                <Chip label={`${result.matched_segments_count} Segments`} color="info" />
-                {result.has_citations && <Chip label="Has Citations" color="primary" />}
-                {result.is_false_positive && (
+                <Chip
+                  label={`${String(result.matched_segments_count ?? 0)} Segments`}
+                  color="info"
+                />
+                {Boolean(result.has_citations) && <Chip label="Has Citations" color="primary" />}
+                {Boolean(result.is_false_positive) && (
                   <Chip label="Marked as False Positive" color="success" />
                 )}
               </Box>
@@ -121,15 +126,15 @@ export const TeacherReviewInterface: React.FC<TeacherReviewInterfaceProps> = ({
           {result.review_status === 'reviewed' && (
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="body2">
-                <strong>Decision:</strong> {result.review_decision}
+                <strong>Decision:</strong> {String(result.review_decision ?? '')}
               </Typography>
-              {result.review_notes && (
+              {Boolean(result.review_notes) && (
                 <Typography variant="body2">
-                  <strong>Notes:</strong> {result.review_notes}
+                  <strong>Notes:</strong> {String(result.review_notes)}
                 </Typography>
               )}
               <Typography variant="caption" color="text.secondary">
-                Reviewed on {new Date(result.reviewed_at).toLocaleString()}
+                Reviewed on {new Date(String(result.reviewed_at ?? '')).toLocaleString()}
               </Typography>
             </Alert>
           )}
@@ -149,11 +154,11 @@ export const TeacherReviewInterface: React.FC<TeacherReviewInterfaceProps> = ({
 
           <Box sx={{ mb: 2 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Submission ID: {result.submission_id} vs{' '}
-              {result.matched_submission_id || 'External Source'}
+              Submission ID: {String(result.submission_id ?? '')} vs{' '}
+              {String(result.matched_submission_id ?? 'External Source')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Similarity Score: {(result.similarity_score * 100).toFixed(1)}%
+              Similarity Score: {(similarityScore * 100).toFixed(1)}%
             </Typography>
           </Box>
 

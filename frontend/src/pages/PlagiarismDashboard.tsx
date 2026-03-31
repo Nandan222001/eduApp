@@ -36,7 +36,7 @@ export const PlagiarismDashboard: React.FC = () => {
   const [currentCheckId, setCurrentCheckId] = useState<number | null>(null);
   const [selectedResultId, setSelectedResultId] = useState<number | null>(null);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
