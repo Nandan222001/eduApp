@@ -4297,7 +4297,7 @@ export const demoCertificatesApi = {
   downloadCertificatePDF: async (id: number): Promise<Blob> => {
     const certificate = demoCertificates.find((c) => c.id === id);
     const content = certificate
-      ? `Certificate PDF - ${certificate.serial_number || certificate.certificate_number || 'Unknown'}`
+      ? `Certificate PDF - ${certificate.serial_number || 'Unknown'}`
       : 'Certificate PDF content';
     return Promise.resolve(new Blob([content], { type: 'application/pdf' }));
   },
@@ -4313,7 +4313,7 @@ export const demoCertificatesApi = {
     return Promise.resolve({
       template_id,
       student_data: student_data as Record<string, unknown>,
-      preview_html: template?.template_content || previewHtml,
+      preview_html: previewHtml,
       generated_at: new Date().toISOString(),
     });
   },
@@ -4337,7 +4337,7 @@ export const demoCertificatesApi = {
       institution_id: 1,
       student_id: data.student_id as number,
       certificate_type: data.certificate_type as string,
-      certificate_number: `${(data.certificate_type as string).toUpperCase().substring(0, 2)}-2024-${String(demoCertificates.length + 1).padStart(3, '0')}`,
+      serial_number: `${(data.certificate_type as string).toUpperCase().substring(0, 2)}-2024-${String(demoCertificates.length + 1).padStart(3, '0')}`,
       issue_date: new Date().toISOString().split('T')[0],
       data: data.data as Record<string, unknown>,
       issued_by: 3001,
@@ -4351,18 +4351,18 @@ export const demoCertificatesApi = {
     return Promise.resolve(new Blob(['Certificate PDF content'], { type: 'application/pdf' }));
   },
 
-  issue: async (data: Record<string, unknown>) => {
+  issue: async (data: Record<string, unknown>): Promise<Certificate> => {
     const now = new Date();
     const certificateType = data.certificate_type as string;
     const studentId = data.student_id as number;
 
-    const newCertificate = {
+    const newCertificate: Certificate = {
       id: demoCertificates.length + 1,
       institution_id: 1,
       student_id: studentId,
       student_name:
         ((data.data as Record<string, unknown>)?.student_name as string) || 'Student Name',
-      certificate_type: certificateType,
+      certificate_type: certificateType as Certificate['certificate_type'],
       serial_number: `${certificateType.toUpperCase().substring(0, 2)}-${now.getFullYear()}-${String(demoCertificates.length + 1).padStart(4, '0')}`,
       issue_date: now.toISOString().split('T')[0],
       template_id: data.template_id as number | undefined,
