@@ -14,6 +14,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  TooltipItem,
 } from 'chart.js';
 import type { PerformanceComparison } from '@/types/parent';
 
@@ -85,7 +86,7 @@ export const PerformanceComparisonChart: React.FC<PerformanceComparisonChartProp
       },
       tooltip: {
         callbacks: {
-          label: (context: { dataset: { label: string }; parsed: { y: number } }) => {
+          label: (context: TooltipItem<'bar'>) => {
             return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
           },
         },

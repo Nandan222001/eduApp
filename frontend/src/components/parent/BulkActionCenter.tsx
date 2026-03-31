@@ -346,7 +346,7 @@ export const BulkActionCenter: React.FC<BulkActionCenterProps> = ({ allChildren 
               Downloading report cards for {selectedChildren.length} child(ren)
             </Alert>
             <List>
-              {children
+              {allChildren
                 .filter((c) => selectedChildren.includes(c.id))
                 .map((child) => (
                   <ListItem key={child.id}>
