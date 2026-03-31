@@ -44,6 +44,7 @@ export interface GoalFormData {
   startDate: string;
   targetDate: string;
   milestones: Omit<Milestone, 'id' | 'status' | 'completedDate'>[];
+  [key: string]: unknown;
 }
 
 export interface GoalAnalytics {

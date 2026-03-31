@@ -172,6 +172,7 @@ export interface QuizCreateInput {
   max_attempts?: number;
   available_from?: string;
   available_until?: string;
+  [key: string]: unknown;
 }
 
 export interface QuestionCreateInput {
@@ -196,4 +197,5 @@ export interface QuizSubmissionInput {
     user_answers?: string[];
   }>;
   time_taken_seconds: number;
+  [key: string]: unknown;
 }

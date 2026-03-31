@@ -101,6 +101,7 @@ export interface FlashcardCreateInput {
   hint?: string;
   tags?: string;
   order_index?: number;
+  [key: string]: unknown;
 }
 
 export interface FlashcardDeckCreateInput {
@@ -114,6 +115,7 @@ export interface FlashcardDeckCreateInput {
   thumbnail_url?: string;
   visibility?: FlashcardDeckVisibility;
   tags?: string;
+  [key: string]: unknown;
 }
 
 export interface FlashcardStudySessionUpdate {
@@ -122,4 +124,5 @@ export interface FlashcardStudySessionUpdate {
   interval_days: number;
   repetitions: number;
   is_correct: boolean;
+  [key: string]: unknown;
 }
