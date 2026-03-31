@@ -29,6 +29,15 @@ interface AttendanceAlertsWidgetProps {
   widget: DashboardWidget;
 }
 
+function isAttendanceAlertsData(data: unknown): data is AttendanceAlertsData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'alerts' in data &&
+    Array.isArray((data as Record<string, unknown>).alerts)
+  );
+}
+
 export default function AttendanceAlertsWidget({ widget }: AttendanceAlertsWidgetProps) {
   const [data, setData] = useState<AttendanceAlertsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +47,11 @@ export default function AttendanceAlertsWidget({ widget }: AttendanceAlertsWidge
     try {
       setLoading(true);
       const response = await dashboardWidgetsApi.getWidgetData(widget.id);
-      setData(response.data as AttendanceAlertsData);
+      if (isAttendanceAlertsData(response.data)) {
+        setData(response.data);
+      } else {
+        setError('Invalid data format');
+      }
     } catch {
       setError('Failed to load attendance alerts');
     } finally {

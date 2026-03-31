@@ -29,6 +29,15 @@ interface GoalTrackerWidgetProps {
   widget: DashboardWidget;
 }
 
+function isGoalTrackerData(data: unknown): data is GoalTrackerData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'goals' in data &&
+    Array.isArray((data as Record<string, unknown>).goals)
+  );
+}
+
 export default function GoalTrackerWidget({ widget }: GoalTrackerWidgetProps) {
   const [data, setData] = useState<GoalTrackerData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +47,11 @@ export default function GoalTrackerWidget({ widget }: GoalTrackerWidgetProps) {
     try {
       setLoading(true);
       const response = await dashboardWidgetsApi.getWidgetData(widget.id);
-      setData(response.data as GoalTrackerData);
+      if (isGoalTrackerData(response.data)) {
+        setData(response.data);
+      } else {
+        setError('Invalid data format');
+      }
     } catch {
       setError('Failed to load goals');
     } finally {

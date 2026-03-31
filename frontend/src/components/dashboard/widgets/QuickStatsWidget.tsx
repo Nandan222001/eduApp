@@ -18,6 +18,15 @@ interface QuickStatsWidgetProps {
   widget: DashboardWidget;
 }
 
+function isQuickStatsData(data: unknown): data is QuickStatsData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'stats' in data &&
+    Array.isArray((data as Record<string, unknown>).stats)
+  );
+}
+
 export default function QuickStatsWidget({ widget }: QuickStatsWidgetProps) {
   const [data, setData] = useState<QuickStatsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +36,11 @@ export default function QuickStatsWidget({ widget }: QuickStatsWidgetProps) {
     try {
       setLoading(true);
       const response = await dashboardWidgetsApi.getWidgetData(widget.id);
-      setData(response.data as QuickStatsData);
+      if (isQuickStatsData(response.data)) {
+        setData(response.data);
+      } else {
+        setError('Invalid data format');
+      }
     } catch {
       setError('Failed to load quick stats');
     } finally {

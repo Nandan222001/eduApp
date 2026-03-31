@@ -23,6 +23,17 @@ interface RecentGradesWidgetProps {
   widget: DashboardWidget;
 }
 
+function isRecentGradesData(data: unknown): data is RecentGradesData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'grades' in data &&
+    Array.isArray((data as Record<string, unknown>).grades) &&
+    'average_percentage' in data &&
+    typeof (data as Record<string, unknown>).average_percentage === 'number'
+  );
+}
+
 export default function RecentGradesWidget({ widget }: RecentGradesWidgetProps) {
   const [data, setData] = useState<RecentGradesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +43,11 @@ export default function RecentGradesWidget({ widget }: RecentGradesWidgetProps) 
     try {
       setLoading(true);
       const response = await dashboardWidgetsApi.getWidgetData(widget.id);
-      setData(response.data as RecentGradesData);
+      if (isRecentGradesData(response.data)) {
+        setData(response.data);
+      } else {
+        setError('Invalid data format');
+      }
     } catch {
       setError('Failed to load recent grades');
     } finally {

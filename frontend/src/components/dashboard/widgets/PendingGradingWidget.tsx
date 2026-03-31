@@ -21,6 +21,17 @@ interface PendingGradingWidgetProps {
   widget: DashboardWidget;
 }
 
+function isPendingGradingData(data: unknown): data is PendingGradingData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'pending' in data &&
+    Array.isArray((data as Record<string, unknown>).pending) &&
+    'total_count' in data &&
+    typeof (data as Record<string, unknown>).total_count === 'number'
+  );
+}
+
 export default function PendingGradingWidget({ widget }: PendingGradingWidgetProps) {
   const [data, setData] = useState<PendingGradingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +41,11 @@ export default function PendingGradingWidget({ widget }: PendingGradingWidgetPro
     try {
       setLoading(true);
       const response = await dashboardWidgetsApi.getWidgetData(widget.id);
-      setData(response.data as PendingGradingData);
+      if (isPendingGradingData(response.data)) {
+        setData(response.data);
+      } else {
+        setError('Invalid data format');
+      }
     } catch {
       setError('Failed to load pending grading');
     } finally {

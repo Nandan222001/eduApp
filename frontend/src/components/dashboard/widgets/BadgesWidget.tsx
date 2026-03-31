@@ -18,6 +18,15 @@ interface BadgesWidgetProps {
   widget: DashboardWidget;
 }
 
+function isBadgesData(data: unknown): data is BadgesData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'badges' in data &&
+    Array.isArray((data as Record<string, unknown>).badges)
+  );
+}
+
 export default function BadgesWidget({ widget }: BadgesWidgetProps) {
   const [data, setData] = useState<BadgesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +36,11 @@ export default function BadgesWidget({ widget }: BadgesWidgetProps) {
     try {
       setLoading(true);
       const response = await dashboardWidgetsApi.getWidgetData(widget.id);
-      setData(response.data as BadgesData);
+      if (isBadgesData(response.data)) {
+        setData(response.data);
+      } else {
+        setError('Invalid data format');
+      }
     } catch {
       setError('Failed to load badges');
     } finally {

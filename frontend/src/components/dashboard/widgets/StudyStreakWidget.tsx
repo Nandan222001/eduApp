@@ -13,6 +13,19 @@ interface StudyStreakWidgetProps {
   widget: DashboardWidget;
 }
 
+function isStudyStreakData(data: unknown): data is StudyStreakData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'current_streak' in data &&
+    typeof (data as Record<string, unknown>).current_streak === 'number' &&
+    'longest_streak' in data &&
+    typeof (data as Record<string, unknown>).longest_streak === 'number' &&
+    'total_days' in data &&
+    typeof (data as Record<string, unknown>).total_days === 'number'
+  );
+}
+
 export default function StudyStreakWidget({ widget }: StudyStreakWidgetProps) {
   const [data, setData] = useState<StudyStreakData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +35,11 @@ export default function StudyStreakWidget({ widget }: StudyStreakWidgetProps) {
     try {
       setLoading(true);
       const response = await dashboardWidgetsApi.getWidgetData(widget.id);
-      setData(response.data as StudyStreakData);
+      if (isStudyStreakData(response.data)) {
+        setData(response.data);
+      } else {
+        setError('Invalid data format');
+      }
     } catch {
       setError('Failed to load study streak');
     } finally {

@@ -14,6 +14,7 @@ interface DraggableWidgetProps {
   widget: DashboardWidget;
   customizeMode: boolean;
   onToggleVisibility: (widgetId: number) => void;
+  onEdit?: (widgetId: number, updates: Record<string, unknown>) => void;
   children: ReactNode;
 }
 

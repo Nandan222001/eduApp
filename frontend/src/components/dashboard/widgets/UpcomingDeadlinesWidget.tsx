@@ -21,6 +21,15 @@ interface UpcomingDeadlinesWidgetProps {
   widget: DashboardWidget;
 }
 
+function isUpcomingDeadlinesData(data: unknown): data is UpcomingDeadlinesData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'deadlines' in data &&
+    Array.isArray((data as Record<string, unknown>).deadlines)
+  );
+}
+
 export default function UpcomingDeadlinesWidget({ widget }: UpcomingDeadlinesWidgetProps) {
   const [data, setData] = useState<UpcomingDeadlinesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +39,11 @@ export default function UpcomingDeadlinesWidget({ widget }: UpcomingDeadlinesWid
     try {
       setLoading(true);
       const response = await dashboardWidgetsApi.getWidgetData(widget.id);
-      setData(response.data as UpcomingDeadlinesData);
+      if (isUpcomingDeadlinesData(response.data)) {
+        setData(response.data);
+      } else {
+        setError('Invalid data format');
+      }
     } catch {
       setError('Failed to load upcoming deadlines');
     } finally {
