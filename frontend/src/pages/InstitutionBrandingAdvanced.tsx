@@ -175,7 +175,7 @@ export default function InstitutionBrandingAdvanced() {
   });
   const [verifying, setVerifying] = useState(false);
   const [autoVerifyEnabled, setAutoVerifyEnabled] = useState(false);
-  const [verificationInterval, setVerificationInterval] = useState<NodeJS.Timeout | null>(null);
+  const [verificationInterval, setVerificationInterval] = useState<number | null>(null);
   const [emailPreviewDialog, setEmailPreviewDialog] = useState(false);
   const [customEmailDomain, setCustomEmailDomain] = useState('');
 
@@ -328,7 +328,7 @@ export default function InstitutionBrandingAdvanced() {
 
   const toggleAutoVerify = () => {
     if (!autoVerifyEnabled) {
-      const interval = setInterval(() => {
+      const interval = window.setInterval(() => {
         verifyDNSRecords();
       }, 30000); // Poll every 30 seconds
       setVerificationInterval(interval);
@@ -336,7 +336,7 @@ export default function InstitutionBrandingAdvanced() {
       setSuccess('Auto-verification enabled - checking every 30 seconds');
     } else {
       if (verificationInterval) {
-        clearInterval(verificationInterval);
+        window.clearInterval(verificationInterval);
         setVerificationInterval(null);
       }
       setAutoVerifyEnabled(false);

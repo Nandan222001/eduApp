@@ -35,7 +35,7 @@ import {
   TrendingUp as TrendingUpIcon,
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
-import superAdminApi, { InstitutionDetails, InstitutionUpdate } from '@/api/superAdmin';
+import superAdminApi, { InstitutionDetails } from '@/api/superAdmin';
 import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 import UsageMetricsPanel from './UsageMetricsPanel';
 
@@ -64,7 +64,7 @@ export default function InstitutionDetail() {
   const [institutionData, setInstitutionData] = useState<InstitutionDetails | null>(null);
   const [tabValue, setTabValue] = useState(0);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState<InstitutionUpdate>({});
+  const [editFormData, setEditFormData] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -518,7 +518,7 @@ export default function InstitutionDetail() {
             <FormControlLabel
               control={
                 <Switch
-                  checked={editFormData.is_active || false}
+                  checked={Boolean(editFormData.is_active)}
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, is_active: e.target.checked })
                   }

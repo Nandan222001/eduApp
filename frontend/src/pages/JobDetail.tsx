@@ -110,12 +110,17 @@ export default function JobDetail() {
   };
 
   const getJobTypeLabel = (type: string) => {
-    return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return type
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+      <Box
+        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}
+      >
         <CircularProgress />
       </Box>
     );
@@ -145,7 +150,11 @@ export default function JobDetail() {
           <Typography color="text.primary">{job.job_title}</Typography>
         </Breadcrumbs>
 
-        <Button startIcon={<BackIcon />} onClick={() => navigate('/student-job-board')} sx={{ mb: 2 }}>
+        <Button
+          startIcon={<BackIcon />}
+          onClick={() => navigate('/student-job-board')}
+          sx={{ mb: 2 }}
+        >
           Back to Job Board
         </Button>
       </Box>
@@ -160,7 +169,14 @@ export default function JobDetail() {
         <Grid item xs={12} md={8}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 3 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'start',
+                  mb: 3,
+                }}
+              >
                 <Box>
                   <Typography variant="h4" fontWeight={700} gutterBottom>
                     {job.job_title}
@@ -179,8 +195,16 @@ export default function JobDetail() {
                 </Box>
                 <Chip
                   label={getJobTypeLabel(job.job_type)}
-                  color={getJobTypeColor(job.job_type) as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'}
-                  size="large"
+                  color={
+                    getJobTypeColor(job.job_type) as
+                      | 'default'
+                      | 'primary'
+                      | 'secondary'
+                      | 'error'
+                      | 'info'
+                      | 'success'
+                      | 'warning'
+                  }
                 />
               </Box>
 
@@ -348,7 +372,12 @@ export default function JobDetail() {
         </Grid>
       </Grid>
 
-      <Dialog open={applyDialogOpen} onClose={() => setApplyDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={applyDialogOpen}
+        onClose={() => setApplyDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Apply for {job.job_title}</DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>

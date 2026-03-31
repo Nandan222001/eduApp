@@ -122,7 +122,7 @@ export const IDCardTemplateManager: React.FC = () => {
     try {
       let data: IDCardTemplate[];
       if (isDemo) {
-        const demoTemplates = await demoIDCardsApi.getTemplates();
+        const demoTemplates = await demoIDCardsApi.getIDCardTemplates();
         data = demoTemplates as IDCardTemplate[];
       } else {
         data = await schoolAdminApi.idCardTemplates.list();

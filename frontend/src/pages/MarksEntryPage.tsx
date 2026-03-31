@@ -58,118 +58,117 @@ export default function MarksEntryPage() {
   const [marksData, setMarksData] = useState<MarksRow[]>([]);
   const [locked, setLocked] = useState(false);
 
-  const loadExamSubjects = async () => {
-    try {
-      setLoading(true);
-      const examId = parseInt(searchParams.get('exam_id') || '1');
-      if (isDemoUser()) {
-        setSubjects([
-          {
-            id: 1,
-            subject_id: 1,
-            subject_name: 'Mathematics',
-            theory_max_marks: 80,
-            practical_max_marks: 20,
-            theory_passing_marks: 32,
-            practical_passing_marks: 8,
-          } as ExamSubject,
-          {
-            id: 2,
-            subject_id: 2,
-            subject_name: 'Science',
-            theory_max_marks: 70,
-            practical_max_marks: 30,
-            theory_passing_marks: 28,
-            practical_passing_marks: 12,
-          } as ExamSubject,
-        ]);
-        setSelectedSubject(1);
-      } else {
-        const data = await examinationsApi.listExamSubjects(examId, 1);
-        setSubjects(data);
-        if (data.length > 0) {
-          setSelectedSubject(data[0].id);
+  useEffect(() => {
+    const loadExamSubjects = async () => {
+      try {
+        setLoading(true);
+        const examId = parseInt(searchParams.get('exam_id') || '1');
+        if (isDemoUser()) {
+          setSubjects([
+            {
+              id: 1,
+              subject_id: 1,
+              subject_name: 'Mathematics',
+              theory_max_marks: 80,
+              practical_max_marks: 20,
+              theory_passing_marks: 32,
+              practical_passing_marks: 8,
+            } as ExamSubject,
+            {
+              id: 2,
+              subject_id: 2,
+              subject_name: 'Science',
+              theory_max_marks: 70,
+              practical_max_marks: 30,
+              theory_passing_marks: 28,
+              practical_passing_marks: 12,
+            } as ExamSubject,
+          ]);
+          setSelectedSubject(1);
+        } else {
+          const data = await examinationsApi.listExamSubjects(examId, 1);
+          setSubjects(data);
+          if (data.length > 0) {
+            setSelectedSubject(data[0].id);
+          }
         }
+      } catch (err) {
+        setError(
+          (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+            'Failed to load subjects'
+        );
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(
-        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-          'Failed to load subjects'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  useEffect(() => {
     loadExamSubjects();
-  }, [loadExamSubjects]);
+  }, [searchParams]);
 
   useEffect(() => {
-    if (selectedSubject) {
-      loadMarksData();
-    }
-  }, [selectedSubject, loadMarksData]);
+    const loadMarksData = async () => {
+      if (!selectedSubject) return;
 
-  const loadMarksData = async () => {
-    if (!selectedSubject) return;
+      try {
+        setLoading(true);
 
-    try {
-      setLoading(true);
+        const mockStudents = [
+          { id: 1, name: 'John Doe', roll_number: '001' },
+          { id: 2, name: 'Jane Smith', roll_number: '002' },
+          { id: 3, name: 'Bob Johnson', roll_number: '003' },
+          { id: 4, name: 'Alice Williams', roll_number: '004' },
+          { id: 5, name: 'Charlie Brown', roll_number: '005' },
+        ];
 
-      const mockStudents = [
-        { id: 1, name: 'John Doe', roll_number: '001' },
-        { id: 2, name: 'Jane Smith', roll_number: '002' },
-        { id: 3, name: 'Bob Johnson', roll_number: '003' },
-        { id: 4, name: 'Alice Williams', roll_number: '004' },
-        { id: 5, name: 'Charlie Brown', roll_number: '005' },
-      ];
+        let existingMarks: Array<{
+          student_id: number;
+          theory_marks_obtained?: number;
+          practical_marks_obtained?: number;
+          total_marks_obtained?: number;
+          is_absent?: boolean;
+          remarks?: string;
+        }> = [];
+        if (!isDemoUser()) {
+          existingMarks = await examinationsApi.getSubjectMarks(selectedSubject, 1);
+        }
 
-      let existingMarks: Array<{
-        student_id: number;
-        theory_marks_obtained?: number;
-        practical_marks_obtained?: number;
-        total_marks_obtained?: number;
-        is_absent?: boolean;
-        remarks?: string;
-      }> = [];
-      if (!isDemoUser()) {
-        existingMarks = await examinationsApi.getSubjectMarks(selectedSubject, 1);
+        const rows: MarksRow[] = mockStudents.map((student) => {
+          const existingMark = existingMarks.find((m) => m.student_id === student.id);
+          return {
+            student_id: student.id,
+            student_name: student.name,
+            student_roll_number: student.roll_number,
+            theory_marks: existingMark?.theory_marks_obtained ?? null,
+            practical_marks: existingMark?.practical_marks_obtained ?? null,
+            total_marks: existingMark?.total_marks_obtained ?? 0,
+            is_absent: existingMark?.is_absent ?? false,
+            remarks: existingMark?.remarks ?? '',
+            status: existingMark ? ('saved' as const) : ('pending' as const),
+          };
+        });
+
+        setMarksData(rows);
+      } catch (err) {
+        setError(
+          (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+            'Failed to load marks data'
+        );
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const rows: MarksRow[] = mockStudents.map((student) => {
-        const existingMark = existingMarks.find((m) => m.student_id === student.id);
-        return {
-          student_id: student.id,
-          student_name: student.name,
-          student_roll_number: student.roll_number,
-          theory_marks: existingMark?.theory_marks_obtained ?? null,
-          practical_marks: existingMark?.practical_marks_obtained ?? null,
-          total_marks: existingMark?.total_marks_obtained ?? 0,
-          is_absent: existingMark?.is_absent ?? false,
-          remarks: existingMark?.remarks ?? '',
-          status: existingMark ? 'saved' : 'pending',
-        };
-      });
-
-      setMarksData(rows);
-    } catch (err) {
-      setError(
-        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-          'Failed to load marks data'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadMarksData();
+  }, [selectedSubject]);
 
   const updateMarks = (index: number, field: string, value: string | number | boolean | null) => {
     const updated = [...marksData];
-    (updated[index] as Record<string, string | number | boolean | null>)[field] = value;
+    (updated[index] as unknown as Record<string, string | number | boolean | null>)[field] = value;
 
     if (field === 'theory_marks' || field === 'practical_marks') {
-      const theory = field === 'theory_marks' ? value : updated[index].theory_marks;
-      const practical = field === 'practical_marks' ? value : updated[index].practical_marks;
+      const theory = field === 'theory_marks' ? (value as number) : updated[index].theory_marks;
+      const practical =
+        field === 'practical_marks' ? (value as number) : updated[index].practical_marks;
       updated[index].total_marks = (theory || 0) + (practical || 0);
     }
 
@@ -210,7 +209,7 @@ export default function MarksEntryPage() {
       }
 
       setSuccess(true);
-      setMarksData(marksData.map((row) => ({ ...row, status: 'saved' })));
+      setMarksData(marksData.map((row) => ({ ...row, status: 'saved' as const })));
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(

@@ -40,11 +40,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
-import superAdminApi, {
-  InstitutionDetails,
-  SubscriptionUpdate,
-  BillingHistoryItem,
-} from '@/api/superAdmin';
+import superAdminApi, { InstitutionDetails, BillingHistoryItem } from '@/api/superAdmin';
 import { isDemoUser, demoDataApi } from '@/api/demoDataApi';
 
 export default function InstitutionSubscription() {
@@ -56,7 +52,7 @@ export default function InstitutionSubscription() {
   const [institutionData, setInstitutionData] = useState<InstitutionDetails | null>(null);
   const [billingHistory, setBillingHistory] = useState<BillingHistoryItem[]>([]);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [subscriptionFormData, setSubscriptionFormData] = useState<SubscriptionUpdate>({});
+  const [subscriptionFormData, setSubscriptionFormData] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {

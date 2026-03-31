@@ -192,7 +192,7 @@ export default function JournalistDashboard() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string): JSX.Element | undefined => {
     switch (status) {
       case 'draft':
         return <EditIcon fontSize="small" />;
@@ -203,7 +203,7 @@ export default function JournalistDashboard() {
       case 'rejected':
         return <CancelIcon fontSize="small" />;
       default:
-        return null;
+        return undefined;
     }
   };
 
@@ -307,7 +307,7 @@ export default function JournalistDashboard() {
                       <Button
                         size="small"
                         startIcon={<SendIcon />}
-                        disabled={draft.status !== ('draft' as boolean)}
+                        disabled={draft.status !== 'draft'}
                       >
                         Submit
                       </Button>
