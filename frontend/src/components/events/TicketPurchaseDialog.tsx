@@ -64,12 +64,12 @@ export const TicketPurchaseDialog: React.FC<TicketPurchaseDialogProps> = ({
         quantity: 1,
         paymentMethod: 'credit_card',
         paymentDetails: {
-          card_number: paymentData.cardNumber,
-          card_name: paymentData.cardName,
-          expiry_month: paymentData.expiryMonth,
-          expiry_year: paymentData.expiryYear,
+          cardNumber: paymentData.cardNumber,
+          cardName: paymentData.cardName,
+          expiryMonth: paymentData.expiryMonth,
+          expiryYear: paymentData.expiryYear,
           cvv: paymentData.cvv,
-          billing_email: paymentData.billingEmail,
+          billingEmail: paymentData.billingEmail,
         },
       }),
     onSuccess: (data) => {

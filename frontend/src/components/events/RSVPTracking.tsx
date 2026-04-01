@@ -76,10 +76,10 @@ const RSVPTracking: React.FC<RSVPTrackingProps> = ({ eventId }) => {
 
     const formData = new FormData(formEvent.currentTarget);
     const data = {
-      user_id: parseInt(formData.get('user_id') as string),
-      status: formData.get('status') as string,
-      number_of_guests: parseInt(formData.get('number_of_guests') as string) || 0,
-      remarks: formData.get('remarks') as string,
+      user_id: parseInt(formData.get('user_id')?.toString() || '0'),
+      status: formData.get('status')?.toString() || 'pending',
+      number_of_guests: parseInt(formData.get('number_of_guests')?.toString() || '0') || 0,
+      remarks: formData.get('remarks')?.toString() || '',
     };
 
     createMutation.mutate({ eventId, data });
