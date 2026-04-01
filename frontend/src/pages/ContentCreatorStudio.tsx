@@ -176,14 +176,16 @@ function UploadWizard({ open, onClose, onSuccess, editContent }: UploadWizardPro
       const data = new FormData();
 
       Object.keys(formData).forEach((key) => {
+        const typedKey = key as keyof typeof formData;
+        const value = formData[typedKey];
         if (key === 'file' || key === 'thumbnail') {
-          if (formData[key]) {
-            data.append(key, formData[key]);
+          if (value && value instanceof File) {
+            data.append(key, value);
           }
-        } else if (Array.isArray(formData[key])) {
-          data.append(key, JSON.stringify(formData[key]));
-        } else {
-          data.append(key, formData[key]);
+        } else if (Array.isArray(value)) {
+          data.append(key, JSON.stringify(value));
+        } else if (value != null) {
+          data.append(key, String(value));
         }
       });
 

@@ -56,6 +56,7 @@ export interface ConferenceBooking {
   date: string;
   start_time: string;
   end_time: string;
+  duration_minutes?: number;
   topics: string[];
   special_requests?: string;
   status: 'pending' | 'confirmed' | 'rescheduled' | 'cancelled' | 'completed';

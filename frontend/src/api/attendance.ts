@@ -38,6 +38,7 @@ export interface BulkAttendanceCreate {
   section_id?: number;
   subject_id?: number;
   attendances: BulkAttendanceItem[];
+  [key: string]: unknown;
 }
 
 export interface BulkAttendanceResult {

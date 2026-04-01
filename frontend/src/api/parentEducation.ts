@@ -336,4 +336,120 @@ export const parentEducationApi = {
     const response = await axios.get<CourseStatistics>('/api/v1/parent-education/statistics');
     return response.data;
   },
+
+  // Additional methods for parent course pages
+  getMyEnrollments: async (): Promise<CourseEnrollment[]> => {
+    const response = await axios.get<CourseEnrollment[]>('/api/v1/parent-education/my-enrollments');
+    return response.data;
+  },
+
+  getEnrollmentDetail: async (enrollmentId: number): Promise<CourseEnrollment> => {
+    const response = await axios.get<CourseEnrollment>(
+      `/api/v1/parent-education/enrollments/${enrollmentId}/details`
+    );
+    return response.data;
+  },
+
+  getLesson: async (lessonId: number): Promise<unknown> => {
+    const response = await axios.get(`/api/v1/parent-education/lessons/${lessonId}`);
+    return response.data;
+  },
+
+  getLessonMaterials: async (lessonId: number): Promise<unknown[]> => {
+    const response = await axios.get(`/api/v1/parent-education/lessons/${lessonId}/materials`);
+    return response.data;
+  },
+
+  getNotes: async (enrollmentId: number, lessonId?: number): Promise<unknown[]> => {
+    const params = lessonId ? { lesson_id: lessonId } : {};
+    const response = await axios.get(`/api/v1/parent-education/enrollments/${enrollmentId}/notes`, {
+      params,
+    });
+    return response.data;
+  },
+
+  createNote: async (
+    enrollmentId: number,
+    data: { lesson_id?: number; content: string }
+  ): Promise<unknown> => {
+    const response = await axios.post(
+      `/api/v1/parent-education/enrollments/${enrollmentId}/notes`,
+      data
+    );
+    return response.data;
+  },
+
+  updateNote: async (noteId: number, content: string): Promise<unknown> => {
+    const response = await axios.put(`/api/v1/parent-education/notes/${noteId}`, { content });
+    return response.data;
+  },
+
+  deleteNote: async (noteId: number): Promise<void> => {
+    await axios.delete(`/api/v1/parent-education/notes/${noteId}`);
+  },
+
+  getQuizQuestions: async (lessonId: number): Promise<unknown[]> => {
+    const response = await axios.get(`/api/v1/parent-education/lessons/${lessonId}/quiz`);
+    return response.data;
+  },
+
+  submitQuiz: async (lessonId: number, answers: Record<number, unknown>): Promise<unknown> => {
+    const response = await axios.post(`/api/v1/parent-education/lessons/${lessonId}/quiz/submit`, {
+      answers,
+    });
+    return response.data;
+  },
+
+  markLessonComplete: async (enrollmentId: number, lessonId: number): Promise<unknown> => {
+    const response = await axios.post(
+      `/api/v1/parent-education/enrollments/${enrollmentId}/lessons/${lessonId}/complete`
+    );
+    return response.data;
+  },
+
+  getDiscussionThreads: async (courseId: number): Promise<unknown[]> => {
+    const response = await axios.get(`/api/v1/parent-education/courses/${courseId}/discussions`);
+    return response.data;
+  },
+
+  createDiscussionThread: async (
+    courseId: number,
+    data: { title: string; content: string }
+  ): Promise<unknown> => {
+    const response = await axios.post(
+      `/api/v1/parent-education/courses/${courseId}/discussions`,
+      data
+    );
+    return response.data;
+  },
+
+  getThreadReplies: async (threadId: number): Promise<unknown[]> => {
+    const response = await axios.get(`/api/v1/parent-education/discussions/${threadId}/replies`);
+    return response.data;
+  },
+
+  createThreadReply: async (threadId: number, data: { content: string }): Promise<unknown> => {
+    const response = await axios.post(
+      `/api/v1/parent-education/discussions/${threadId}/replies`,
+      data
+    );
+    return response.data;
+  },
+
+  getCertificate: async (enrollmentId: number): Promise<unknown> => {
+    const response = await axios.get(
+      `/api/v1/parent-education/enrollments/${enrollmentId}/certificate`
+    );
+    return response.data;
+  },
+
+  downloadCertificate: async (enrollmentId: number): Promise<Blob> => {
+    const response = await axios.get(
+      `/api/v1/parent-education/enrollments/${enrollmentId}/certificate/download`,
+      {
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  },
 };

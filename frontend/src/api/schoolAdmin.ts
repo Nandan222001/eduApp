@@ -353,6 +353,7 @@ export interface SMSTemplateCreate {
   message_template: string;
   variables?: string[];
   is_active?: boolean;
+  [key: string]: unknown;
 }
 
 export interface SMSTemplateUpdate {
@@ -399,6 +400,7 @@ export interface EnquiryCreate {
   notes?: string;
   follow_up_date?: string;
   assigned_to_id?: number;
+  [key: string]: unknown;
 }
 
 export interface EnquiryUpdate {

@@ -30,7 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { parentEducationApi } from '@/api/parentEducation';
-import { EnrollmentStatus } from '@/types/parentEducation';
+import { EnrollmentStatus, Badge } from '@/types/parentEducation';
 
 interface TabPanelProps {
   children?: React.ReactNode;

@@ -87,8 +87,8 @@ export default function WeeklyReview({ review }: WeeklyReviewProps) {
         padding: 12,
         displayColors: false,
         callbacks: {
-          label: function (context: { parsed: { y: number } }) {
-            return `${context.parsed.y} hours`;
+          label: function (context: { parsed: { y: number | null } }) {
+            return `${context.parsed.y ?? 0} hours`;
           },
         },
       },

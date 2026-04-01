@@ -192,6 +192,7 @@ export const ParentTeacherWorkspace: React.FC = () => {
   const [filterSubject, setFilterSubject] = useState('all');
   const [filterDifficulty, setFilterDifficulty] = useState('all');
   const [selectedSample, setSelectedSample] = useState<WorkSample | null>(null);
+  const [_conferenceDialogOpen, setConferenceDialogOpen] = useState(false);
 
   const [goalWizardStep, setGoalWizardStep] = useState(0);
   const [goalFormData, setGoalFormData] = useState<GoalFormData>({

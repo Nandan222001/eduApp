@@ -253,7 +253,8 @@ export const StaffManagement: React.FC = () => {
       field: 'name',
       headerName: 'Name',
       width: 200,
-      valueGetter: (params) => `${params.row.first_name} ${params.row.last_name}`,
+      valueGetter: (params: { row: { first_name: string; last_name: string } }) =>
+        `${params.row.first_name} ${params.row.last_name}`,
     },
     { field: 'designation', headerName: 'Designation', width: 150 },
     { field: 'department', headerName: 'Department', width: 150 },

@@ -44,7 +44,9 @@ export const PayrollManagement: React.FC = () => {
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [totalRows, setTotalRows] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedRows, setSelectedRows] = useState<GridRowSelectionModel>([]);
+  const [selectedRows, setSelectedRows] = useState<GridRowSelectionModel>(
+    [] as GridRowSelectionModel
+  );
   const [summary, setSummary] = useState<PayrollSummary | null>(null);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -156,21 +158,22 @@ export const PayrollManagement: React.FC = () => {
   };
 
   const handleBulkProcess = async () => {
-    if (selectedRows.length === 0) {
+    const selectedRowsArray = Array.isArray(selectedRows) ? selectedRows : [];
+    if (selectedRowsArray.length === 0) {
       showSnackbar('Please select payroll records to process', 'error');
       return;
     }
 
-    if (!confirm(`Mark ${selectedRows.length} payroll records as paid?`)) return;
+    if (!confirm(`Mark ${selectedRowsArray.length} payroll records as paid?`)) return;
 
     try {
       await schoolAdminApi.payroll.bulkUpdate({
-        payroll_ids: selectedRows as number[],
+        payroll_ids: selectedRowsArray as number[],
         payment_status: 'paid',
         payment_date: new Date().toISOString().split('T')[0],
       });
       showSnackbar('Payroll records marked as paid', 'success');
-      setSelectedRows([]);
+      setSelectedRows([] as GridRowSelectionModel);
       loadPayrolls();
       loadSummary();
     } catch (error) {
@@ -229,37 +232,37 @@ export const PayrollManagement: React.FC = () => {
       field: 'basic_salary',
       headerName: 'Basic',
       width: 110,
-      valueFormatter: (params) => formatCurrency(params.value),
+      valueFormatter: (params: { value: number }) => formatCurrency(params.value),
     },
     {
       field: 'hra',
       headerName: 'HRA',
       width: 100,
-      valueFormatter: (params) => formatCurrency(params.value || 0),
+      valueFormatter: (params: { value?: number }) => formatCurrency(params.value || 0),
     },
     {
       field: 'da',
       headerName: 'DA',
       width: 100,
-      valueFormatter: (params) => formatCurrency(params.value || 0),
+      valueFormatter: (params: { value?: number }) => formatCurrency(params.value || 0),
     },
     {
       field: 'deductions',
       headerName: 'Deductions',
       width: 110,
-      valueFormatter: (params) => formatCurrency(params.value || 0),
+      valueFormatter: (params: { value?: number }) => formatCurrency(params.value || 0),
     },
     {
       field: 'gross_salary',
       headerName: 'Gross',
       width: 120,
-      valueFormatter: (params) => formatCurrency(params.value),
+      valueFormatter: (params: { value: number }) => formatCurrency(params.value),
     },
     {
       field: 'net_salary',
       headerName: 'Net Salary',
       width: 130,
-      valueFormatter: (params) => formatCurrency(params.value),
+      valueFormatter: (params: { value: number }) => formatCurrency(params.value),
     },
     {
       field: 'payment_status',
@@ -415,10 +418,10 @@ export const PayrollManagement: React.FC = () => {
             variant="contained"
             color="success"
             onClick={handleBulkProcess}
-            disabled={selectedRows.length === 0}
+            disabled={Array.isArray(selectedRows) ? selectedRows.length === 0 : true}
             startIcon={<PaidIcon />}
           >
-            Mark as Paid ({selectedRows.length})
+            Mark as Paid ({Array.isArray(selectedRows) ? selectedRows.length : 0})
           </Button>
           <Box sx={{ flexGrow: 1 }} />
           <Tooltip title="Export to Excel">

@@ -193,7 +193,13 @@ export const ParentConferenceBooking: React.FC = () => {
     setSpecialRequests('');
     setBookingSuccess(false);
     setCreatedBookingId(null);
-    setSpeedRoundMode(false);
+    setSpeedSession({
+      active: false,
+      currentTeacherIndex: 0,
+      timeRemaining: 300,
+      bookings: [],
+      actionItems: {},
+    });
   };
 
   const handleTopicToggle = (topicValue: string) => {

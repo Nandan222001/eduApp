@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useCallback, ReactNode } from 'react';
 import Toast from '../components/common/Toast';
 import { AlertColor } from '@mui/material';
@@ -15,6 +16,10 @@ interface ToastContextType {
   showError: (message: string, duration?: number) => void;
   showWarning: (message: string, duration?: number) => void;
   showInfo: (message: string, duration?: number) => void;
+  success: (message: string, duration?: number) => void;
+  error: (message: string, duration?: number) => void;
+  warning: (message: string, duration?: number) => void;
+  info: (message: string, duration?: number) => void;
 }
 
 export const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -66,6 +71,10 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
         showError,
         showWarning,
         showInfo,
+        success: showSuccess,
+        error: showError,
+        warning: showWarning,
+        info: showInfo,
       }}
     >
       {children}

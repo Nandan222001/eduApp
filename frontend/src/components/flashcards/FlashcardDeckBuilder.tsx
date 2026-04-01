@@ -37,6 +37,7 @@ interface CardData {
   back_content: string;
   hint?: string;
   tags?: string;
+  [key: string]: unknown;
 }
 
 export const FlashcardDeckBuilder: React.FC<FlashcardDeckBuilderProps> = ({

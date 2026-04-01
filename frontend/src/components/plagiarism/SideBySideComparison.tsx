@@ -72,6 +72,8 @@ export const SideBySideComparison: React.FC<SideBySideComparisonProps> = ({ resu
   const totalSegments =
     typeof visualization.total_segments === 'number' ? visualization.total_segments : 0;
   const contentComparison = visualization.content_comparison as Record<string, unknown> | undefined;
+  const sourceData = contentComparison?.source as Record<string, unknown> | undefined;
+  const targetData = contentComparison?.target as Record<string, unknown> | undefined;
 
   return (
     <Box>
@@ -92,17 +94,15 @@ export const SideBySideComparison: React.FC<SideBySideComparisonProps> = ({ resu
             </Typography>
             <Divider sx={{ mb: 2 }} />
             <Box sx={{ fontSize: '14px', lineHeight: 1.6 }}>
-              {contentComparison?.source?.highlighted ? (
-                renderHighlightedText(contentComparison.source.highlighted)
+              {sourceData?.highlighted && Array.isArray(sourceData.highlighted) ? (
+                renderHighlightedText(sourceData.highlighted as HighlightedSegment[])
               ) : (
-                <Typography variant="body2">
-                  {String(contentComparison?.source?.text ?? '')}
-                </Typography>
+                <Typography variant="body2">{String(sourceData?.text ?? '')}</Typography>
               )}
             </Box>
             <Box sx={{ mt: 2 }}>
               <Chip
-                label={`${(typeof contentComparison?.source?.matched_percentage === 'number' ? contentComparison.source.matched_percentage : 0).toFixed(1)}% Matched`}
+                label={`${(typeof sourceData?.matched_percentage === 'number' ? sourceData.matched_percentage : 0).toFixed(1)}% Matched`}
                 size="small"
                 color="warning"
               />
@@ -117,17 +117,15 @@ export const SideBySideComparison: React.FC<SideBySideComparisonProps> = ({ resu
             </Typography>
             <Divider sx={{ mb: 2 }} />
             <Box sx={{ fontSize: '14px', lineHeight: 1.6 }}>
-              {contentComparison?.target?.highlighted ? (
-                renderHighlightedText(contentComparison.target.highlighted)
+              {targetData?.highlighted && Array.isArray(targetData.highlighted) ? (
+                renderHighlightedText(targetData.highlighted as HighlightedSegment[])
               ) : (
-                <Typography variant="body2">
-                  {String(contentComparison?.target?.text ?? '')}
-                </Typography>
+                <Typography variant="body2">{String(targetData?.text ?? '')}</Typography>
               )}
             </Box>
             <Box sx={{ mt: 2 }}>
               <Chip
-                label={`${(typeof contentComparison?.target?.matched_percentage === 'number' ? contentComparison.target.matched_percentage : 0).toFixed(1)}% Matched`}
+                label={`${(typeof targetData?.matched_percentage === 'number' ? targetData.matched_percentage : 0).toFixed(1)}% Matched`}
                 size="small"
                 color="warning"
               />

@@ -174,6 +174,7 @@ export interface CustomReportFilter {
   subjectIds?: number[];
   metricTypes?: string[];
   groupBy?: 'grade' | 'section' | 'subject' | 'month' | 'week';
+  [key: string]: unknown;
 }
 
 export interface CustomReportData {
@@ -186,6 +187,7 @@ export interface CustomReportData {
     title: string;
     data: unknown;
   }>;
+  [key: string]: unknown;
 }
 
 export interface AnalyticsDateRange {

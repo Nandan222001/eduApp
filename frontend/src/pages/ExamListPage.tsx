@@ -55,7 +55,7 @@ export default function ExamListPage() {
       const data = isDemoUser()
         ? await demoDataApi.institutionAdmin.getExamList(params)
         : await examinationsApi.listExams(params);
-      setExams(data.items);
+      setExams(data.items as Exam[]);
     } catch (err) {
       if ((err as { response?: { status?: number } }).response?.status === 404) {
         setExams([]);
