@@ -4088,16 +4088,23 @@ export const demoSMSTemplates = [
  * Each template can be customized by institution admins and supports dynamic data insertion.
  *
  * Available Certificate Types:
- * - transfer_certificate: Issued when student transfers to another institution
- * - character_certificate: Certifies student's conduct and character
- * - bonafide_certificate: Certifies student enrollment (for bank, scholarship, etc.)
- * - study_certificate: Certifies enrollment and academic progress
- * - completion_certificate: Awarded upon course/program completion
+ * - TC: Transfer Certificate - Issued when student transfers to another institution
+ * - LC: Leaving Certificate - Issued when student leaves the institution
+ * - Bonafide: Certifies student enrollment (for bank, scholarship, etc.)
+ * - Character: Certifies student's conduct and character
+ * - Study: Certifies enrollment and academic progress
+ * - Conduct: Certifies student's discipline and behavior
+ * - Migration: Issued when student migrates to pursue studies elsewhere
+ * - Fee: Fee clearance certificate
+ * - No Dues: Certifies no outstanding dues
+ * - Sports: Sports achievement certificate
+ * - Merit: Merit certificate for academic excellence
+ * - Participation: Event participation certificate
  *
  * Template Variables Supported:
  * - {{student_name}}, {{grade}}, {{admission_number}}
  * - {{admission_date}}, {{leaving_date}}, {{issue_date}}
- * - {{certificate_number}}, {{institution_name}}, {{principal_name}}
+ * - {{serial_number}}, {{institution_name}}, {{principal_name}}
  * - {{reason}}, {{purpose}}, {{conduct}}, {{course_name}}
  *
  * @type {Array<{
@@ -4315,33 +4322,41 @@ export const demoCertificateTemplates: CertificateTemplate[] = [
  * Demo issued certificates for students
  *
  * Contains sample certificates of all types that have been issued to students.
- * Each certificate has a unique certificate number and tracks issuer and issue date.
+ * Each certificate has a unique serial number and tracks issuer and issue date.
  *
  * Certificate Structure:
  * - id: Unique identifier for the certificate record
  * - institution_id: The institution that issued the certificate
  * - student_id: The student who received the certificate
- * - certificate_type: Type of certificate (transfer/character/bonafide/study/completion)
- * - certificate_number: Unique certificate number (format: TYPE-YYYY-XXX)
+ * - student_name: Name of the student
+ * - certificate_type: Type of certificate (TC, LC, Bonafide, Character, Study, etc.)
+ * - serial_number: Unique serial number (format: TYPE-YYYY-XXXX)
  * - issue_date: Date when certificate was issued
- * - data: Type-specific certificate data (student info, grades, dates, etc.)
- * - issued_by: User ID of the admin/teacher who issued the certificate
+ * - template_id: ID of the template used
+ * - remarks: Additional notes or purpose
+ * - issued_by_id: User ID of the admin/teacher who issued the certificate
+ * - issued_by_name: Name of the issuer
+ * - is_revoked: Whether the certificate has been revoked
  *
  * Sample Certificates:
- * - Alex Johnson (1001): Transfer Certificate (TC-2024-001), Completion Certificate (COMP-2024-001)
- * - Emma Wilson (1005): Character Certificate (CC-2024-001)
- * - Michael Brown (1002): Bonafide Certificate (BC-2024-001)
- * - Sophia Davis (1003): Study Certificate (SC-2024-001)
+ * - Alex Johnson (1001): Transfer Certificate (TC-2024-0001)
+ * - Emma Wilson (1005): Character Certificate (CH-2024-0001)
+ * - Liam Anderson (1002): Bonafide Certificate (BO-2024-0001)
+ * - Noah Martinez (1003): Study Certificate (ST-2024-0001)
  *
  * @type {Array<{
  *   id: number,
  *   institution_id: number,
  *   student_id: number,
+ *   student_name: string,
  *   certificate_type: string,
- *   certificate_number: string,
+ *   serial_number: string,
  *   issue_date: string,
- *   data: object,
- *   issued_by: number,
+ *   template_id: number,
+ *   remarks: string,
+ *   issued_by_id: number,
+ *   issued_by_name: string,
+ *   is_revoked: boolean,
  *   created_at: string,
  *   updated_at: string
  * }>}
