@@ -203,15 +203,18 @@ export const parentsApi = {
     if (isDemoUser()) {
       return demoDataApi.parents.updatePrivacySettings(settings);
     }
-    const response = await axios.put<{
-      id: number;
-      parent_id: number;
-      disable_sibling_comparisons: boolean;
-      hide_performance_rankings: boolean;
-      hide_attendance_from_siblings: boolean;
-      allow_data_sharing: boolean;
-      updated_at: string;
-    }>('/api/v1/parents/family/privacy-settings', settings);
-    return response.data;
+    const response = await axios.put<PrivacySettings>(
+      '/api/v1/parents/family/privacy-settings',
+      settings
+    );
+    return {
+      id: response.data.id,
+      parent_id: response.data.parent_id,
+      disable_sibling_comparisons: response.data.disable_sibling_comparisons ?? false,
+      hide_performance_rankings: response.data.hide_performance_rankings ?? false,
+      hide_attendance_from_siblings: response.data.hide_attendance_from_siblings ?? false,
+      allow_data_sharing: response.data.allow_data_sharing ?? false,
+      updated_at: response.data.updated_at,
+    };
   },
 };
