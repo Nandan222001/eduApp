@@ -62,6 +62,44 @@ ChartJS.register(
   Legend
 );
 
+interface SpeechRecognitionType extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognitionType;
+    webkitSpeechRecognition?: new () => SpeechRecognitionType;
+  }
+}
+
 interface Message {
   id: string;
   text: string;
@@ -146,7 +184,7 @@ export default function AIStudyBuddy() {
   const [showMoodDialog, setShowMoodDialog] = useState(false);
   const [currentMood, setCurrentMood] = useState<Mood>('neutral');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
 
   useEffect(() => {
     scrollToBottom();
@@ -154,13 +192,10 @@ export default function AIStudyBuddy() {
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition =
-        (window as { SpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition ||
-        (window as { webkitSpeechRecognition?: typeof window.SpeechRecognition })
-          .webkitSpeechRecognition;
-      if (!SpeechRecognition) return;
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognitionAPI) return;
 
-      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
 

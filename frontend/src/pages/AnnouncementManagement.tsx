@@ -61,7 +61,7 @@ import type {
   NotificationChannel,
   NotificationPriority,
 } from '../types/communications';
-import type { Grade, Section } from '../types/academic';
+import type { Grade } from '../types/academic';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -89,7 +89,6 @@ export const AnnouncementManagement: React.FC = () => {
   const [publishedAnnouncements, setPublishedAnnouncements] = useState<Announcement[]>([]);
   const [draftAnnouncements, setDraftAnnouncements] = useState<Announcement[]>([]);
   const [grades, setGrades] = useState<Grade[]>([]);
-  const [_sections, _setSections] = useState<Section[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [readReceiptsDialogOpen, setReadReceiptsDialogOpen] = useState(false);
@@ -139,15 +138,6 @@ export const AnnouncementManagement: React.FC = () => {
       setGrades(data);
     } catch (error) {
       showSnackbar('Failed to load grades', 'error');
-    }
-  };
-
-  const _loadSections = async (gradeId: number) => {
-    try {
-      const data = await academicApi.getSections(gradeId, true);
-      _setSections(data);
-    } catch (error) {
-      showSnackbar('Failed to load sections', 'error');
     }
   };
 
@@ -233,7 +223,7 @@ export const AnnouncementManagement: React.FC = () => {
     }
   };
 
-  const handleViewReadReceipts = (_announcement: Announcement) => {
+  const handleViewReadReceipts = () => {
     setSelectedAnnouncementReceipts([]);
     setReadReceiptsDialogOpen(true);
   };
@@ -447,7 +437,7 @@ export const AnnouncementManagement: React.FC = () => {
                         {announcement.is_published && (
                           <IconButton
                             size="small"
-                            onClick={() => handleViewReadReceipts(announcement)}
+                            onClick={() => handleViewReadReceipts()}
                             sx={{ mr: 1 }}
                             title="View Read Receipts"
                           >
@@ -508,7 +498,7 @@ export const AnnouncementManagement: React.FC = () => {
                       <TableCell>
                         <IconButton
                           size="small"
-                          onClick={() => handleViewReadReceipts(announcement)}
+                          onClick={() => handleViewReadReceipts()}
                           sx={{ mr: 1 }}
                         >
                           <VisibilityIcon fontSize="small" />

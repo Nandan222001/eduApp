@@ -52,15 +52,10 @@ export const AdminDocumentVerification: React.FC = () => {
     queryFn: () => documentVaultApi.getVaultStats(),
   });
 
-  const {
-    data: allDocuments,
-    isLoading: documentsLoading,
-    refetch: _refetchDocuments,
-  } = useQuery({
-    queryKey: ['all-documents', { search_query: searchQuery, document_type: filterType }],
+  const { data: allDocuments, isLoading: documentsLoading } = useQuery({
+    queryKey: ['all-documents', { document_type: filterType }],
     queryFn: () =>
       documentVaultApi.getDocuments({
-        search_query: searchQuery || undefined,
         document_type: filterType || undefined,
       }),
   });
