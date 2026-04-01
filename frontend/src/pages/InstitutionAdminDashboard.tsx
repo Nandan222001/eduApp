@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Grid,
-  Card,
   CardContent,
   CardHeader,
   Table,
@@ -70,7 +69,7 @@ interface StatCardProps {
 }
 
 function StatCard({ title, value, icon, color, subtitle }: StatCardProps) {
-  const theme = useTheme();
+  const _theme = useTheme();
 
   return (
     <GlassDashboardCard

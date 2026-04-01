@@ -788,7 +788,9 @@ export default function AssignmentManagement() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <TrendingUpIcon color="info" />
                         <Typography variant="h4" fontWeight={700}>
-                          {analytics.average_marks?.toFixed(1) || 0}
+                          {typeof analytics.average_marks === 'number'
+                            ? analytics.average_marks.toFixed(1)
+                            : 0}
                         </Typography>
                       </Box>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -809,13 +811,17 @@ export default function AssignmentManagement() {
                           <Typography variant="body2">Completion Rate</Typography>
                           <Typography variant="body2" fontWeight={600}>
                             {statistics.submission_rate
-                              ? `${(statistics.submission_rate * 100).toFixed(1)}%`
+                              ? `${(Number(statistics.submission_rate) * 100).toFixed(1)}%`
                               : '0%'}
                           </Typography>
                         </Box>
                         <LinearProgress
                           variant="determinate"
-                          value={statistics.submission_rate ? statistics.submission_rate * 100 : 0}
+                          value={
+                            statistics.submission_rate
+                              ? Number(statistics.submission_rate) * 100
+                              : 0
+                          }
                           sx={{ height: 8, borderRadius: 1 }}
                         />
                       </Box>

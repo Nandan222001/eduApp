@@ -75,7 +75,7 @@ export default function GradeComparisonChart({ data }: GradeComparisonChartProps
         displayColors: true,
         callbacks: {
           label: function (context: TooltipItem<'bar'>) {
-            return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+            return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(1) : 0}%`;
           },
           afterBody: function (context: TooltipItem<'bar'>[]) {
             const grade = data[context[0].dataIndex];

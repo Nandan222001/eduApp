@@ -32,7 +32,7 @@ import {
   School as SchoolIcon,
   Message as MessageIcon,
   Share as ShareIcon,
-  CheckCircleIcon,
+  CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
   Visibility as VisibilityIcon,

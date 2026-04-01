@@ -19,7 +19,6 @@ import {
   IconButton,
 } from '@mui/material';
 import {
-  AccessTime as TimeIcon,
   CloudUpload as UploadIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -38,7 +37,9 @@ interface TimesheetIntegrationProps {
   currentHours?: number;
 }
 
-export default function TimesheetIntegration({ employmentId: _employmentId, currentHours = 0 }: TimesheetIntegrationProps) {
+export default function TimesheetIntegration({
+  employmentId: _employmentId,
+}: TimesheetIntegrationProps) {
   const [entries, setEntries] = useState<TimesheetEntry[]>([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newEntry, setNewEntry] = useState({
@@ -86,7 +87,9 @@ export default function TimesheetIntegration({ employmentId: _employmentId, curr
     <Box>
       <Card>
         <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}
+          >
             <Typography variant="h6" fontWeight={600}>
               Hours Tracking
             </Typography>
@@ -146,7 +149,12 @@ export default function TimesheetIntegration({ employmentId: _employmentId, curr
           </Grid>
 
           <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)} fullWidth>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setAddDialogOpen(true)}
+              fullWidth
+            >
               Log Hours
             </Button>
             <Button variant="outlined" startIcon={<UploadIcon />} fullWidth>
@@ -156,32 +164,39 @@ export default function TimesheetIntegration({ employmentId: _employmentId, curr
 
           {entries.length === 0 ? (
             <Alert severity="info">
-              No hours logged yet. Click "Log Hours" to add your work hours.
+              No hours logged yet. Click &quot;Log Hours&quot; to add your work hours.
             </Alert>
           ) : (
             <List>
-              {entries.slice().reverse().map((entry) => (
-                <ListItem
-                  key={entry.id}
-                  secondaryAction={
-                    <IconButton edge="end" onClick={() => handleDeleteEntry(entry.id)} color="error">
-                      <DeleteIcon />
-                    </IconButton>
-                  }
-                >
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body1" fontWeight={600}>
-                          {entry.hours} hours
-                        </Typography>
-                        <Chip label={new Date(entry.date).toLocaleDateString()} size="small" />
-                      </Box>
+              {entries
+                .slice()
+                .reverse()
+                .map((entry) => (
+                  <ListItem
+                    key={entry.id}
+                    secondaryAction={
+                      <IconButton
+                        edge="end"
+                        onClick={() => handleDeleteEntry(entry.id)}
+                        color="error"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
                     }
-                    secondary={entry.description}
-                  />
-                </ListItem>
-              ))}
+                  >
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body1" fontWeight={600}>
+                            {entry.hours} hours
+                          </Typography>
+                          <Chip label={new Date(entry.date).toLocaleDateString()} size="small" />
+                        </Box>
+                      }
+                      secondary={entry.description}
+                    />
+                  </ListItem>
+                ))}
             </List>
           )}
         </CardContent>

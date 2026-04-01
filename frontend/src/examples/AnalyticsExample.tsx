@@ -38,17 +38,19 @@ const AnalyticsExample: React.FC = () => {
   };
 
   const handleFeatureUse = () => {
-    trackFeatureUsage({
-      feature_name: 'example_feature',
+    trackFeatureUsage('example_feature', {
       usage_context: 'demo',
     });
   };
 
   const handleCustomEvent = () => {
-    trackEvent('custom_action', {
+    trackEvent({
+      event_name: 'custom_action',
       event_type: 'user_interaction',
-      action_type: 'example',
-      value: 42,
+      properties: {
+        action_type: 'example',
+        value: 42,
+      },
     });
   };
 

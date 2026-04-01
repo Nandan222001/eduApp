@@ -115,7 +115,7 @@ export default function ClassScoreTrendsChart({ data }: ClassScoreTrendsChartPro
         displayColors: true,
         callbacks: {
           label: function (context: TooltipItem<'line'>) {
-            return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+            return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(1) : 0}%`;
           },
         },
       },

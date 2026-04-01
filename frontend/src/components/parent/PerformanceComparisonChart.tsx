@@ -87,7 +87,7 @@ export const PerformanceComparisonChart: React.FC<PerformanceComparisonChartProp
       tooltip: {
         callbacks: {
           label: (context: TooltipItem<'bar'>) => {
-            return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+            return `${context.dataset.label}: ${context.parsed.y !== null ? context.parsed.y.toFixed(1) : 0}%`;
           },
         },
       },

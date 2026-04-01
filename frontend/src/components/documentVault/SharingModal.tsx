@@ -165,7 +165,7 @@ export const SharingModal: React.FC<SharingModalProps> = ({
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="body2">{recipient.name}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {roleLabels[recipient.role]}
+                        {roleLabels[recipient.role as RecipientRole]}
                         {recipient.department && ` • ${recipient.department}`}
                       </Typography>
                     </Box>
@@ -246,7 +246,7 @@ export const SharingModal: React.FC<SharingModalProps> = ({
                   primary={share.recipient_name}
                   secondary={
                     <>
-                      {roleLabels[share.recipient_role]} • Shared{' '}
+                      {roleLabels[share.recipient_role as RecipientRole]} • Shared{' '}
                       {format(new Date(share.shared_date), 'PPP')}
                       {share.expiry_date &&
                         ` • Expires ${format(new Date(share.expiry_date), 'PPP')}`}

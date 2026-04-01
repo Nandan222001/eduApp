@@ -199,7 +199,8 @@ export const olympicsAPI = {
 
   getCompetition: async (competitionId: number): Promise<Competition> => {
     if (isDemoUser()) {
-      return (demoDataApi.olympics?.getCompetition?.(competitionId) || {}) as Competition;
+      const result = await demoDataApi.olympics?.getCompetition?.(competitionId);
+      return (result as unknown as Competition) || ({} as Competition);
     }
     const response = await api.get(`/api/v1/olympics/competitions/${competitionId}`);
     return response.data as Competition;
@@ -216,7 +217,8 @@ export const olympicsAPI = {
 
   getEvent: async (eventId: number): Promise<CompetitionEvent> => {
     if (isDemoUser()) {
-      return (demoDataApi.olympics?.getEvent?.(eventId) || {}) as CompetitionEvent;
+      const result = await demoDataApi.olympics?.getEvent?.(eventId);
+      return (result as unknown as CompetitionEvent) || ({} as CompetitionEvent);
     }
     const response = await api.get(`/api/v1/olympics/events/${eventId}`);
     return response.data as CompetitionEvent;
@@ -225,7 +227,8 @@ export const olympicsAPI = {
   // Participation
   startEvent: async (eventId: number, teamId?: number): Promise<ParticipationSession> => {
     if (isDemoUser()) {
-      return (demoDataApi.olympics?.startEvent?.(eventId, teamId) || {}) as ParticipationSession;
+      const result = await demoDataApi.olympics?.startEvent?.(eventId, teamId);
+      return (result as unknown as ParticipationSession) || ({} as ParticipationSession);
     }
     const response = await api.post(`/api/v1/olympics/events/${eventId}/start`, {
       team_id: teamId,
@@ -235,7 +238,8 @@ export const olympicsAPI = {
 
   getSession: async (sessionId: number): Promise<ParticipationSession> => {
     if (isDemoUser()) {
-      return (demoDataApi.olympics?.getSession?.(sessionId) || {}) as ParticipationSession;
+      const result = await demoDataApi.olympics?.getSession?.(sessionId);
+      return (result as unknown as ParticipationSession) || ({} as ParticipationSession);
     }
     const response = await api.get(`/api/v1/olympics/sessions/${sessionId}`);
     return response.data as ParticipationSession;
@@ -251,7 +255,8 @@ export const olympicsAPI = {
 
   submitAnswer: async (sessionId: number, questionId: number, answer: string): Promise<Answer> => {
     if (isDemoUser()) {
-      return (demoDataApi.olympics?.submitAnswer?.(sessionId, questionId, answer) || {}) as Answer;
+      const result = await demoDataApi.olympics?.submitAnswer?.(sessionId, questionId, answer);
+      return (result as unknown as Answer) || ({} as Answer);
     }
     const response = await api.post(`/api/v1/olympics/sessions/${sessionId}/answer`, {
       question_id: questionId,
@@ -262,7 +267,8 @@ export const olympicsAPI = {
 
   completeSession: async (sessionId: number): Promise<ParticipationSession> => {
     if (isDemoUser()) {
-      return (demoDataApi.olympics?.completeSession?.(sessionId) || {}) as ParticipationSession;
+      const result = await demoDataApi.olympics?.completeSession?.(sessionId);
+      return (result as unknown as ParticipationSession) || ({} as ParticipationSession);
     }
     const response = await api.post(`/api/v1/olympics/sessions/${sessionId}/complete`);
     return response.data as ParticipationSession;
@@ -279,7 +285,8 @@ export const olympicsAPI = {
 
   createTeam: async (competitionId: number, name: string, memberIds: number[]): Promise<Team> => {
     if (isDemoUser()) {
-      return (demoDataApi.olympics?.createTeam?.(competitionId, name, memberIds) || {}) as Team;
+      const result = await demoDataApi.olympics?.createTeam?.(competitionId, name, memberIds);
+      return (result as unknown as Team) || ({} as Team);
     }
     const response = await api.post(`/api/v1/olympics/competitions/${competitionId}/teams`, {
       name,
@@ -290,7 +297,8 @@ export const olympicsAPI = {
 
   joinTeam: async (teamCode: string): Promise<Team> => {
     if (isDemoUser()) {
-      return (demoDataApi.olympics?.joinTeam?.(teamCode) || {}) as Team;
+      const result = await demoDataApi.olympics?.joinTeam?.(teamCode);
+      return (result as unknown as Team) || ({} as Team);
     }
     const response = await api.post('/api/v1/olympics/teams/join', {
       team_code: teamCode,

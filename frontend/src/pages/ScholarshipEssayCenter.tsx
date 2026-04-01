@@ -43,7 +43,7 @@ import {
   RateReview as ReviewIcon,
   LibraryBooks as LibraryIcon,
   Psychology as PsychologyIcon,
-  SpellCheck as GrammarIcon,
+  Spellcheck as GrammarIcon,
   Save as SaveIcon,
   Undo as UndoIcon,
   Redo as RedoIcon,

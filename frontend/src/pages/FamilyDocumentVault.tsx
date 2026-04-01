@@ -355,7 +355,7 @@ export const FamilyDocumentVault: React.FC = () => {
         </Breadcrumbs>
 
         {/* Tabs */}
-        <Tabs value={selectedTab} onChange={(e, v) => setSelectedTab(v)} sx={{ mb: 3 }}>
+        <Tabs value={selectedTab} onChange={(_e, v) => setSelectedTab(v)} sx={{ mb: 3 }}>
           <Tab label="All Documents" />
           <Tab label="Recent" />
           <Tab label="Shared with Me" />

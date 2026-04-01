@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -79,12 +79,11 @@ export const ClassManagement: React.FC = () => {
     description: '',
   });
 
-  useEffect(() => {
-    loadGrades();
-    loadSections();
-  }, []);
+  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbar({ open: true, message, severity });
+  };
 
-  const loadGrades = async () => {
+  const loadGrades = useCallback(async () => {
     try {
       setLoading(true);
       const data = await academicApi.getGrades(true);
@@ -94,20 +93,21 @@ export const ClassManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadSections = async () => {
+  const loadSections = useCallback(async () => {
     try {
       const data = await academicApi.getSections(undefined, true);
       setSections(data);
     } catch (error) {
       showSnackbar('Failed to load sections', 'error');
     }
-  };
+  }, []);
 
-  const showSnackbar = (message: string, severity: 'success' | 'error') => {
-    setSnackbar({ open: true, message, severity });
-  };
+  useEffect(() => {
+    loadGrades();
+    loadSections();
+  }, [loadGrades, loadSections]);
 
   const handleOpenGradeDialog = (grade?: Grade) => {
     if (grade) {
