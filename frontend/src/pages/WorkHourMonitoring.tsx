@@ -72,7 +72,8 @@ export default function WorkHourMonitoring() {
       setEmployments(jobs);
 
       if (permits.length > 0) {
-        const activePermit = permits.find((p) => p.school_authorization_status === 'approved') || permits[0];
+        const activePermit =
+          permits.find((p) => p.school_authorization_status === 'approved') || permits[0];
         setWorkPermit(activePermit);
 
         const currentWeeklyHours = jobs.reduce((sum, job) => sum + (job.hours_per_week || 0), 0);
@@ -80,7 +81,7 @@ export default function WorkHourMonitoring() {
 
         const myData: StudentWorkHourData = {
           student_id: studentId,
-          student_name: user.name || 'Student',
+          student_name: user.email || 'Student',
           current_weekly_hours: currentWeeklyHours,
           max_allowed_hours: maxHours,
           permit_id: activePermit.id,
@@ -127,7 +128,9 @@ export default function WorkHourMonitoring() {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+      <Box
+        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}
+      >
         <CircularProgress />
       </Box>
     );
@@ -179,7 +182,14 @@ export default function WorkHourMonitoring() {
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      mb: 2,
+                    }}
+                  >
                     <Typography variant="body2" color="text.secondary">
                       Current Weekly Hours
                     </Typography>
@@ -198,7 +208,14 @@ export default function WorkHourMonitoring() {
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      mb: 2,
+                    }}
+                  >
                     <Typography variant="body2" color="text.secondary">
                       Maximum Allowed
                     </Typography>
@@ -217,7 +234,14 @@ export default function WorkHourMonitoring() {
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      mb: 2,
+                    }}
+                  >
                     <Typography variant="body2" color="text.secondary">
                       Active Jobs
                     </Typography>
@@ -264,8 +288,9 @@ export default function WorkHourMonitoring() {
                 Approaching Weekly Hour Limit
               </Typography>
               <Typography variant="body2">
-                You are approaching the maximum allowed weekly hours ({myHourData.max_allowed_hours} hours). Please
-                ensure you don&apos;t exceed this limit to comply with work permit regulations.
+                You are approaching the maximum allowed weekly hours ({myHourData.max_allowed_hours}{' '}
+                hours). Please ensure you don&apos;t exceed this limit to comply with work permit
+                regulations.
               </Typography>
             </Alert>
           )}
@@ -276,8 +301,9 @@ export default function WorkHourMonitoring() {
                 Weekly Hour Limit Exceeded
               </Typography>
               <Typography variant="body2">
-                You have exceeded the maximum allowed weekly hours ({myHourData.max_allowed_hours} hours). Please
-                contact your career counselor and adjust your work schedule immediately to comply with regulations.
+                You have exceeded the maximum allowed weekly hours ({myHourData.max_allowed_hours}{' '}
+                hours). Please contact your career counselor and adjust your work schedule
+                immediately to comply with regulations.
               </Typography>
             </Alert>
           )}
@@ -322,7 +348,11 @@ export default function WorkHourMonitoring() {
                           </TableCell>
                           <TableCell>{new Date(job.start_date).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            <Chip label={job.is_current ? 'Active' : 'Inactive'} size="small" color="primary" />
+                            <Chip
+                              label={job.is_current ? 'Active' : 'Inactive'}
+                              size="small"
+                              color="primary"
+                            />
                           </TableCell>
                         </TableRow>
                       ))}
