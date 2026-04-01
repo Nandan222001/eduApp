@@ -20,6 +20,7 @@ import {
   Step,
   StepLabel,
   Stack,
+  SelectChangeEvent,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -134,12 +135,19 @@ export default function StudentForm() {
 
   const handleChange =
     (field: keyof StudentCreate) =>
-    (event: React.ChangeEvent<HTMLInputElement | { value: unknown }>) => {
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setFormData((prev) => ({
         ...prev,
         [field]: event.target.value,
       }));
     };
+
+  const handleSelectChange = (field: keyof StudentCreate) => (event: SelectChangeEvent) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: event.target.value,
+    }));
+  };
 
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -286,7 +294,7 @@ export default function StudentForm() {
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Gender</InputLabel>
-          <Select value={formData.gender} label="Gender" onChange={handleChange('gender')}>
+          <Select value={formData.gender} label="Gender" onChange={handleSelectChange('gender')}>
             <MenuItem value="male">Male</MenuItem>
             <MenuItem value="female">Female</MenuItem>
             <MenuItem value="other">Other</MenuItem>
@@ -420,7 +428,7 @@ export default function StudentForm() {
       <Grid item xs={12} sm={6}>
         <FormControl fullWidth>
           <InputLabel>Status</InputLabel>
-          <Select value={formData.status} label="Status" onChange={handleChange('status')}>
+          <Select value={formData.status} label="Status" onChange={handleSelectChange('status')}>
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="inactive">Inactive</MenuItem>
             <MenuItem value="graduated">Graduated</MenuItem>
