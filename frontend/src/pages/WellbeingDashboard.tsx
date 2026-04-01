@@ -59,10 +59,7 @@ import {
   LocalHospital as LocalHospitalIcon,
   Psychology as PsychologyIcon,
   Shield as ShieldIcon,
-  Notifications as NotificationsIcon,
-  CalendarToday as CalendarIcon,
   Groups as GroupsIcon,
-  Send as SendIcon,
 } from '@mui/icons-material';
 import { wellbeingApi } from '@/api/wellbeing';
 import { WellbeingAlert, Intervention, MentalHealthResource } from '@/types/wellbeing';
@@ -509,6 +506,7 @@ function CounselorInterface({ institutionId, currentUserId }: CounselorInterface
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterSeverity, setFilterSeverity] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [_selectedAlert, setSelectedAlert] = useState<WellbeingAlert | null>(null);
 
   const loadAlerts = async () => {
     try {
@@ -769,117 +767,6 @@ function CounselorInterface({ institutionId, currentUserId }: CounselorInterface
         </Card>
       </Grid>
     </Grid>
-  );
-}
-
-interface ParentNotificationPanelProps {
-  alertId: number;
-  studentId: number;
-}
-
-function _ParentNotificationPanel({ alertId, studentId }: ParentNotificationPanelProps) {
-  const [notificationType, setNotificationType] = useState<'email' | 'sms' | 'call' | 'meeting'>(
-    'email'
-  );
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSendNotification = async () => {
-    try {
-      setLoading(true);
-      await wellbeingApi.sendParentNotification({
-        alert_id: alertId,
-        student_id: studentId,
-        notification_type: notificationType,
-        severity_level: 'high',
-        subject,
-        message,
-        acknowledged: false,
-      });
-      setSubject('');
-      setMessage('');
-    } catch (error) {
-      console.error('Error sending notification:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader
-        title="Parent Notification"
-        subheader="Send notification to parent/guardian"
-        avatar={<NotificationsIcon />}
-      />
-      <CardContent>
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <FormControl fullWidth>
-              <InputLabel>Notification Type</InputLabel>
-              <Select
-                value={notificationType}
-                onChange={(e) =>
-                  setNotificationType(e.target.value as 'email' | 'sms' | 'call' | 'meeting')
-                }
-                label="Notification Type"
-              >
-                <MenuItem value="email">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EmailIcon fontSize="small" /> Email
-                  </Box>
-                </MenuItem>
-                <MenuItem value="sms">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <PhoneIcon fontSize="small" /> SMS
-                  </Box>
-                </MenuItem>
-                <MenuItem value="call">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <PhoneIcon fontSize="small" /> Phone Call
-                  </Box>
-                </MenuItem>
-                <MenuItem value="meeting">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CalendarIcon fontSize="small" /> Schedule Meeting
-                  </Box>
-                </MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Subject"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              label="Message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <Button
-              variant="contained"
-              fullWidth
-              startIcon={<SendIcon />}
-              onClick={handleSendNotification}
-              disabled={!subject || !message || loading}
-            >
-              Send Notification
-            </Button>
-          </Grid>
-        </Grid>
-      </CardContent>
-    </Card>
   );
 }
 

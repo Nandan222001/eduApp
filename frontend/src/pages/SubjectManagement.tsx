@@ -252,19 +252,6 @@ export const SubjectManagement: React.FC = () => {
     }
   };
 
-  const _handleUpdateAssignmentTeacher = async (assignmentId: number, teacherId: number) => {
-    try {
-      setLoading(true);
-      await academicApi.updateSubjectAssignment(assignmentId, { teacher_id: teacherId });
-      showSnackbar('Teacher assigned successfully', 'success');
-      loadAssignments();
-    } catch (error) {
-      showSnackbar('Failed to assign teacher', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const getAssignmentsByGrade = (gradeId: number) => {
     return assignments.filter((a) => a.grade_id === gradeId);
   };
@@ -608,7 +595,7 @@ export const SubjectManagement: React.FC = () => {
                   label="Teacher (Optional)"
                 >
                   <MenuItem value="">Not assigned</MenuItem>
-                  {teachers.map((teacher) => (
+                  {_teachers.map((teacher: Teacher) => (
                     <MenuItem key={teacher.id} value={teacher.id}>
                       {teacher.first_name} {teacher.last_name}
                     </MenuItem>

@@ -211,11 +211,6 @@ const StudentCredentials: React.FC = () => {
     setPrivacyDialogOpen(true);
   };
 
-  const handleOpenEmbedDialog = (credential: Credential) => {
-    setSelectedCredential(credential);
-    setEmbedDialogOpen(true);
-  };
-
   const getEmbedCode = (credential: Credential) => {
     const embedUrl = `${window.location.origin}/credentials/embed/${credential.id}`;
     return `<iframe src="${embedUrl}" width="400" height="300" frameborder="0"></iframe>`;
@@ -317,7 +312,6 @@ const StudentCredentials: React.FC = () => {
             onDownloadPDF={handleDownloadPDF}
             onViewBlockchain={handleViewBlockchain}
             onPrivacySettings={handleOpenPrivacyDialog}
-            onEmbed={handleOpenEmbedDialog}
             getCredentialIcon={getCredentialIcon}
             getStatusColor={getStatusColor}
             privacySettings={privacySettings}
@@ -334,7 +328,6 @@ const StudentCredentials: React.FC = () => {
             onDownloadPDF={handleDownloadPDF}
             onViewBlockchain={handleViewBlockchain}
             onPrivacySettings={handleOpenPrivacyDialog}
-            onEmbed={handleOpenEmbedDialog}
             getCredentialIcon={getCredentialIcon}
             getStatusColor={getStatusColor}
             privacySettings={privacySettings}
@@ -351,7 +344,6 @@ const StudentCredentials: React.FC = () => {
             onDownloadPDF={handleDownloadPDF}
             onViewBlockchain={handleViewBlockchain}
             onPrivacySettings={handleOpenPrivacyDialog}
-            onEmbed={handleOpenEmbedDialog}
             getCredentialIcon={getCredentialIcon}
             getStatusColor={getStatusColor}
             privacySettings={privacySettings}
@@ -418,7 +410,6 @@ interface CredentialGridProps {
   onDownloadPDF: (credential: Credential) => void;
   onViewBlockchain: (credential: Credential) => void;
   onPrivacySettings: (credential: Credential) => void;
-  onEmbed: (credential: Credential) => void;
   getCredentialIcon: (credential: Credential) => React.ReactNode;
   getStatusColor: (status: CredentialStatus) => 'success' | 'warning' | 'error' | 'default';
   privacySettings: Record<number, CredentialPrivacy>;
@@ -433,7 +424,6 @@ const CredentialGrid: React.FC<CredentialGridProps> = ({
   onDownloadPDF,
   onViewBlockchain,
   onPrivacySettings,
-  _onEmbed,
   getCredentialIcon,
   getStatusColor,
   privacySettings,

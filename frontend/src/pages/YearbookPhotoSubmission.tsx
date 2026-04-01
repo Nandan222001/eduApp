@@ -119,7 +119,7 @@ export default function YearbookPhotoSubmission() {
     }, 200);
 
     setTimeout(() => {
-      const newSubmissions = selectedFiles.map((file, index) => ({
+      const newSubmissions = selectedFiles.map((_file, index) => ({
         id: submissions.length + index + 1,
         studentId: 1,
         studentName: 'Current User',

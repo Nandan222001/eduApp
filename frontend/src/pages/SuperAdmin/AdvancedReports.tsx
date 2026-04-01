@@ -684,12 +684,12 @@ export default function AdvancedReports() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={(entry: { name: string; value: number }) => `${entry.name}: ${entry.value}%`}
+                label={(entry: Record<string, string | number>) => `${entry.name}: ${entry.value}%`}
                 outerRadius={120}
                 fill="#8884d8"
                 dataKey="value"
               >
-                {data.map((_entry, index) => (
+                {data.map((_entry: ChartDataPoint, index: number) => (
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                 ))}
               </Pie>
