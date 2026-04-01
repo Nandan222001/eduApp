@@ -36,6 +36,8 @@ export interface Student {
   updated_at: string;
   section?: SectionInfo;
   parents_info?: ParentInfo[];
+  attendance_percentage?: number;
+  average_score?: number;
 }
 
 export interface ParentInfo {
