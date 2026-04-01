@@ -92,6 +92,7 @@ export default function ResearchWorkspace() {
   const [project, setProject] = useState<ResearchProject | null>(null);
   const [document, setDocument] = useState<ResearchDocument | null>(null);
   const [documentContent, setDocumentContent] = useState('');
+  const [_dataTables, setDataTables] = useState<DataTable[]>([]);
   const [selectedTable, setSelectedTable] = useState<DataTable | null>(null);
   const [literature, setLiterature] = useState<LiteratureEntry[]>([]);
   const [experiments, setExperiments] = useState<ExperimentLog[]>([]);
