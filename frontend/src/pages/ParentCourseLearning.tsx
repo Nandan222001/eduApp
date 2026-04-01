@@ -641,7 +641,7 @@ export const ParentCourseLearning: React.FC = () => {
                                       src={reply.user_photo_url}
                                       sx={{ width: 24, height: 24 }}
                                     >
-                                      {reply.user_name?.charAt(0) || '?'}
+                                      {(reply.user_name || 'U').charAt(0)}
                                     </Avatar>
                                     <Box>
                                       <Typography variant="caption" fontWeight={600}>

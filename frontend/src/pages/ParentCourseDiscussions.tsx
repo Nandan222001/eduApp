@@ -326,7 +326,7 @@ export const ParentCourseDiscussions: React.FC = () => {
                             <Box key={reply.id} sx={{ mb: 2 }}>
                               <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
                                 <Avatar src={reply.user_photo_url} sx={{ width: 32, height: 32 }}>
-                                  {reply.user_name.charAt(0)}
+                                  {(reply.user_name || 'U').charAt(0)}
                                 </Avatar>
                                 <Box sx={{ flex: 1 }}>
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
