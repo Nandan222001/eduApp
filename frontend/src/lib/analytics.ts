@@ -116,6 +116,56 @@ class Analytics {
       fatal,
     });
   }
+
+  trackEvent(eventName: string, properties: Record<string, unknown>): void {
+    if (env.isDevelopment) {
+      console.log('Analytics Event:', eventName, properties);
+    }
+
+    if (!this.isInitialized || !window.gtag) return;
+
+    window.gtag('event', eventName, properties);
+  }
+
+  trackFeatureUsage(properties: Record<string, unknown>): void {
+    if (env.isDevelopment) {
+      console.log('Analytics Feature Usage:', properties);
+    }
+
+    if (!this.isInitialized || !window.gtag) return;
+
+    window.gtag('event', 'feature_usage', {
+      event_category: 'engagement',
+      ...properties,
+    });
+  }
+
+  trackConversion(conversionType: string, properties: Record<string, unknown>): void {
+    if (env.isDevelopment) {
+      console.log('Analytics Conversion:', conversionType, properties);
+    }
+
+    if (!this.isInitialized || !window.gtag) return;
+
+    window.gtag('event', 'conversion', {
+      event_category: 'conversion',
+      conversion_type: conversionType,
+      ...properties,
+    });
+  }
+
+  trackClick(properties: Record<string, unknown>): void {
+    if (env.isDevelopment) {
+      console.log('Analytics Click:', properties);
+    }
+
+    if (!this.isInitialized || !window.gtag) return;
+
+    window.gtag('event', 'click', {
+      event_category: 'interaction',
+      ...properties,
+    });
+  }
 }
 
 export const analytics = new Analytics();
