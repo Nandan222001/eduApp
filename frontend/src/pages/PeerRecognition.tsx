@@ -24,6 +24,7 @@ import {
   Tab,
   Tabs,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   EmojiEvents as TrophyIcon,
   School as SchoolIcon,
@@ -146,6 +147,7 @@ interface QuickRecognitionSenderProps {
 }
 
 function QuickRecognitionSender({ onRecognitionSent }: QuickRecognitionSenderProps) {
+  const theme = useTheme();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [selectedStudent, setSelectedStudent] = useState<{
