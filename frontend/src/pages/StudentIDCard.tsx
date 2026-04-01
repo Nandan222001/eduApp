@@ -87,7 +87,26 @@ export default function StudentIDCard() {
         setLoading(true);
         let data: IDCardData;
         if (isDemo) {
-          data = await demoIDCardsApi.getStudentIDCardData(parseInt(id));
+          const cardData = await demoIDCardsApi.getStudentIDCardData(parseInt(id));
+          if (cardData) {
+            // Map StudentIDCardData to IDCardData
+            data = {
+              student_id: cardData.student_id,
+              student_name: cardData.student_name,
+              admission_number: cardData.admission_number,
+              class_section: `${cardData.grade} - ${cardData.section}`,
+              blood_group: cardData.blood_group,
+              photo_url: cardData.photo_url,
+              institution_name: 'Demo School',
+              valid_until: cardData.valid_until,
+              valid_from: cardData.valid_from,
+              emergency_contact_phone: cardData.emergency_contact,
+              qr_data: cardData.qr_code_data,
+              barcode_data: cardData.barcode_data,
+            };
+          } else {
+            data = {} as IDCardData;
+          }
           // Demo templates with simplified schema for preview
           setTemplates([
             {

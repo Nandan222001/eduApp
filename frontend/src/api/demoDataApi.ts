@@ -4637,6 +4637,12 @@ export const demoIDCardsApi = {
       cards_generated,
     });
   },
+
+  downloadIDCard: async (student_id: number): Promise<Blob> => {
+    const cardData = await demoIDCardsApi.getStudentIDCardData(student_id);
+    const pdfContent = `Demo ID Card for Student ${student_id}\n${cardData ? `Name: ${cardData.student_name}\nCard Number: ${cardData.card_number}` : 'No card data found'}`;
+    return Promise.resolve(new Blob([pdfContent], { type: 'application/pdf' }));
+  },
 };
 
 export const demoStaffApi = {
