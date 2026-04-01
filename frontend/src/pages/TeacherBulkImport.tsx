@@ -86,7 +86,9 @@ export default function TeacherBulkImport() {
         headers.forEach((header, index) => {
           row[header] = values[index] || '';
         });
-        rows.push(row as PreviewRow);
+        if (row.first_name && row.last_name && row.email) {
+          rows.push(row as unknown as PreviewRow);
+        }
       }
 
       setPreviewData(rows);
