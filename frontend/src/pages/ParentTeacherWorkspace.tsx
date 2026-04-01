@@ -774,7 +774,7 @@ export const ParentTeacherWorkspace: React.FC = () => {
                     </Box>
                     {task.photos.length > 0 && (
                       <Box display="flex" gap={1} mt={1}>
-                        {task.photos.map((photo, idx) => (
+                        {task.photos.map((_photo, idx) => (
                           <Box
                             key={idx}
                             sx={{
