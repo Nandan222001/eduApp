@@ -1,5 +1,26 @@
 import axios from '@/lib/axios';
 
+export interface CourseMaterial {
+  id: number;
+  lesson_id: number;
+  title: string;
+  description?: string;
+  file_url: string;
+  file_type: string;
+  file_size_bytes: number;
+  created_at: string;
+}
+
+export interface Note {
+  id: number;
+  enrollment_id: number;
+  lesson_id: number;
+  content: string;
+  timestamp_seconds?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ParentCourse {
   id: number;
   title: string;
@@ -386,17 +407,19 @@ export const parentEducationApi = {
     return response.data;
   },
 
-  getLesson: async (lessonId: number): Promise<unknown> => {
-    const response = await axios.get(`/api/v1/parent-education/lessons/${lessonId}`);
+  getLesson: async (lessonId: number): Promise<Lesson> => {
+    const response = await axios.get<Lesson>(`/api/v1/parent-education/lessons/${lessonId}`);
     return response.data;
   },
 
-  getLessonMaterials: async (lessonId: number): Promise<unknown[]> => {
-    const response = await axios.get(`/api/v1/parent-education/lessons/${lessonId}/materials`);
+  getLessonMaterials: async (lessonId: number): Promise<CourseMaterial[]> => {
+    const response = await axios.get<CourseMaterial[]>(
+      `/api/v1/parent-education/lessons/${lessonId}/materials`
+    );
     return response.data;
   },
 
-  getNotes: async (enrollmentId: number, lessonId?: number): Promise<unknown[]> => {
+  getNotes: async (enrollmentId: number, lessonId?: number): Promise<Note[]> => {
     const params = lessonId ? { lesson_id: lessonId } : {};
     const response = await axios.get(`/api/v1/parent-education/enrollments/${enrollmentId}/notes`, {
       params,
@@ -406,7 +429,7 @@ export const parentEducationApi = {
 
   createNote: async (
     enrollmentId: number,
-    data: { lesson_id?: number; content: string }
+    data: { lesson_id?: number; content: string; timestamp_seconds?: number }
   ): Promise<unknown> => {
     const response = await axios.post(
       `/api/v1/parent-education/enrollments/${enrollmentId}/notes`,
@@ -424,15 +447,20 @@ export const parentEducationApi = {
     await axios.delete(`/api/v1/parent-education/notes/${noteId}`);
   },
 
-  getQuizQuestions: async (lessonId: number): Promise<unknown[]> => {
-    const response = await axios.get(`/api/v1/parent-education/lessons/${lessonId}/quiz`);
+  getQuizQuestions: async (lessonId: number): Promise<QuizQuestion[]> => {
+    const response = await axios.get<QuizQuestion[]>(
+      `/api/v1/parent-education/lessons/${lessonId}/quiz`
+    );
     return response.data;
   },
 
-  submitQuiz: async (lessonId: number, answers: Record<number, unknown>): Promise<unknown> => {
-    const response = await axios.post(`/api/v1/parent-education/lessons/${lessonId}/quiz/submit`, {
-      answers,
-    });
+  submitQuiz: async (lessonId: number, answers: Record<number, unknown>): Promise<QuizAttempt> => {
+    const response = await axios.post<QuizAttempt>(
+      `/api/v1/parent-education/lessons/${lessonId}/quiz/submit`,
+      {
+        answers,
+      }
+    );
     return response.data;
   },
 

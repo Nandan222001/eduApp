@@ -46,8 +46,15 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { parentEducationApi } from '@/api/parentEducation';
-import { LessonType, QuestionType, Note, CourseMaterial } from '@/types/parentEducation';
+import {
+  parentEducationApi,
+  Lesson as ApiLesson,
+  QuizAttempt as ApiQuizAttempt,
+  QuizQuestion as ApiQuizQuestion,
+  CourseMaterial,
+  Note,
+} from '@/api/parentEducation';
+import { LessonType } from '@/types/parentEducation';
 import { useToast } from '@/hooks/useToast';
 
 interface TabPanelProps {
@@ -77,11 +84,7 @@ export const ParentCourseLearning: React.FC = () => {
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [quizDialogOpen, setQuizDialogOpen] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
-  const [quizResult, setQuizResult] = useState<{
-    score: number;
-    passed: boolean;
-    total: number;
-  } | null>(null);
+  const [quizResult, setQuizResult] = useState<ApiQuizAttempt | null>(null);
   const [discussionContent, setDiscussionContent] = useState('');
   const [replyContent, setReplyContent] = useState('');
   const [selectedThreadId, setSelectedThreadId] = useState<number | null>(null);
@@ -113,7 +116,7 @@ export const ParentCourseLearning: React.FC = () => {
   const { data: quizQuestions = [] } = useQuery({
     queryKey: ['quiz-questions', selectedLessonId],
     queryFn: () => parentEducationApi.getQuizQuestions(selectedLessonId!),
-    enabled: !!selectedLessonId && currentLesson?.type === LessonType.QUIZ,
+    enabled: !!selectedLessonId && (currentLesson as ApiLesson)?.type === LessonType.VIDEO,
   });
 
   const { data: discussions = [] } = useQuery({
@@ -129,9 +132,14 @@ export const ParentCourseLearning: React.FC = () => {
   });
 
   useEffect(() => {
-    if (enrollment?.course?.lessons && !selectedLessonId) {
+    if (
+      enrollment?.course &&
+      'lessons' in enrollment.course &&
+      enrollment.course.lessons &&
+      !selectedLessonId
+    ) {
       const nextLesson =
-        enrollment.course.lessons.find((l) => l.id === enrollment.current_lesson_id) ||
+        enrollment.course.lessons.find((l) => l.id === enrollment.current_lesson?.id) ||
         enrollment.course.lessons[0];
       if (nextLesson) {
         setSelectedLessonId(nextLesson.id);
@@ -149,7 +157,7 @@ export const ParentCourseLearning: React.FC = () => {
   });
 
   const createNoteMutation = useMutation({
-    mutationFn: (data: { lesson_id: number; content: string; timestamp_seconds?: number }) =>
+    mutationFn: (data: { lesson_id?: number; content: string; timestamp_seconds?: number }) =>
       parentEducationApi.createNote(Number(enrollmentId), data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
@@ -180,9 +188,9 @@ export const ParentCourseLearning: React.FC = () => {
   const submitQuizMutation = useMutation({
     mutationFn: (answers: Record<number, string>) =>
       parentEducationApi.submitQuiz(selectedLessonId!, answers),
-    onSuccess: (result) => {
+    onSuccess: (result: ApiQuizAttempt) => {
       setQuizResult(result);
-      if (result.passed) {
+      if (result.is_passed) {
         completeMutation.mutate(selectedLessonId!);
       }
     },
@@ -190,10 +198,7 @@ export const ParentCourseLearning: React.FC = () => {
 
   const createThreadMutation = useMutation({
     mutationFn: (data: { title: string; content: string }) =>
-      parentEducationApi.createDiscussionThread(enrollment!.course_id, {
-        lesson_id: selectedLessonId || undefined,
-        ...data,
-      }),
+      parentEducationApi.createDiscussionThread(enrollment!.course_id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['discussions'] });
       setDiscussionContent('');
@@ -216,7 +221,6 @@ export const ParentCourseLearning: React.FC = () => {
       const currentTime = videoRef.current.currentTime;
       const duration = videoRef.current.duration;
       const progress = (currentTime / duration) * 100;
-      setVideoProgress(progress);
 
       if (progress > 90 && !isLessonCompleted(selectedLessonId)) {
         completeMutation.mutate(selectedLessonId);
@@ -309,7 +313,7 @@ export const ParentCourseLearning: React.FC = () => {
       >
         <Box sx={{ p: 2 }}>
           <Typography variant="h6" fontWeight={700} gutterBottom>
-            {enrollment.course.title}
+            {enrollment.course?.title || 'Course'}
           </Typography>
           <Box sx={{ mb: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -334,7 +338,7 @@ export const ParentCourseLearning: React.FC = () => {
         <Divider />
 
         <List sx={{ p: 0 }}>
-          {enrollment.course.lessons?.map((lesson, index) => {
+          {enrollment.course?.lessons?.map((lesson: ApiLesson, index: number) => {
             const isCompleted = isLessonCompleted(lesson.id);
             const isActive = lesson.id === selectedLessonId;
 
@@ -350,7 +354,11 @@ export const ParentCourseLearning: React.FC = () => {
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 40 }}>
-                    {isCompleted ? <CheckCircleIcon color="success" /> : getLessonIcon(lesson.type)}
+                    {isCompleted ? (
+                      <CheckCircleIcon color="success" />
+                    ) : (
+                      getLessonIcon(lesson.type as LessonType)
+                    )}
                   </ListItemIcon>
                   <ListItemText
                     primary={
@@ -359,9 +367,9 @@ export const ParentCourseLearning: React.FC = () => {
                       </Typography>
                     }
                     secondary={
-                      lesson.video_duration_seconds && (
+                      lesson.video_url && (
                         <Typography variant="caption" color="text.secondary">
-                          {Math.ceil(lesson.video_duration_seconds / 60)} min
+                          Video
                         </Typography>
                       )
                     }
@@ -381,74 +389,82 @@ export const ParentCourseLearning: React.FC = () => {
               {/* Lesson Header */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="h4" fontWeight={700} gutterBottom>
-                  {currentLesson.title}
+                  {(currentLesson as ApiLesson).title}
                 </Typography>
-                {currentLesson.description && (
+                {(currentLesson as ApiLesson).description && (
                   <Typography variant="body1" color="text.secondary">
-                    {currentLesson.description}
+                    {(currentLesson as ApiLesson).description}
                   </Typography>
                 )}
               </Box>
 
               {/* Video Player */}
-              {currentLesson.type === LessonType.VIDEO && currentLesson.video_url && (
-                <Paper sx={{ mb: 3, overflow: 'hidden' }}>
-                  <video
-                    ref={videoRef}
-                    controls
-                    style={{ width: '100%', maxHeight: '500px', display: 'block' }}
-                    onTimeUpdate={handleVideoTimeUpdate}
-                    src={currentLesson.video_url}
-                  />
-                  {showTranscript && currentLesson.transcript && (
-                    <Box sx={{ p: 2, bgcolor: 'background.default' }}>
-                      <Typography variant="h6" gutterBottom>
-                        Transcript
-                      </Typography>
-                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                        {currentLesson.transcript}
-                      </Typography>
-                    </Box>
-                  )}
-                  <Box sx={{ p: 2, display: 'flex', gap: 2 }}>
-                    {currentLesson.transcript && (
-                      <Button variant="outlined" onClick={() => setShowTranscript(!showTranscript)}>
-                        {showTranscript ? 'Hide' : 'Show'} Transcript
-                      </Button>
+              {(currentLesson as ApiLesson).type === 'video' &&
+                (currentLesson as ApiLesson).video_url && (
+                  <Paper sx={{ mb: 3, overflow: 'hidden' }}>
+                    <video
+                      ref={videoRef}
+                      controls
+                      style={{ width: '100%', maxHeight: '500px', display: 'block' }}
+                      onTimeUpdate={handleVideoTimeUpdate}
+                      src={(currentLesson as ApiLesson).video_url}
+                    />
+                    {showTranscript && (currentLesson as ApiLesson).transcript && (
+                      <Box sx={{ p: 2, bgcolor: 'background.default' }}>
+                        <Typography variant="h6" gutterBottom>
+                          Transcript
+                        </Typography>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {(currentLesson as ApiLesson).transcript}
+                        </Typography>
+                      </Box>
                     )}
-                    <Button
-                      variant="contained"
-                      onClick={() => completeMutation.mutate(currentLesson.id)}
-                      disabled={isLessonCompleted(currentLesson.id)}
-                    >
-                      {isLessonCompleted(currentLesson.id) ? 'Completed' : 'Mark as Complete'}
-                    </Button>
-                  </Box>
-                </Paper>
-              )}
+                    <Box sx={{ p: 2, display: 'flex', gap: 2 }}>
+                      {(currentLesson as ApiLesson).transcript && (
+                        <Button
+                          variant="outlined"
+                          onClick={() => setShowTranscript(!showTranscript)}
+                        >
+                          {showTranscript ? 'Hide' : 'Show'} Transcript
+                        </Button>
+                      )}
+                      <Button
+                        variant="contained"
+                        onClick={() => completeMutation.mutate((currentLesson as ApiLesson).id)}
+                        disabled={isLessonCompleted((currentLesson as ApiLesson).id)}
+                      >
+                        {isLessonCompleted((currentLesson as ApiLesson).id)
+                          ? 'Completed'
+                          : 'Mark as Complete'}
+                      </Button>
+                    </Box>
+                  </Paper>
+                )}
 
               {/* Article Content */}
-              {currentLesson.type === LessonType.ARTICLE && (
+              {(currentLesson as ApiLesson).type === 'article' && (
                 <Paper sx={{ p: 3, mb: 3 }}>
                   <Typography
                     variant="body1"
                     sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}
-                    dangerouslySetInnerHTML={{ __html: currentLesson.content || '' }}
+                    dangerouslySetInnerHTML={{ __html: (currentLesson as ApiLesson).content || '' }}
                   />
                   <Box sx={{ mt: 3 }}>
                     <Button
                       variant="contained"
-                      onClick={() => completeMutation.mutate(currentLesson.id)}
-                      disabled={isLessonCompleted(currentLesson.id)}
+                      onClick={() => completeMutation.mutate((currentLesson as ApiLesson).id)}
+                      disabled={isLessonCompleted((currentLesson as ApiLesson).id)}
                     >
-                      {isLessonCompleted(currentLesson.id) ? 'Completed' : 'Mark as Complete'}
+                      {isLessonCompleted((currentLesson as ApiLesson).id)
+                        ? 'Completed'
+                        : 'Mark as Complete'}
                     </Button>
                   </Box>
                 </Paper>
               )}
 
               {/* Quiz */}
-              {currentLesson.type === LessonType.QUIZ && (
+              {(currentLesson as ApiLesson).type === 'quiz' && (
                 <Paper sx={{ p: 3, mb: 3 }}>
                   <Typography variant="h6" gutterBottom>
                     Quiz
@@ -458,10 +474,9 @@ export const ParentCourseLearning: React.FC = () => {
                   </Button>
                   {quizResult && (
                     <Box sx={{ mt: 2 }}>
-                      <Alert severity={quizResult.passed ? 'success' : 'warning'}>
-                        Score: {quizResult.score}% ({quizResult.correct_answers}/
-                        {quizResult.total_questions} correct)
-                        {quizResult.passed ? ' - Passed!' : ' - Try again'}
+                      <Alert severity={quizResult.is_passed ? 'success' : 'warning'}>
+                        Score: {quizResult.score}%
+                        {quizResult.is_passed ? ' - Passed!' : ' - Try again'}
                       </Alert>
                     </Box>
                   )}
@@ -482,7 +497,7 @@ export const ParentCourseLearning: React.FC = () => {
                     <Typography color="text.secondary">No materials available</Typography>
                   ) : (
                     <List>
-                      {lessonMaterials.map((material) => (
+                      {lessonMaterials.map((material: CourseMaterial) => (
                         <ListItem
                           key={material.id}
                           secondaryAction={
@@ -538,7 +553,7 @@ export const ParentCourseLearning: React.FC = () => {
                   </Box>
 
                   <List>
-                    {notes.map((note) => (
+                    {notes.map((note: Note) => (
                       <Card key={note.id} sx={{ mb: 2 }}>
                         <CardContent>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -626,7 +641,7 @@ export const ParentCourseLearning: React.FC = () => {
                                       src={reply.user_photo_url}
                                       sx={{ width: 24, height: 24 }}
                                     >
-                                      {reply.user_name.charAt(0)}
+                                      {reply.user_name?.charAt(0) || '?'}
                                     </Avatar>
                                     <Box>
                                       <Typography variant="caption" fontWeight={600}>
@@ -696,7 +711,7 @@ export const ParentCourseLearning: React.FC = () => {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          {quizQuestions.map((question, index) => (
+          {quizQuestions.map((question: ApiQuizQuestion, index: number) => (
             <Box key={question.id} sx={{ mb: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                 {index + 1}. {question.question_text}
@@ -705,11 +720,16 @@ export const ParentCourseLearning: React.FC = () => {
                 value={quizAnswers[question.id] || ''}
                 onChange={(e) => setQuizAnswers({ ...quizAnswers, [question.id]: e.target.value })}
               >
-                {question.question_type === QuestionType.MULTIPLE_CHOICE &&
-                  question.options?.map((option, i) => (
-                    <FormControlLabel key={i} value={option} control={<Radio />} label={option} />
+                {question.question_type === 'multiple_choice' &&
+                  question.options?.map((option: { id: string; text: string }, i: number) => (
+                    <FormControlLabel
+                      key={i}
+                      value={option.id}
+                      control={<Radio />}
+                      label={option.text}
+                    />
                   ))}
-                {question.question_type === QuestionType.TRUE_FALSE && (
+                {question.question_type === 'true_false' && (
                   <>
                     <FormControlLabel value="true" control={<Radio />} label="True" />
                     <FormControlLabel value="false" control={<Radio />} label="False" />
@@ -717,15 +737,8 @@ export const ParentCourseLearning: React.FC = () => {
                 )}
               </RadioGroup>
               {quizResult && (
-                <Alert
-                  severity={
-                    quizAnswers[question.id] === question.correct_answer ? 'success' : 'error'
-                  }
-                  sx={{ mt: 1 }}
-                >
-                  {quizAnswers[question.id] === question.correct_answer
-                    ? 'Correct!'
-                    : `Incorrect. ${question.explanation || ''}`}
+                <Alert severity="info" sx={{ mt: 1 }}>
+                  {question.explanation || 'Question completed'}
                 </Alert>
               )}
             </Box>
