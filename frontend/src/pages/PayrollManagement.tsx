@@ -44,9 +44,10 @@ export const PayrollManagement: React.FC = () => {
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [totalRows, setTotalRows] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedRows, setSelectedRows] = useState<GridRowSelectionModel>(
-    [] as GridRowSelectionModel
-  );
+  const [selectedRows, setSelectedRows] = useState<GridRowSelectionModel>({
+    type: 'include',
+    ids: new Set(),
+  });
   const [summary, setSummary] = useState<PayrollSummary | null>(null);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -158,7 +159,7 @@ export const PayrollManagement: React.FC = () => {
   };
 
   const handleBulkProcess = async () => {
-    const selectedRowsArray = Array.isArray(selectedRows) ? selectedRows : [];
+    const selectedRowsArray = Array.from(selectedRows.ids);
     if (selectedRowsArray.length === 0) {
       showSnackbar('Please select payroll records to process', 'error');
       return;
@@ -173,7 +174,7 @@ export const PayrollManagement: React.FC = () => {
         payment_date: new Date().toISOString().split('T')[0],
       });
       showSnackbar('Payroll records marked as paid', 'success');
-      setSelectedRows([] as GridRowSelectionModel);
+      setSelectedRows({ type: 'include', ids: new Set() });
       loadPayrolls();
       loadSummary();
     } catch (error) {
@@ -418,10 +419,10 @@ export const PayrollManagement: React.FC = () => {
             variant="contained"
             color="success"
             onClick={handleBulkProcess}
-            disabled={Array.isArray(selectedRows) ? selectedRows.length === 0 : true}
+            disabled={selectedRows.ids.size === 0}
             startIcon={<PaidIcon />}
           >
-            Mark as Paid ({Array.isArray(selectedRows) ? selectedRows.length : 0})
+            Mark as Paid ({selectedRows.ids.size})
           </Button>
           <Box sx={{ flexGrow: 1 }} />
           <Tooltip title="Export to Excel">
