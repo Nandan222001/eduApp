@@ -618,6 +618,7 @@ function GrowthVisualization({ moodEntries, selProgress }: GrowthVisualizationPr
 }
 
 export default function StudentSELJourney() {
+  const theme = useTheme();
   const [moodDialogOpen, setMoodDialogOpen] = useState(false);
   const [reflectionDialogOpen, setReflectionDialogOpen] = useState(false);
   const [mindfulnessDialogOpen, setMindfulnessDialogOpen] = useState(false);
