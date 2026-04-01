@@ -1,4 +1,5 @@
 import axios from '@/lib/axios';
+import { DocumentType, DocumentStatus } from '@/types/documentVault';
 
 export interface DocumentFolder {
   id: number;
@@ -18,7 +19,7 @@ export interface FamilyDocument {
   id: number;
   title: string;
   description?: string;
-  document_type: string;
+  document_type: DocumentType;
   file_name: string;
   file_size: number;
   file_type: string;
@@ -28,7 +29,7 @@ export interface FamilyDocument {
   ocr_text?: string;
   extracted_metadata?: Record<string, unknown>;
   tags?: string[];
-  status: string;
+  status: DocumentStatus;
   is_verified: boolean;
   issue_date?: string;
   expiry_date?: string;
@@ -92,7 +93,7 @@ export interface CreateFolderRequest {
 export interface UploadDocumentRequest {
   title: string;
   description?: string;
-  document_type: string;
+  document_type: DocumentType;
   student_id?: number;
   folder_id?: number;
   tags?: string[];
@@ -138,7 +139,7 @@ export const documentVaultApi = {
   // Documents
   listDocuments: async (params?: {
     folder_id?: number;
-    document_type?: string;
+    document_type?: DocumentType;
     student_id?: number;
     skip?: number;
     limit?: number;
@@ -254,7 +255,7 @@ export const documentVaultApi = {
   // Verification
   verifyDocument: async (
     documentId: number,
-    data: { status: string; rejection_reason?: string }
+    data: { status: DocumentStatus; rejection_reason?: string }
   ): Promise<FamilyDocument> => {
     const response = await axios.post<FamilyDocument>(
       `/api/v1/document-vault/documents/${documentId}/verify`,
@@ -264,10 +265,12 @@ export const documentVaultApi = {
   },
 
   // OCR
-  performOCR: async (file: File): Promise<{ document_type?: string; confidence?: number }> => {
+  performOCR: async (
+    file: File
+  ): Promise<{ document_type?: DocumentType; confidence?: number }> => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axios.post<{ document_type?: string; confidence?: number }>(
+    const response = await axios.post<{ document_type?: DocumentType; confidence?: number }>(
       '/api/v1/document-vault/ocr',
       formData,
       {
@@ -331,7 +334,7 @@ export const documentVaultApi = {
   // Get Documents (alias for listDocuments)
   getDocuments: async (params?: {
     folder_id?: number;
-    document_type?: string;
+    document_type?: DocumentType;
     student_id?: number;
     skip?: number;
     limit?: number;

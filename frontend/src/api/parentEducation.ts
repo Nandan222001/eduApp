@@ -55,6 +55,25 @@ export interface CourseLesson {
   updated_at: string;
 }
 
+export interface Lesson {
+  id: number;
+  title: string;
+  description?: string;
+  type: string;
+  video_url?: string;
+  transcript?: string;
+  content?: string;
+}
+
+export interface Badge {
+  id: number;
+  name: string;
+  description: string;
+  icon_url?: string;
+  criteria: string;
+  awarded_at: string;
+}
+
 export interface CourseEnrollment {
   id: number;
   course_id: number;
@@ -71,8 +90,23 @@ export interface CourseEnrollment {
   enrolled_at: string;
   created_at: string;
   updated_at: string;
-  current_lesson?: { id: number; title: string };
-  course?: { id: number; title: string; thumbnail_url?: string };
+  current_lesson?: {
+    id: number;
+    title: string;
+    description?: string;
+    type: string;
+    video_url?: string;
+    transcript?: string;
+    content?: string;
+  };
+  course?: {
+    id: number;
+    title: string;
+    thumbnail_url?: string;
+    lessons?: Lesson[];
+  };
+  lesson_progress?: LessonProgress[];
+  badges?: Badge[];
 }
 
 export interface LessonProgress {
