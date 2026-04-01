@@ -178,7 +178,7 @@ export default function StudentCommunityService() {
     }
   };
 
-  const getVerificationStatusIcon = (status: VerificationStatus) => {
+  const getVerificationStatusIcon = (status: VerificationStatus): React.ReactElement | null => {
     switch (status) {
       case VerificationStatus.APPROVED:
       case VerificationStatus.VERIFIED:
@@ -478,12 +478,17 @@ export default function StudentCommunityService() {
                     <TableCell>{format(parseISO(log.start_date), 'MMM d, yyyy')}</TableCell>
                     <TableCell align="right">{log.hours}</TableCell>
                     <TableCell>
-                      <Chip
-                        size="small"
-                        label={log.verification_status}
-                        color={getVerificationStatusColor(log.verification_status)}
-                        icon={getVerificationStatusIcon(log.verification_status)}
-                      />
+                      {(() => {
+                        const icon = getVerificationStatusIcon(log.verification_status);
+                        return (
+                          <Chip
+                            size="small"
+                            label={log.verification_status}
+                            color={getVerificationStatusColor(log.verification_status)}
+                            {...(icon && { icon })}
+                          />
+                        );
+                      })()}
                     </TableCell>
                     <TableCell align="right">
                       <IconButton size="small" onClick={() => handleViewLog(log)}>
@@ -748,11 +753,16 @@ export default function StudentCommunityService() {
                   <Typography variant="subtitle2" color="text.secondary">
                     Verification Status
                   </Typography>
-                  <Chip
-                    label={selectedLog.verification_status}
-                    color={getVerificationStatusColor(selectedLog.verification_status)}
-                    icon={getVerificationStatusIcon(selectedLog.verification_status)}
-                  />
+                  {(() => {
+                    const icon = getVerificationStatusIcon(selectedLog.verification_status);
+                    return (
+                      <Chip
+                        label={selectedLog.verification_status}
+                        color={getVerificationStatusColor(selectedLog.verification_status)}
+                        {...(icon && { icon })}
+                      />
+                    );
+                  })()}
                 </Grid>
                 {selectedLog.verified_by && (
                   <Grid item xs={12}>
