@@ -76,17 +76,34 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   });
 
   const mapAccessLogs = (logs: DocumentAccessLog[]): AccessLog[] => {
-    return logs.map((log) => ({
-      id: log.id,
-      document_id: log.document_id,
-      accessed_by: log.accessed_by || `User ${log.user_id}`,
-      accessed_by_role: (log.accessed_by_role as RecipientRole) || RecipientRole.ADMIN,
-      access_type:
-        log.access_type ||
-        (log.action === 'download' ? 'download' : log.action === 'share' ? 'share' : 'view'),
-      accessed_date: log.accessed_date || log.created_at,
-      ip_address: log.ip_address,
-    }));
+    return logs.map((log) => {
+      let accessType: 'view' | 'download' | 'share' = 'view';
+      if (log.access_type) {
+        accessType = log.access_type;
+      } else if (log.action === 'download') {
+        accessType = 'download';
+      } else if (log.action === 'share') {
+        accessType = 'share';
+      }
+
+      let role: RecipientRole = RecipientRole.ADMIN;
+      if (log.accessed_by_role) {
+        const roleValue = log.accessed_by_role.toLowerCase();
+        if (roleValue === 'teacher') role = RecipientRole.TEACHER;
+        else if (roleValue === 'counselor') role = RecipientRole.COUNSELOR;
+        else if (roleValue === 'nurse') role = RecipientRole.NURSE;
+      }
+
+      return {
+        id: log.id,
+        document_id: log.document_id,
+        accessed_by: log.accessed_by || `User ${log.user_id}`,
+        accessed_by_role: role,
+        access_type: accessType,
+        accessed_date: log.accessed_date || log.created_at,
+        ip_address: log.ip_address,
+      };
+    });
   };
 
   const accessLogs = accessLogsData ? mapAccessLogs(accessLogsData) : [];
