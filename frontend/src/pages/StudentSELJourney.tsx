@@ -355,7 +355,7 @@ function MindfulnessDialog({ open, onClose, onComplete }: MindfulnessDialogProps
   const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
-    let interval: number;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft((time) => time - 1);
@@ -364,7 +364,9 @@ function MindfulnessDialog({ open, onClose, onComplete }: MindfulnessDialogProps
       setIsActive(false);
       onComplete(selectedExercise.id, selectedExercise.duration);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isActive, timeLeft, selectedExercise, onComplete]);
 
   const handleStart = (exercise: (typeof MINDFULNESS_EXERCISES)[0]) => {
