@@ -55,6 +55,21 @@ export default function ParentLayout() {
       </Box>
 
       <Box
+        component="nav"
+        sx={{
+          display: { xs: 'block', md: 'none' },
+        }}
+        aria-label="Mobile navigation"
+      >
+        <ParentSidebar
+          variant="temporary"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          drawerWidth={DRAWER_WIDTH}
+        />
+      </Box>
+
+      <Box
         component="main"
         id="main-content"
         tabIndex={-1}
