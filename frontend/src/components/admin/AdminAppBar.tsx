@@ -15,7 +15,6 @@ import {
   Tooltip,
   useTheme,
   alpha,
-  useMediaQuery,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -31,7 +30,6 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import InstitutionSwitcher from './InstitutionSwitcher';
 import GlobalSearchBar from '@/components/search/GlobalSearchBar';
-import { MobileHamburgerMenu } from '../mobile';
 import AccessibilityToolbar from '../common/AccessibilityToolbar';
 
 interface AdminAppBarProps {
@@ -42,7 +40,6 @@ interface AdminAppBarProps {
 
 export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminAppBarProps) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { mode, toggleTheme } = useThemeStore();
@@ -110,19 +107,9 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
     >
       <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {isMobile ? (
-            <MobileHamburgerMenu />
-          ) : (
-            <IconButton
-              color="inherit"
-              aria-label="toggle drawer"
-              edge="start"
-              onClick={onMenuClick}
-              sx={{ display: { xs: 'none', md: 'block' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
+          <IconButton color="inherit" aria-label="toggle drawer" edge="start" onClick={onMenuClick}>
+            <MenuIcon />
+          </IconButton>
           <Box sx={{ display: { xs: 'none', md: 'block' } }}>
             <InstitutionSwitcher />
           </Box>
