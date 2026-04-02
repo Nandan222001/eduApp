@@ -34,7 +34,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import GlobalSearchBar from '@/components/search/GlobalSearchBar';
-import { MobileHamburgerMenu } from '../mobile';
 import AccessibilityToolbar from '../common/AccessibilityToolbar';
 
 interface TeacherAppBarProps {
@@ -117,19 +116,9 @@ export default function TeacherAppBar({ open, onMenuClick, drawerWidth }: Teache
     >
       <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {isMobile ? (
-            <MobileHamburgerMenu />
-          ) : (
-            <IconButton
-              color="inherit"
-              aria-label="toggle drawer"
-              edge="start"
-              onClick={onMenuClick}
-              sx={{ display: { xs: 'none', md: 'block' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
+          <IconButton color="inherit" aria-label="toggle drawer" edge="start" onClick={onMenuClick}>
+            <MenuIcon />
+          </IconButton>
         </Box>
 
         <Box
