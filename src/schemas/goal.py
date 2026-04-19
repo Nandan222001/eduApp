@@ -132,3 +132,78 @@ class GoalAnalyticsResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Backward-compatible aliases and request/response models expected by
+# src.schemas.__init__ and older API modules.
+class GoalTemplateCreate(GoalCreate):
+    pass
+
+
+class GoalTemplateUpdate(GoalUpdate):
+    pass
+
+
+class GoalTemplateResponse(GoalResponse):
+    pass
+
+
+class GoalMilestoneCreate(MilestoneCreate):
+    pass
+
+
+class GoalMilestoneUpdate(MilestoneUpdate):
+    pass
+
+
+class GoalMilestoneResponse(MilestoneResponse):
+    pass
+
+
+class GoalWithMilestonesResponse(GoalResponse):
+    pass
+
+
+class GoalProgressLogResponse(BaseModel):
+    id: str
+    goal_id: str
+    progress_before: int = Field(ge=0, le=100)
+    progress_after: int = Field(ge=0, le=100)
+    notes: Optional[str] = None
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UpdateGoalProgressRequest(BaseModel):
+    progress: int = Field(ge=0, le=100)
+    notes: Optional[str] = None
+
+
+class GoalStatusUpdateRequest(BaseModel):
+    status: GoalStatusEnum
+    notes: Optional[str] = None
+
+
+class GoalProgressReport(BaseModel):
+    goal_id: str
+    title: str
+    status: GoalStatusEnum
+    progress: int = Field(ge=0, le=100)
+    milestone_count: int = 0
+    completed_milestones: int = 0
+
+
+class GoalSummary(BaseModel):
+    total: int = 0
+    not_started: int = 0
+    in_progress: int = 0
+    completed: int = 0
+    overdue: int = 0
+
+
+class BulkGoalStatusUpdate(BaseModel):
+    goal_ids: List[str]
+    status: GoalStatusEnum
+    notes: Optional[str] = None

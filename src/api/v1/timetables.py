@@ -21,7 +21,8 @@ from src.schemas.academic import (
     BulkPeriodOrderUpdate,
     DayOfWeekEnum,
 )
-from src.models.academic import TimetableTemplate, Period, TimetableEntry, DayOfWeek
+from src.models.timetable import TimetableTemplate, PeriodSlot as Period, TimetableEntry
+from src.models.academic import DayOfWeek
 
 router = APIRouter()
 

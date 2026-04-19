@@ -7,8 +7,7 @@ import io
 from datetime import datetime, date, timedelta
 from src.models.teacher import Teacher, TeacherSubject
 from src.models.academic import Subject, Section
-from src.models.assignment import Assignment
-from src.models.submission import Submission
+from src.models.assignment import Assignment, Submission
 from src.models.examination import Exam
 from src.models.attendance import Attendance
 from src.models.student import Student

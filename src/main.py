@@ -10,17 +10,25 @@ from src.middleware.tenant_context import TenantContextMiddleware
 from src.middleware.sentry_middleware import init_sentry
 from src.middleware.rate_limit import limiter, rate_limit_exceeded_handler
 from src.middleware.rate_limit_headers import RateLimitHeadersMiddleware
-from src.middleware.performance_tracking import (
-    PerformanceTrackingMiddleware,
-    collect_resource_metrics,
-)
-from src.middleware.database_tracking import db_tracker
+
+try:
+    from src.middleware.performance_tracking import (
+        PerformanceTrackingMiddleware,
+        collect_resource_metrics,
+    )
+    PERFORMANCE_TRACKING_AVAILABLE = True
+except ImportError:
+    PERFORMANCE_TRACKING_AVAILABLE = False
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_sentry()
-    await init_redis()
+    try:
+        await init_redis()
+    except Exception:
+        # Allow local development boot without Redis.
+        pass
     
     # Check migration status on startup
     from src.utils.migration_checker import warn_if_migrations_pending
@@ -38,13 +46,16 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
     
-    # Start background resource monitoring
-    resource_task = asyncio.create_task(collect_resource_metrics())
+    # Start background resource monitoring when optional dependencies are present.
+    resource_task = None
+    if PERFORMANCE_TRACKING_AVAILABLE:
+        resource_task = asyncio.create_task(collect_resource_metrics())
     
     yield
     
     # Cancel background tasks
-    resource_task.cancel()
+    if resource_task:
+        resource_task.cancel()
     
     await close_redis()
 
@@ -59,7 +70,8 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
-app.add_middleware(PerformanceTrackingMiddleware)
+if PERFORMANCE_TRACKING_AVAILABLE:
+    app.add_middleware(PerformanceTrackingMiddleware)
 app.add_middleware(RateLimitHeadersMiddleware)
 app.add_middleware(TenantContextMiddleware)
 

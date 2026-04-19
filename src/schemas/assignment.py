@@ -109,7 +109,7 @@ class AssignmentWithFilesResponse(AssignmentResponse):
 
 class AssignmentWithRubricResponse(AssignmentResponse):
     attachment_files: List[AssignmentFileResponse] = []
-    rubric_criteria: List[RubricCriteriaResponse] = []
+    rubric_criteria: List["RubricCriteriaResponse"] = []
 
 
 class AssignmentWithStatsResponse(AssignmentResponse):
@@ -178,7 +178,7 @@ class SubmissionWithStudentResponse(SubmissionResponse):
 
 class SubmissionWithGradesResponse(SubmissionResponse):
     submission_files: List[SubmissionFileResponse] = []
-    rubric_grades: List[SubmissionGradeResponse] = []
+    rubric_grades: List["SubmissionGradeResponse"] = []
 
 
 class SubmissionStatistics(BaseModel):

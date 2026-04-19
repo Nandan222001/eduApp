@@ -142,6 +142,17 @@ def require_role(allowed_roles: List[str]):
     return role_checker
 
 
+def require_roles(current_user: User, allowed_roles: List[str]) -> User:
+    if current_user.is_superuser:
+        return current_user
+    if current_user.role and current_user.role.slug in allowed_roles:
+        return current_user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Insufficient role permissions",
+    )
+
+
 async def get_optional_current_user(
     request: Request,
     db: Session = Depends(get_db),
