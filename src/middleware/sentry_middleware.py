@@ -1,4 +1,5 @@
 import sentry_sdk
+from sentry_sdk.utils import BadDsn
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
@@ -8,25 +9,29 @@ from src.config import settings
 
 def init_sentry() -> None:
     """Initialize Sentry for error tracking and performance monitoring."""
-    if not settings.sentry_dsn:
+    dsn = (settings.sentry_dsn or "").strip()
+    if not dsn or "://" not in dsn:
         return
 
-    sentry_sdk.init(
-        dsn=settings.sentry_dsn,
-        environment=settings.sentry_environment,
-        traces_sample_rate=settings.sentry_traces_sample_rate,
-        profiles_sample_rate=settings.sentry_profiles_sample_rate,
-        integrations=[
-            FastApiIntegration(transaction_style="endpoint"),
-            SqlalchemyIntegration(),
-            RedisIntegration(),
-            CeleryIntegration(),
-        ],
-        send_default_pii=False,
-        attach_stacktrace=True,
-        debug=settings.debug,
-        before_send=before_send_hook,
-    )
+    try:
+        sentry_sdk.init(
+            dsn=dsn,
+            environment=settings.sentry_environment,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+            profiles_sample_rate=settings.sentry_profiles_sample_rate,
+            integrations=[
+                FastApiIntegration(transaction_style="endpoint"),
+                SqlalchemyIntegration(),
+                RedisIntegration(),
+                CeleryIntegration(),
+            ],
+            send_default_pii=False,
+            attach_stacktrace=True,
+            debug=settings.debug,
+            before_send=before_send_hook,
+        )
+    except BadDsn:
+        return
 
 
 def before_send_hook(event, hint):

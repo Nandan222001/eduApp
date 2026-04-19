@@ -21,7 +21,7 @@ DATABASE_NAME=fastapi_db
 ### 3. Run Migrations
 ```bash
 # Apply all migrations
-alembic upgrade head
+    alembic upgrade head
 
 # This will create:
 # - All tables (institutions, users, roles, permissions, subscriptions, audit_logs)

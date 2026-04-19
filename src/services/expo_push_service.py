@@ -1,19 +1,29 @@
 from typing import List, Dict, Any, Optional
-from exponent_server_sdk import (
-    DeviceNotRegisteredError,
-    PushClient,
-    PushMessage,
-    PushServerError,
-    PushTicketError,
-)
 import logging
+
+try:
+    from exponent_server_sdk import (
+        DeviceNotRegisteredError,
+        PushClient,
+        PushMessage,
+        PushServerError,
+        PushTicketError,
+    )
+    EXPO_SDK_AVAILABLE = True
+except ImportError:
+    EXPO_SDK_AVAILABLE = False
+    DeviceNotRegisteredError = Exception
+    PushServerError = Exception
+    PushTicketError = Exception
+    PushClient = None
+    PushMessage = None
 
 logger = logging.getLogger(__name__)
 
 
 class ExpoPushService:
     def __init__(self):
-        self.client = PushClient()
+        self.client = PushClient() if EXPO_SDK_AVAILABLE else None
 
     def send_push_notification(
         self,
@@ -26,6 +36,9 @@ class ExpoPushService:
         badge: Optional[int] = None,
         channel_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        if not EXPO_SDK_AVAILABLE:
+            return {"success": False, "error": "Expo push SDK not installed"}
+
         if not tokens:
             return {"success": False, "error": "No tokens provided"}
 
@@ -115,6 +128,8 @@ class ExpoPushService:
         return result.get("success", False)
 
     def validate_token(self, token: str) -> bool:
+        if not EXPO_SDK_AVAILABLE:
+            return False
         return PushClient.is_exponent_push_token(token)
 
     def send_notification_with_deep_link(

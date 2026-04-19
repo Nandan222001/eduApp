@@ -17,7 +17,7 @@ from src.schemas.auth import (
 )
 from src.services.auth_service import AuthService
 from src.utils.session import SessionManager
-from src.dependencies.auth import get_current_user, security
+from src.dependencies.auth import get_current_active_user, get_current_user, security
 from src.models.user import User
 
 router = APIRouter()

@@ -311,8 +311,8 @@ class NotificationTemplate(Base):
     )
 
 
-class PushDevice(Base):
-    __tablename__ = "push_devices"
+class NotificationPushDevice(Base):
+    __tablename__ = "notification_push_devices"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -328,9 +328,9 @@ class PushDevice(Base):
     user = relationship("User")
 
     __table_args__ = (
-        Index('idx_push_device_user', 'user_id'),
-        Index('idx_push_device_token', 'token'),
-        Index('idx_push_device_active', 'is_active'),
+        Index('idx_notification_push_device_user', 'user_id'),
+        Index('idx_notification_push_device_token', 'token'),
+        Index('idx_notification_push_device_active', 'is_active'),
     )
 
 

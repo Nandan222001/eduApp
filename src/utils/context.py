@@ -25,5 +25,12 @@ def get_request_context() -> Optional[RequestContext]:
     return request_context.get()
 
 
+def get_current_institution_id() -> int:
+    context = get_request_context()
+    if not context or context.institution_id is None:
+        raise RuntimeError("Institution context is not available")
+    return context.institution_id
+
+
 def clear_request_context() -> None:
     request_context.set(None)

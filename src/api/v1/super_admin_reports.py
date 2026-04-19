@@ -770,10 +770,10 @@ async def get_archival_storage_stats(
 
 @router.post("/archival/cleanup-old-data")
 async def cleanup_old_data(
+    background_tasks: BackgroundTasks,
     entity_type: str = Query(..., description="Entity type to cleanup"),
     days_old: int = Query(..., ge=30, description="Delete data older than X days"),
     dry_run: bool = Query(True, description="Preview without deleting"),
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
