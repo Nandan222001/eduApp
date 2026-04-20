@@ -25,7 +25,6 @@ def create_default_institution(db: Session) -> Institution:
             name="Default Institution",
             slug="default",
             domain="default.local",
-            description="Default institution for initial setup",
             is_active=True,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
