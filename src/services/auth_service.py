@@ -103,7 +103,10 @@ class AuthService:
                 "last_name": user.last_name,
                 "institution_id": user.institution_id,
                 "role_id": user.role_id,
+                "role_slug": user.role.slug if user.role else None,
+                "is_active": user.is_active,
                 "is_superuser": user.is_superuser,
+                "email_verified": user.email_verified,
                 "permissions": permissions,
             },
         }

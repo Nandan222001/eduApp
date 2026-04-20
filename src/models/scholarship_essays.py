@@ -109,7 +109,6 @@ class StudentEssay(Base):
     prompt = relationship("EssayPrompt", back_populates="student_essays")
     counselor = relationship("User", foreign_keys=[counselor_approved_by])
     peer_reviews = relationship("EssayPeerReview", foreign_keys="EssayPeerReview.essay_id", back_populates="essay", cascade="all, delete-orphan")
-    reviews_given = relationship("EssayPeerReview", foreign_keys="EssayPeerReview.reviewer_student_id", back_populates="reviewer_student")
     analytics = relationship("EssayAnalytics", back_populates="essay", cascade="all, delete-orphan")
     
     __table_args__ = (
@@ -165,7 +164,7 @@ class EssayPeerReview(Base):
     
     institution = relationship("Institution")
     essay = relationship("StudentEssay", foreign_keys=[essay_id], back_populates="peer_reviews")
-    reviewer_student = relationship("Student", foreign_keys=[reviewer_student_id])
+    reviewer_student = relationship("Student", foreign_keys=[reviewer_student_id], lazy="select")
     moderator = relationship("User", foreign_keys=[moderated_by])
     
     __table_args__ = (

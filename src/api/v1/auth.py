@@ -17,7 +17,7 @@ from src.schemas.auth import (
 )
 from src.services.auth_service import AuthService
 from src.utils.session import SessionManager
-from src.dependencies.auth import get_current_user, security
+from src.dependencies.auth import get_current_active_user, get_current_user, security
 from src.models.user import User
 
 router = APIRouter()
@@ -27,7 +27,7 @@ router = APIRouter()
 async def login(
     login_data: LoginRequest,
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> dict:
     session_manager = SessionManager(redis)
     auth_service = AuthService(db, session_manager)
@@ -49,7 +49,7 @@ async def login(
 async def refresh_token(
     refresh_data: RefreshTokenRequest,
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> dict:
     session_manager = SessionManager(redis)
     auth_service = AuthService(db, session_manager)
@@ -65,7 +65,7 @@ async def logout(
     current_user: User = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> dict:
     session_manager = SessionManager(redis)
     auth_service = AuthService(db, session_manager)
@@ -80,7 +80,7 @@ async def logout(
 async def logout_all_sessions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> dict:
     session_manager = SessionManager(redis)
     auth_service = AuthService(db, session_manager)
@@ -94,7 +94,7 @@ async def logout_all_sessions(
 async def forgot_password(
     forgot_data: ForgotPasswordRequest,
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> dict:
     session_manager = SessionManager(redis)
     auth_service = AuthService(db, session_manager)
@@ -110,7 +110,7 @@ async def forgot_password(
 async def reset_password(
     reset_data: ResetPasswordRequest,
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> dict:
     session_manager = SessionManager(redis)
     auth_service = AuthService(db, session_manager)
@@ -125,7 +125,7 @@ async def change_password(
     password_data: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> dict:
     session_manager = SessionManager(redis)
     auth_service = AuthService(db, session_manager)
