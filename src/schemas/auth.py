@@ -67,6 +67,7 @@ class UserInfo(BaseModel):
     phone: Optional[str] = None
     institution_id: int
     role_id: int
+    role_slug: Optional[str] = None
     is_active: bool
     is_superuser: bool
     email_verified: bool
@@ -77,4 +78,4 @@ class UserInfo(BaseModel):
 
 
 class LoginResponse(Token):
-    user: dict
+    user: UserInfo

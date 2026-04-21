@@ -31,8 +31,12 @@ const processQueue = (error: Error | null = null) => {
 
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = tokenManager.getAccessToken();
+    // Rewrite /api/<resource> → /api/v1/<resource> for all calls missing the version prefix
+    if (config.url && config.url.startsWith('/api/') && !config.url.startsWith('/api/v1/')) {
+      config.url = config.url.replace('/api/', '/api/v1/');
+    }
 
+    const token = tokenManager.getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -1,5 +1,6 @@
 import axios from '@/lib/axios';
 import type {
+  UserRole,
   LoginCredentials,
   LoginWithOTPCredentials,
   RegisterData,
@@ -10,6 +11,35 @@ import type {
   RefreshTokenResponse,
   AuthUser,
 } from '@/types/auth';
+
+// Transform snake_case backend response → camelCase AuthResponse
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeAuthResponse(data: any): AuthResponse {
+  const u = data.user ?? {};
+  const user: AuthUser = {
+    id: String(u.id ?? ''),
+    email: u.email ?? '',
+    firstName: u.first_name ?? '',
+    lastName: u.last_name ?? '',
+    fullName: `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim(),
+    role: (u.role_slug ?? 'student') as UserRole,
+    isActive: u.is_active ?? true,
+    isSuperuser: u.is_superuser ?? false,
+    emailVerified: u.email_verified ?? false,
+    institution_id: u.institution_id,
+    createdAt: u.created_at ?? '',
+    updatedAt: u.updated_at ?? '',
+  };
+  return {
+    user,
+    tokens: {
+      accessToken: data.access_token ?? '',
+      refreshToken: data.refresh_token ?? '',
+      tokenType: data.token_type ?? 'bearer',
+      expiresIn: data.expires_in ?? 3600,
+    },
+  };
+}
 import {
   DEMO_CREDENTIALS,
   demoAuthResponse,
@@ -55,13 +85,13 @@ export const authApi = {
     ) {
       return superadminAuthResponse;
     }
-    const response = await axios.post<AuthResponse>('/api/auth/login', credentials);
-    return response.data;
+    const response = await axios.post('/api/auth/login', credentials);
+    return normalizeAuthResponse(response.data);
   },
 
   loginWithOTP: async (credentials: LoginWithOTPCredentials): Promise<AuthResponse> => {
-    const response = await axios.post<AuthResponse>('/api/auth/login/otp', credentials);
-    return response.data;
+    const response = await axios.post('/api/auth/login/otp', credentials);
+    return normalizeAuthResponse(response.data);
   },
 
   requestOTP: async (email: string): Promise<OTPResponse> => {
@@ -90,7 +120,7 @@ export const authApi = {
 
   refreshToken: async (refreshToken: string): Promise<RefreshTokenResponse> => {
     const response = await axios.post<RefreshTokenResponse>('/api/auth/refresh', {
-      refreshToken,
+      refresh_token: refreshToken,
     });
     return response.data;
   },

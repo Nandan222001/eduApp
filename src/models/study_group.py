@@ -344,7 +344,7 @@ class StudySession(Base):
     subject = relationship("Subject")
     chapter = relationship("Chapter")
     
-    participants = relationship("SessionParticipant", back_populates="session", cascade="all, delete-orphan")
+    participants = relationship("StudySessionParticipant", back_populates="session", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('idx_study_session_institution', 'institution_id'),
@@ -357,30 +357,30 @@ class StudySession(Base):
     )
 
 
-class SessionParticipant(Base):
-    __tablename__ = "session_participants"
-    
+class StudySessionParticipant(Base):
+    __tablename__ = "study_session_participants"
+
     id = Column(Integer, primary_key=True, index=True)
     institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
     session_id = Column(Integer, ForeignKey('study_sessions.id', ondelete='CASCADE'), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
-    
+
     joined_at = Column(DateTime, nullable=True)
     left_at = Column(DateTime, nullable=True)
     duration_minutes = Column(Integer, default=0, nullable=False)
     is_organizer = Column(Boolean, default=False, nullable=False)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     institution = relationship("Institution")
     session = relationship("StudySession", back_populates="participants")
     user = relationship("User")
-    
+
     __table_args__ = (
-        UniqueConstraint('session_id', 'user_id', name='uq_session_participant'),
-        Index('idx_session_participant_institution', 'institution_id'),
-        Index('idx_session_participant_session', 'session_id'),
-        Index('idx_session_participant_user', 'user_id'),
+        UniqueConstraint('session_id', 'user_id', name='uq_study_session_participant'),
+        Index('idx_study_session_participant_institution', 'institution_id'),
+        Index('idx_study_session_participant_session', 'session_id'),
+        Index('idx_study_session_participant_user', 'user_id'),
     )
 
 
@@ -552,50 +552,6 @@ class TutoringRequest(Base):
         Index('idx_tutoring_request_subject', 'subject_id'),
         Index('idx_tutoring_request_status', 'status'),
         Index('idx_tutoring_request_created', 'created_at'),
-    )
-
-
-class TutoringSession(Base):
-    __tablename__ = "tutoring_sessions"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
-    request_id = Column(Integer, ForeignKey('tutoring_requests.id', ondelete='CASCADE'), nullable=False, index=True)
-    tutor_id = Column(Integer, ForeignKey('peer_tutor_profiles.id', ondelete='CASCADE'), nullable=False, index=True)
-    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False, index=True)
-    
-    scheduled_start = Column(DateTime, nullable=False)
-    scheduled_end = Column(DateTime, nullable=False)
-    actual_start = Column(DateTime, nullable=True)
-    actual_end = Column(DateTime, nullable=True)
-    
-    meeting_link = Column(String(1000), nullable=True)
-    session_notes = Column(Text, nullable=True)
-    
-    payment_amount = Column(Float, nullable=True)
-    payment_status = Column(String(50), default="pending", nullable=False)
-    
-    student_rating = Column(Integer, nullable=True)
-    student_feedback = Column(Text, nullable=True)
-    tutor_notes = Column(Text, nullable=True)
-    
-    status = Column(SQLEnum(SessionStatus), default=SessionStatus.SCHEDULED, nullable=False)
-    
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    institution = relationship("Institution")
-    request = relationship("TutoringRequest")
-    tutor = relationship("PeerTutorProfile")
-    student = relationship("Student")
-    
-    __table_args__ = (
-        Index('idx_tutoring_session_institution', 'institution_id'),
-        Index('idx_tutoring_session_request', 'request_id'),
-        Index('idx_tutoring_session_tutor', 'tutor_id'),
-        Index('idx_tutoring_session_student', 'student_id'),
-        Index('idx_tutoring_session_status', 'status'),
-        Index('idx_tutoring_session_scheduled', 'scheduled_start'),
     )
 
 

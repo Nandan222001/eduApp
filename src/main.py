@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import asyncio
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from src.config import settings
@@ -70,12 +71,25 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://edu-learn.nmtsolution.com",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 if PERFORMANCE_TRACKING_AVAILABLE:
     app.add_middleware(PerformanceTrackingMiddleware)
 app.add_middleware(RateLimitHeadersMiddleware)
 app.add_middleware(TenantContextMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/api")
 
 
 @app.get("/")

@@ -120,7 +120,7 @@ class DocumentExpirationAlert(Base):
     sent_at = Column(DateTime, nullable=True)
     is_sent = Column(Boolean, default=False, nullable=False, index=True)
     
-    metadata = Column(JSON, nullable=True)
+    metadata_json = Column('metadata', JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     __table_args__ = (
