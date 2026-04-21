@@ -9,6 +9,7 @@ from src.redis_client import get_redis
 from src.schemas.auth import (
     LoginRequest,
     Token,
+    LoginResponse,
     RefreshTokenRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
@@ -23,7 +24,7 @@ from src.models.user import User
 router = APIRouter()
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=LoginResponse)
 async def login(
     login_data: LoginRequest,
     db: Session = Depends(get_db),
@@ -42,6 +43,7 @@ async def login(
         "access_token": result["access_token"],
         "refresh_token": result["refresh_token"],
         "token_type": result["token_type"],
+        "user": result["user"],
     }
 
 
