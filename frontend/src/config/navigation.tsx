@@ -44,13 +44,13 @@ export const navigationConfig: NavigationItem[] = [
     title: 'Dashboard',
     path: '/super-admin',
     icon: <DashboardIcon />,
-    roles: ['superadmin'],
+    roles: ['superadmin', 'super_admin'],
   },
   {
     id: 'superadmin-analytics',
     title: 'Analytics',
     icon: <AnalyticsIcon />,
-    roles: ['superadmin'],
+    roles: ['superadmin', 'super_admin'],
     children: [
       {
         id: 'superadmin-analytics-cross-institution',
@@ -64,7 +64,7 @@ export const navigationConfig: NavigationItem[] = [
     id: 'superadmin-institutions',
     title: 'Institutions',
     icon: <BusinessIcon />,
-    roles: ['superadmin'],
+    roles: ['superadmin', 'super_admin'],
     children: [
       {
         id: 'superadmin-institutions-list',
@@ -85,7 +85,7 @@ export const navigationConfig: NavigationItem[] = [
     title: 'Settings',
     path: '/super-admin/settings',
     icon: <SettingsIcon />,
-    roles: ['superadmin'],
+    roles: ['superadmin', 'super_admin'],
   },
   {
     id: 'dashboard',

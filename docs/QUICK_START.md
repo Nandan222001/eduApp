@@ -115,7 +115,7 @@ else:
 ```
 
 ## Common Patterns
-
+###
 ### 1. API Endpoint with RLS
 ```python
 from fastapi import APIRouter, Depends

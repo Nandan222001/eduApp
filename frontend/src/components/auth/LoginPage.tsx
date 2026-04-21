@@ -72,7 +72,9 @@ export default function LoginPage() {
     try {
       const response = await authApi.login(emailPassword);
       login(response.user, response.tokens);
-      navigate(getDashboardRoute(response.user.role));
+      const route = getDashboardRoute(response.user.role);
+      console.log('[Login] role:', response.user.role, '→ route:', route);
+      navigate(route);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Invalid email or password';
       setError(errorMessage);
