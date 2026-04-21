@@ -55,6 +55,7 @@ export type UserRole =
   | 'parent'
   | 'institution_admin'
   | 'superadmin'
+  | 'super_admin'
   | 'tutor';
 
 export interface AuthResponse {
