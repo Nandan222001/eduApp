@@ -12,17 +12,15 @@ import type {
   AuthUser,
 } from '@/types/auth';
 
-// Transform snake_case backend response → camelCase AuthResponse
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeAuthResponse(data: any): AuthResponse {
-  const u = data.user ?? {};
-  const user: AuthUser = {
+function normalizeUser(u: any): AuthUser {
+  return {
     id: String(u.id ?? ''),
     email: u.email ?? '',
     firstName: u.first_name ?? '',
     lastName: u.last_name ?? '',
     fullName: `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim(),
-    role: (u.role_slug ?? 'student') as UserRole,
+    role: (u.role_slug ?? u.role?.slug ?? 'student') as UserRole,
     isActive: u.is_active ?? true,
     isSuperuser: u.is_superuser ?? false,
     emailVerified: u.email_verified ?? false,
@@ -30,8 +28,12 @@ function normalizeAuthResponse(data: any): AuthResponse {
     createdAt: u.created_at ?? '',
     updatedAt: u.updated_at ?? '',
   };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeAuthResponse(data: any): AuthResponse {
   return {
-    user,
+    user: normalizeUser(data.user ?? {}),
     tokens: {
       accessToken: data.access_token ?? '',
       refreshToken: data.refresh_token ?? '',
@@ -126,8 +128,8 @@ export const authApi = {
   },
 
   getCurrentUser: async (): Promise<AuthUser> => {
-    const response = await axios.get<AuthUser>('/api/auth/me');
-    return response.data;
+    const response = await axios.get('/api/auth/me');
+    return normalizeUser(response.data);
   },
 
   verifyEmail: async (token: string): Promise<{ message: string }> => {
