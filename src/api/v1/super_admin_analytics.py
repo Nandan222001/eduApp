@@ -50,207 +50,238 @@ async def get_cross_institution_analytics(
     if not end_date:
         end_date = datetime.utcnow()
     
-    # Base query for institutions
-    query = db.query(Institution).filter(Institution.is_active == True)
-    
-    institutions = query.all()
-    
+    institutions = db.query(Institution).filter(Institution.is_active == True).all()
+
     if not institutions:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No institutions found"
         )
-    
-    # Collect metrics for all institutions
+
+    inst_ids = [i.id for i in institutions]
+
+    # ── Batch queries (one round-trip each instead of N per-institution calls) ──
+
+    # Latest subscription per institution
+    latest_sub_sq = (
+        db.query(Subscription.institution_id, func.max(Subscription.created_at).label("max_at"))
+        .group_by(Subscription.institution_id)
+        .subquery()
+    )
+    subscriptions_map = {
+        row.institution_id: row
+        for row in db.query(Subscription).join(
+            latest_sub_sq,
+            and_(
+                Subscription.institution_id == latest_sub_sq.c.institution_id,
+                Subscription.created_at == latest_sub_sq.c.max_at,
+            ),
+        ).all()
+    }
+
+    # User counts
+    user_counts = dict(
+        db.query(User.institution_id, func.count(User.id))
+        .filter(User.institution_id.in_(inst_ids))
+        .group_by(User.institution_id)
+        .all()
+    )
+
+    # Attendance totals
+    total_att = dict(
+        db.query(Attendance.institution_id, func.count(Attendance.id))
+        .filter(Attendance.institution_id.in_(inst_ids), Attendance.date >= start_date, Attendance.date <= end_date)
+        .group_by(Attendance.institution_id)
+        .all()
+    )
+    present_att = dict(
+        db.query(Attendance.institution_id, func.count(Attendance.id))
+        .filter(
+            Attendance.institution_id.in_(inst_ids),
+            Attendance.date >= start_date,
+            Attendance.date <= end_date,
+            Attendance.status == AttendanceStatus.PRESENT,
+        )
+        .group_by(Attendance.institution_id)
+        .all()
+    )
+
+    # Exam results
+    total_exam = dict(
+        db.query(ExamResult.institution_id, func.count(ExamResult.id))
+        .filter(ExamResult.institution_id.in_(inst_ids), ExamResult.generated_at >= start_date, ExamResult.generated_at <= end_date)
+        .group_by(ExamResult.institution_id)
+        .all()
+    )
+    passed_exam = dict(
+        db.query(ExamResult.institution_id, func.count(ExamResult.id))
+        .filter(
+            ExamResult.institution_id.in_(inst_ids),
+            ExamResult.generated_at >= start_date,
+            ExamResult.generated_at <= end_date,
+            ExamResult.is_pass == True,
+        )
+        .group_by(ExamResult.institution_id)
+        .all()
+    )
+    avg_exam_scores = dict(
+        db.query(ExamResult.institution_id, func.avg(ExamResult.percentage))
+        .filter(ExamResult.institution_id.in_(inst_ids), ExamResult.generated_at >= start_date, ExamResult.generated_at <= end_date)
+        .group_by(ExamResult.institution_id)
+        .all()
+    )
+
+    # Student / teacher counts
+    student_counts = dict(
+        db.query(Student.institution_id, func.count(Student.id))
+        .filter(Student.institution_id.in_(inst_ids), Student.is_active == True)
+        .group_by(Student.institution_id)
+        .all()
+    )
+    teacher_counts = dict(
+        db.query(Teacher.institution_id, func.count(Teacher.id))
+        .filter(Teacher.institution_id.in_(inst_ids))
+        .group_by(Teacher.institution_id)
+        .all()
+    )
+
+    # Assignment / submission data — wrapped because tables may not exist yet
+    assign_counts: dict = {}
+    total_sub_counts: dict = {}
+    graded_sub_counts: dict = {}
+    submitted_sub_counts: dict = {}
+    avg_grading_times: dict = {}
+    avg_points_map: dict = {}
+
+    try:
+        assign_counts = dict(
+            db.query(Assignment.institution_id, func.count(Assignment.id))
+            .filter(Assignment.institution_id.in_(inst_ids), Assignment.created_at >= start_date, Assignment.created_at <= end_date)
+            .group_by(Assignment.institution_id)
+            .all()
+        )
+        # Submission has no institution_id — join through Assignment
+        total_sub_counts = dict(
+            db.query(Assignment.institution_id, func.count(Submission.id))
+            .join(Submission, Submission.assignment_id == Assignment.id)
+            .filter(
+                Assignment.institution_id.in_(inst_ids),
+                Submission.submitted_at >= start_date,
+                Submission.submitted_at <= end_date,
+                Submission.status.in_([SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED, SubmissionStatus.RETURNED]),
+            )
+            .group_by(Assignment.institution_id)
+            .all()
+        )
+        graded_sub_counts = dict(
+            db.query(Assignment.institution_id, func.count(Submission.id))
+            .join(Submission, Submission.assignment_id == Assignment.id)
+            .filter(
+                Assignment.institution_id.in_(inst_ids),
+                Submission.graded_at >= start_date,
+                Submission.graded_at <= end_date,
+                Submission.status == SubmissionStatus.GRADED,
+            )
+            .group_by(Assignment.institution_id)
+            .all()
+        )
+        submitted_sub_counts = dict(
+            db.query(Assignment.institution_id, func.count(Submission.id))
+            .join(Submission, Submission.assignment_id == Assignment.id)
+            .filter(
+                Assignment.institution_id.in_(inst_ids),
+                Submission.submitted_at >= start_date,
+                Submission.submitted_at <= end_date,
+            )
+            .group_by(Assignment.institution_id)
+            .all()
+        )
+        avg_grading_times = dict(
+            db.query(
+                Assignment.institution_id,
+                func.avg(func.timestampdiff(
+                    func.literal_column('DAY'),
+                    Submission.submitted_at,
+                    Submission.graded_at,
+                )),
+            )
+            .join(Submission, Submission.assignment_id == Assignment.id)
+            .filter(
+                Assignment.institution_id.in_(inst_ids),
+                Submission.graded_at.isnot(None),
+                Submission.submitted_at.isnot(None),
+                Submission.graded_at >= start_date,
+            )
+            .group_by(Assignment.institution_id)
+            .all()
+        )
+        avg_points_map = dict(
+            db.query(UserPoints.institution_id, func.avg(UserPoints.total_points))
+            .filter(UserPoints.institution_id.in_(inst_ids))
+            .group_by(UserPoints.institution_id)
+            .all()
+        )
+    except (ProgrammingError, OperationalError):
+        db.rollback()
+
+    # ── Build per-institution metrics from pre-fetched dicts ──
     institution_metrics_list: List[InstitutionMetrics] = []
-    all_attendance_rates = []
-    all_exam_pass_rates = []
-    all_engagement_scores = []
-    all_teacher_effectiveness = []
-    
+
     for inst in institutions:
-        # Apply filters
-        subscription = db.query(Subscription).filter(
-            Subscription.institution_id == inst.id
-        ).order_by(desc(Subscription.created_at)).first()
-        
-        if plan and subscription and subscription.plan_name != plan:
+        subscription = subscriptions_map.get(inst.id)
+        if plan and (not subscription or subscription.plan_name != plan):
             continue
-        
-        # Calculate institution size
-        user_count = db.query(func.count(User.id)).filter(
-            User.institution_id == inst.id
-        ).scalar() or 0
-        
+
+        user_count = user_counts.get(inst.id, 0)
         inst_size = "small" if user_count < 100 else "large" if user_count > 500 else "medium"
-        
         if size and inst_size != size:
             continue
-        
-        # Calculate attendance rate
-        total_attendance_records = db.query(func.count(Attendance.id)).filter(
-            and_(
-                Attendance.institution_id == inst.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date
-            )
-        ).scalar() or 0
-        
-        present_records = db.query(func.count(Attendance.id)).filter(
-            and_(
-                Attendance.institution_id == inst.id,
-                Attendance.date >= start_date,
-                Attendance.date <= end_date,
-                Attendance.status == AttendanceStatus.PRESENT
-            )
-        ).scalar() or 0
-        
-        attendance_rate = (present_records / total_attendance_records * 100) if total_attendance_records > 0 else 0
-        
-        # Calculate exam pass rate
-        total_exam_results = db.query(func.count(ExamResult.id)).filter(
-            and_(
-                ExamResult.institution_id == inst.id,
-                ExamResult.generated_at >= start_date,
-                ExamResult.generated_at <= end_date
-            )
-        ).scalar() or 0
-        
-        passed_results = db.query(func.count(ExamResult.id)).filter(
-            and_(
-                ExamResult.institution_id == inst.id,
-                ExamResult.generated_at >= start_date,
-                ExamResult.generated_at <= end_date,
-                ExamResult.is_pass == True
-            )
-        ).scalar() or 0
-        
-        exam_pass_rate = (passed_results / total_exam_results * 100) if total_exam_results > 0 else 0
-        
-        # Calculate average exam score
-        avg_exam_score = db.query(func.avg(ExamResult.percentage)).filter(
-            and_(
-                ExamResult.institution_id == inst.id,
-                ExamResult.generated_at >= start_date,
-                ExamResult.generated_at <= end_date
-            )
-        ).scalar() or 0
-        
-        # Get active students count
-        active_students = db.query(func.count(Student.id)).filter(
-            and_(
-                Student.institution_id == inst.id,
-                Student.is_active == True
-            )
-        ).scalar() or 0
 
-        # Calculate student engagement and teacher effectiveness from assignments/submissions
-        # Wrapped in try/except in case tables don't exist yet in this deployment
-        try:
-            total_assignments = db.query(func.count(Assignment.id)).filter(
-                and_(
-                    Assignment.institution_id == inst.id,
-                    Assignment.created_at >= start_date,
-                    Assignment.created_at <= end_date
-                )
-            ).scalar() or 0
+        t_att = total_att.get(inst.id, 0)
+        p_att = present_att.get(inst.id, 0)
+        attendance_rate = (p_att / t_att * 100) if t_att > 0 else 0.0
 
-            total_submissions = db.query(func.count(Submission.id)).filter(
-                and_(
-                    Submission.institution_id == inst.id,
-                    Submission.submitted_at >= start_date,
-                    Submission.submitted_at <= end_date,
-                    Submission.status.in_([SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED, SubmissionStatus.RETURNED])
-                )
-            ).scalar() or 0
+        t_exam = total_exam.get(inst.id, 0)
+        p_exam = passed_exam.get(inst.id, 0)
+        exam_pass_rate = (p_exam / t_exam * 100) if t_exam > 0 else 0.0
 
-            graded_submissions = db.query(func.count(Submission.id)).filter(
-                and_(
-                    Submission.institution_id == inst.id,
-                    Submission.graded_at >= start_date,
-                    Submission.graded_at <= end_date,
-                    Submission.status == SubmissionStatus.GRADED
-                )
-            ).scalar() or 0
+        avg_exam_score = float(avg_exam_scores.get(inst.id) or 0)
+        active_students = student_counts.get(inst.id, 0)
 
-            submitted_count = db.query(func.count(Submission.id)).filter(
-                and_(
-                    Submission.institution_id == inst.id,
-                    Submission.submitted_at >= start_date,
-                    Submission.submitted_at <= end_date
-                )
-            ).scalar() or 0
-
-            avg_grading_time_result = db.query(
-                func.avg(
-                    func.timestampdiff(
-                        func.literal_column('DAY'),
-                        Submission.submitted_at,
-                        Submission.graded_at
-                    )
-                )
-            ).filter(
-                and_(
-                    Submission.institution_id == inst.id,
-                    Submission.graded_at.isnot(None),
-                    Submission.submitted_at.isnot(None),
-                    Submission.graded_at >= start_date
-                )
-            ).scalar()
-
-            avg_points = db.query(func.avg(UserPoints.total_points)).filter(
-                UserPoints.institution_id == inst.id
-            ).scalar() or 0
-
-        except (ProgrammingError, OperationalError):
-            db.rollback()
-            total_assignments = 0
-            total_submissions = 0
-            graded_submissions = 0
-            submitted_count = 0
-            avg_grading_time_result = None
-            avg_points = 0
+        total_assignments = assign_counts.get(inst.id, 0)
+        total_submissions = total_sub_counts.get(inst.id, 0)
+        graded_subs = graded_sub_counts.get(inst.id, 0)
+        submitted_count = submitted_sub_counts.get(inst.id, 0)
+        avg_grading_time_result = avg_grading_times.get(inst.id)
+        avg_points = float(avg_points_map.get(inst.id) or 0)
 
         expected_submissions = total_assignments * active_students if active_students > 0 else 1
-        submission_rate = (total_submissions / expected_submissions * 100) if expected_submissions > 0 else 0
+        submission_rate = (total_submissions / expected_submissions * 100) if expected_submissions > 0 else 0.0
+        points_engagement = min((avg_points / 1000 * 100), 100)
+        engagement_score = submission_rate * 0.6 + points_engagement * 0.4
 
-        # Engagement score = 60% submission rate + 40% points-based engagement
-        points_engagement = min((float(avg_points) / 1000 * 100), 100) if avg_points else 0
-        engagement_score = (submission_rate * 0.6 + points_engagement * 0.4)
-
-        grading_rate = (graded_submissions / submitted_count * 100) if submitted_count > 0 else 0
-
-        avg_grading_time = float(avg_grading_time_result) if avg_grading_time_result else 7
+        grading_rate = (graded_subs / submitted_count * 100) if submitted_count > 0 else 0.0
+        avg_grading_time = float(avg_grading_time_result) if avg_grading_time_result else 7.0
         grading_speed_score = max(100 - (avg_grading_time * 10), 0)
-        
-        # Teacher effectiveness = 50% grading rate + 30% grading speed + 20% student performance
-        performance_contribution = min(float(avg_exam_score), 100) if avg_exam_score else 50
-        teacher_effectiveness = (grading_rate * 0.5 + grading_speed_score * 0.3 + performance_contribution * 0.2)
-        
-        metrics = InstitutionMetrics(
+        performance_contribution = min(avg_exam_score, 100) if avg_exam_score else 50.0
+        teacher_effectiveness = grading_rate * 0.5 + grading_speed_score * 0.3 + performance_contribution * 0.2
+
+        institution_metrics_list.append(InstitutionMetrics(
             institution_id=inst.id,
             institution_name=inst.name,
             region=region or "Unknown",
             subscription_plan=subscription.plan_name if subscription else "None",
             institution_size=inst_size,
             total_students=active_students,
-            total_teachers=db.query(func.count(Teacher.id)).filter(
-                Teacher.institution_id == inst.id
-            ).scalar() or 0,
+            total_teachers=teacher_counts.get(inst.id, 0),
             average_attendance=round(attendance_rate, 2),
             exam_pass_rate=round(exam_pass_rate, 2),
-            average_exam_score=round(float(avg_exam_score), 2) if avg_exam_score else 0,
+            average_exam_score=round(avg_exam_score, 2),
             student_engagement_score=round(engagement_score, 2),
             teacher_effectiveness_score=round(teacher_effectiveness, 2),
             assignment_completion_rate=round(submission_rate, 2),
             average_grading_time_days=round(avg_grading_time, 2),
-        )
-        
-        institution_metrics_list.append(metrics)
-        all_attendance_rates.append(attendance_rate)
-        all_exam_pass_rates.append(exam_pass_rate)
-        all_engagement_scores.append(engagement_score)
-        all_teacher_effectiveness.append(teacher_effectiveness)
+        ))
     
     # Calculate benchmarks
     benchmarks = _calculate_benchmarks(institution_metrics_list)
