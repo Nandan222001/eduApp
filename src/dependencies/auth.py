@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, List
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -14,6 +15,9 @@ from redis.asyncio import Redis
 security = HTTPBearer()
 
 
+logger = logging.getLogger(__name__)
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
@@ -23,6 +27,7 @@ async def get_current_user(
     payload = decode_token(token)
 
     if payload is None or payload.get("type") != "access":
+        logger.warning("AUTH FAIL: decode_token returned None or wrong type. token_prefix=%s", token[:20] if token else "EMPTY")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -31,6 +36,7 @@ async def get_current_user(
 
     user_id: int = payload.get("sub")
     if user_id is None:
+        logger.warning("AUTH FAIL: user_id (sub) missing from payload")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -41,6 +47,7 @@ async def get_current_user(
     session_data = await session_manager.get_session(user_id, token)
 
     if session_data is None:
+        logger.warning("AUTH FAIL: session not found. user_id=%s redis_available=%s", user_id, redis is not None)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired or invalid",
