@@ -17,6 +17,7 @@ export const useGlobalKeyboardShortcuts = (shortcuts: KeyboardShortcut[]) => {
       const isInput =
         target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
+      if (!event.key) return;
       for (const shortcut of shortcuts) {
         if (!shortcut.key) continue;
         const keyMatches = event.key.toLowerCase() === shortcut.key.toLowerCase();
