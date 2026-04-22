@@ -137,8 +137,12 @@ class Institution(Base):
     name = Column(String(255), nullable=False, unique=True)
     slug = Column(String(255), nullable=True, unique=True)
     domain = Column(String(255), nullable=True, unique=True)
+    description = Column(Text, nullable=True)
     address = Column(Text, nullable=True)
     phone = Column(String(50), nullable=True)
+    max_users = Column(Integer, nullable=True)
+    logo_url = Column(String(500), nullable=True)
+    settings = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
