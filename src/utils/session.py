@@ -29,7 +29,8 @@ class SessionManager:
 
     async def get_session(self, user_id: int, token: str) -> Optional[Dict[str, Any]]:
         if not self._available:
-            return None
+            # Redis unavailable — degrade gracefully, trust the JWT alone
+            return {"degraded": True}
         key = f"{self.prefix}{user_id}:{token}"
         data = await self.redis.get(key)
         if data:

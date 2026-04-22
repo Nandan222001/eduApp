@@ -122,26 +122,5 @@ ROUTERS = [
     ("src.api.v1.school_admin", "/school-admin", ["school-admin"], "router"),
 ]
 
-# Keep backend bootable while optional modules are being repaired.
-CORE_ROUTER_MODULES = {
-    "src.api.v1.auth",
-    "src.api.v1.mobile_auth",
-    "src.api.v1.users",
-    "src.api.v1.institutions",
-    "src.api.v1.academic_years",
-    "src.api.v1.grades",
-    "src.api.v1.sections",
-    "src.api.v1.subjects",
-    "src.api.v1.terms",
-    "src.api.v1.teachers",
-    "src.api.v1.students",
-    "src.api.v1.parents",
-    "src.api.v1.attendance",
-    "src.api.v1.assignments",
-    "src.api.v1.submissions",
-    "src.api.v1.exams",
-}
-ROUTERS = [router for router in ROUTERS if router[0] in CORE_ROUTER_MODULES]
-
 for module_path, prefix, tags, router_attr in ROUTERS:
     _include_optional_router(module_path, prefix, tags, router_attr)
