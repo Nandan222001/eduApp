@@ -17,7 +17,7 @@ security = HTTPBearer()
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> User:
     token = credentials.credentials
     payload = decode_token(token)
@@ -46,6 +46,11 @@ async def get_current_user(
             detail="Session expired or invalid",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Handle degraded mode when Redis is unavailable
+    if isinstance(session_data, dict) and session_data.get("degraded"):
+        # In degraded mode, trust the JWT alone
+        pass
 
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
@@ -156,7 +161,7 @@ def require_roles(current_user: User, allowed_roles: List[str]) -> User:
 async def get_optional_current_user(
     request: Request,
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis),
+    redis: Optional[Redis] = Depends(get_redis),
 ) -> Optional[User]:
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
