@@ -51,8 +51,6 @@ import {
   parentAuthResponse,
   ADMIN_CREDENTIALS,
   adminAuthResponse,
-  SUPERADMIN_CREDENTIALS,
-  superadminAuthResponse,
 } from '@/data/dummyData';
 
 export const authApi = {
@@ -80,12 +78,6 @@ export const authApi = {
       credentials.password === ADMIN_CREDENTIALS.password
     ) {
       return adminAuthResponse;
-    }
-    if (
-      credentials.email === SUPERADMIN_CREDENTIALS.email &&
-      credentials.password === SUPERADMIN_CREDENTIALS.password
-    ) {
-      return superadminAuthResponse;
     }
     const response = await axios.post('/api/auth/login', credentials);
     return normalizeAuthResponse(response.data);
