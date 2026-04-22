@@ -2,6 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, desc, case, cast, Float
+from sqlalchemy.exc import ProgrammingError, OperationalError
 from datetime import datetime, timedelta
 from decimal import Decimal
 import statistics
@@ -135,24 +136,6 @@ async def get_cross_institution_analytics(
             )
         ).scalar() or 0
         
-        # Calculate student engagement score (based on submission rate and activity)
-        total_assignments = db.query(func.count(Assignment.id)).filter(
-            and_(
-                Assignment.institution_id == inst.id,
-                Assignment.created_at >= start_date,
-                Assignment.created_at <= end_date
-            )
-        ).scalar() or 0
-        
-        total_submissions = db.query(func.count(Submission.id)).filter(
-            and_(
-                Submission.institution_id == inst.id,
-                Submission.submitted_at >= start_date,
-                Submission.submitted_at <= end_date,
-                Submission.status.in_([SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED, SubmissionStatus.RETURNED])
-            )
-        ).scalar() or 0
-        
         # Get active students count
         active_students = db.query(func.count(Student.id)).filter(
             and_(
@@ -160,53 +143,83 @@ async def get_cross_institution_analytics(
                 Student.is_active == True
             )
         ).scalar() or 0
-        
+
+        # Calculate student engagement and teacher effectiveness from assignments/submissions
+        # Wrapped in try/except in case tables don't exist yet in this deployment
+        try:
+            total_assignments = db.query(func.count(Assignment.id)).filter(
+                and_(
+                    Assignment.institution_id == inst.id,
+                    Assignment.created_at >= start_date,
+                    Assignment.created_at <= end_date
+                )
+            ).scalar() or 0
+
+            total_submissions = db.query(func.count(Submission.id)).filter(
+                and_(
+                    Submission.institution_id == inst.id,
+                    Submission.submitted_at >= start_date,
+                    Submission.submitted_at <= end_date,
+                    Submission.status.in_([SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED, SubmissionStatus.RETURNED])
+                )
+            ).scalar() or 0
+
+            graded_submissions = db.query(func.count(Submission.id)).filter(
+                and_(
+                    Submission.institution_id == inst.id,
+                    Submission.graded_at >= start_date,
+                    Submission.graded_at <= end_date,
+                    Submission.status == SubmissionStatus.GRADED
+                )
+            ).scalar() or 0
+
+            submitted_count = db.query(func.count(Submission.id)).filter(
+                and_(
+                    Submission.institution_id == inst.id,
+                    Submission.submitted_at >= start_date,
+                    Submission.submitted_at <= end_date
+                )
+            ).scalar() or 0
+
+            avg_grading_time_result = db.query(
+                func.avg(
+                    func.timestampdiff(
+                        func.literal_column('DAY'),
+                        Submission.submitted_at,
+                        Submission.graded_at
+                    )
+                )
+            ).filter(
+                and_(
+                    Submission.institution_id == inst.id,
+                    Submission.graded_at.isnot(None),
+                    Submission.submitted_at.isnot(None),
+                    Submission.graded_at >= start_date
+                )
+            ).scalar()
+
+            avg_points = db.query(func.avg(UserPoints.total_points)).filter(
+                UserPoints.institution_id == inst.id
+            ).scalar() or 0
+
+        except (ProgrammingError, OperationalError):
+            db.rollback()
+            total_assignments = 0
+            total_submissions = 0
+            graded_submissions = 0
+            submitted_count = 0
+            avg_grading_time_result = None
+            avg_points = 0
+
         expected_submissions = total_assignments * active_students if active_students > 0 else 1
         submission_rate = (total_submissions / expected_submissions * 100) if expected_submissions > 0 else 0
-        
-        # Factor in gamification engagement
-        avg_points = db.query(func.avg(UserPoints.total_points)).filter(
-            UserPoints.institution_id == inst.id
-        ).scalar() or 0
-        
+
         # Engagement score = 60% submission rate + 40% points-based engagement
         points_engagement = min((float(avg_points) / 1000 * 100), 100) if avg_points else 0
         engagement_score = (submission_rate * 0.6 + points_engagement * 0.4)
-        
-        # Calculate teacher effectiveness (based on student performance and grading speed)
-        graded_submissions = db.query(func.count(Submission.id)).filter(
-            and_(
-                Submission.institution_id == inst.id,
-                Submission.graded_at >= start_date,
-                Submission.graded_at <= end_date,
-                Submission.status == SubmissionStatus.GRADED
-            )
-        ).scalar() or 0
-        
-        submitted_count = db.query(func.count(Submission.id)).filter(
-            and_(
-                Submission.institution_id == inst.id,
-                Submission.submitted_at >= start_date,
-                Submission.submitted_at <= end_date
-            )
-        ).scalar() or 0
-        
+
         grading_rate = (graded_submissions / submitted_count * 100) if submitted_count > 0 else 0
-        
-        # Average grading time in days
-        avg_grading_time_result = db.query(
-            func.avg(
-                cast(func.extract('epoch', Submission.graded_at - Submission.submitted_at) / 86400, Float)
-            )
-        ).filter(
-            and_(
-                Submission.institution_id == inst.id,
-                Submission.graded_at.isnot(None),
-                Submission.submitted_at.isnot(None),
-                Submission.graded_at >= start_date
-            )
-        ).scalar()
-        
+
         avg_grading_time = float(avg_grading_time_result) if avg_grading_time_result else 7
         grading_speed_score = max(100 - (avg_grading_time * 10), 0)
         
