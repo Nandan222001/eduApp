@@ -18,6 +18,7 @@ def get_password_hash(password: str) -> str:
 def create_access_token(
     data: Dict[str, Any], expires_delta: Optional[timedelta] = None
 ) -> str:
+    import logging
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -26,6 +27,7 @@ def create_access_token(
 
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    logging.getLogger(__name__).info("create_access_token key_prefix=%s", settings.secret_key[:8])
     return encoded_jwt
 
 
@@ -47,5 +49,7 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         return payload
-    except JWTError:
+    except JWTError as e:
+        import logging
+        logging.getLogger(__name__).warning("decode_token JWTError: %s | key_prefix=%s", e, settings.secret_key[:8])
         return None
