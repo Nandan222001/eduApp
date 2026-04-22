@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl *)",
+      "Bash(python -c ' *)",
+      "Bash(where python *)",
+      "Bash(poetry *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(jobs -l)",
+      "Bash(poetry run python -c ' *)",
+      "Read(//tmp/**)",
+      "Bash(pkill -f \"uvicorn\")",
+      "Bash(poetry run *)",
+      "Bash(echo \"Started PID: $!\")",
+      "Bash(netstat -ano)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('access_token','ERROR'\\)\\)\")"
+    ]
+  }
+}
