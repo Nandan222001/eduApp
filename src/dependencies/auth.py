@@ -34,7 +34,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id: int = payload.get("sub")
+    user_id: int = int(payload.get("sub"))
     if user_id is None:
         logger.warning("AUTH FAIL: user_id (sub) missing from payload")
         raise HTTPException(
@@ -180,7 +180,7 @@ async def get_optional_current_user(
     if payload is None or payload.get("type") != "access":
         return None
 
-    user_id: int = payload.get("sub")
+    user_id: int = int(payload.get("sub"))
     if user_id is None:
         return None
 
@@ -218,7 +218,7 @@ async def get_current_user_ws(
     if payload is None or payload.get("type") != "access":
         return None
 
-    user_id: int = payload.get("sub")
+    user_id: int = int(payload.get("sub"))
     if user_id is None:
         return None
 

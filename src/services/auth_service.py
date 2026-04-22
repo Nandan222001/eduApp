@@ -64,7 +64,7 @@ class AuthService:
             )
 
         token_data = {
-            "sub": user.id,
+            "sub": str(user.id),
             "institution_id": user.institution_id,
             "role_id": user.role_id,
             "role_slug": user.role.slug if user.role else None,
@@ -120,7 +120,7 @@ class AuthService:
                 detail="Invalid refresh token",
             )
 
-        user_id: int = payload.get("sub")
+        user_id: int = int(payload.get("sub"))
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -142,7 +142,7 @@ class AuthService:
             )
 
         token_data = {
-            "sub": user.id,
+            "sub": str(user.id),
             "institution_id": user.institution_id,
             "role_id": user.role_id,
             "role_slug": user.role.slug if user.role else None,
