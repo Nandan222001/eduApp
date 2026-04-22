@@ -644,7 +644,7 @@ async def create_institution(
     db.add(institution)
     db.flush()
     
-    admin_role = db.query(Role).filter(Role.name == "institution_admin").first()
+    admin_role = db.query(Role).filter(Role.slug == "institution_admin").first()
     if not admin_role:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -653,6 +653,7 @@ async def create_institution(
     
     admin_user = User(
         email=institution_data.admin_user.email,
+        username=institution_data.admin_user.email.split("@")[0],
         first_name=institution_data.admin_user.first_name,
         last_name=institution_data.admin_user.last_name,
         phone=institution_data.admin_user.phone,
@@ -1380,7 +1381,7 @@ async def access_institution_admin_panel(
             detail="Institution not found"
         )
     
-    admin_role = db.query(Role).filter(Role.name == "institution_admin").first()
+    admin_role = db.query(Role).filter(Role.slug == "institution_admin").first()
     if not admin_role:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
