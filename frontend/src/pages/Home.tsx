@@ -8,6 +8,8 @@ import {
   Button,
   Chip,
   Avatar,
+  Rating,
+  Stack,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { env } from '@/config/env';
@@ -25,12 +27,12 @@ import {
   CheckCircle,
   ArrowForward,
   PlayArrow,
-  TrendingUp,
   PeopleAlt,
   MenuBook,
   QueryStats,
   Verified,
   SupportAgent,
+  FormatQuote,
 } from '@mui/icons-material';
 
 const MotionBox = motion.create(Box);
@@ -51,6 +53,70 @@ const scaleIn: Variants = {
   hidden: { opacity: 0, scale: 0.88 },
   visible: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 100, damping: 14 } },
 };
+
+// ── Trusted schools ticker ────────────────────────────────────────────────────
+const trustedSchools = [
+  'Delhi Public School',
+  'Ryan International',
+  'Kendriya Vidyalaya',
+  'DAV Public School',
+  "St. Xavier's School",
+  'Bal Bharati Public School',
+  'Army Public School',
+  'Amity International',
+  'The Heritage School',
+  'Birla High School',
+  'Modern School',
+  'Springdales School',
+  'Lotus Valley International',
+  'GD Goenka World School',
+];
+
+// ── Gallery images ─────────────────────────────────────────────────────────────
+const galleryImages = [
+  {
+    url: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=600&auto=format&fit=crop&q=80',
+    caption: 'Teachers sparking curiosity every day',
+    tag: 'Teaching',
+    color: '#FF7A45',
+    height: 300,
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&auto=format&fit=crop&q=80',
+    caption: 'Collaborative learning in action',
+    tag: 'Collaboration',
+    color: '#6C5CE7',
+    height: 240,
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1562774053-701939374585?w=600&auto=format&fit=crop&q=80',
+    caption: 'World-class school environments',
+    tag: 'Campus',
+    color: '#00CEC9',
+    height: 280,
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&auto=format&fit=crop&q=80',
+    caption: 'Nurturing young minds from day one',
+    tag: 'Early Learning',
+    color: '#FF7A45',
+    height: 240,
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=600&auto=format&fit=crop&q=80',
+    caption: 'Digital-first learning experiences',
+    tag: 'EdTech',
+    color: '#6C5CE7',
+    height: 300,
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=600&auto=format&fit=crop&q=80',
+    caption: 'Celebrating every achievement',
+    tag: 'Achievement',
+    color: '#FDCB6E',
+    height: 240,
+  },
+];
 
 // ── Stats bar data ────────────────────────────────────────────────────────────
 const stats = [
@@ -200,20 +266,39 @@ const testimonials = [
     name: 'Priya Sharma',
     role: 'Principal, Greenwood High',
     avatar: 'PS',
+    avatarImg:
+      'https://images.unsplash.com/photo-1494790108755-2616b89f4891?w=100&auto=format&fit=crop&q=80',
+    rating: 5,
     quote: `We cut admin overhead by 60% in the first month. The attendance and exam modules alone justified the switch. Our teachers finally have time to teach.`,
+    accentColor: '#FF7A45',
   },
   {
     name: 'Rahul Mehta',
     role: 'Class XII Student',
     avatar: 'RM',
+    avatarImg:
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+    rating: 5,
     quote: `The gamification is genuinely addictive — in a good way. I check my leaderboard rank every morning and it pushes me to stay consistent with my studies.`,
+    accentColor: '#6C5CE7',
   },
   {
     name: 'Anita Verma',
     role: 'Parent',
     avatar: 'AV',
+    avatarImg:
+      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=80',
+    rating: 5,
     quote: `I no longer have to call the school to ask how my daughter is doing. Everything — attendance, marks, events — is on my phone, updated in real time.`,
+    accentColor: '#00CEC9',
   },
+];
+
+// ── Impact stats ──────────────────────────────────────────────────────────────
+const impactStats = [
+  { value: '60%', label: 'Reduction in admin work' },
+  { value: '3×', label: 'Parent engagement increase' },
+  { value: '98%', label: 'School retention rate' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,17 +309,17 @@ export default function Home() {
 
   return (
     <Box sx={{ overflow: 'hidden', bgcolor: 'background.default' }}>
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
+      {/* ── HERO (split layout) ───────────────────────────────────────────── */}
       <Box
         sx={{
           position: 'relative',
-          pt: { xs: 10, md: 14 },
-          pb: { xs: 12, md: 18 },
+          pt: { xs: 10, md: 12 },
+          pb: { xs: 10, md: 14 },
           overflow: 'hidden',
           background: 'linear-gradient(160deg, #FFF4F0 0%, #FFEADC 35%, #EDE9FF 75%, #D2CCFF 100%)',
         }}
       >
-        {/* Floating ambient orbs */}
+        {/* Ambient orbs */}
         {[
           { top: '5%', left: '8%', size: 380, color: '#FF7A45', delay: 0 },
           { top: '55%', right: '5%', size: 420, color: '#6C5CE7', delay: 2 },
@@ -247,9 +332,9 @@ export default function Home() {
             sx={{
               position: 'absolute',
               top: orb.top,
-              left: (orb as unknown as { left?: string }).left,
-              right: (orb as unknown as { right?: string }).right,
-              bottom: (orb as unknown as { bottom?: string }).bottom,
+              left: (orb as { left?: string }).left,
+              right: (orb as { right?: string }).right,
+              bottom: (orb as { bottom?: string }).bottom,
               width: orb.size,
               height: orb.size,
               borderRadius: '50%',
@@ -262,327 +347,355 @@ export default function Home() {
         ))}
 
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-          <MotionBox
-            variants={stagger}
-            initial="hidden"
-            animate="visible"
-            sx={{ textAlign: 'center', maxWidth: 820, mx: 'auto' }}
+          <Grid container spacing={{ xs: 6, md: 8 }} alignItems="center">
+            {/* Left — text */}
+            <Grid item xs={12} md={6}>
+              <MotionBox variants={stagger} initial="hidden" animate="visible">
+                {/* Badge */}
+                <motion.div variants={scaleIn}>
+                  <Box
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      bgcolor: 'rgba(255,255,255,0.75)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(255,122,69,0.25)',
+                      borderRadius: 24,
+                      px: 2.5,
+                      py: 1,
+                      mb: 3,
+                    }}
+                  >
+                    <AutoAwesome sx={{ fontSize: 16, color: 'primary.main' }} />
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 700, color: 'primary.main', letterSpacing: '0.04em' }}
+                    >
+                      THE COMPLETE EDUCATION PLATFORM
+                    </Typography>
+                    <Chip
+                      label="New: AI Insights"
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        bgcolor: 'primary.main',
+                        color: '#fff',
+                        ml: 0.5,
+                      }}
+                    />
+                  </Box>
+                </motion.div>
+
+                {/* Headline */}
+                <MotionTypography
+                  variants={fadeUp}
+                  variant="h1"
+                  sx={{
+                    mb: 3,
+                    fontSize: { xs: '2.6rem', md: '3.4rem' },
+                    background: 'linear-gradient(135deg, #4B240A 0%, #FF7A45 50%, #6C5CE7 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    lineHeight: 1.15,
+                  }}
+                >
+                  Smarter Schools,{' '}
+                  <Box component="span" sx={{ display: 'block' }}>
+                    Inspired Learners
+                  </Box>
+                </MotionTypography>
+
+                {/* Subheadline */}
+                <MotionTypography
+                  variants={fadeUp}
+                  variant="h6"
+                  color="text.secondary"
+                  sx={{ mb: 5, fontWeight: 400, lineHeight: 1.65 }}
+                >
+                  {env.appName} unifies attendance, exams, assignments, gamification, and parent
+                  engagement into one intelligent platform — so educators can focus on what matters
+                  most.
+                </MotionTypography>
+
+                {/* CTAs */}
+                <motion.div variants={fadeUp}>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 5 }}>
+                    <motion.div whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }}>
+                      <Button
+                        variant="contained"
+                        size="large"
+                        component={RouterLink}
+                        to="/login"
+                        endIcon={<ArrowForward />}
+                        sx={{
+                          px: 4.5,
+                          py: 1.75,
+                          fontSize: '1rem',
+                          boxShadow: '0 8px 30px rgba(255,122,69,0.35)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Get Started Free
+                      </Button>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }}>
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        component={RouterLink}
+                        to="/about"
+                        startIcon={<PlayArrow />}
+                        sx={{
+                          px: 4.5,
+                          py: 1.75,
+                          fontSize: '1rem',
+                          bgcolor: 'rgba(255,255,255,0.6)',
+                          backdropFilter: 'blur(10px)',
+                          borderColor: 'rgba(108,92,231,0.4)',
+                          color: 'secondary.main',
+                          borderWidth: 2,
+                          cursor: 'pointer',
+                          '&:hover': {
+                            borderWidth: 2,
+                            borderColor: 'secondary.main',
+                            bgcolor: 'rgba(255,255,255,0.8)',
+                          },
+                        }}
+                      >
+                        See How It Works
+                      </Button>
+                    </motion.div>
+                  </Box>
+                </motion.div>
+
+                {/* Trust badges */}
+                <motion.div variants={fadeUp}>
+                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                    {[
+                      'No credit card required',
+                      'Free 30-day trial',
+                      'Setup in under 10 minutes',
+                    ].map((t) => (
+                      <Box key={t} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          {t}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </motion.div>
+              </MotionBox>
+            </Grid>
+
+            {/* Right — image collage */}
+            <Grid item xs={12} md={6}>
+              <MotionBox
+                style={{ y: heroY }}
+                initial={{ opacity: 0, x: 40 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4, duration: 0.9, ease: 'easeOut' }}
+                sx={{ position: 'relative', pr: { md: 2 } }}
+              >
+                {/* Primary image */}
+                <Box
+                  component="img"
+                  src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=700&auto=format&fit=crop&q=80"
+                  alt="Students studying together"
+                  sx={{
+                    width: '100%',
+                    height: { xs: 220, md: 280 },
+                    objectFit: 'cover',
+                    borderRadius: 4,
+                    mb: 2,
+                    boxShadow: '0 20px 60px rgba(75,36,10,0.15)',
+                    display: 'block',
+                  }}
+                />
+                {/* Secondary image */}
+                <Box
+                  component="img"
+                  src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=700&auto=format&fit=crop&q=80"
+                  alt="Modern classroom"
+                  sx={{
+                    width: '78%',
+                    height: { xs: 170, md: 210 },
+                    objectFit: 'cover',
+                    borderRadius: 4,
+                    ml: 'auto',
+                    display: 'block',
+                    boxShadow: '0 20px 60px rgba(75,36,10,0.15)',
+                  }}
+                />
+
+                {/* Floating stat — students */}
+                <MotionBox
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.9, type: 'spring' }}
+                  sx={{
+                    position: 'absolute',
+                    top: { xs: 12, md: 20 },
+                    left: { xs: 12, md: -28 },
+                    bgcolor: '#fff',
+                    borderRadius: 3,
+                    p: { xs: 1.5, md: 2 },
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.14)',
+                    minWidth: 120,
+                  }}
+                >
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 800, color: 'primary.main', lineHeight: 1 }}
+                  >
+                    50K+
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Active Students
+                  </Typography>
+                </MotionBox>
+
+                {/* Floating stat — satisfaction */}
+                <MotionBox
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.1, type: 'spring' }}
+                  sx={{
+                    position: 'absolute',
+                    bottom: { xs: 12, md: 24 },
+                    left: { xs: 12, md: -28 },
+                    bgcolor: '#6C5CE7',
+                    borderRadius: 3,
+                    p: { xs: 1.5, md: 2 },
+                    boxShadow: '0 12px 40px rgba(108,92,231,0.35)',
+                    minWidth: 120,
+                  }}
+                >
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                    98%
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}
+                  >
+                    Satisfaction
+                  </Typography>
+                </MotionBox>
+
+                {/* Floating stat — institutions */}
+                <MotionBox
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.3, type: 'spring' }}
+                  sx={{
+                    position: 'absolute',
+                    top: { xs: 'auto', md: '42%' },
+                    right: { xs: 12, md: -20 },
+                    bottom: { xs: 12, md: 'auto' },
+                    bgcolor: '#00CEC9',
+                    borderRadius: 3,
+                    p: { xs: 1.5, md: 2 },
+                    boxShadow: '0 12px 40px rgba(0,206,201,0.35)',
+                    minWidth: 110,
+                  }}
+                >
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                    300+
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}
+                  >
+                    Institutions
+                  </Typography>
+                </MotionBox>
+              </MotionBox>
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
+
+      {/* ── TRUSTED SCHOOLS TICKER ───────────────────────────────────────────── */}
+      <Box
+        sx={{
+          bgcolor: 'background.paper',
+          py: 3,
+          overflow: 'hidden',
+          borderTop: '1px solid',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 0.5, px: 3, opacity: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: 800, letterSpacing: '0.1em', color: 'text.secondary', flexShrink: 0 }}
           >
-            {/* Badge */}
-            <motion.div variants={scaleIn}>
+            TRUSTED BY
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 5,
+            width: 'max-content',
+            '@keyframes tickerScroll': {
+              '0%': { transform: 'translateX(0)' },
+              '100%': { transform: 'translateX(-50%)' },
+            },
+            animation: 'tickerScroll 35s linear infinite',
+            '&:hover': { animationPlayState: 'paused' },
+          }}
+        >
+          {[...trustedSchools, ...trustedSchools].map((school, i) => (
+            <Box
+              key={i}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0, py: 1.5 }}
+            >
               <Box
                 sx={{
-                  display: 'inline-flex',
+                  width: 28,
+                  height: 28,
+                  borderRadius: 1.5,
+                  bgcolor:
+                    i % 3 === 0
+                      ? 'rgba(255,122,69,0.12)'
+                      : i % 3 === 1
+                        ? 'rgba(108,92,231,0.12)'
+                        : 'rgba(0,206,201,0.12)',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: 1,
-                  bgcolor: 'rgba(255,255,255,0.75)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255,122,69,0.25)',
-                  borderRadius: 24,
-                  px: 2.5,
-                  py: 1,
-                  mb: 4,
+                  justifyContent: 'center',
                 }}
               >
-                <AutoAwesome sx={{ fontSize: 16, color: 'primary.main' }} />
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 700, color: 'primary.main', letterSpacing: '0.04em' }}
-                >
-                  THE COMPLETE EDUCATION PLATFORM
-                </Typography>
-                <Chip
-                  label="New: AI Insights"
-                  size="small"
+                <School
                   sx={{
-                    height: 20,
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    bgcolor: 'primary.main',
-                    color: '#fff',
-                    ml: 0.5,
+                    fontSize: 14,
+                    color: i % 3 === 0 ? '#FF7A45' : i % 3 === 1 ? '#6C5CE7' : '#00CEC9',
                   }}
                 />
               </Box>
-            </motion.div>
-
-            {/* Headline */}
-            <MotionTypography
-              variants={fadeUp}
-              variant="h1"
-              component="h1"
-              sx={{
-                mb: 3,
-                background: 'linear-gradient(135deg, #4B240A 0%, #FF7A45 50%, #6C5CE7 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              Smarter Schools,{' '}
-              <Box component="span" sx={{ display: 'block' }}>
-                Inspired Learners
-              </Box>
-            </MotionTypography>
-
-            {/* Subheadline */}
-            <MotionTypography
-              variants={fadeUp}
-              variant="h5"
-              color="text.secondary"
-              sx={{ mb: 6, fontWeight: 400, maxWidth: 620, mx: 'auto', lineHeight: 1.6 }}
-            >
-              {env.appName} unifies attendance, exams, assignments, gamification, and parent
-              engagement into one intelligent platform — so educators can focus on what matters
-              most.
-            </MotionTypography>
-
-            {/* CTAs */}
-            <motion.div variants={fadeUp}>
-              <Box
-                sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mb: 6 }}
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 700, color: 'text.secondary', whiteSpace: 'nowrap' }}
               >
-                <motion.div whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    component={RouterLink}
-                    to="/login"
-                    endIcon={<ArrowForward />}
-                    sx={{
-                      px: 5,
-                      py: 1.75,
-                      fontSize: '1.05rem',
-                      boxShadow: '0 8px 30px rgba(255,122,69,0.35)',
-                    }}
-                  >
-                    Get Started Free
-                  </Button>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.97 }}>
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    component={RouterLink}
-                    to="/about"
-                    startIcon={<PlayArrow />}
-                    sx={{
-                      px: 5,
-                      py: 1.75,
-                      fontSize: '1.05rem',
-                      bgcolor: 'rgba(255,255,255,0.6)',
-                      backdropFilter: 'blur(10px)',
-                      borderColor: 'rgba(108,92,231,0.4)',
-                      color: 'secondary.main',
-                      borderWidth: 2,
-                      '&:hover': {
-                        borderWidth: 2,
-                        borderColor: 'secondary.main',
-                        bgcolor: 'rgba(255,255,255,0.8)',
-                      },
-                    }}
-                  >
-                    See How It Works
-                  </Button>
-                </motion.div>
-              </Box>
-            </motion.div>
-
-            {/* Trust badges */}
-            <motion.div variants={fadeUp}>
-              <Box sx={{ display: 'flex', gap: 3, justifyContent: 'center', flexWrap: 'wrap' }}>
-                {['No credit card required', 'Free 30-day trial', 'Setup in under 10 minutes'].map(
-                  (t) => (
-                    <Box key={t} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
-                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                        {t}
-                      </Typography>
-                    </Box>
-                  )
-                )}
-              </Box>
-            </motion.div>
-          </MotionBox>
-
-          {/* Hero visual — floating dashboard preview */}
-          <MotionBox
-            style={{ y: heroY }}
-            initial={{ opacity: 0, y: 60 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.8, ease: 'easeOut' }}
-            sx={{
-              mt: 8,
-              mx: 'auto',
-              maxWidth: 880,
-              bgcolor: 'rgba(255,255,255,0.85)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: 6,
-              p: { xs: 2, md: 4 },
-              boxShadow: '0 30px 80px rgba(75,36,10,0.12), 0 0 0 1px rgba(255,122,69,0.1)',
-            }}
-          >
-            {/* Fake dashboard header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-              {['#FF5F57', '#FFBD2E', '#28C840'].map((c) => (
-                <Box key={c} sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: c }} />
-              ))}
-              <Box
-                sx={{
-                  flex: 1,
-                  mx: 2,
-                  height: 28,
-                  bgcolor: 'rgba(75,36,10,0.05)',
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  px: 2,
-                }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  app.{env.appName?.toLowerCase().replace(/\s/g, '')}.edu
-                </Typography>
-              </Box>
+                {school}
+              </Typography>
             </Box>
-
-            {/* Mini stat cards */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              {[
-                {
-                  label: 'Total Students',
-                  value: '1,248',
-                  icon: '🎓',
-                  delta: '+12%',
-                  color: '#FF7A45',
-                },
-                {
-                  label: "Today's Attendance",
-                  value: '94.2%',
-                  icon: '✅',
-                  delta: '+2.1%',
-                  color: '#00CEC9',
-                },
-                {
-                  label: 'Pending Assignments',
-                  value: '23',
-                  icon: '📋',
-                  delta: '-5',
-                  color: '#6C5CE7',
-                },
-                {
-                  label: 'Avg. Exam Score',
-                  value: '78.4',
-                  icon: '📊',
-                  delta: '+3.8',
-                  color: '#FDCB6E',
-                },
-              ].map((card) => (
-                <Grid item xs={6} md={3} key={card.label}>
-                  <Box
-                    sx={{
-                      bgcolor: card.color + '10',
-                      borderRadius: 3,
-                      p: 2,
-                      border: `1px solid ${card.color}25`,
-                    }}
-                  >
-                    <Typography sx={{ fontSize: '1.5rem', mb: 0.5 }}>{card.icon}</Typography>
-                    <Typography
-                      variant="h5"
-                      sx={{ fontWeight: 800, color: card.color, lineHeight: 1 }}
-                    >
-                      {card.value}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: 'block', mt: 0.25 }}
-                    >
-                      {card.label}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                      <TrendingUp sx={{ fontSize: 12, color: 'success.main', mr: 0.5 }} />
-                      <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
-                        {card.delta} this week
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-
-            {/* Mini activity feed */}
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              {[
-                {
-                  text: 'Assignment "Chapter 4 Quiz" submitted by 38 students',
-                  time: '2m ago',
-                  color: '#6C5CE7',
-                },
-                {
-                  text: 'Attendance marked for Class X-A — 96% present',
-                  time: '14m ago',
-                  color: '#00CEC9',
-                },
-                {
-                  text: 'Rohan Kapoor earned the "Streak Master" badge 🏆',
-                  time: '1h ago',
-                  color: '#FDCB6E',
-                },
-              ].map((item, i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    flex: '1 1 200px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 1.5,
-                    bgcolor: 'rgba(75,36,10,0.03)',
-                    borderRadius: 2,
-                    p: 1.5,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      bgcolor: item.color,
-                      mt: 0.75,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Box>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: 'text.primary',
-                        fontWeight: 500,
-                        display: 'block',
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {item.text}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {item.time}
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
-            </Box>
-          </MotionBox>
-        </Container>
+          ))}
+        </Box>
       </Box>
 
       {/* ── STATS BAR ────────────────────────────────────────────────────────── */}
       <Box
         sx={{
-          bgcolor: 'background.paper',
-          py: 5,
-          borderTop: '1px solid',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+          bgcolor: 'background.default',
+          py: 6,
+          background: 'linear-gradient(135deg, #FFF4F0 0%, #EDE9FF 100%)',
         }}
       >
         <Container maxWidth="lg">
@@ -591,12 +704,7 @@ export default function Home() {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-around',
-              flexWrap: 'wrap',
-              gap: 4,
-            }}
+            sx={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 4 }}
           >
             {stats.map((s) => (
               <motion.div key={s.label} variants={fadeUp}>
@@ -614,6 +722,119 @@ export default function Home() {
                 </Box>
               </motion.div>
             ))}
+          </MotionBox>
+        </Container>
+      </Box>
+
+      {/* ── PHOTO GALLERY ────────────────────────────────────────────────────── */}
+      <Box sx={{ py: { xs: 10, md: 14 }, bgcolor: 'background.paper' }}>
+        <Container maxWidth="lg">
+          <MotionBox
+            variants={stagger}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+          >
+            <motion.div variants={fadeUp}>
+              <Box sx={{ textAlign: 'center', mb: 8 }}>
+                <Chip
+                  label="REAL SCHOOLS. REAL IMPACT."
+                  sx={{
+                    mb: 2,
+                    bgcolor: 'rgba(0,206,201,0.1)',
+                    color: 'info.main',
+                    fontWeight: 700,
+                    fontSize: '0.7rem',
+                  }}
+                />
+                <Typography variant="h2" gutterBottom sx={{ color: 'text.primary' }}>
+                  See real classrooms thriving
+                </Typography>
+                <Typography
+                  variant="h6"
+                  color="text.secondary"
+                  sx={{ fontWeight: 400, maxWidth: 560, mx: 'auto' }}
+                >
+                  Thousands of schools, colleges, and coaching centres have already transformed how
+                  they teach and learn.
+                </Typography>
+              </Box>
+            </motion.div>
+
+            {/* Masonry-style grid */}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                gap: 2.5,
+              }}
+            >
+              {galleryImages.map((img, i) => (
+                <MotionBox
+                  key={i}
+                  variants={fadeUp}
+                  sx={{
+                    position: 'relative',
+                    height: img.height,
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    '&:hover .gallery-overlay': { opacity: 1 },
+                    '&:hover .gallery-img': { transform: 'scale(1.07)' },
+                  }}
+                >
+                  <Box
+                    component="img"
+                    className="gallery-img"
+                    src={img.url}
+                    alt={img.caption}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      transition: 'transform 0.5s ease',
+                      display: 'block',
+                    }}
+                  />
+                  {/* Hover overlay */}
+                  <Box
+                    className="gallery-overlay"
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      background:
+                        'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)',
+                      opacity: 0,
+                      transition: 'opacity 0.35s ease',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      p: 2.5,
+                    }}
+                  >
+                    <Box>
+                      <Chip
+                        label={img.tag}
+                        size="small"
+                        sx={{
+                          bgcolor: img.color,
+                          color: '#fff',
+                          mb: 1,
+                          fontWeight: 700,
+                          fontSize: '0.65rem',
+                          height: 22,
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ color: '#fff', fontWeight: 600, lineHeight: 1.4 }}
+                      >
+                        {img.caption}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </MotionBox>
+              ))}
+            </Box>
           </MotionBox>
         </Container>
       </Box>
@@ -685,6 +906,108 @@ export default function Home() {
                       </Typography>
                     </CardContent>
                   </MotionCard>
+                </Grid>
+              ))}
+            </Grid>
+          </MotionBox>
+        </Container>
+      </Box>
+
+      {/* ── IMPACT POSTER ────────────────────────────────────────────────────── */}
+      <Box
+        sx={{
+          py: { xs: 10, md: 16 },
+          position: 'relative',
+          overflow: 'hidden',
+          backgroundImage: `linear-gradient(rgba(10,10,30,0.72), rgba(10,10,30,0.72)), url(https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&auto=format&fit=crop&q=80)`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: { xs: 'scroll', md: 'fixed' },
+        }}
+      >
+        <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
+          <MotionBox
+            variants={stagger}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            sx={{ textAlign: 'center' }}
+          >
+            <motion.div variants={fadeUp}>
+              <Chip
+                label="OUR IMPACT"
+                sx={{
+                  mb: 3,
+                  bgcolor: 'rgba(255,122,69,0.85)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                }}
+              />
+              <Typography
+                variant="h2"
+                sx={{
+                  color: '#fff',
+                  mb: 2,
+                  textShadow: '0 4px 24px rgba(0,0,0,0.4)',
+                  fontSize: { xs: '2.2rem', md: '3rem' },
+                  fontWeight: 800,
+                  lineHeight: 1.2,
+                }}
+              >
+                Transforming education,
+                <br />
+                one school at a time.
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  color: 'rgba(255,255,255,0.75)',
+                  mb: 8,
+                  fontWeight: 400,
+                  maxWidth: 520,
+                  mx: 'auto',
+                }}
+              >
+                Thousands of institutions have reimagined how they teach, track, and inspire every
+                student.
+              </Typography>
+            </motion.div>
+
+            <Grid container spacing={3} justifyContent="center">
+              {impactStats.map((stat, i) => (
+                <Grid item xs={12} sm={4} key={i}>
+                  <motion.div variants={scaleIn}>
+                    <Box
+                      sx={{
+                        bgcolor: 'rgba(255,255,255,0.10)',
+                        backdropFilter: 'blur(16px)',
+                        border: '1px solid rgba(255,255,255,0.18)',
+                        borderRadius: 4,
+                        p: { xs: 3, md: 4 },
+                        transition: 'background 0.3s',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.16)' },
+                      }}
+                    >
+                      <Typography
+                        variant="h2"
+                        sx={{
+                          color: i === 0 ? '#FF7A45' : i === 1 ? '#FDCB6E' : '#00CEC9',
+                          fontWeight: 800,
+                          mb: 1,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {stat.value}
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{ color: 'rgba(255,255,255,0.82)', fontWeight: 500 }}
+                      >
+                        {stat.label}
+                      </Typography>
+                    </Box>
+                  </motion.div>
                 </Grid>
               ))}
             </Grid>
@@ -892,7 +1215,12 @@ export default function Home() {
       </Box>
 
       {/* ── TESTIMONIALS ─────────────────────────────────────────────────────── */}
-      <Box sx={{ py: { xs: 10, md: 14 }, bgcolor: 'background.default' }}>
+      <Box
+        sx={{
+          py: { xs: 10, md: 14 },
+          background: 'linear-gradient(160deg, #FFF4F0 0%, #EDE9FF 100%)',
+        }}
+      >
         <Container maxWidth="lg">
           <MotionBox
             variants={stagger}
@@ -915,6 +1243,9 @@ export default function Home() {
                 <Typography variant="h2" gutterBottom>
                   Loved by schools across the country
                 </Typography>
+                <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
+                  Hear from principals, students, and parents who made the switch.
+                </Typography>
               </Box>
             </motion.div>
 
@@ -923,27 +1254,53 @@ export default function Home() {
                 <Grid item xs={12} md={4} key={i}>
                   <MotionCard
                     variants={fadeUp}
-                    whileHover={{ y: -6 }}
-                    sx={{ height: '100%', p: 1 }}
+                    whileHover={{ y: -8, boxShadow: '0 24px 60px rgba(75,36,10,0.12)' }}
+                    sx={{ height: '100%', bgcolor: 'background.paper' }}
                   >
-                    <CardContent sx={{ p: 3 }}>
-                      <Typography variant="h4" sx={{ color: 'primary.main', mb: 2, lineHeight: 1 }}>
-                        ❝
-                      </Typography>
+                    <CardContent sx={{ p: 4 }}>
+                      {/* Star rating */}
+                      <Rating
+                        value={t.rating}
+                        readOnly
+                        precision={0.5}
+                        sx={{
+                          mb: 2,
+                          color: '#FDCB6E',
+                          '& .MuiRating-iconEmpty': { color: 'rgba(0,0,0,0.15)' },
+                        }}
+                      />
+
+                      {/* Quote icon */}
+                      <FormatQuote
+                        sx={{ fontSize: 36, color: t.accentColor, opacity: 0.4, mb: 1 }}
+                      />
+
                       <Typography
                         variant="body1"
-                        sx={{ color: 'text.primary', lineHeight: 1.7, mb: 3, fontStyle: 'italic' }}
+                        sx={{ color: 'text.primary', lineHeight: 1.75, mb: 3, fontStyle: 'italic' }}
                       >
                         {t.quote}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          pt: 2,
+                          borderTop: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
                         <Avatar
+                          src={t.avatarImg}
+                          alt={t.name}
                           sx={{
-                            bgcolor:
-                              i === 0 ? 'primary.main' : i === 1 ? 'secondary.main' : 'info.main',
+                            width: 48,
+                            height: 48,
                             fontWeight: 700,
-                            width: 44,
-                            height: 44,
+                            bgcolor: t.accentColor,
+                            border: `2px solid ${t.accentColor}30`,
                           }}
                         >
                           {t.avatar}
@@ -969,15 +1326,18 @@ export default function Home() {
         </Container>
       </Box>
 
-      {/* ── FINAL CTA ────────────────────────────────────────────────────────── */}
+      {/* ── FINAL CTA (with background photo) ───────────────────────────────── */}
       <Box
         sx={{
           py: { xs: 10, md: 14 },
-          background: 'linear-gradient(135deg, #FF7A45 0%, #A33702 50%, #6C5CE7 100%)',
           position: 'relative',
           overflow: 'hidden',
+          backgroundImage: `linear-gradient(135deg, rgba(255,122,69,0.92) 0%, rgba(163,55,2,0.94) 50%, rgba(108,92,231,0.92) 100%), url(https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=1600&auto=format&fit=crop&q=80)`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
         }}
       >
+        {/* Decorative rings */}
         <MotionBox
           animate={{ rotate: 360 }}
           transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
@@ -1016,10 +1376,14 @@ export default function Home() {
             sx={{ textAlign: 'center' }}
           >
             <motion.div variants={fadeUp}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                <SupportAgent sx={{ fontSize: 48, color: 'rgba(255,255,255,0.9)' }} />
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                <SupportAgent sx={{ fontSize: 52, color: 'rgba(255,255,255,0.9)' }} />
               </Box>
-              <Typography variant="h2" sx={{ color: '#fff', mb: 2 }}>
+
+              <Typography
+                variant="h2"
+                sx={{ color: '#fff', mb: 2, fontSize: { xs: '2rem', md: '2.8rem' } }}
+              >
                 Ready to transform your institution?
               </Typography>
               <Typography
@@ -1027,7 +1391,7 @@ export default function Home() {
                 sx={{
                   color: 'rgba(255,255,255,0.8)',
                   fontWeight: 400,
-                  mb: 6,
+                  mb: 7,
                   maxWidth: 500,
                   mx: 'auto',
                 }}
@@ -1035,6 +1399,50 @@ export default function Home() {
                 Join hundreds of institutions already running smarter with {env.appName}. Start your
                 free trial today — no credit card needed.
               </Typography>
+
+              {/* Social proof mini row */}
+              <Stack
+                direction="row"
+                spacing={-1.5}
+                justifyContent="center"
+                alignItems="center"
+                sx={{ mb: 5 }}
+              >
+                {[
+                  'https://images.unsplash.com/photo-1494790108755-2616b89f4891?w=60&auto=format&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&auto=format&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=60&auto=format&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=60&auto=format&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&auto=format&fit=crop&q=80',
+                ].map((src, i) => (
+                  <Avatar
+                    key={i}
+                    src={src}
+                    alt="User avatar"
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      border: '2px solid rgba(255,255,255,0.8)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    }}
+                  />
+                ))}
+                <Box
+                  sx={{
+                    ml: 2,
+                    bgcolor: 'rgba(255,255,255,0.15)',
+                    backdropFilter: 'blur(8px)',
+                    borderRadius: 8,
+                    px: 2,
+                    py: 0.75,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: '#fff', fontWeight: 700 }}>
+                    50,000+ learners onboard
+                  </Typography>
+                </Box>
+              </Stack>
+
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
                   <Button
@@ -1050,6 +1458,7 @@ export default function Home() {
                       color: 'primary.main',
                       fontSize: '1.05rem',
                       fontWeight: 700,
+                      cursor: 'pointer',
                       '&:hover': { bgcolor: 'rgba(255,255,255,0.92)' },
                     }}
                   >
@@ -1069,6 +1478,7 @@ export default function Home() {
                       color: '#fff',
                       borderColor: 'rgba(255,255,255,0.5)',
                       borderWidth: 2,
+                      cursor: 'pointer',
                       '&:hover': {
                         borderColor: '#fff',
                         borderWidth: 2,

@@ -146,6 +146,18 @@ function DashboardRedirect() {
   return <Navigate to={dashboardRoute} replace />;
 }
 
+function HomeOrDashboard() {
+  const { isAuthenticated, user, isLoading } = useAuthStore();
+
+  if (isLoading) return null;
+
+  if (isAuthenticated && user) {
+    return <Navigate to={getDashboardRoute(user.role)} replace />;
+  }
+
+  return <Home />;
+}
+
 function App() {
   const isDevelopment = import.meta.env.DEV;
   const { announce } = useAccessibility();
@@ -193,11 +205,13 @@ function App() {
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
 
+              {/* Public marketing pages — no auth required */}
+              <Route path="/" element={<Layout />}>
+                <Route index element={<HomeOrDashboard />} />
+                <Route path="about" element={<About />} />
+              </Route>
+
               <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<Home />} />
-                  <Route path="about" element={<About />} />
-                </Route>
                 <Route path="/dashboard" element={<DashboardRedirect />} />
               </Route>
 

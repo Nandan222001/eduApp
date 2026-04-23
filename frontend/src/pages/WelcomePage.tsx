@@ -19,13 +19,13 @@ import { Link as RouterLink } from 'react-router-dom';
 import {
   TrendingUp,
   Lightbulb,
-  Zap,
-  Target,
-  BookOpen,
-  Users,
-  BarChart3,
-  Award,
-  ArrowRight,
+  Bolt,
+  TrackChanges,
+  MenuBook,
+  Group,
+  BarChart,
+  EmojiEvents,
+  ChevronRight,
   PlayArrow,
   Star,
 } from '@mui/icons-material';
@@ -68,17 +68,6 @@ const staggerContainer: Variants = {
   },
 };
 
-const floatingMotion: Variants = {
-  animate: {
-    y: [0, -15, 0],
-    transition: {
-      duration: 4,
-      repeat: Infinity,
-      ease: 'easeInOut',
-    },
-  },
-};
-
 const slideInRight: Variants = {
   hidden: { opacity: 0, x: 80 },
   visible: {
@@ -106,7 +95,7 @@ const journeySteps = [
     number: '02',
     title: 'Learn at Your Pace',
     description: 'Engage with curated content, interactive assignments, and adaptive challenges.',
-    icon: <BookOpen sx={{ fontSize: 32 }} />,
+    icon: <MenuBook sx={{ fontSize: 32 }} />,
     color: '#6C5CE7',
     bgGradient: 'linear-gradient(135deg, #F0EEFF 0%, #D2CCFF 100%)',
   },
@@ -123,7 +112,7 @@ const journeySteps = [
     title: 'Achieve Excellence',
     description:
       'Earn badges, climb leaderboards, and unlock achievements as you master new skills.',
-    icon: <Award sx={{ fontSize: 32 }} />,
+    icon: <EmojiEvents sx={{ fontSize: 32 }} />,
     color: '#FDCB6E',
     bgGradient: 'linear-gradient(135deg, #FFF9E6 0%, #FFF4CC 100%)',
   },
@@ -131,22 +120,22 @@ const journeySteps = [
 
 const capabilities = [
   {
-    icon: <Zap sx={{ fontSize: 28 }} />,
+    icon: <Bolt sx={{ fontSize: 28 }} />,
     title: 'Real-Time Analytics',
     description: 'Instant insights into performance with AI-powered predictions.',
   },
   {
-    icon: <Target sx={{ fontSize: 28 }} />,
+    icon: <TrackChanges sx={{ fontSize: 28 }} />,
     title: 'Smart Goals',
     description: 'Set milestones and get adaptive study plans tailored just for you.',
   },
   {
-    icon: <Users sx={{ fontSize: 28 }} />,
+    icon: <Group sx={{ fontSize: 28 }} />,
     title: 'Community Learning',
     description: 'Collaborate with peers, join study groups, and share knowledge.',
   },
   {
-    icon: <BarChart3 sx={{ fontSize: 28 }} />,
+    icon: <BarChart sx={{ fontSize: 28 }} />,
     title: 'Deep Insights',
     description: 'Understand your strengths and areas for improvement with visual dashboards.',
   },
@@ -289,32 +278,32 @@ function HeroSection() {
               {/* CTA Buttons */}
               <motion.div variants={fadeInUp}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 6 }}>
-                  <MotionButton
-                    component={RouterLink}
-                    to="/student-dashboard"
-                    variant="contained"
-                    size="large"
-                    endIcon={<ArrowRight />}
-                    whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(255, 122, 69, 0.3)' }}
-                    whileTap={{ scale: 0.98 }}
-                    sx={{
-                      px: 4,
-                      py: 1.8,
-                      fontSize: '1rem',
-                      fontWeight: 700,
-                      borderRadius: 3,
-                      background: 'linear-gradient(135deg, #FF7A45 0%, #FF6B4A 100%)',
-                      textTransform: 'none',
-                      color: 'white',
-                      boxShadow: '0 12px 30px rgba(255, 122, 69, 0.25)',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #FF8659 0%, #FF7A45 100%)',
-                      },
-                    }}
-                  >
-                    Start Learning
-                  </MotionButton>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      component={RouterLink}
+                      to="/student-dashboard"
+                      variant="contained"
+                      size="large"
+                      endIcon={<ChevronRight />}
+                      sx={{
+                        px: 4,
+                        py: 1.8,
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        borderRadius: 3,
+                        background: 'linear-gradient(135deg, #FF7A45 0%, #FF6B4A 100%)',
+                        textTransform: 'none',
+                        color: 'white',
+                        boxShadow: '0 12px 30px rgba(255, 122, 69, 0.25)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #FF8659 0%, #FF7A45 100%)',
+                          boxShadow: '0 20px 40px rgba(255, 122, 69, 0.3)',
+                        },
+                      }}
+                    >
+                      Start Learning
+                    </Button>
+                  </motion.div>
 
                   <MotionButton
                     variant="outlined"
@@ -384,7 +373,7 @@ function HeroSection() {
             <MotionBox
               variants={slideInRight}
               initial="hidden"
-              animate={floatingMotion}
+              animate="visible"
               sx={{
                 position: 'relative',
                 width: '100%',
@@ -830,30 +819,30 @@ function CTASection() {
             spacing={2}
             sx={{ justifyContent: 'center' }}
           >
-            <MotionButton
-              component={RouterLink}
-              to="/student-dashboard"
-              variant="contained"
-              size="large"
-              endIcon={<ArrowRight />}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-              sx={{
-                px: 4,
-                py: 1.8,
-                fontSize: '1rem',
-                fontWeight: 700,
-                borderRadius: 3,
-                bgcolor: 'white',
-                color: '#FF7A45',
-                textTransform: 'none',
-                '&:hover': {
-                  bgcolor: alpha('white', 0.9),
-                },
-              }}
-            >
-              Get Started Now
-            </MotionButton>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                component={RouterLink}
+                to="/student-dashboard"
+                variant="contained"
+                size="large"
+                endIcon={<ChevronRight />}
+                sx={{
+                  px: 4,
+                  py: 1.8,
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  borderRadius: 3,
+                  bgcolor: 'white',
+                  color: '#FF7A45',
+                  textTransform: 'none',
+                  '&:hover': {
+                    bgcolor: alpha('white', 0.9),
+                  },
+                }}
+              >
+                Get Started Now
+              </Button>
+            </motion.div>
 
             <MotionButton
               variant="outlined"
