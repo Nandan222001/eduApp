@@ -31,6 +31,7 @@ ROUTERS = [
     ("src.api.v1.webhooks", "/webhooks", ["webhooks"], "router"),
     ("src.api.v1.institutions", "/institutions", ["institutions"], "router"),
     ("src.api.v1.academic_years", "/academic-years", ["academic-years"], "router"),
+    ("src.api.v1.academic", "/academic", ["academic"], "router"),
     ("src.api.v1.grades", "/grades", ["grades"], "router"),
     ("src.api.v1.sections", "/sections", ["sections"], "router"),
     ("src.api.v1.subjects", "/subjects", ["subjects"], "router"),

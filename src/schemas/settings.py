@@ -55,8 +55,7 @@ class UserSettingsResponse(BaseModel):
     language: str
     timezone: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserSettingsUpdate(BaseModel):
@@ -76,7 +75,7 @@ class PasswordChangeRequest(BaseModel):
 
 
 class ConnectedDevice(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
 
     id: str
     device_name: str
@@ -87,9 +86,6 @@ class ConnectedDevice(BaseModel):
     location: Optional[str] = None
     last_active: datetime
     is_current: bool
-
-    class Config:
-        from_attributes = True
 
 
 class AccountDeletionRequestCreate(BaseModel):

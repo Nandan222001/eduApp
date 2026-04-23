@@ -1,15 +1,13 @@
-import axios from 'axios';
+import axios from '@/lib/axios';
 import { Goal, GoalFormData, GoalAnalytics } from '@/types/goals';
 import { isDemoUser, demoDataApi } from './demoDataApi';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const goalsApi = {
   getGoals: async (): Promise<Goal[]> => {
     if (isDemoUser()) {
       return demoDataApi.goals.getGoals();
     }
-    const response = await axios.get(`${API_URL}/api/goals`);
+    const response = await axios.get('/api/v1/goals');
     return response.data;
   },
 
@@ -17,7 +15,7 @@ export const goalsApi = {
     if (isDemoUser()) {
       return demoDataApi.goals.getGoal(id);
     }
-    const response = await axios.get(`${API_URL}/api/goals/${id}`);
+    const response = await axios.get(`/api/v1/goals/${id}`);
     return response.data;
   },
 
@@ -25,7 +23,7 @@ export const goalsApi = {
     if (isDemoUser()) {
       return demoDataApi.goals.createGoal(data);
     }
-    const response = await axios.post(`${API_URL}/api/goals`, data);
+    const response = await axios.post('/api/v1/goals', data);
     return response.data;
   },
 
@@ -33,7 +31,7 @@ export const goalsApi = {
     if (isDemoUser()) {
       return demoDataApi.goals.updateGoal(id, data);
     }
-    const response = await axios.put(`${API_URL}/api/goals/${id}`, data);
+    const response = await axios.put(`/api/v1/goals/${id}`, data);
     return response.data;
   },
 
@@ -41,7 +39,7 @@ export const goalsApi = {
     if (isDemoUser()) {
       return demoDataApi.goals.deleteGoal(id);
     }
-    await axios.delete(`${API_URL}/api/goals/${id}`);
+    await axios.delete(`/api/v1/goals/${id}`);
   },
 
   updateMilestoneProgress: async (
@@ -52,7 +50,7 @@ export const goalsApi = {
     if (isDemoUser()) {
       return demoDataApi.goals.updateMilestoneProgress(goalId, milestoneId, progress);
     }
-    const response = await axios.patch(`${API_URL}/api/goals/${goalId}/milestones/${milestoneId}`, {
+    const response = await axios.patch(`/api/v1/goals/${goalId}/milestones/${milestoneId}`, {
       progress,
     });
     return response.data;
@@ -62,9 +60,7 @@ export const goalsApi = {
     if (isDemoUser()) {
       return demoDataApi.goals.completeMilestone(goalId, milestoneId);
     }
-    const response = await axios.post(
-      `${API_URL}/api/goals/${goalId}/milestones/${milestoneId}/complete`
-    );
+    const response = await axios.post(`/api/v1/goals/${goalId}/milestones/${milestoneId}/complete`);
     return response.data;
   },
 
@@ -72,7 +68,7 @@ export const goalsApi = {
     if (isDemoUser()) {
       return demoDataApi.goals.getAnalytics();
     }
-    const response = await axios.get(`${API_URL}/api/goals/analytics`);
+    const response = await axios.get('/api/v1/goals/analytics');
     return response.data;
   },
 };
