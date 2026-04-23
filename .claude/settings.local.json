@@ -13,7 +13,14 @@
       "Bash(poetry run *)",
       "Bash(echo \"Started PID: $!\")",
       "Bash(netstat -ano)",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('access_token','ERROR'\\)\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('access_token','ERROR'\\)\\)\")",
+      "Bash(xargs grep *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(python -c \"from src.api.v1.institution_admin import router\")",
+      "Bash(grep -n \"chapter\\\\|topic\\\\|syllabus\" D:/htdocs/edu/src/api/v1/__init__.py find D:/htdocs/edu/src/api/v1 -name \"chapter*\" -o -name \"topic*\" -o -name \"syllabus*\")",
+      "Bash(mysql *)"
     ]
   }
 }
