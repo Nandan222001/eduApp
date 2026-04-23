@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/",
-      "has": [{ "type": "host", "value": "app.yourapp.com" }],
+      "has": [{ "type": "host", "value": "edu-learn.nmtsolution.com" }],
       "destination": "/login",
       "permanent": false
     }
