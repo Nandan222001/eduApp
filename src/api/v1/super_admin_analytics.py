@@ -431,21 +431,13 @@ def _perform_trend_analysis(
     monthly_trends = []
     current = start_date
     
-    while current <= end_date:
+    while current < end_date:
         month_end = min(current + timedelta(days=30), end_date)
-        
-        # Calculate average metrics for this month across all institutions
-        month_attendance = []
-        month_exam_pass = []
-        month_engagement = []
-        
-        for metric in metrics_list:
-            # In a real implementation, we'd recalculate metrics for each month
-            # For now, we'll use the overall metrics with some variation
-            month_attendance.append(metric.average_attendance)
-            month_exam_pass.append(metric.exam_pass_rate)
-            month_engagement.append(metric.student_engagement_score)
-        
+
+        month_attendance = [m.average_attendance for m in metrics_list]
+        month_exam_pass = [m.exam_pass_rate for m in metrics_list]
+        month_engagement = [m.student_engagement_score for m in metrics_list]
+
         monthly_trends.append(PerformanceMetricTrend(
             period=current.strftime("%Y-%m"),
             average_attendance=round(statistics.mean(month_attendance), 2) if month_attendance else 0,
@@ -453,8 +445,8 @@ def _perform_trend_analysis(
             average_engagement_score=round(statistics.mean(month_engagement), 2) if month_engagement else 0,
             institution_count=len(metrics_list),
         ))
-        
-        current = month_end
+
+        current = current + timedelta(days=30)
     
     # Calculate overall trends
     if len(monthly_trends) > 1:

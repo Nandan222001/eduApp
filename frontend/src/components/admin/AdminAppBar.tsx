@@ -68,13 +68,16 @@ export default function AdminAppBar({ open, onMenuClick, drawerWidth }: AdminApp
     handleProfileMenuClose();
   };
 
+  const isSuperAdmin = user?.role === 'super_admin' || user?.role === 'superadmin';
+  const basePath = isSuperAdmin ? '/super-admin' : '/admin';
+
   const handleProfile = () => {
-    navigate('/admin/profile');
+    navigate(`${basePath}/profile`);
     handleProfileMenuClose();
   };
 
   const handleSettings = () => {
-    navigate('/admin/settings');
+    navigate(`${basePath}/settings`);
     handleProfileMenuClose();
   };
 

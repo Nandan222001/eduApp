@@ -404,6 +404,8 @@ function App() {
                     element={<InstitutionSubscription />}
                   />
                   <Route path="institutions/:id/analytics" element={<InstitutionAnalytics />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="profile" element={<SettingsPage />} />
                 </Route>
               </Route>
 
