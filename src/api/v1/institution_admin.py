@@ -60,15 +60,22 @@ async def get_institution_admin_dashboard(
     ).scalar() or 0
 
     # ── Today's attendance ────────────────────────────────────────────────────
-    att_counts = dict(
-        db.query(Attendance.status, func.count(Attendance.id))
-        .filter(
-            Attendance.institution_id == institution_id,
-            Attendance.date == today,
+    try:
+        att_counts = dict(
+            db.query(Attendance.status, func.count(Attendance.id))
+            .filter(
+                Attendance.institution_id == institution_id,
+                Attendance.date == today,
+            )
+            .group_by(Attendance.status)
+            .all()
         )
-        .group_by(Attendance.status)
-        .all()
-    )
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        att_counts = {}
     total_att_today = sum(att_counts.values())
     present_today = att_counts.get(AttendanceStatus.PRESENT, 0)
     absent_today = att_counts.get(AttendanceStatus.ABSENT, 0)
@@ -76,170 +83,214 @@ async def get_institution_admin_dashboard(
     att_pct = round(present_today / total_att_today * 100, 1) if total_att_today > 0 else 0.0
 
     # ── Recent exam results (last 5 exams with results) ───────────────────────
-    recent_exam_rows = (
-        db.query(
-            Exam.id,
-            Exam.name,
-            Exam.exam_type,
-            Exam.start_date,
-            func.count(ExamResult.id).label("total"),
-            func.sum(case((ExamResult.is_pass == True, 1), else_=0)).label("passed"),
-            func.avg(ExamResult.percentage).label("avg_pct"),
+    recent_exam_results = []
+    try:
+        recent_exam_rows = (
+            db.query(
+                Exam.id,
+                Exam.name,
+                Exam.exam_type,
+                Exam.start_date,
+                func.count(ExamResult.id).label("total"),
+                func.sum(case((ExamResult.is_pass == True, 1), else_=0)).label("passed"),
+                func.avg(ExamResult.percentage).label("avg_pct"),
+            )
+            .join(ExamResult, ExamResult.exam_id == Exam.id)
+            .filter(Exam.institution_id == institution_id)
+            .group_by(Exam.id, Exam.name, Exam.exam_type, Exam.start_date)
+            .order_by(Exam.start_date.desc())
+            .limit(5)
+            .all()
         )
-        .join(ExamResult, ExamResult.exam_id == Exam.id)
-        .filter(Exam.institution_id == institution_id)
-        .group_by(Exam.id, Exam.name, Exam.exam_type, Exam.start_date)
-        .order_by(Exam.start_date.desc())
-        .limit(5)
-        .all()
-    )
-
-    recent_exam_results = [
-        {
-            "exam_id": row.id,
-            "exam_name": row.name,
-            "exam_type": row.exam_type.value if hasattr(row.exam_type, "value") else str(row.exam_type),
-            "date": row.start_date.isoformat() if row.start_date else "",
-            "total_students": row.total or 0,
-            "passed_students": int(row.passed or 0),
-            "average_percentage": round(float(row.avg_pct or 0), 2),
-        }
-        for row in recent_exam_rows
-    ]
+        recent_exam_results = [
+            {
+                "exam_id": row.id,
+                "exam_name": row.name,
+                "exam_type": row.exam_type.value if hasattr(row.exam_type, "value") else str(row.exam_type),
+                "date": row.start_date.isoformat() if row.start_date else "",
+                "total_students": row.total or 0,
+                "passed_students": int(row.passed or 0),
+                "average_percentage": round(float(row.avg_pct or 0), 2),
+            }
+            for row in recent_exam_rows
+        ]
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
     # ── Upcoming events ───────────────────────────────────────────────────────
-    upcoming_event_rows = (
-        db.query(
-            Event.id,
-            Event.title,
-            Event.event_type,
-            Event.event_date,
-            Event.description,
+    upcoming_events = []
+    try:
+        upcoming_event_rows = (
+            db.query(
+                Event.id,
+                Event.title,
+                Event.event_type,
+                Event.event_date,
+                Event.description,
+            )
+            .filter(
+                Event.institution_id == institution_id,
+                Event.event_date >= today,
+                Event.status == EventStatus.PUBLISHED.value,
+            )
+            .order_by(Event.event_date)
+            .limit(5)
+            .all()
         )
-        .filter(
-            Event.institution_id == institution_id,
-            Event.event_date >= today,
-            Event.status == EventStatus.PUBLISHED.value,
-        )
-        .order_by(Event.event_date)
-        .limit(5)
-        .all()
-    )
-
-    upcoming_events = [
-        {
-            "id": ev.id,
-            "title": ev.title,
-            "event_type": ev.event_type,
-            "date": ev.event_date.isoformat() if ev.event_date else "",
-            "description": ev.description or "",
-        }
-        for ev in upcoming_event_rows
-    ]
+        upcoming_events = [
+            {
+                "id": ev.id,
+                "title": ev.title,
+                "event_type": ev.event_type,
+                "date": ev.event_date.isoformat() if ev.event_date else "",
+                "description": ev.description or "",
+            }
+            for ev in upcoming_event_rows
+        ]
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
     # ── Pending tasks ─────────────────────────────────────────────────────────
     pending_tasks = []
 
     # Ungraded submissions
-    ungraded_count = (
-        db.query(func.count(Submission.id))
-        .join(Assignment, Assignment.id == Submission.assignment_id)
-        .filter(
-            Assignment.institution_id == institution_id,
-            Submission.status == SubmissionStatus.SUBMITTED,
+    try:
+        ungraded_count = (
+            db.query(func.count(Submission.id))
+            .join(Assignment, Assignment.id == Submission.assignment_id)
+            .filter(
+                Assignment.institution_id == institution_id,
+                Submission.status == SubmissionStatus.SUBMITTED,
+            )
+            .scalar() or 0
         )
-        .scalar() or 0
-    )
-    if ungraded_count > 0:
-        pending_tasks.append({
-            "id": "ungraded_submissions",
-            "task_type": "grading",
-            "title": "Ungraded Submissions",
-            "description": f"{ungraded_count} assignment submission(s) awaiting grading",
-            "count": ungraded_count,
-            "priority": "high" if ungraded_count > 20 else "medium",
-            "due_date": None,
-        })
+        if ungraded_count > 0:
+            pending_tasks.append({
+                "id": "ungraded_submissions",
+                "task_type": "grading",
+                "title": "Ungraded Submissions",
+                "description": f"{ungraded_count} assignment submission(s) awaiting grading",
+                "count": ungraded_count,
+                "priority": "high" if ungraded_count > 20 else "medium",
+                "due_date": None,
+            })
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
     # Exams scheduled but not published
-    unpublished_exams = (
-        db.query(func.count(Exam.id))
-        .filter(
-            Exam.institution_id == institution_id,
-            Exam.is_published == False,
-            Exam.start_date >= today,
+    try:
+        unpublished_exams = (
+            db.query(func.count(Exam.id))
+            .filter(
+                Exam.institution_id == institution_id,
+                Exam.is_published == False,
+                Exam.start_date >= today,
+            )
+            .scalar() or 0
         )
-        .scalar() or 0
-    )
-    if unpublished_exams > 0:
-        pending_tasks.append({
-            "id": "unpublished_exams",
-            "task_type": "exam",
-            "title": "Unpublished Exams",
-            "description": f"{unpublished_exams} upcoming exam(s) not yet published",
-            "count": unpublished_exams,
-            "priority": "medium",
-            "due_date": None,
-        })
+        if unpublished_exams > 0:
+            pending_tasks.append({
+                "id": "unpublished_exams",
+                "task_type": "exam",
+                "title": "Unpublished Exams",
+                "description": f"{unpublished_exams} upcoming exam(s) not yet published",
+                "count": unpublished_exams,
+                "priority": "medium",
+                "due_date": None,
+            })
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
-    # Assignments past due with no submissions
-    overdue_assignments = (
-        db.query(func.count(Assignment.id))
-        .filter(
-            Assignment.institution_id == institution_id,
-            Assignment.due_date < datetime.utcnow(),
-            Assignment.is_active == True,
+    # Assignments past due
+    try:
+        overdue_assignments = (
+            db.query(func.count(Assignment.id))
+            .filter(
+                Assignment.institution_id == institution_id,
+                Assignment.due_date < datetime.utcnow(),
+                Assignment.is_active == True,
+            )
+            .scalar() or 0
         )
-        .scalar() or 0
-    )
-    if overdue_assignments > 0:
-        pending_tasks.append({
-            "id": "overdue_assignments",
-            "task_type": "assignment",
-            "title": "Overdue Assignments",
-            "description": f"{overdue_assignments} assignment(s) past their due date",
-            "count": overdue_assignments,
-            "priority": "low",
-            "due_date": None,
-        })
+        if overdue_assignments > 0:
+            pending_tasks.append({
+                "id": "overdue_assignments",
+                "task_type": "assignment",
+                "title": "Overdue Assignments",
+                "description": f"{overdue_assignments} assignment(s) past their due date",
+                "count": overdue_assignments,
+                "priority": "low",
+                "due_date": None,
+            })
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
     # ── Performance trends (last 6 months) ───────────────────────────────────
     six_months_ago = datetime.utcnow() - timedelta(days=180)
 
-    exam_monthly = (
-        db.query(
-            func.year(ExamResult.generated_at).label("yr"),
-            func.month(ExamResult.generated_at).label("mo"),
-            func.avg(ExamResult.percentage).label("avg_pct"),
-            func.count(ExamResult.id).label("cnt"),
+    try:
+        exam_monthly = (
+            db.query(
+                func.year(ExamResult.generated_at).label("yr"),
+                func.month(ExamResult.generated_at).label("mo"),
+                func.avg(ExamResult.percentage).label("avg_pct"),
+                func.count(ExamResult.id).label("cnt"),
+            )
+            .filter(
+                ExamResult.institution_id == institution_id,
+                ExamResult.generated_at >= six_months_ago,
+            )
+            .group_by(func.year(ExamResult.generated_at), func.month(ExamResult.generated_at))
+            .all()
         )
-        .filter(
-            ExamResult.institution_id == institution_id,
-            ExamResult.generated_at >= six_months_ago,
-        )
-        .group_by(func.year(ExamResult.generated_at), func.month(ExamResult.generated_at))
-        .all()
-    )
-    exam_by_month = {(r.yr, r.mo): (float(r.avg_pct or 0), r.cnt) for r in exam_monthly}
+        exam_by_month = {(r.yr, r.mo): (float(r.avg_pct or 0), r.cnt) for r in exam_monthly}
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        exam_by_month = {}
 
-    att_monthly = (
-        db.query(
-            func.year(Attendance.created_at).label("yr"),
-            func.month(Attendance.created_at).label("mo"),
-            func.count(Attendance.id).label("total"),
-            func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label("present"),
+    try:
+        att_monthly = (
+            db.query(
+                func.year(Attendance.created_at).label("yr"),
+                func.month(Attendance.created_at).label("mo"),
+                func.count(Attendance.id).label("total"),
+                func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label("present"),
+            )
+            .filter(
+                Attendance.institution_id == institution_id,
+                Attendance.created_at >= six_months_ago,
+            )
+            .group_by(func.year(Attendance.created_at), func.month(Attendance.created_at))
+            .all()
         )
-        .filter(
-            Attendance.institution_id == institution_id,
-            Attendance.created_at >= six_months_ago,
-        )
-        .group_by(func.year(Attendance.created_at), func.month(Attendance.created_at))
-        .all()
-    )
-    att_by_month = {
-        (r.yr, r.mo): round(int(r.present or 0) / int(r.total or 1) * 100, 1)
-        for r in att_monthly
-    }
+        att_by_month = {
+            (r.yr, r.mo): round(int(r.present or 0) / int(r.total or 1) * 100, 1)
+            for r in att_monthly
+        }
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        att_by_month = {}
 
     performance_trends = []
     for i in range(5, -1, -1):
