@@ -109,7 +109,13 @@ async def get_institution_admin_dashboard(
 
     # ── Upcoming events ───────────────────────────────────────────────────────
     upcoming_event_rows = (
-        db.query(Event)
+        db.query(
+            Event.id,
+            Event.title,
+            Event.event_type,
+            Event.event_date,
+            Event.description,
+        )
         .filter(
             Event.institution_id == institution_id,
             Event.event_date >= today,
