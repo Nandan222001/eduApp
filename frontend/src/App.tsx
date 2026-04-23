@@ -4,6 +4,7 @@ import { AdminLayout } from './components/admin';
 import { ParentLayout } from './components/parent';
 import Home from './pages/Home';
 import About from './pages/About';
+import WelcomePage from './pages/WelcomePage';
 import NotFound from './pages/NotFound';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -184,6 +185,7 @@ function App() {
             <UpdatePrompt />
             <ChatbotWidget />
             <Routes>
+              <Route path="/welcome" element={<WelcomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
