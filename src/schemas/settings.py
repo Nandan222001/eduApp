@@ -1,9 +1,12 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Dict
+from pydantic import BaseModel, Field, ConfigDict
+from pydantic.alias_generators import to_camel
+from typing import Optional
 from datetime import datetime
 
 
 class NotificationChannel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     email: bool = True
     push: bool = True
     sms: bool = False
@@ -26,6 +29,8 @@ class NotificationPreferences(BaseModel):
 
 
 class ThemeSettings(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     mode: str = Field(default='auto', pattern='^(light|dark|auto)$')
     primary_color: Optional[str] = None
     font_size: str = Field(default='medium', pattern='^(small|medium|large)$')
@@ -33,6 +38,8 @@ class ThemeSettings(BaseModel):
 
 
 class PrivacySettings(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     profile_public: bool = True
     show_in_leaderboard: bool = True
     show_email: bool = False
@@ -61,12 +68,16 @@ class UserSettingsUpdate(BaseModel):
 
 
 class PasswordChangeRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     current_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=8)
     confirm_password: str = Field(..., min_length=8)
 
 
 class ConnectedDevice(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     id: str
     device_name: str
     device_type: str

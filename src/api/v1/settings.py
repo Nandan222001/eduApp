@@ -28,7 +28,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_or_create_settings(db: Session, user_id: int) -> UserSettings:
     settings = db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
     if not settings:
-        default_notification_prefs = NotificationPreferences().dict()
+        default_notification_prefs = NotificationPreferences().model_dump()
         settings = UserSettings(
             user_id=user_id,
             notification_preferences=default_notification_prefs
@@ -39,7 +39,7 @@ def get_or_create_settings(db: Session, user_id: int) -> UserSettings:
     return settings
 
 
-@router.get("/settings", response_model=UserSettingsResponse)
+@router.get("/settings", response_model=UserSettingsResponse, response_model_by_alias=True)
 async def get_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -67,7 +67,7 @@ async def get_settings(
     )
 
 
-@router.put("/settings", response_model=UserSettingsResponse)
+@router.put("/settings", response_model=UserSettingsResponse, response_model_by_alias=True)
 async def update_settings(
     settings_update: UserSettingsUpdate,
     current_user: User = Depends(get_current_user),
@@ -105,7 +105,7 @@ async def update_settings(
     return await get_settings(current_user=current_user, db=db)
 
 
-@router.get("/settings/notifications", response_model=NotificationPreferences)
+@router.get("/settings/notifications", response_model=NotificationPreferences, response_model_by_alias=True)
 async def get_notification_preferences(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -114,20 +114,20 @@ async def get_notification_preferences(
     return NotificationPreferences(**settings.notification_preferences) if settings.notification_preferences else NotificationPreferences()
 
 
-@router.put("/settings/notifications", response_model=NotificationPreferences)
+@router.put("/settings/notifications", response_model=NotificationPreferences, response_model_by_alias=True)
 async def update_notification_preferences(
     preferences: NotificationPreferences,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     settings = get_or_create_settings(db, current_user.id)
-    settings.notification_preferences = preferences.dict()
+    settings.notification_preferences = preferences.model_dump()
     settings.updated_at = datetime.utcnow()
     db.commit()
     return preferences
 
 
-@router.get("/settings/theme", response_model=ThemeSettings)
+@router.get("/settings/theme", response_model=ThemeSettings, response_model_by_alias=True)
 async def get_theme_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -141,7 +141,7 @@ async def get_theme_settings(
     )
 
 
-@router.put("/settings/theme", response_model=ThemeSettings)
+@router.put("/settings/theme", response_model=ThemeSettings, response_model_by_alias=True)
 async def update_theme_settings(
     theme: ThemeSettings,
     current_user: User = Depends(get_current_user),
@@ -157,7 +157,7 @@ async def update_theme_settings(
     return theme
 
 
-@router.get("/settings/privacy", response_model=PrivacySettings)
+@router.get("/settings/privacy", response_model=PrivacySettings, response_model_by_alias=True)
 async def get_privacy_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -173,7 +173,7 @@ async def get_privacy_settings(
     )
 
 
-@router.put("/settings/privacy", response_model=PrivacySettings)
+@router.put("/settings/privacy", response_model=PrivacySettings, response_model_by_alias=True)
 async def update_privacy_settings(
     privacy: PrivacySettings,
     current_user: User = Depends(get_current_user),
@@ -258,7 +258,7 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
-@router.get("/settings/devices", response_model=list[ConnectedDeviceSchema])
+@router.get("/settings/devices", response_model=list[ConnectedDeviceSchema], response_model_by_alias=True)
 async def get_connected_devices(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
