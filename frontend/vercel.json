@@ -1,6 +1,11 @@
 {
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
-  ]
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "app.yourapp.com" }],
+      "destination": "/login",
+      "permanent": false
+    }
+  ],
+  "routes": [{ "handle": "filesystem" }, { "src": "/.*", "dest": "/index.html" }]
 }
