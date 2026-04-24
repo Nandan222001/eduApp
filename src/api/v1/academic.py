@@ -2,11 +2,12 @@ from typing import Optional, List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import delete as sql_delete
 from pydantic import BaseModel, ConfigDict
 
 from src.database import get_db
 from src.models.user import User
-from src.models.academic import Grade, Section, Subject, GradeSubject, Chapter, Topic
+from src.models.academic import AcademicYear, Grade, Section, Subject, GradeSubject, Chapter, Topic, Syllabus
 from src.models.teacher import Teacher
 from src.dependencies.auth import get_current_user
 
@@ -82,7 +83,7 @@ class SubjectAssignmentUpdate(BaseModel):
 
 
 class ChapterOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
     id: int
     institution_id: int
     subject_id: int
@@ -90,26 +91,38 @@ class ChapterOut(BaseModel):
     name: str
     code: Optional[str] = None
     display_order: int
+    chapter_number: Optional[int] = None
     description: Optional[str] = None
+    learning_objectives: List[str] = []
     is_active: bool
     created_at: datetime
     updated_at: datetime
 
+    def model_post_init(self, __context):
+        if self.chapter_number is None:
+            self.chapter_number = self.display_order
+
 
 class ChapterCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     subject_id: int
-    grade_id: int
+    grade_id: Optional[int] = None
     name: str
     code: Optional[str] = None
+    chapter_number: Optional[int] = None
     display_order: int = 0
     description: Optional[str] = None
+    learning_objectives: List[str] = []
 
 
 class ChapterUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     name: Optional[str] = None
     code: Optional[str] = None
+    chapter_number: Optional[int] = None
     display_order: Optional[int] = None
     description: Optional[str] = None
+    learning_objectives: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
 
@@ -122,28 +135,34 @@ class TopicOut(BaseModel):
     code: Optional[str] = None
     display_order: int
     description: Optional[str] = None
+    duration_hours: Optional[float] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
 
 
 class TopicCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     chapter_id: int
     name: str
     code: Optional[str] = None
     display_order: int = 0
     description: Optional[str] = None
+    duration_hours: Optional[float] = None
 
 
 class TopicUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     name: Optional[str] = None
     code: Optional[str] = None
     display_order: Optional[int] = None
     description: Optional[str] = None
+    duration_hours: Optional[float] = None
     is_active: Optional[bool] = None
 
 
 class SyllabusOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     institution_id: int
     subject_id: int
@@ -217,9 +236,44 @@ async def create_grade(
     db: Session = Depends(get_db),
 ):
     institution_id = _require_institution(current_user)
+
+    academic_year_id = data.get("academic_year_id")
+    if academic_year_id:
+        academic_year = db.query(AcademicYear).filter(
+            AcademicYear.id == academic_year_id,
+            AcademicYear.institution_id == institution_id,
+        ).first()
+        if not academic_year:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Academic year not found")
+    else:
+        academic_year = (
+            db.query(AcademicYear)
+            .filter(AcademicYear.institution_id == institution_id, AcademicYear.is_current == True)
+            .first()
+        ) or (
+            db.query(AcademicYear)
+            .filter(AcademicYear.institution_id == institution_id, AcademicYear.is_active == True)
+            .first()
+        )
+        if not academic_year:
+            from datetime import date
+            today = date.today()
+            year_start = today.year if today.month >= 6 else today.year - 1
+            academic_year = AcademicYear(
+                institution_id=institution_id,
+                name=f"{year_start}-{year_start + 1}",
+                start_date=date(year_start, 6, 1),
+                end_date=date(year_start + 1, 5, 31),
+                is_active=True,
+                is_current=True,
+            )
+            db.add(academic_year)
+            db.flush()
+        academic_year_id = academic_year.id
+
     grade = Grade(
         institution_id=institution_id,
-        academic_year_id=data.get("academic_year_id", 1),
+        academic_year_id=academic_year_id,
         name=data["name"],
         display_order=data.get("display_order", 0),
         description=data.get("description"),
@@ -258,10 +312,10 @@ async def delete_grade(
     db: Session = Depends(get_db),
 ):
     institution_id = _require_institution(current_user)
-    grade = db.query(Grade).filter(Grade.id == grade_id, Grade.institution_id == institution_id).first()
-    if not grade:
+    exists = db.query(Grade.id).filter(Grade.id == grade_id, Grade.institution_id == institution_id).scalar()
+    if not exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grade not found")
-    db.delete(grade)
+    db.execute(sql_delete(Grade).where(Grade.id == grade_id))
     db.commit()
 
 
@@ -344,10 +398,10 @@ async def delete_section(
     db: Session = Depends(get_db),
 ):
     institution_id = _require_institution(current_user)
-    section = db.query(Section).filter(Section.id == section_id, Section.institution_id == institution_id).first()
-    if not section:
+    exists = db.query(Section.id).filter(Section.id == section_id, Section.institution_id == institution_id).scalar()
+    if not exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Section not found")
-    db.delete(section)
+    db.execute(sql_delete(Section).where(Section.id == section_id))
     db.commit()
 
 
@@ -440,10 +494,10 @@ async def delete_subject(
     db: Session = Depends(get_db),
 ):
     institution_id = _require_institution(current_user)
-    subject = db.query(Subject).filter(Subject.id == subject_id, Subject.institution_id == institution_id).first()
-    if not subject:
+    exists = db.query(Subject.id).filter(Subject.id == subject_id, Subject.institution_id == institution_id).scalar()
+    if not exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subject not found")
-    db.delete(subject)
+    db.execute(sql_delete(Subject).where(Subject.id == subject_id))
     db.commit()
 
 
@@ -546,7 +600,7 @@ async def delete_subject_assignment(
     ).first()
     if not gs:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subject assignment not found")
-    db.delete(gs)
+    db.execute(sql_delete(GradeSubject).where(GradeSubject.id == assignment_id))
     db.commit()
 
 
@@ -588,13 +642,33 @@ async def create_chapter(
     db: Session = Depends(get_db),
 ):
     institution_id = _require_institution(current_user)
+
+    grade_id = data.grade_id
+    if not grade_id:
+        gs = db.query(GradeSubject.grade_id).filter(
+            GradeSubject.subject_id == data.subject_id,
+            GradeSubject.institution_id == institution_id,
+        ).first()
+        if gs:
+            grade_id = gs.grade_id
+        else:
+            grade = db.query(Grade.id).filter(Grade.institution_id == institution_id).first()
+            if not grade:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No grade found for this institution. Please create a grade first.",
+                )
+            grade_id = grade.id
+
+    display_order = data.chapter_number if data.chapter_number is not None else data.display_order
+
     chapter = Chapter(
         institution_id=institution_id,
         subject_id=data.subject_id,
-        grade_id=data.grade_id,
+        grade_id=grade_id,
         name=data.name,
         code=data.code,
-        display_order=data.display_order,
+        display_order=display_order,
         description=data.description,
     )
     db.add(chapter)
@@ -614,9 +688,12 @@ async def update_chapter(
     chapter = db.query(Chapter).filter(Chapter.id == chapter_id, Chapter.institution_id == institution_id).first()
     if not chapter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chapter not found")
-    update_data = data.model_dump(exclude_none=True)
+    update_data = data.model_dump(exclude_none=True, exclude={"learning_objectives", "chapter_number"})
     for field, value in update_data.items():
-        setattr(chapter, field, value)
+        if hasattr(Chapter, field):
+            setattr(chapter, field, value)
+    if data.chapter_number is not None:
+        chapter.display_order = data.chapter_number
     chapter.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(chapter)
@@ -630,10 +707,10 @@ async def delete_chapter(
     db: Session = Depends(get_db),
 ):
     institution_id = _require_institution(current_user)
-    chapter = db.query(Chapter).filter(Chapter.id == chapter_id, Chapter.institution_id == institution_id).first()
-    if not chapter:
+    exists = db.query(Chapter.id).filter(Chapter.id == chapter_id, Chapter.institution_id == institution_id).scalar()
+    if not exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chapter not found")
-    db.delete(chapter)
+    db.execute(sql_delete(Chapter).where(Chapter.id == chapter_id))
     db.commit()
 
 
@@ -679,6 +756,7 @@ async def create_topic(
         code=data.code,
         display_order=data.display_order,
         description=data.description,
+        # duration_hours not yet in DB schema — accepted by API but not persisted
     )
     db.add(topic)
     db.commit()
@@ -697,9 +775,11 @@ async def update_topic(
     topic = db.query(Topic).filter(Topic.id == topic_id, Topic.institution_id == institution_id).first()
     if not topic:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found")
+    _no_db_fields = {"duration_hours"}
     update_data = data.model_dump(exclude_none=True)
     for field, value in update_data.items():
-        setattr(topic, field, value)
+        if field not in _no_db_fields:
+            setattr(topic, field, value)
     topic.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(topic)
@@ -713,14 +793,14 @@ async def delete_topic(
     db: Session = Depends(get_db),
 ):
     institution_id = _require_institution(current_user)
-    topic = db.query(Topic).filter(Topic.id == topic_id, Topic.institution_id == institution_id).first()
-    if not topic:
+    exists = db.query(Topic.id).filter(Topic.id == topic_id, Topic.institution_id == institution_id).scalar()
+    if not exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found")
-    db.delete(topic)
+    db.execute(sql_delete(Topic).where(Topic.id == topic_id))
     db.commit()
 
 
-# ── Syllabus (no DB table — returns empty list until model is added) ──────────
+# ── Syllabus ──────────────────────────────────────────────────────────────────
 
 @router.get("/syllabus", response_model=List[SyllabusOut])
 async def list_syllabi(
@@ -729,7 +809,13 @@ async def list_syllabi(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return []
+    institution_id = _require_institution(current_user)
+    q = db.query(Syllabus).filter(Syllabus.institution_id == institution_id)
+    if subject_id is not None:
+        q = q.filter(Syllabus.subject_id == subject_id)
+    if grade_id is not None:
+        q = q.filter(Syllabus.grade_id == grade_id)
+    return q.order_by(Syllabus.created_at.desc()).all()
 
 
 @router.get("/syllabus/{syllabus_id}", response_model=SyllabusOut)
@@ -738,7 +824,14 @@ async def get_syllabus(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    institution_id = _require_institution(current_user)
+    syllabus = db.query(Syllabus).filter(
+        Syllabus.id == syllabus_id,
+        Syllabus.institution_id == institution_id,
+    ).first()
+    if not syllabus:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    return syllabus
 
 
 @router.post("/syllabus", response_model=SyllabusOut, status_code=status.HTTP_201_CREATED)
@@ -747,7 +840,19 @@ async def create_syllabus(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Syllabus management not yet implemented")
+    institution_id = _require_institution(current_user)
+    syllabus = Syllabus(
+        institution_id=institution_id,
+        grade_id=data.grade_id,
+        subject_id=data.subject_id,
+        title=data.title,
+        description=data.description,
+        academic_year=data.academic_year,
+    )
+    db.add(syllabus)
+    db.commit()
+    db.refresh(syllabus)
+    return syllabus
 
 
 @router.put("/syllabus/{syllabus_id}", response_model=SyllabusOut)
@@ -757,7 +862,21 @@ async def update_syllabus(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    institution_id = _require_institution(current_user)
+    syllabus = db.query(Syllabus).filter(
+        Syllabus.id == syllabus_id,
+        Syllabus.institution_id == institution_id,
+    ).first()
+    if not syllabus:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    for field in ("title", "description", "academic_year", "is_active"):
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(syllabus, field, val)
+    syllabus.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(syllabus)
+    return syllabus
 
 
 @router.delete("/syllabus/{syllabus_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -766,7 +885,15 @@ async def delete_syllabus(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    institution_id = _require_institution(current_user)
+    exists = db.query(Syllabus.id).filter(
+        Syllabus.id == syllabus_id,
+        Syllabus.institution_id == institution_id,
+    ).scalar()
+    if not exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    db.execute(sql_delete(Syllabus).where(Syllabus.id == syllabus_id))
+    db.commit()
 
 
 @router.post("/syllabus/{syllabus_id}/upload")
@@ -776,7 +903,17 @@ async def upload_syllabus_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    institution_id = _require_institution(current_user)
+    syllabus = db.query(Syllabus).filter(
+        Syllabus.id == syllabus_id,
+        Syllabus.institution_id == institution_id,
+    ).first()
+    if not syllabus:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    syllabus.file_name = file.filename
+    syllabus.file_url = None
+    db.commit()
+    return {"file_url": None, "file_name": file.filename}
 
 
 @router.get("/syllabus/{syllabus_id}/download")
@@ -785,4 +922,11 @@ async def download_syllabus_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Syllabus not found")
+    institution_id = _require_institution(current_user)
+    syllabus = db.query(Syllabus).filter(
+        Syllabus.id == syllabus_id,
+        Syllabus.institution_id == institution_id,
+    ).first()
+    if not syllabus or not syllabus.file_url:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached to this syllabus")
+    return {"file_url": syllabus.file_url}

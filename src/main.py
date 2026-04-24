@@ -47,6 +47,15 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
     
+    # Ensure tables that don't have Alembic migrations yet are created.
+    try:
+        from src.database import engine
+        from src.models.academic import Syllabus
+        Syllabus.__table__.create(bind=engine, checkfirst=True)
+    except Exception as _exc:
+        import logging
+        logging.getLogger(__name__).warning("Could not create syllabi table: %s", _exc)
+
     # Start background resource monitoring when optional dependencies are present.
     resource_task = None
     if PERFORMANCE_TRACKING_AVAILABLE:

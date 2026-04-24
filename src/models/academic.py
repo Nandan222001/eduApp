@@ -221,6 +221,34 @@ class Topic(Base):
     )
 
 
+class Syllabus(Base):
+    __tablename__ = "syllabi"
+
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    grade_id = Column(Integer, ForeignKey('grades.id', ondelete='CASCADE'), nullable=False, index=True)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    academic_year = Column(String(20), nullable=True)
+    file_url = Column(String(500), nullable=True)
+    file_name = Column(String(255), nullable=True)
+    file_size = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    institution = relationship("Institution")
+    grade = relationship("Grade")
+    subject = relationship("Subject")
+
+    __table_args__ = (
+        Index('idx_syllabus_institution', 'institution_id'),
+        Index('idx_syllabus_grade', 'grade_id'),
+        Index('idx_syllabus_subject', 'subject_id'),
+    )
+
+
 class Term(Base):
     __tablename__ = "terms"
     

@@ -229,13 +229,17 @@ export const SyllabusManagement: React.FC = () => {
     try {
       setLoading(true);
       if (editingSyllabus) {
-        await academicApi.updateSyllabus(editingSyllabus.id, syllabusFormData);
+        const updated = await academicApi.updateSyllabus(editingSyllabus.id, syllabusFormData);
+        setSelectedSyllabus(updated);
         showSnackbar('Syllabus updated successfully', 'success');
       } else {
         const newSyllabus = await academicApi.createSyllabus(syllabusFormData);
         if (uploadFile) {
           await academicApi.uploadSyllabusFile(newSyllabus.id, uploadFile);
         }
+        setSelectedSyllabus(newSyllabus);
+        setChapters([]);
+        setSelectedChapter(null);
         showSnackbar('Syllabus created successfully', 'success');
       }
       setSyllabusDialogOpen(false);

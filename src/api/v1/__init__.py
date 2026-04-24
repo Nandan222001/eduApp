@@ -121,6 +121,7 @@ ROUTERS = [
     ("src.api.v1.feedback", "", ["feedback"], "router"),
     ("src.api.v1.migrations", "", ["migrations"], "router"),
     ("src.api.v1.school_admin", "/school-admin", ["school-admin"], "router"),
+    ("src.api.v1.administrators", "/administrators", ["administrators"], "router"),
 ]
 
 for module_path, prefix, tags, router_attr in ROUTERS:
