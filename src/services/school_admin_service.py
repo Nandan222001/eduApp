@@ -187,6 +187,32 @@ class SchoolAdminService:
             IssuedCertificate.student_id == student_id
         ).order_by(IssuedCertificate.issue_date.desc()).all()
 
+    def list_certificates(
+        self,
+        institution_id: int,
+        skip: int = 0,
+        limit: int = 50,
+        certificate_type: Optional[str] = None,
+        student_id: Optional[int] = None,
+        is_revoked: Optional[bool] = None,
+        search: Optional[str] = None,
+    ) -> tuple[list[IssuedCertificate], int]:
+        query = self.db.query(IssuedCertificate).filter(
+            IssuedCertificate.institution_id == institution_id
+        )
+        if certificate_type:
+            query = query.filter(IssuedCertificate.certificate_type == certificate_type)
+        if student_id:
+            query = query.filter(IssuedCertificate.student_id == student_id)
+        if is_revoked is not None:
+            target_status = IssuedCertificateStatus.REVOKED.value if is_revoked else IssuedCertificateStatus.ISSUED.value
+            query = query.filter(IssuedCertificate.status == target_status)
+        if search:
+            query = query.filter(IssuedCertificate.serial_number.ilike(f"%{search}%"))
+        total = query.count()
+        certs = query.order_by(IssuedCertificate.issue_date.desc()).offset(skip).limit(limit).all()
+        return certs, total
+
     def generate_bulk_id_cards(
         self,
         institution_id: int,

@@ -111,7 +111,7 @@ class GenerateNoDuesCertificateRequest(BaseModel):
 
 class IssueCertificateRequest(BaseModel):
     certificate_type: str
-    data: dict[str, Any]
+    data: dict[str, Any] = {}
     template_id: int | None = None
     remarks: str | None = None
 

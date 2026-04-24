@@ -122,6 +122,10 @@ ROUTERS = [
     ("src.api.v1.migrations", "", ["migrations"], "router"),
     ("src.api.v1.school_admin", "/school-admin", ["school-admin"], "router"),
     ("src.api.v1.administrators", "/administrators", ["administrators"], "router"),
+    ("src.api.v1.certificates", "/certificates", ["certificates"], "cert_router"),
+    ("src.api.v1.certificates", "/certificate-templates", ["certificate-templates"], "template_router"),
+    ("src.api.v1.certificates", "/id-cards", ["id-cards"], "id_card_router"),
+    ("src.api.v1.certificates", "/id-card-templates", ["id-card-templates"], "id_card_template_router"),
 ]
 
 for module_path, prefix, tags, router_attr in ROUTERS:

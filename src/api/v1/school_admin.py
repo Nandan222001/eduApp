@@ -51,7 +51,7 @@ async def issue_certificate(
         certificate_type=data.certificate_type,
         template_id=data.template_id,
         remarks=data.remarks,
-        data=data.data,
+        data=data.data if data.data else {},
         issued_by=current_user.id
     )
     return certificate
