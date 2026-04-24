@@ -22,6 +22,7 @@ from src.schemas.attendance import (
     StudentAttendanceDetail
 )
 from src.services.attendance_service import AttendanceService
+from src.utils.serialization import serialize_list
 
 router = APIRouter()
 
@@ -84,7 +85,7 @@ async def list_attendances(
         limit=limit
     )
     return {
-        "items": attendances,
+        "items": serialize_list(AttendanceResponse, attendances),
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -199,7 +200,7 @@ async def list_corrections(
         limit=limit
     )
     return {
-        "items": corrections,
+        "items": serialize_list(AttendanceCorrectionResponse, corrections),
         "total": total,
         "skip": skip,
         "limit": limit,

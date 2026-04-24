@@ -24,6 +24,7 @@ from src.schemas.student import (
 )
 from src.services.student_service import StudentService
 from src.utils.s3_client import s3_client
+from src.utils.serialization import serialize_list
 import io
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
@@ -74,7 +75,7 @@ async def list_students(
         gender=gender
     )
     return {
-        "items": students,
+        "items": serialize_list(StudentResponse, students),
         "total": total,
         "skip": skip,
         "limit": limit,

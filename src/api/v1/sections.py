@@ -9,6 +9,7 @@ from src.schemas.academic import (
     SectionUpdate,
     SectionResponse,
 )
+from src.utils.serialization import serialize_list
 from src.services.academic_service import SectionService
 
 router = APIRouter()
@@ -49,7 +50,7 @@ async def list_sections(
         is_active=is_active
     )
     return {
-        "items": sections,
+        "items": serialize_list(SectionResponse, sections),
         "total": total,
         "skip": skip,
         "limit": limit,

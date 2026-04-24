@@ -11,6 +11,7 @@ from src.schemas.academic import (
     GradeSubjectCreate,
     GradeSubjectResponse,
 )
+from src.utils.serialization import serialize_list
 from src.services.academic_service import SubjectService
 
 router = APIRouter()
@@ -51,7 +52,7 @@ async def list_subjects(
         is_active=is_active
     )
     return {
-        "items": subjects,
+        "items": serialize_list(SubjectResponse, subjects),
         "total": total,
         "skip": skip,
         "limit": limit,

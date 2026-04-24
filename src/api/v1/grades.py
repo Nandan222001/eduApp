@@ -10,6 +10,7 @@ from src.schemas.academic import (
     GradeResponse,
     BulkGradeOrderUpdate,
 )
+from src.utils.serialization import serialize_list
 from src.services.academic_service import GradeService
 from src.models.academic import Grade
 
@@ -51,7 +52,7 @@ async def list_grades(
         is_active=is_active
     )
     return {
-        "items": grades,
+        "items": serialize_list(GradeResponse, grades),
         "total": total,
         "skip": skip,
         "limit": limit,

@@ -13,6 +13,7 @@ from src.schemas.teacher import (
     BulkImportResult,
     TeacherMyDashboardResponse,
 )
+from src.utils.serialization import serialize_list
 from src.services.teacher_service import TeacherService
 
 router = APIRouter()
@@ -53,7 +54,7 @@ async def list_teachers(
         is_active=is_active
     )
     return {
-        "items": teachers,
+        "items": serialize_list(TeacherResponse, teachers),
         "total": total,
         "skip": skip,
         "limit": limit,

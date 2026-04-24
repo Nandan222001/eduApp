@@ -9,6 +9,7 @@ from src.schemas.academic import (
     AcademicYearUpdate,
     AcademicYearResponse,
 )
+from src.utils.serialization import serialize_list
 from src.services.academic_service import AcademicYearService
 
 router = APIRouter()
@@ -49,7 +50,7 @@ async def list_academic_years(
         is_current=is_current
     )
     return {
-        "items": academic_years,
+        "items": serialize_list(AcademicYearResponse, academic_years),
         "total": total,
         "skip": skip,
         "limit": limit,

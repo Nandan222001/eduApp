@@ -29,6 +29,7 @@ from src.schemas.assignment import (
     BulkGradeInput
 )
 from src.services.assignment_service import AssignmentService, SubmissionService, RubricService
+from src.utils.serialization import serialize_list
 
 router = APIRouter()
 
@@ -78,7 +79,7 @@ async def list_assignments(
         is_active=is_active
     )
     return {
-        "items": assignments,
+        "items": serialize_list(AssignmentResponse, assignments),
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -253,7 +254,7 @@ async def list_assignment_submissions(
     )
 
     return {
-        "items": submissions,
+        "items": serialize_list(SubmissionResponse, submissions),
         "total": total,
         "skip": skip,
         "limit": limit,
