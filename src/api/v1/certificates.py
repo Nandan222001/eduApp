@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -83,12 +83,15 @@ def _template_response(tmpl: CertificateTemplate) -> dict:
 
 
 def _id_card_template_response(tmpl: IDCardTemplate) -> dict:
+    layout = tmpl.layout_config or {}
     return {
         "id": tmpl.id,
         "institution_id": tmpl.institution_id,
         "name": tmpl.template_name,
         "orientation": tmpl.orientation,
-        "layout_config": tmpl.layout_config,
+        "front_config": layout.get("front", {}),
+        "back_config": layout.get("back", {}),
+        "logo_url": layout.get("logo_url"),
         "color_scheme": tmpl.color_scheme,
         "logo_position": tmpl.logo_position,
         "fields_to_show": tmpl.fields_to_show,
@@ -413,11 +416,17 @@ def bulk_generate_id_cards(
 class IDCardTemplateCreateBody(BaseModel):
     name: str
     orientation: str = "portrait"
-    layout_config: dict[str, Any] = {}
-    color_scheme: Optional[str] = None
-    logo_position: Optional[str] = None
-    fields_to_show: Optional[dict[str, Any]] = None
+    front_config: dict[str, Any] = {}
+    back_config: dict[str, Any] = {}
     is_default: bool = False
+
+
+class IDCardTemplateUpdateBody(BaseModel):
+    name: Optional[str] = None
+    orientation: Optional[str] = None
+    front_config: Optional[dict[str, Any]] = None
+    back_config: Optional[dict[str, Any]] = None
+    is_default: Optional[bool] = None
 
 
 id_card_template_router = APIRouter(tags=["id-card-templates"])
@@ -449,10 +458,7 @@ def create_id_card_template(
         institution_id=current_user.institution_id,
         template_name=body.name,
         orientation=body.orientation,
-        layout_config=body.layout_config,
-        color_scheme=body.color_scheme,
-        logo_position=body.logo_position,
-        fields_to_show=body.fields_to_show,
+        layout_config={"front": body.front_config, "back": body.back_config},
         is_default=body.is_default,
     )
     db.add(tmpl)
@@ -476,16 +482,6 @@ def get_id_card_template(
     return _id_card_template_response(tmpl)
 
 
-class IDCardTemplateUpdateBody(BaseModel):
-    name: Optional[str] = None
-    orientation: Optional[str] = None
-    layout_config: Optional[dict[str, Any]] = None
-    color_scheme: Optional[str] = None
-    logo_position: Optional[str] = None
-    fields_to_show: Optional[dict[str, Any]] = None
-    is_default: Optional[bool] = None
-
-
 @id_card_template_router.put("/{template_id}")
 def update_id_card_template(
     template_id: int,
@@ -506,24 +502,55 @@ def update_id_card_template(
             IDCardTemplate.id != template_id,
         ).update({"is_default": False})
 
+    layout = dict(tmpl.layout_config or {})
+    if body.front_config is not None:
+        layout["front"] = body.front_config
+    if body.back_config is not None:
+        layout["back"] = body.back_config
+    if body.front_config is not None or body.back_config is not None:
+        tmpl.layout_config = layout
+
     if body.name is not None:
         tmpl.template_name = body.name
     if body.orientation is not None:
         tmpl.orientation = body.orientation
-    if body.layout_config is not None:
-        tmpl.layout_config = body.layout_config
-    if body.color_scheme is not None:
-        tmpl.color_scheme = body.color_scheme
-    if body.logo_position is not None:
-        tmpl.logo_position = body.logo_position
-    if body.fields_to_show is not None:
-        tmpl.fields_to_show = body.fields_to_show
     if body.is_default is not None:
         tmpl.is_default = body.is_default
 
     db.commit()
     db.refresh(tmpl)
     return _id_card_template_response(tmpl)
+
+
+@id_card_template_router.post("/{template_id}/upload-logo")
+async def upload_id_card_logo(
+    template_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    tmpl = db.query(IDCardTemplate).filter(
+        IDCardTemplate.id == template_id,
+        IDCardTemplate.institution_id == current_user.institution_id,
+    ).first()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="ID card template not found")
+
+    from src.utils.s3_client import s3_client
+    content = await file.read()
+    s3_key = f"id-card-logos/{current_user.institution_id}/{template_id}/{file.filename}"
+    try:
+        logo_url = s3_client.upload_file(content, s3_key, content_type=file.content_type or "image/png")
+    except Exception:
+        # Fallback: store filename in layout_config when S3 unavailable
+        logo_url = f"/media/id-card-logos/{template_id}/{file.filename}"
+
+    layout = dict(tmpl.layout_config or {})
+    layout["logo_url"] = logo_url
+    tmpl.layout_config = layout
+    db.commit()
+    db.refresh(tmpl)
+    return {"logo_url": logo_url}
 
 
 @id_card_template_router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)

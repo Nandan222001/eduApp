@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  Autocomplete,
   Box,
+  CircularProgress,
   Container,
   Typography,
   Paper,
@@ -43,6 +45,7 @@ import schoolAdminApi, {
   IDCardTemplateCreate,
   IDCardFaceConfig,
 } from '../api/schoolAdmin';
+import studentsApi, { Student } from '../api/students';
 import { demoIDCardsApi, isDemoUser } from '../api/demoDataApi';
 
 interface FieldPosition {
@@ -110,12 +113,33 @@ export const IDCardTemplateManager: React.FC = () => {
     back: [],
   });
 
+  const [previewStudent, setPreviewStudent] = useState<Student | null>(null);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentOptions, setStudentOptions] = useState<Student[]>([]);
+  const [studentLoading, setStudentLoading] = useState(false);
+
   const isDemo = isDemoUser();
 
   useEffect(() => {
     loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!studentSearch || isDemo) return;
+    const timer = setTimeout(async () => {
+      setStudentLoading(true);
+      try {
+        const res = await studentsApi.listStudents({ search: studentSearch, limit: 10 });
+        setStudentOptions(res.items || []);
+      } catch {
+        setStudentOptions([]);
+      } finally {
+        setStudentLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [studentSearch, isDemo]);
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
@@ -343,6 +367,22 @@ export const IDCardTemplateManager: React.FC = () => {
     const config = side === 'front' ? formData.front_config : formData.back_config;
     const isPortrait = formData.orientation === 'portrait';
 
+    const s = previewStudent;
+    const displayName = s ? `${s.first_name} ${s.last_name}` : 'Student Name';
+    const displayAdmNo = s?.admission_number ?? 'ADM-XXXXXXX';
+    const sec = s?.section as { grade_name?: string; name?: string } | undefined;
+    const displayClass = sec
+      ? `${sec.grade_name || ''} ${sec.name || ''}`.trim()
+      : 'Class - Section';
+    const displayDob = s?.date_of_birth ?? 'DD/MM/YYYY';
+    const displayBlood = s?.blood_group ?? 'Blood Group';
+    const displayPhone = s?.phone ?? 'Phone Number';
+    const displayParentPhone = s?.parent_phone ?? 'Parent Phone';
+    const displayAddress = s?.address ?? 'Student Address';
+    const displayEmergency = s
+      ? `${s.emergency_contact_phone ?? ''} (${s.emergency_contact_name ?? 'Emergency Contact'})`
+      : 'Emergency Contact';
+
     return (
       <Card
         sx={{
@@ -394,42 +434,42 @@ export const IDCardTemplateManager: React.FC = () => {
               )}
               {config.show_name && (
                 <Typography variant="body1" fontWeight="bold" textAlign="center" sx={{ mb: 1 }}>
-                  Alex Johnson
+                  {displayName}
                 </Typography>
               )}
               {config.show_admission_number && (
                 <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
-                  Adm. No: STD2023001
+                  Adm. No: {displayAdmNo}
                 </Typography>
               )}
               {config.show_class && (
                 <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
-                  Class: 10-A
+                  Class: {displayClass}
                 </Typography>
               )}
               {config.show_dob && (
                 <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
-                  DOB: 15/05/2008
+                  DOB: {displayDob}
                 </Typography>
               )}
               {config.show_blood_group && (
                 <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
-                  Blood Group: O+
+                  Blood Group: {displayBlood}
                 </Typography>
               )}
               {config.show_phone && (
                 <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
-                  Phone: +1-555-1001
+                  Phone: {displayPhone}
                 </Typography>
               )}
               {config.show_parent_phone && (
                 <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
-                  Parent: +1-555-0101
+                  Parent: {displayParentPhone}
                 </Typography>
               )}
               {config.show_emergency_contact && (
                 <Typography variant="body2" textAlign="center" sx={{ mb: 0.5 }}>
-                  Emergency: +1-555-0102
+                  Emergency: {displayEmergency}
                 </Typography>
               )}
             </>
@@ -440,37 +480,37 @@ export const IDCardTemplateManager: React.FC = () => {
               </Typography>
               {config.show_name && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Name:</strong> Alex Johnson
+                  <strong>Name:</strong> {displayName}
                 </Typography>
               )}
               {config.show_address && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Address:</strong> 123 Maple Street, Springfield, IL
+                  <strong>Address:</strong> {displayAddress}
                 </Typography>
               )}
               {config.show_phone && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Phone:</strong> +1-555-1001
+                  <strong>Phone:</strong> {displayPhone}
                 </Typography>
               )}
               {config.show_dob && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>DOB:</strong> 15/05/2008
+                  <strong>DOB:</strong> {displayDob}
                 </Typography>
               )}
               {config.show_blood_group && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Blood Group:</strong> O+
+                  <strong>Blood Group:</strong> {displayBlood}
                 </Typography>
               )}
               {config.show_parent_phone && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Parent Contact:</strong> +1-555-0101
+                  <strong>Parent Contact:</strong> {displayParentPhone}
                 </Typography>
               )}
               {config.show_emergency_contact && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Emergency:</strong> +1-555-0102 (Sarah Johnson - Mother)
+                  <strong>Emergency:</strong> {displayEmergency}
                 </Typography>
               )}
             </>
@@ -615,6 +655,37 @@ export const IDCardTemplateManager: React.FC = () => {
               </Box>
 
               <Grid container spacing={3}>
+                {/* Student selector for real preview */}
+                <Grid item xs={12}>
+                  <Autocomplete
+                    options={studentOptions}
+                    getOptionLabel={(s) =>
+                      `${s.first_name} ${s.last_name}${s.admission_number ? ` — ${s.admission_number}` : ''}`
+                    }
+                    loading={studentLoading}
+                    value={previewStudent}
+                    onChange={(_e, val) => setPreviewStudent(val)}
+                    onInputChange={(_e, val) => setStudentSearch(val)}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Preview with student (optional)"
+                        placeholder="Search by name or admission number…"
+                        size="small"
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {studentLoading ? <CircularProgress size={16} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+
                 {/* Front Side Preview */}
                 <Grid item xs={12} md={6}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
