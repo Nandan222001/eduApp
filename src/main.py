@@ -51,10 +51,12 @@ async def lifespan(app: FastAPI):
     try:
         from src.database import engine
         from src.models.academic import Syllabus
-        Syllabus.__table__.create(bind=engine, checkfirst=True)
+        from src.models.student import Parent, StudentParent, Student
+        for table_model in [Syllabus, Parent, Student, StudentParent]:
+            table_model.__table__.create(bind=engine, checkfirst=True)
     except Exception as _exc:
         import logging
-        logging.getLogger(__name__).warning("Could not create syllabi table: %s", _exc)
+        logging.getLogger(__name__).warning("Could not create tables: %s", _exc)
 
     # Start background resource monitoring when optional dependencies are present.
     resource_task = None

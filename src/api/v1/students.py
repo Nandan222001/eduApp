@@ -42,12 +42,7 @@ async def create_student(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.institution_id != student_data.institution_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create student for this institution"
-        )
-    
+    student_data.institution_id = current_user.institution_id
     service = StudentService(db)
     student = service.create_student(student_data)
     return student
@@ -429,12 +424,7 @@ async def create_parent(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.institution_id != parent_data.institution_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create parent for this institution"
-        )
-    
+    parent_data.institution_id = current_user.institution_id
     service = StudentService(db)
     parent = service.create_parent(parent_data)
     return parent

@@ -49,6 +49,8 @@ class StudentParentLink(BaseModel):
 
 
 class StudentBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     admission_number: Optional[str] = Field(None, max_length=50)
     roll_number: Optional[str] = Field(None, max_length=50)
     first_name: str = Field(..., max_length=100)
