@@ -559,14 +559,16 @@ async def upload_id_card_logo(
     if not tmpl:
         raise HTTPException(status_code=404, detail="ID card template not found")
 
+    import base64
     from src.utils.s3_client import s3_client
     content = await file.read()
     s3_key = f"id-card-logos/{current_user.institution_id}/{template_id}/{file.filename}"
     try:
         logo_url = s3_client.upload_file(content, s3_key, content_type=file.content_type or "image/png")
     except Exception:
-        # Fallback: store filename in layout_config when S3 unavailable
-        logo_url = f"/media/id-card-logos/{template_id}/{file.filename}"
+        # Fallback: embed as base64 data URL so the browser can display it immediately
+        mime = file.content_type or "image/png"
+        logo_url = f"data:{mime};base64,{base64.b64encode(content).decode()}"
 
     layout = dict(tmpl.layout_config or {})
     layout["logo_url"] = logo_url

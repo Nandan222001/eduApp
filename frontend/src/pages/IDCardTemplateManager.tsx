@@ -377,13 +377,16 @@ export const IDCardTemplateManager: React.FC = () => {
         ? ((await demoIDCardsApi.getIDCardTemplates()) as IDCardTemplate[])
         : await schoolAdminApi.idCardTemplates.list();
       setTemplates(data);
-      if (data.length > 0 && !selectedTemplate) setSelectedTemplate(data[0]);
+      setSelectedTemplate((prev) => {
+        if (!prev && data.length > 0) return data[0];
+        if (prev) return data.find((t) => t.id === prev.id) ?? prev;
+        return prev;
+      });
     } catch {
       showSnackbar('Failed to load templates', 'error');
     } finally {
       setLoadingTemplates(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDemo]);
 
   useEffect(() => {
