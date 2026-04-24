@@ -371,27 +371,50 @@ class BulkIDCardBody(BaseModel):
 id_card_router = APIRouter(tags=["id-cards"])
 
 
+@id_card_router.get("/generate/{student_id}")
+def generate_id_card_pdf(
+    student_id: int,
+    template_id: Optional[int] = Query(None),
+    valid_until: Optional[date] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from src.services.certificate_service import CertificateService
+    import io
+    service = CertificateService(db)
+    pdf_bytes = service.generate_id_card_pdf(
+        student_id=student_id,
+        institution_id=current_user.institution_id,
+        template_id=template_id,
+        valid_until=valid_until,
+    )
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=id_card_{student_id}.pdf"},
+    )
+
+
 @id_card_router.post("/generate")
-def generate_id_card(
+def generate_id_card_post(
     body: GenerateIDCardBody,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = SchoolAdminService(db)
-    result = service.generate_bulk_id_cards(
+    from src.services.certificate_service import CertificateService
+    import io
+    service = CertificateService(db)
+    pdf_bytes = service.generate_id_card_pdf(
+        student_id=body.student_id,
         institution_id=current_user.institution_id,
-        section_id=None,
-        grade_id=None,
         template_id=body.template_id,
         valid_until=body.valid_until,
     )
-    # Return metadata — actual PDF generation handled by generate_bulk_id_cards
-    return {
-        "student_id": body.student_id,
-        "template_id": body.template_id,
-        "valid_until": body.valid_until,
-        "message": "ID card generation queued",
-    }
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=id_card_{body.student_id}.pdf"},
+    )
 
 
 @id_card_router.post("/bulk-generate")

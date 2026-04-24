@@ -74,6 +74,7 @@ export interface IDCardTemplate {
   orientation: 'portrait' | 'landscape';
   front_config: IDCardFaceConfig;
   back_config: IDCardFaceConfig;
+  logo_url?: string;
   is_default: boolean;
   created_at: string;
   updated_at: string;
@@ -504,12 +505,18 @@ const schoolAdminApi = {
 
   // ID Card APIs
   idCards: {
-    generate: async (studentId: number, templateId?: number): Promise<Blob> => {
-      const response = await axios.post(
-        `/api/v1/id-cards/generate`,
-        { student_id: studentId, template_id: templateId },
-        { responseType: 'blob' }
-      );
+    generate: async (
+      studentId: number,
+      templateId?: number,
+      validUntil?: string
+    ): Promise<Blob> => {
+      const params: Record<string, string | number> = {};
+      if (templateId) params.template_id = templateId;
+      if (validUntil) params.valid_until = validUntil;
+      const response = await axios.get(`/api/v1/id-cards/generate/${studentId}`, {
+        params,
+        responseType: 'blob',
+      });
       return response.data;
     },
 
