@@ -152,7 +152,7 @@ export default function StudentBulkImport() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton onClick={() => navigate('/students')} sx={{ mr: 2 }}>
+          <IconButton onClick={() => navigate('/admin/users/students')} sx={{ mr: 2 }}>
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
@@ -480,7 +480,7 @@ export default function StudentBulkImport() {
             )}
 
             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="contained" onClick={() => navigate('/students')}>
+              <Button variant="contained" onClick={() => navigate('/admin/users/students')}>
                 Go to Students
               </Button>
             </Box>

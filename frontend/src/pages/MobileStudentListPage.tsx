@@ -66,11 +66,11 @@ export default function MobileStudentListPage() {
   };
 
   const handleView = (student: { id: number }) => {
-    navigate(`/students/${student.id}/profile`);
+    navigate(`/admin/users/students/${student.id}/profile`);
   };
 
   const handleEdit = (student: { id: number }) => {
-    navigate(`/students/${student.id}/edit`);
+    navigate(`/admin/users/students/${student.id}/edit`);
   };
 
   const handleDelete = async (student: { id: number; first_name: string; last_name: string }) => {
@@ -87,7 +87,7 @@ export default function MobileStudentListPage() {
   };
 
   const handleViewIDCard = (student: { id: number }) => {
-    navigate(`/students/${student.id}/id-card`);
+    navigate(`/admin/users/students/${student.id}/id-card`);
   };
 
   if (!isMobile) {
@@ -199,7 +199,7 @@ export default function MobileStudentListPage() {
           bottom: 80,
           right: 16,
         }}
-        onClick={() => navigate('/students/new')}
+        onClick={() => navigate('/admin/users/students/new')}
       >
         <AddIcon />
       </Fab>

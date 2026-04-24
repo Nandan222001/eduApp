@@ -141,7 +141,7 @@ export default function StudentProfilePage() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton onClick={() => navigate('/students')} sx={{ mr: 2 }}>
+          <IconButton onClick={() => navigate('/admin/users/students')} sx={{ mr: 2 }}>
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h4" component="h1">
@@ -152,14 +152,14 @@ export default function StudentProfilePage() {
           <Button
             variant="outlined"
             startIcon={<BadgeIcon />}
-            onClick={() => navigate(`/students/${id}/id-card`)}
+            onClick={() => navigate(`/admin/users/students/${id}/id-card`)}
           >
             View ID Card
           </Button>
           <Button
             variant="contained"
             startIcon={<EditIcon />}
-            onClick={() => navigate(`/students/${id}/edit`)}
+            onClick={() => navigate(`/admin/users/students/${id}/edit`)}
           >
             Edit Profile
           </Button>

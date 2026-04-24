@@ -181,7 +181,7 @@ export default function StudentForm() {
         await studentsApi.createStudent(formData);
       }
 
-      navigate('/students');
+      navigate('/admin/users/students');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
       setError(error.response?.data?.detail || 'Failed to save student');
@@ -557,7 +557,7 @@ export default function StudentForm() {
           <Stack direction="row" spacing={2}>
             <Button
               variant="outlined"
-              onClick={() => navigate('/students')}
+              onClick={() => navigate('/admin/users/students')}
               startIcon={<CancelIcon />}
             >
               Cancel
