@@ -1,8 +1,14 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 from decimal import Decimal
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from src.models.assignment import AssignmentStatus, SubmissionStatus
+
+
+def _empty_str_to_none(v: Any) -> Any:
+    if isinstance(v, str) and v.strip() == "":
+        return None
+    return v
 
 
 class AssignmentFileBase(BaseModel):
@@ -38,6 +44,8 @@ class SubmissionFileResponse(SubmissionFileBase):
 
 
 class AssignmentBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     title: str = Field(..., max_length=255)
     description: Optional[str] = None
     content: Optional[str] = None
@@ -53,10 +61,15 @@ class AssignmentBase(BaseModel):
     allowed_file_types: Optional[str] = None
     status: AssignmentStatus = AssignmentStatus.DRAFT
 
+    @field_validator("due_date", "publish_date", "close_date", mode="before")
+    @classmethod
+    def coerce_empty_date(cls, v: Any) -> Any:
+        return _empty_str_to_none(v)
+
 
 class AssignmentCreate(AssignmentBase):
-    institution_id: int
-    teacher_id: int
+    institution_id: int = 0
+    teacher_id: Optional[int] = None
     grade_id: int
     section_id: Optional[int] = None
     subject_id: int
@@ -72,6 +85,8 @@ class AssignmentCreate(AssignmentBase):
 
 
 class AssignmentUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     title: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
     content: Optional[str] = None
@@ -79,6 +94,11 @@ class AssignmentUpdate(BaseModel):
     due_date: Optional[datetime] = None
     publish_date: Optional[datetime] = None
     close_date: Optional[datetime] = None
+
+    @field_validator("due_date", "publish_date", "close_date", mode="before")
+    @classmethod
+    def coerce_empty_date(cls, v: Any) -> Any:
+        return _empty_str_to_none(v)
     max_marks: Optional[Decimal] = Field(None, ge=0)
     passing_marks: Optional[Decimal] = Field(None, ge=0)
     allow_late_submission: Optional[bool] = None

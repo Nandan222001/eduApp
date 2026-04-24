@@ -40,15 +40,10 @@ async def create_assignment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.institution_id != assignment_data.institution_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create assignment for this institution"
-        )
-
+    assignment_data.institution_id = current_user.institution_id
     service = AssignmentService(db)
     assignment = service.create_assignment(assignment_data)
-    return assignment
+    return AssignmentResponse.model_validate(assignment).model_dump(mode="json")
 
 
 @router.get("/", response_model=dict)

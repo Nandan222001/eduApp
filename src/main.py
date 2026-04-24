@@ -72,6 +72,18 @@ async def lifespan(app: FastAPI):
         ]
         for model in _tables:
             model.__table__.create(bind=engine, checkfirst=True)
+
+        # Make assignments.teacher_id nullable if it was created with NOT NULL
+        with engine.connect() as conn:
+            try:
+                conn.execute(
+                    __import__("sqlalchemy").text(
+                        "ALTER TABLE assignments MODIFY COLUMN teacher_id INT NULL"
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass  # already nullable or table doesn't exist yet
     except Exception as _exc:
         import logging
         logging.getLogger(__name__).warning("Could not create tables: %s", _exc)
