@@ -51,9 +51,27 @@ async def lifespan(app: FastAPI):
     try:
         from src.database import engine
         from src.models.academic import Syllabus
-        from src.models.student import Parent, StudentParent, Student
-        for table_model in [Syllabus, Parent, Student, StudentParent]:
-            table_model.__table__.create(bind=engine, checkfirst=True)
+        from src.models.student import Parent, Student, StudentParent
+        from src.models.attendance import Attendance, AttendanceCorrection, AttendanceSummary
+        from src.models.assignment import (
+            Assignment, AssignmentFile, Submission, SubmissionFile,
+            RubricCriteria, RubricLevel, SubmissionGrade,
+        )
+        from src.models.examination import (
+            Exam, ExamSubject, ExamSchedule, ExamMarks, ExamResult,
+            GradeConfiguration, ExamPerformanceAnalytics,
+        )
+        _tables = [
+            Syllabus,
+            Parent, Student, StudentParent,
+            Attendance, AttendanceCorrection, AttendanceSummary,
+            Assignment, AssignmentFile, Submission, SubmissionFile,
+            RubricCriteria, RubricLevel, SubmissionGrade,
+            Exam, ExamSubject, ExamSchedule, ExamMarks, ExamResult,
+            GradeConfiguration, ExamPerformanceAnalytics,
+        ]
+        for model in _tables:
+            model.__table__.create(bind=engine, checkfirst=True)
     except Exception as _exc:
         import logging
         logging.getLogger(__name__).warning("Could not create tables: %s", _exc)
