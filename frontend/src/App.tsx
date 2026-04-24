@@ -28,6 +28,8 @@ import TeacherRoleAssignment from './pages/TeacherRoleAssignment';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import StudentList from './pages/StudentList';
+import StudentForm from './pages/StudentForm';
+import StudentProfile from './pages/StudentProfile';
 import AttendanceOverviewPage from './pages/AttendanceOverviewPage';
 import AttendanceMarkingPage from './pages/AttendanceMarkingPage';
 import AttendanceSheetPage from './pages/AttendanceSheetPage';
@@ -227,6 +229,9 @@ function App() {
                   <Route index element={<InstitutionAdminDashboard />} />
                   <Route path="dashboard" element={<InstitutionAdminDashboard />} />
                   <Route path="users/students" element={<StudentList />} />
+                  <Route path="users/students/new" element={<StudentForm />} />
+                  <Route path="users/students/:id" element={<StudentProfile />} />
+                  <Route path="users/students/:id/edit" element={<StudentForm />} />
                   <Route path="users/teachers" element={<TeacherList />} />
                   <Route path="users/teachers/new" element={<TeacherForm />} />
                   <Route path="users/teachers/:id" element={<TeacherProfile />} />
