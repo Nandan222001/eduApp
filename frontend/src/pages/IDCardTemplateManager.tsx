@@ -16,8 +16,6 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
-  Card,
-  CardContent,
   IconButton,
   Dialog,
   DialogTitle,
@@ -50,6 +48,8 @@ import {
   CreditCard as CreditCardIcon,
   Star as StarIcon,
   StarBorder as StarBorderIcon,
+  Fullscreen as FullscreenIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import schoolAdminApi, {
   IDCardTemplate,
@@ -61,7 +61,7 @@ import { academicApi } from '../api/academic';
 import type { Grade, Section } from '../types/academic';
 import { demoIDCardsApi, isDemoUser } from '../api/demoDataApi';
 
-// ── helpers ─────────────────────────────────────────────────────────────────
+// ── helpers ──────────────────────────────────────────────────────────────────
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -74,14 +74,14 @@ function downloadBlob(blob: Blob, filename: string) {
 
 const EMPTY_FRONT: IDCardFaceConfig = {
   background_color: '#ffffff',
-  header_color: '#1976d2',
-  border_color: '#cccccc',
+  header_color: '#1565c0',
+  border_color: '#1565c0',
   show_photo: true,
   show_name: true,
   show_admission_number: true,
   show_class: true,
   show_dob: false,
-  show_blood_group: false,
+  show_blood_group: true,
   show_address: false,
   show_phone: false,
   show_parent_phone: true,
@@ -89,9 +89,9 @@ const EMPTY_FRONT: IDCardFaceConfig = {
 };
 
 const EMPTY_BACK: IDCardFaceConfig = {
-  background_color: '#f5f5f5',
+  background_color: '#f8f9fa',
   header_color: '#1565c0',
-  border_color: '#cccccc',
+  border_color: '#1565c0',
   show_photo: false,
   show_name: true,
   show_admission_number: false,
@@ -107,17 +107,17 @@ const EMPTY_BACK: IDCardFaceConfig = {
 const FIELD_OPTIONS = [
   { key: 'show_photo', label: 'Photo' },
   { key: 'show_name', label: 'Name' },
-  { key: 'show_admission_number', label: 'Admission Number' },
+  { key: 'show_admission_number', label: 'Admission No.' },
   { key: 'show_class', label: 'Class / Section' },
   { key: 'show_dob', label: 'Date of Birth' },
   { key: 'show_blood_group', label: 'Blood Group' },
   { key: 'show_address', label: 'Address' },
   { key: 'show_phone', label: 'Phone' },
-  { key: 'show_parent_phone', label: 'Parent Phone' },
+  { key: 'show_parent_phone', label: "Parent's Phone" },
   { key: 'show_emergency_contact', label: 'Emergency Contact' },
 ];
 
-// ── ID Card visual preview ───────────────────────────────────────────────────
+// ── Realistic ID Card Preview ─────────────────────────────────────────────────
 
 interface PreviewCardProps {
   side: 'front' | 'back';
@@ -126,6 +126,7 @@ interface PreviewCardProps {
   student?: Student | null;
   institutionName?: string;
   logoUrl?: string;
+  scale?: number;
 }
 
 const PreviewCard: React.FC<PreviewCardProps> = ({
@@ -133,149 +134,489 @@ const PreviewCard: React.FC<PreviewCardProps> = ({
   config,
   orientation,
   student,
-  institutionName = 'Institution Name',
+  institutionName = 'School / Institution Name',
   logoUrl,
+  scale = 1,
 }) => {
   const isPortrait = orientation === 'portrait';
+  const W = (isPortrait ? 240 : 380) * scale;
+  const H = (isPortrait ? 380 : 240) * scale;
+  const fs = scale; // font scale factor
+
   const name = student ? `${student.first_name} ${student.last_name}` : 'Student Full Name';
-  const admNo = student?.admission_number ?? 'ADM-XXXXXXX';
+  const admNo = student?.admission_number ?? 'ADM-0000000';
   const sec = student?.section as { grade?: { name?: string }; name?: string } | undefined;
   const className = sec
-    ? `${sec.grade?.name ?? ''} - ${sec.name ?? ''}`.replace(/^-\s*/, '').trim()
-    : 'Grade - Section';
-  const dob = student?.date_of_birth ?? 'DD/MM/YYYY';
-  const blood = student?.blood_group ?? 'Blood Group';
-  const phone = student?.phone ?? 'Phone';
-  const parentPhone = student?.parent_phone ?? 'Parent Phone';
-  const address = student?.address ?? 'Student Address';
-  const emergency = student?.emergency_contact_phone ?? 'Emergency Contact';
+    ? `${sec.grade?.name ?? ''} ${sec.name ?? ''}`.trim() || 'Grade – Section'
+    : 'Grade – Section';
+  const dob = student?.date_of_birth ?? 'DD / MM / YYYY';
+  const blood = student?.blood_group ?? '—';
+  const phone = student?.phone ?? '—';
+  const parentPhone = student?.parent_phone ?? '—';
+  const address = student?.address ?? '—';
+  const emergency = student?.emergency_contact_phone ?? '—';
+
+  const headerBg = config.header_color ?? '#1565c0';
+  const cardBg = config.background_color ?? '#ffffff';
+  const borderCol = config.border_color ?? '#1565c0';
+
+  // Barcode-style decoration (CSS only, no library)
+  const BarcodeDecor = () => (
+    <Box
+      sx={{
+        height: 22 * fs,
+        width: '85%',
+        mx: 'auto',
+        background:
+          'repeating-linear-gradient(90deg,#222 0,#222 2px,transparent 2px,transparent 4px,#222 4px,#222 5px,transparent 5px,transparent 8px)',
+        borderRadius: 0.5,
+        opacity: 0.75,
+      }}
+    />
+  );
 
   return (
-    <Card
-      elevation={3}
+    <Box
       sx={{
-        height: isPortrait ? 380 : 240,
-        width: '100%',
-        backgroundColor: config.background_color,
-        border: `2px solid ${config.border_color}`,
-        borderRadius: 2,
+        width: W,
+        height: H,
+        backgroundColor: cardBg,
+        border: `2px solid ${borderCol}`,
+        borderRadius: 8 * fs,
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
+        boxShadow: `0 ${4 * fs}px ${14 * fs}px rgba(0,0,0,0.22)`,
         userSelect: 'none',
+        flexShrink: 0,
       }}
     >
-      {/* Header */}
+      {/* ── Header ── */}
       <Box
         sx={{
-          backgroundColor: config.header_color,
-          px: 2,
-          py: 1,
+          backgroundColor: headerBg,
+          px: 1.5 * fs,
+          py: 0.8 * fs,
           display: 'flex',
           alignItems: 'center',
-          gap: 1,
-          minHeight: 52,
+          gap: 0.8 * fs,
+          flexShrink: 0,
+          minHeight: 50 * fs,
         }}
       >
-        {logoUrl && (
+        {/* Logo or placeholder circle */}
+        {logoUrl ? (
           <Box
             component="img"
             src={logoUrl}
             alt="logo"
-            sx={{ height: 36, width: 36, objectFit: 'contain', borderRadius: 1 }}
+            sx={{
+              width: 32 * fs,
+              height: 32 * fs,
+              objectFit: 'contain',
+              borderRadius: '50%',
+              background: 'white',
+              flexShrink: 0,
+              p: '2px',
+            }}
           />
+        ) : (
+          <Box
+            sx={{
+              width: 32 * fs,
+              height: 32 * fs,
+              borderRadius: '50%',
+              bgcolor: 'rgba(255,255,255,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <CreditCardIcon sx={{ fontSize: 18 * fs, color: 'white' }} />
+          </Box>
         )}
-        <Typography variant="body2" fontWeight="bold" color="white" noWrap>
-          {institutionName}
-        </Typography>
+        <Box sx={{ overflow: 'hidden', flexGrow: 1 }}>
+          <Typography
+            noWrap
+            sx={{
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: 10 * fs,
+              lineHeight: 1.2,
+              letterSpacing: 0.3,
+            }}
+          >
+            {institutionName}
+          </Typography>
+          <Typography
+            sx={{
+              color: 'rgba(255,255,255,0.75)',
+              fontSize: 7.5 * fs,
+              letterSpacing: 1.5,
+              textTransform: 'uppercase',
+            }}
+          >
+            Student Identity Card
+          </Typography>
+        </Box>
       </Box>
 
-      <CardContent sx={{ flexGrow: 1, p: 1.5, overflow: 'hidden' }}>
-        {side === 'front' ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-            {config.show_photo && (
-              <Avatar
-                src={student?.photo_url}
-                sx={{ width: 60, height: 60, mb: 0.5, border: '2px solid #ddd' }}
+      {/* ── Body ── */}
+      {side === 'front' ? (
+        <Box
+          sx={{
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            px: 1.2 * fs,
+            pt: 1.2 * fs,
+            pb: 0.5 * fs,
+            gap: 0.55 * fs,
+            overflow: 'hidden',
+          }}
+        >
+          {config.show_photo && (
+            <Avatar
+              src={student?.photo_url}
+              sx={{
+                width: 58 * fs,
+                height: 58 * fs,
+                border: `3px solid ${headerBg}`,
+                boxShadow: `0 2px 8px ${headerBg}55`,
+                fontSize: 22 * fs,
+                flexShrink: 0,
+              }}
+            >
+              {student?.first_name?.[0]?.toUpperCase() ?? '?'}
+            </Avatar>
+          )}
+
+          {config.show_name && (
+            <Typography
+              noWrap
+              sx={{
+                fontWeight: 700,
+                fontSize: 11.5 * fs,
+                color: '#1a1a1a',
+                letterSpacing: 0.2,
+                maxWidth: '100%',
+              }}
+            >
+              {name}
+            </Typography>
+          )}
+
+          {config.show_admission_number && (
+            <Box
+              sx={{
+                bgcolor: `${headerBg}18`,
+                border: `1px solid ${headerBg}44`,
+                borderRadius: 1 * fs,
+                px: 1 * fs,
+                py: 0.2 * fs,
+              }}
+            >
+              <Typography
+                sx={{ fontSize: 8 * fs, color: headerBg, fontWeight: 700, letterSpacing: 0.5 }}
               >
-                {student ? student.first_name[0] : '?'}
-              </Avatar>
-            )}
-            {config.show_name && (
-              <Typography variant="body2" fontWeight="bold" textAlign="center" noWrap>
-                {name}
+                {admNo}
               </Typography>
-            )}
-            {config.show_admission_number && (
-              <Typography variant="caption" textAlign="center" color="text.secondary">
-                Adm. No: {admNo}
+            </Box>
+          )}
+
+          {config.show_class && (
+            <Typography sx={{ fontSize: 9 * fs, color: '#444', fontWeight: 600 }}>
+              {className}
+            </Typography>
+          )}
+
+          {config.show_dob && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#555' }}>DOB: {dob}</Typography>
+          )}
+
+          {config.show_blood_group && blood !== '—' && (
+            <Box
+              sx={{
+                bgcolor: '#fff0f0',
+                border: '1px solid #ffcccc',
+                borderRadius: 0.8 * fs,
+                px: 0.9 * fs,
+                py: 0.1 * fs,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.3 * fs,
+              }}
+            >
+              <Typography sx={{ fontSize: 9 * fs, color: '#c0392b', fontWeight: 700 }}>
+                Blood: {blood}
               </Typography>
-            )}
-            {config.show_class && (
-              <Typography variant="caption" textAlign="center">
-                Class: {className}
-              </Typography>
-            )}
-            {config.show_dob && (
-              <Typography variant="caption" textAlign="center">
-                DOB: {dob}
-              </Typography>
-            )}
-            {config.show_blood_group && (
-              <Chip label={blood} size="small" color="error" sx={{ height: 18, fontSize: 10 }} />
-            )}
-            {config.show_phone && (
-              <Typography variant="caption" textAlign="center">
-                Ph: {phone}
-              </Typography>
-            )}
-            {config.show_parent_phone && (
-              <Typography variant="caption" textAlign="center">
-                Parent: {parentPhone}
-              </Typography>
-            )}
+            </Box>
+          )}
+
+          {config.show_phone && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#555' }}>Ph: {phone}</Typography>
+          )}
+
+          {config.show_parent_phone && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#555' }}>Parent: {parentPhone}</Typography>
+          )}
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            flexGrow: 1,
+            px: 1.4 * fs,
+            pt: 1 * fs,
+            pb: 0.5 * fs,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.55 * fs,
+            overflow: 'hidden',
+          }}
+        >
+          {config.show_name && (
+            <Typography sx={{ fontSize: 8.5 * fs, color: '#222' }} noWrap>
+              <strong>Name:</strong> {name}
+            </Typography>
+          )}
+          {config.show_address && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#444' }} noWrap>
+              <strong>Address:</strong> {address}
+            </Typography>
+          )}
+          {config.show_dob && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#444' }}>
+              <strong>DOB:</strong> {dob}
+            </Typography>
+          )}
+          {config.show_blood_group && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#c0392b' }}>
+              <strong>Blood Group:</strong> {blood}
+            </Typography>
+          )}
+          {config.show_phone && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#444' }}>
+              <strong>Phone:</strong> {phone}
+            </Typography>
+          )}
+          {config.show_parent_phone && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#444' }}>
+              <strong>Parent Ph:</strong> {parentPhone}
+            </Typography>
+          )}
+          {config.show_emergency_contact && (
+            <Typography sx={{ fontSize: 8 * fs, color: '#c0392b', fontWeight: 600 }}>
+              <strong>Emergency:</strong> {emergency}
+            </Typography>
+          )}
+
+          {/* Barcode at bottom */}
+          <Box
+            sx={{
+              mt: 'auto',
+              pb: 0.5 * fs,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.3 * fs,
+            }}
+          >
+            <BarcodeDecor />
+            <Typography
+              sx={{
+                fontSize: 6.5 * fs,
+                color: '#999',
+                textAlign: 'center',
+                letterSpacing: 1.5,
+                fontFamily: 'monospace',
+              }}
+            >
+              {student?.admission_number ?? '0000000000'}
+            </Typography>
           </Box>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {config.show_name && (
-              <Typography variant="caption">
-                <strong>Name:</strong> {name}
-              </Typography>
+        </Box>
+      )}
+
+      {/* ── Footer strip ── */}
+      <Box
+        sx={{
+          backgroundColor: headerBg,
+          py: 0.4 * fs,
+          px: 1 * fs,
+          flexShrink: 0,
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <Typography
+          sx={{
+            color: 'rgba(255,255,255,0.85)',
+            fontSize: 6.5 * fs,
+            textAlign: 'center',
+            letterSpacing: 0.5,
+          }}
+        >
+          {side === 'front'
+            ? 'If found, please return to the institution'
+            : 'Issued by School Authority — Not Transferable'}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
+
+// ── Full Preview Dialog ───────────────────────────────────────────────────────
+
+interface FullPreviewDialogProps {
+  open: boolean;
+  onClose: () => void;
+  template: IDCardTemplate;
+  student?: Student | null;
+  institutionName?: string;
+  onDownload?: () => void;
+  downloading?: boolean;
+  studentOptions?: Student[];
+  studentLoading?: boolean;
+  onStudentSearch?: (q: string) => void;
+  onStudentChange?: (s: Student | null) => void;
+}
+
+const FullPreviewDialog: React.FC<FullPreviewDialogProps> = ({
+  open,
+  onClose,
+  template,
+  student,
+  institutionName,
+  onDownload,
+  downloading,
+  studentOptions = [],
+  studentLoading = false,
+  onStudentSearch,
+  onStudentChange,
+}) => {
+  const scale = template.orientation === 'landscape' ? 1.1 : 1.25;
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CreditCardIcon color="primary" />
+          <Typography variant="h6" fontWeight={700}>
+            Full Preview — {template.name}
+          </Typography>
+          <Chip label={template.orientation} size="small" variant="outlined" color="primary" />
+        </Box>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent dividers>
+        {/* Student selector */}
+        {onStudentSearch && onStudentChange && (
+          <Autocomplete
+            options={studentOptions}
+            getOptionLabel={(s) =>
+              `${s.first_name} ${s.last_name}${s.admission_number ? ` (${s.admission_number})` : ''}`
+            }
+            loading={studentLoading}
+            value={student ?? null}
+            onChange={(_e, val) => onStudentChange(val)}
+            onInputChange={(_e, val) => onStudentSearch(val)}
+            sx={{ mb: 3 }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Preview with student (optional)"
+                size="small"
+                placeholder="Search by name or admission number…"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {studentLoading && <CircularProgress size={16} />}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
             )}
-            {config.show_address && (
-              <Typography variant="caption" noWrap>
-                <strong>Address:</strong> {address}
-              </Typography>
-            )}
-            {config.show_dob && (
-              <Typography variant="caption">
-                <strong>DOB:</strong> {dob}
-              </Typography>
-            )}
-            {config.show_blood_group && (
-              <Typography variant="caption">
-                <strong>Blood:</strong> {blood}
-              </Typography>
-            )}
-            {config.show_phone && (
-              <Typography variant="caption">
-                <strong>Phone:</strong> {phone}
-              </Typography>
-            )}
-            {config.show_parent_phone && (
-              <Typography variant="caption">
-                <strong>Parent:</strong> {parentPhone}
-              </Typography>
-            )}
-            {config.show_emergency_contact && (
-              <Typography variant="caption">
-                <strong>Emergency:</strong> {emergency}
-              </Typography>
-            )}
-          </Box>
+          />
         )}
-      </CardContent>
-    </Card>
+
+        {/* Cards side-by-side */}
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 4,
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            py: 1,
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" fontWeight={600} color="text.secondary">
+              FRONT SIDE
+            </Typography>
+            <PreviewCard
+              side="front"
+              config={template.front_config ?? EMPTY_FRONT}
+              orientation={template.orientation}
+              student={student}
+              institutionName={institutionName}
+              logoUrl={template.logo_url}
+              scale={scale}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" fontWeight={600} color="text.secondary">
+              BACK SIDE
+            </Typography>
+            <PreviewCard
+              side="back"
+              config={template.back_config ?? EMPTY_BACK}
+              orientation={template.orientation}
+              student={student}
+              institutionName={institutionName}
+              logoUrl={template.logo_url}
+              scale={scale}
+            />
+          </Box>
+        </Box>
+
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          display="block"
+          textAlign="center"
+          sx={{ mt: 2 }}
+        >
+          This is a visual preview. The downloaded PDF may differ slightly.
+        </Typography>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        <Button onClick={onClose} variant="outlined">
+          Close
+        </Button>
+        {onDownload && (
+          <Button
+            variant="contained"
+            startIcon={
+              downloading ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon />
+            }
+            onClick={onDownload}
+            disabled={!student || downloading}
+          >
+            {downloading ? 'Downloading…' : 'Download PDF'}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 };
 
@@ -314,10 +655,8 @@ const FieldToggle: React.FC<FieldToggleProps> = ({ title, config, onChange }) =>
 export const IDCardTemplateManager: React.FC = () => {
   const isDemo = isDemoUser();
 
-  // Tab
   const [tab, setTab] = useState(0);
 
-  // Snackbar
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -331,6 +670,14 @@ export const IDCardTemplateManager: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<IDCardTemplate | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
 
+  // Full preview dialog
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewDialogStudent, setPreviewDialogStudent] = useState<Student | null>(null);
+  const [previewDialogSearch, setPreviewDialogSearch] = useState('');
+  const [previewDialogStudentOptions, setPreviewDialogStudentOptions] = useState<Student[]>([]);
+  const [previewDialogStudentLoading, setPreviewDialogStudentLoading] = useState(false);
+  const [previewDialogDownloading, setPreviewDialogDownloading] = useState(false);
+
   // Dialog (create / edit)
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -343,13 +690,13 @@ export const IDCardTemplateManager: React.FC = () => {
     is_default: false,
   });
 
-  // Student selector (preview)
+  // Preview student (templates tab)
   const [previewStudent, setPreviewStudent] = useState<Student | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
   const [studentOptions, setStudentOptions] = useState<Student[]>([]);
   const [studentLoading, setStudentLoading] = useState(false);
 
-  // Generate tab states
+  // Generate tab
   const [genStudent, setGenStudent] = useState<Student | null>(null);
   const [genStudentSearch, setGenStudentSearch] = useState('');
   const [genStudentOptions, setGenStudentOptions] = useState<Student[]>([]);
@@ -358,7 +705,7 @@ export const IDCardTemplateManager: React.FC = () => {
   const [genValidUntil, setGenValidUntil] = useState('');
   const [generating, setGenerating] = useState(false);
 
-  // Bulk generate
+  // Bulk
   const [grades, setGrades] = useState<Grade[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [bulkGrade, setBulkGrade] = useState<number | ''>('');
@@ -369,7 +716,7 @@ export const IDCardTemplateManager: React.FC = () => {
   // Logo upload
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  // ── load templates ─────────────────────────────────────────────────────────
+  // ── load templates ──────────────────────────────────────────────────────────
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     try {
@@ -405,7 +752,7 @@ export const IDCardTemplateManager: React.FC = () => {
       .catch(() => null);
   }, [tab]);
 
-  // ── student search (preview) ──────────────────────────────────────────────
+  // student search — templates tab preview
   useEffect(() => {
     if (!studentSearch || isDemo) return;
     const t = setTimeout(async () => {
@@ -422,7 +769,7 @@ export const IDCardTemplateManager: React.FC = () => {
     return () => clearTimeout(t);
   }, [studentSearch, isDemo]);
 
-  // ── student search (generate tab) ────────────────────────────────────────
+  // student search — generate tab
   useEffect(() => {
     if (!genStudentSearch || isDemo) return;
     const t = setTimeout(async () => {
@@ -439,7 +786,24 @@ export const IDCardTemplateManager: React.FC = () => {
     return () => clearTimeout(t);
   }, [genStudentSearch, isDemo]);
 
-  // ── CRUD handlers ─────────────────────────────────────────────────────────
+  // student search — full preview dialog
+  useEffect(() => {
+    if (!previewDialogSearch || isDemo) return;
+    const t = setTimeout(async () => {
+      setPreviewDialogStudentLoading(true);
+      try {
+        const r = await studentsApi.listStudents({ search: previewDialogSearch, limit: 10 });
+        setPreviewDialogStudentOptions(r.items ?? []);
+      } catch {
+        setPreviewDialogStudentOptions([]);
+      } finally {
+        setPreviewDialogStudentLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [previewDialogSearch, isDemo]);
+
+  // ── CRUD ───────────────────────────────────────────────────────────────────
 
   const openCreate = () => {
     setFormData({
@@ -457,8 +821,8 @@ export const IDCardTemplateManager: React.FC = () => {
     setFormData({
       name: tmpl.name,
       orientation: tmpl.orientation,
-      front_config: tmpl.front_config ?? EMPTY_FRONT,
-      back_config: tmpl.back_config ?? EMPTY_BACK,
+      front_config: { ...EMPTY_FRONT, ...(tmpl.front_config ?? {}) },
+      back_config: { ...EMPTY_BACK, ...(tmpl.back_config ?? {}) },
       is_default: tmpl.is_default,
     });
     setSelectedTemplate(tmpl);
@@ -495,21 +859,27 @@ export const IDCardTemplateManager: React.FC = () => {
     if (!window.confirm('Delete this template?')) return;
     try {
       if (!isDemo) await schoolAdminApi.idCardTemplates.delete(id);
-      showSnackbar('Template deleted', 'success');
       if (selectedTemplate?.id === id) setSelectedTemplate(null);
+      showSnackbar('Template deleted', 'success');
       loadTemplates();
     } catch {
       showSnackbar('Failed to delete template', 'error');
     }
   };
 
+  // ── Logo upload — updates state immediately from response ──────────────────
   const handleLogoUpload = async (file: File) => {
     if (!selectedTemplate || isDemo) return;
     setUploadingLogo(true);
     try {
-      await schoolAdminApi.idCardTemplates.uploadLogo(selectedTemplate.id, file);
-      showSnackbar('Logo uploaded', 'success');
-      loadTemplates();
+      const result = await schoolAdminApi.idCardTemplates.uploadLogo(selectedTemplate.id, file);
+      const newLogo = result.logo_url;
+      // Update selectedTemplate immediately — no need to wait for loadTemplates()
+      setSelectedTemplate((prev) => (prev ? { ...prev, logo_url: newLogo } : prev));
+      setTemplates((prev) =>
+        prev.map((t) => (t.id === selectedTemplate.id ? { ...t, logo_url: newLogo } : t))
+      );
+      showSnackbar('Logo uploaded and applied', 'success');
     } catch {
       showSnackbar('Failed to upload logo', 'error');
     } finally {
@@ -517,31 +887,32 @@ export const IDCardTemplateManager: React.FC = () => {
     }
   };
 
-  // ── Generate single ID card ───────────────────────────────────────────────
-
-  const handleGenerate = async () => {
-    if (!genStudent) {
+  // ── Generate single ────────────────────────────────────────────────────────
+  const handleGenerate = async (studentOverride?: Student | null) => {
+    const target = studentOverride ?? genStudent;
+    if (!target) {
       showSnackbar('Please select a student', 'error');
       return;
     }
     setGenerating(true);
+    setPreviewDialogDownloading(true);
     try {
       const blob = await schoolAdminApi.idCards.generate(
-        genStudent.id,
+        target.id,
         genTemplate || undefined,
         genValidUntil || undefined
       );
-      downloadBlob(blob, `id_card_${genStudent.admission_number || genStudent.id}.pdf`);
+      downloadBlob(blob, `id_card_${target.admission_number || target.id}.pdf`);
       showSnackbar('ID card downloaded', 'success');
     } catch {
       showSnackbar('Failed to generate ID card', 'error');
     } finally {
       setGenerating(false);
+      setPreviewDialogDownloading(false);
     }
   };
 
-  // ── Bulk generate ─────────────────────────────────────────────────────────
-
+  // ── Bulk ───────────────────────────────────────────────────────────────────
   const handleBulkGenerate = async () => {
     if (!bulkGrade && !bulkSection) {
       showSnackbar('Select a grade or section', 'error');
@@ -555,36 +926,35 @@ export const IDCardTemplateManager: React.FC = () => {
         template_id: bulkTemplate || undefined,
       });
       showSnackbar(
-        `Bulk generation done: ${(result as { total_cards?: number }).total_cards ?? 0} cards`,
+        `Done: ${(result as { total_cards?: number }).total_cards ?? 0} cards generated`,
         'success'
       );
     } catch {
-      showSnackbar('Failed to bulk generate ID cards', 'error');
+      showSnackbar('Failed to bulk generate', 'error');
     } finally {
       setBulkGenerating(false);
     }
   };
 
-  // ── helpers ───────────────────────────────────────────────────────────────
-
+  // ── helpers ────────────────────────────────────────────────────────────────
   const updateFront = (key: keyof IDCardFaceConfig, val: boolean | string) =>
     setFormData((p) => ({ ...p, front_config: { ...p.front_config, [key]: val } }));
   const updateBack = (key: keyof IDCardFaceConfig, val: boolean | string) =>
     setFormData((p) => ({ ...p, back_config: { ...p.back_config, [key]: val } }));
 
   const filteredSections = bulkGrade ? sections.filter((s) => s.grade_id === bulkGrade) : sections;
+  const genSelectedTemplate = templates.find((t) => t.id === genTemplate) ?? null;
 
-  // ── render ────────────────────────────────────────────────────────────────
-
+  // ── render ─────────────────────────────────────────────────────────────────
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* Page header */}
+      {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" fontWeight={700}>
           ID Card Manager
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Design templates, preview with real students, and download ID cards
+          Design templates, upload logo, preview with real students, and download ID cards as PDF
         </Typography>
       </Box>
 
@@ -593,10 +963,10 @@ export const IDCardTemplateManager: React.FC = () => {
         <Tab icon={<DownloadIcon />} label="Generate & Download" iconPosition="start" />
       </Tabs>
 
-      {/* ── TAB 0: Templates ─────────────────────────────────────────────── */}
+      {/* ── TAB 0: Templates ───────────────────────────────────────────────── */}
       {tab === 0 && (
         <Grid container spacing={3}>
-          {/* Sidebar — template list */}
+          {/* Sidebar */}
           <Grid item xs={12} md={3}>
             <Paper sx={{ p: 2 }}>
               <Box
@@ -637,7 +1007,7 @@ export const IDCardTemplateManager: React.FC = () => {
                         '&.Mui-selected': {
                           border: '1px solid',
                           borderColor: 'primary.main',
-                          backgroundColor: 'primary.50',
+                          bgcolor: 'primary.50',
                         },
                       }}
                     >
@@ -690,38 +1060,46 @@ export const IDCardTemplateManager: React.FC = () => {
             </Paper>
           </Grid>
 
-          {/* Main — preview */}
+          {/* Main panel */}
           <Grid item xs={12} md={9}>
             {selectedTemplate ? (
               <Paper sx={{ p: 3 }}>
+                {/* Top bar */}
                 <Box
                   sx={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
-                    mb: 2,
+                    mb: 3,
+                    flexWrap: 'wrap',
+                    gap: 1,
                   }}
                 >
                   <Box>
-                    <Typography variant="h5" fontWeight={700}>
-                      {selectedTemplate.name}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="h5" fontWeight={700}>
+                        {selectedTemplate.name}
+                      </Typography>
                       {selectedTemplate.is_default && (
-                        <Chip label="Default" size="small" color="warning" sx={{ ml: 1 }} />
+                        <Chip label="Default" size="small" color="warning" icon={<StarIcon />} />
                       )}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {selectedTemplate.orientation === 'portrait' ? 'Portrait' : 'Landscape'}{' '}
-                      layout
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {selectedTemplate.orientation === 'portrait' ? 'Portrait' : 'Landscape'} •{' '}
+                      {selectedTemplate.logo_url ? 'Logo uploaded' : 'No logo yet'}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {/* Logo upload */}
                     <Button
                       variant="outlined"
-                      startIcon={uploadingLogo ? <CircularProgress size={16} /> : <UploadIcon />}
+                      size="small"
+                      startIcon={uploadingLogo ? <CircularProgress size={14} /> : <UploadIcon />}
                       component="label"
                       disabled={uploadingLogo}
+                      color={selectedTemplate.logo_url ? 'success' : 'primary'}
                     >
-                      Upload Logo
+                      {selectedTemplate.logo_url ? 'Replace Logo' : 'Upload Logo'}
                       <input
                         type="file"
                         hidden
@@ -730,7 +1108,19 @@ export const IDCardTemplateManager: React.FC = () => {
                       />
                     </Button>
                     <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<FullscreenIcon />}
+                      onClick={() => {
+                        setPreviewDialogStudent(previewStudent);
+                        setPreviewDialogOpen(true);
+                      }}
+                    >
+                      Full Preview
+                    </Button>
+                    <Button
                       variant="contained"
+                      size="small"
                       startIcon={<EditIcon />}
                       onClick={() => openEdit(selectedTemplate)}
                     >
@@ -739,7 +1129,48 @@ export const IDCardTemplateManager: React.FC = () => {
                   </Box>
                 </Box>
 
-                {/* Student selector for real preview */}
+                {/* Logo preview row */}
+                {selectedTemplate.logo_url && (
+                  <Box
+                    sx={{
+                      mb: 2,
+                      p: 1.5,
+                      bgcolor: 'success.50',
+                      border: '1px solid',
+                      borderColor: 'success.200',
+                      borderRadius: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={selectedTemplate.logo_url}
+                      alt="Uploaded logo"
+                      sx={{
+                        height: 48,
+                        width: 48,
+                        objectFit: 'contain',
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'success.200',
+                        background: 'white',
+                        p: '4px',
+                      }}
+                    />
+                    <Box>
+                      <Typography variant="body2" fontWeight={600} color="success.800">
+                        Logo uploaded
+                      </Typography>
+                      <Typography variant="caption" color="success.700">
+                        Showing in ID card header below
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Student selector */}
                 <Autocomplete
                   options={studentOptions}
                   getOptionLabel={(s) =>
@@ -753,7 +1184,7 @@ export const IDCardTemplateManager: React.FC = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Preview with student (search by name or admission number)"
+                      label="Preview with real student (search by name or admission number)"
                       size="small"
                       InputProps={{
                         ...params.InputProps,
@@ -768,37 +1199,80 @@ export const IDCardTemplateManager: React.FC = () => {
                   )}
                 />
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Front Side
-                    </Typography>
-                    <PreviewCard
-                      side="front"
-                      config={selectedTemplate.front_config ?? EMPTY_FRONT}
-                      orientation={selectedTemplate.orientation}
-                      student={previewStudent}
-                      logoUrl={selectedTemplate.logo_url}
-                    />
+                {/* ID card previews */}
+                <Grid container spacing={4} justifyContent="center">
+                  <Grid item xs={12} sm="auto">
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        fontWeight={600}
+                        color="text.secondary"
+                        letterSpacing={1}
+                      >
+                        FRONT SIDE
+                      </Typography>
+                      <PreviewCard
+                        side="front"
+                        config={selectedTemplate.front_config ?? EMPTY_FRONT}
+                        orientation={selectedTemplate.orientation}
+                        student={previewStudent}
+                        logoUrl={selectedTemplate.logo_url}
+                      />
+                    </Box>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Back Side
-                    </Typography>
-                    <PreviewCard
-                      side="back"
-                      config={selectedTemplate.back_config ?? EMPTY_BACK}
-                      orientation={selectedTemplate.orientation}
-                      student={previewStudent}
-                    />
+                  <Grid item xs={12} sm="auto">
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        fontWeight={600}
+                        color="text.secondary"
+                        letterSpacing={1}
+                      >
+                        BACK SIDE
+                      </Typography>
+                      <PreviewCard
+                        side="back"
+                        config={selectedTemplate.back_config ?? EMPTY_BACK}
+                        orientation={selectedTemplate.orientation}
+                        student={previewStudent}
+                        logoUrl={selectedTemplate.logo_url}
+                      />
+                    </Box>
                   </Grid>
                 </Grid>
+
+                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<FullscreenIcon />}
+                    onClick={() => {
+                      setPreviewDialogStudent(previewStudent);
+                      setPreviewDialogOpen(true);
+                    }}
+                  >
+                    Open Full Preview
+                  </Button>
+                </Box>
               </Paper>
             ) : (
-              <Paper sx={{ p: 5, textAlign: 'center' }}>
-                <CreditCardIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+              <Paper sx={{ p: 6, textAlign: 'center' }}>
+                <CreditCardIcon sx={{ fontSize: 72, color: 'text.disabled', mb: 2 }} />
                 <Typography variant="h6" color="text.secondary" gutterBottom>
-                  No template selected
+                  Select a template or create one
                 </Typography>
                 <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
                   Create First Template
@@ -809,7 +1283,7 @@ export const IDCardTemplateManager: React.FC = () => {
         </Grid>
       )}
 
-      {/* ── TAB 1: Generate & Download ────────────────────────────────────── */}
+      {/* ── TAB 1: Generate & Download ─────────────────────────────────────── */}
       {tab === 1 && (
         <Grid container spacing={3}>
           {/* Individual */}
@@ -823,6 +1297,7 @@ export const IDCardTemplateManager: React.FC = () => {
               </Box>
               <Divider sx={{ mb: 2 }} />
 
+              {/* Student search */}
               <Autocomplete
                 options={genStudentOptions}
                 getOptionLabel={(s) =>
@@ -852,13 +1327,13 @@ export const IDCardTemplateManager: React.FC = () => {
               />
 
               <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Template (optional)</InputLabel>
+                <InputLabel>Template</InputLabel>
                 <Select
                   value={genTemplate}
                   onChange={(e) => setGenTemplate(e.target.value as number | '')}
-                  label="Template (optional)"
+                  label="Template"
                 >
-                  <MenuItem value="">Default</MenuItem>
+                  <MenuItem value="">Default template</MenuItem>
                   {templates.map((t) => (
                     <MenuItem key={t.id} value={t.id}>
                       {t.name}
@@ -878,39 +1353,50 @@ export const IDCardTemplateManager: React.FC = () => {
                 sx={{ mb: 3 }}
               />
 
-              {/* Mini preview */}
+              {/* Preview when student selected */}
               {genStudent && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                    Preview
-                  </Typography>
-                  <Grid container spacing={1}>
-                    <Grid item xs={6}>
-                      <PreviewCard
-                        side="front"
-                        config={
-                          templates.find((t) => t.id === genTemplate)?.front_config ?? EMPTY_FRONT
-                        }
-                        orientation={
-                          templates.find((t) => t.id === genTemplate)?.orientation ?? 'portrait'
-                        }
-                        student={genStudent}
-                        logoUrl={templates.find((t) => t.id === genTemplate)?.logo_url}
-                      />
-                    </Grid>
-                    <Grid item xs={6}>
-                      <PreviewCard
-                        side="back"
-                        config={
-                          templates.find((t) => t.id === genTemplate)?.back_config ?? EMPTY_BACK
-                        }
-                        orientation={
-                          templates.find((t) => t.id === genTemplate)?.orientation ?? 'portrait'
-                        }
-                        student={genStudent}
-                      />
-                    </Grid>
-                  </Grid>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      mb: 1,
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      PREVIEW
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="text"
+                      startIcon={<FullscreenIcon />}
+                      onClick={() => {
+                        setPreviewDialogStudent(genStudent);
+                        setPreviewDialogOpen(true);
+                      }}
+                    >
+                      Full Preview
+                    </Button>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <PreviewCard
+                      side="front"
+                      config={genSelectedTemplate?.front_config ?? EMPTY_FRONT}
+                      orientation={genSelectedTemplate?.orientation ?? 'portrait'}
+                      student={genStudent}
+                      logoUrl={genSelectedTemplate?.logo_url}
+                      scale={0.85}
+                    />
+                    <PreviewCard
+                      side="back"
+                      config={genSelectedTemplate?.back_config ?? EMPTY_BACK}
+                      orientation={genSelectedTemplate?.orientation ?? 'portrait'}
+                      student={genStudent}
+                      logoUrl={genSelectedTemplate?.logo_url}
+                      scale={0.85}
+                    />
+                  </Box>
                 </Box>
               )}
 
@@ -921,7 +1407,7 @@ export const IDCardTemplateManager: React.FC = () => {
                 startIcon={
                   generating ? <CircularProgress size={20} color="inherit" /> : <DownloadIcon />
                 }
-                onClick={handleGenerate}
+                onClick={() => handleGenerate()}
                 disabled={!genStudent || generating}
               >
                 {generating ? 'Generating…' : 'Download ID Card PDF'}
@@ -976,13 +1462,13 @@ export const IDCardTemplateManager: React.FC = () => {
               </FormControl>
 
               <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Template (optional)</InputLabel>
+                <InputLabel>Template</InputLabel>
                 <Select
                   value={bulkTemplate}
                   onChange={(e) => setBulkTemplate(e.target.value as number | '')}
-                  label="Template (optional)"
+                  label="Template"
                 >
-                  <MenuItem value="">Default</MenuItem>
+                  <MenuItem value="">Default template</MenuItem>
                   {templates.map((t) => (
                     <MenuItem key={t.id} value={t.id}>
                       {t.name}
@@ -993,7 +1479,7 @@ export const IDCardTemplateManager: React.FC = () => {
               </FormControl>
 
               <Alert severity="info" sx={{ mb: 3 }}>
-                Bulk generation will create ID cards for all students in the selected grade/section.
+                Generates ID cards for all students in the selected grade / section.
               </Alert>
 
               <Button
@@ -1013,13 +1499,38 @@ export const IDCardTemplateManager: React.FC = () => {
         </Grid>
       )}
 
+      {/* ── Full Preview Dialog ────────────────────────────────────────────── */}
+      {selectedTemplate && (
+        <FullPreviewDialog
+          open={previewDialogOpen}
+          onClose={() => setPreviewDialogOpen(false)}
+          template={selectedTemplate}
+          student={previewDialogStudent}
+          onDownload={() => handleGenerate(previewDialogStudent)}
+          downloading={previewDialogDownloading}
+          studentOptions={previewDialogStudentOptions}
+          studentLoading={previewDialogStudentLoading}
+          onStudentSearch={(q) => setPreviewDialogSearch(q)}
+          onStudentChange={(s) => setPreviewDialogStudent(s)}
+        />
+      )}
+
       {/* ── Create / Edit Dialog ───────────────────────────────────────────── */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>{isEditing ? `Edit: ${formData.name}` : 'Create New Template'}</DialogTitle>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle
+          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <Typography variant="h6">
+            {isEditing ? `Edit Template: ${formData.name}` : 'Create New Template'}
+          </Typography>
+          <IconButton onClick={() => setDialogOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2}>
-            {/* Basic */}
-            <Grid item xs={12} sm={6}>
+            {/* Basic settings */}
+            <Grid item xs={12} sm={5}>
               <TextField
                 fullWidth
                 label="Template Name *"
@@ -1027,7 +1538,7 @@ export const IDCardTemplateManager: React.FC = () => {
                 onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
               />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel>Orientation</InputLabel>
                 <Select
@@ -1040,8 +1551,8 @@ export const IDCardTemplateManager: React.FC = () => {
                   }
                   label="Orientation"
                 >
-                  <MenuItem value="portrait">Portrait</MenuItem>
-                  <MenuItem value="landscape">Landscape</MenuItem>
+                  <MenuItem value="portrait">Portrait (vertical)</MenuItem>
+                  <MenuItem value="landscape">Landscape (horizontal)</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1056,7 +1567,7 @@ export const IDCardTemplateManager: React.FC = () => {
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <StarBorderIcon fontSize="small" />
-                    <span>Default</span>
+                    <span>Set as Default</span>
                   </Box>
                 }
               />
@@ -1066,109 +1577,134 @@ export const IDCardTemplateManager: React.FC = () => {
               <Divider />
             </Grid>
 
-            {/* Front fields */}
+            {/* Fields & Colors — Front */}
             <Grid item xs={12} md={6}>
-              <FieldToggle
-                title="Front Side Fields"
-                config={formData.front_config}
-                onChange={updateFront}
-              />
-              <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <TextField
-                  size="small"
-                  label="Background"
-                  type="color"
-                  value={formData.front_config.background_color ?? '#ffffff'}
-                  onChange={(e) => updateFront('background_color', e.target.value)}
-                  sx={{ width: 110 }}
-                  InputLabelProps={{ shrink: true }}
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom color="primary">
+                  Front Side
+                </Typography>
+                <FieldToggle
+                  title="Fields to show"
+                  config={formData.front_config}
+                  onChange={updateFront}
                 />
-                <TextField
-                  size="small"
-                  label="Header color"
-                  type="color"
-                  value={formData.front_config.header_color ?? '#1976d2'}
-                  onChange={(e) => updateFront('header_color', e.target.value)}
-                  sx={{ width: 110 }}
-                  InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                  size="small"
-                  label="Border color"
-                  type="color"
-                  value={formData.front_config.border_color ?? '#000000'}
-                  onChange={(e) => updateFront('border_color', e.target.value)}
-                  sx={{ width: 110 }}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
+                <Box sx={{ mt: 1.5, display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  <TextField
+                    size="small"
+                    label="Background"
+                    type="color"
+                    value={formData.front_config.background_color ?? '#ffffff'}
+                    onChange={(e) => updateFront('background_color', e.target.value)}
+                    sx={{ width: 110 }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    size="small"
+                    label="Header"
+                    type="color"
+                    value={formData.front_config.header_color ?? '#1565c0'}
+                    onChange={(e) => updateFront('header_color', e.target.value)}
+                    sx={{ width: 110 }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    size="small"
+                    label="Border"
+                    type="color"
+                    value={formData.front_config.border_color ?? '#1565c0'}
+                    onChange={(e) => updateFront('border_color', e.target.value)}
+                    sx={{ width: 110 }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
+              </Paper>
             </Grid>
 
-            {/* Back fields */}
+            {/* Fields & Colors — Back */}
             <Grid item xs={12} md={6}>
-              <FieldToggle
-                title="Back Side Fields"
-                config={formData.back_config}
-                onChange={updateBack}
-              />
-              <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <TextField
-                  size="small"
-                  label="Background"
-                  type="color"
-                  value={formData.back_config.background_color ?? '#f5f5f5'}
-                  onChange={(e) => updateBack('background_color', e.target.value)}
-                  sx={{ width: 110 }}
-                  InputLabelProps={{ shrink: true }}
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom color="primary">
+                  Back Side
+                </Typography>
+                <FieldToggle
+                  title="Fields to show"
+                  config={formData.back_config}
+                  onChange={updateBack}
                 />
-                <TextField
-                  size="small"
-                  label="Header color"
-                  type="color"
-                  value={formData.back_config.header_color ?? '#1565c0'}
-                  onChange={(e) => updateBack('header_color', e.target.value)}
-                  sx={{ width: 110 }}
-                  InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                  size="small"
-                  label="Border color"
-                  type="color"
-                  value={formData.back_config.border_color ?? '#000000'}
-                  onChange={(e) => updateBack('border_color', e.target.value)}
-                  sx={{ width: 110 }}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
+                <Box sx={{ mt: 1.5, display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  <TextField
+                    size="small"
+                    label="Background"
+                    type="color"
+                    value={formData.back_config.background_color ?? '#f8f9fa'}
+                    onChange={(e) => updateBack('background_color', e.target.value)}
+                    sx={{ width: 110 }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    size="small"
+                    label="Header"
+                    type="color"
+                    value={formData.back_config.header_color ?? '#1565c0'}
+                    onChange={(e) => updateBack('header_color', e.target.value)}
+                    sx={{ width: 110 }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    size="small"
+                    label="Border"
+                    type="color"
+                    value={formData.back_config.border_color ?? '#1565c0'}
+                    onChange={(e) => updateBack('border_color', e.target.value)}
+                    sx={{ width: 110 }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
+              </Paper>
             </Grid>
 
-            {/* Live preview inside dialog */}
+            {/* Live preview in dialog */}
             <Grid item xs={12}>
               <Divider />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="caption" color="text.secondary">
-                Front Preview
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                Live Preview
               </Typography>
-              <PreviewCard
-                side="front"
-                config={formData.front_config}
-                orientation={formData.orientation}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="caption" color="text.secondary">
-                Back Preview
-              </Typography>
-              <PreviewCard
-                side="back"
-                config={formData.back_config}
-                orientation={formData.orientation}
-              />
+              <Box
+                sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', py: 1 }}
+              >
+                <Box
+                  sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    Front
+                  </Typography>
+                  <PreviewCard
+                    side="front"
+                    config={formData.front_config}
+                    orientation={formData.orientation}
+                    scale={0.85}
+                  />
+                </Box>
+                <Box
+                  sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    Back
+                  </Typography>
+                  <PreviewCard
+                    side="back"
+                    config={formData.back_config}
+                    orientation={formData.orientation}
+                    scale={0.85}
+                  />
+                </Box>
+              </Box>
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
           <Button
             variant="contained"

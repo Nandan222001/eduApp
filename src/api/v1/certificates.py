@@ -570,9 +570,11 @@ async def upload_id_card_logo(
         mime = file.content_type or "image/png"
         logo_url = f"data:{mime};base64,{base64.b64encode(content).decode()}"
 
+    from sqlalchemy.orm.attributes import flag_modified
     layout = dict(tmpl.layout_config or {})
     layout["logo_url"] = logo_url
     tmpl.layout_config = layout
+    flag_modified(tmpl, "layout_config")
     db.commit()
     db.refresh(tmpl)
     return {"logo_url": logo_url}
