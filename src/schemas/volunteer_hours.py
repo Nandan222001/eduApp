@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, date as date_type
 from typing import Optional, List, Dict, Any
 from decimal import Decimal
 from pydantic import BaseModel, Field, ConfigDict, validator
@@ -23,7 +23,11 @@ class VolunteerHourLogCreate(VolunteerHourLogBase):
 class VolunteerHourLogUpdate(BaseModel):
     activity_name: Optional[str] = Field(None, max_length=255)
     activity_type: Optional[ActivityType] = None
-    date: Optional[date] = None
+    # Aliased import: see the identical comment in
+    # src/schemas/community_service.py's ServiceActivityUpdate for why a
+    # field literally named `date` needs Optional[date_type] here, not
+    # Optional[date] -- the latter resolves to NoneType under pydantic v2.
+    date: Optional[date_type] = None
     hours_logged: Optional[Decimal] = Field(None, ge=0, le=24)
     description: Optional[str] = None
     location: Optional[str] = Field(None, max_length=255)

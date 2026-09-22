@@ -1,4 +1,4 @@
-from datetime import datetime, date, time
+from datetime import datetime, date, date as date_type, time
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from src.models.conferences import LocationType, AvailabilityStatus, ConferenceType, BookingStatus
@@ -27,7 +27,11 @@ class ConferenceSlotCreate(ConferenceSlotBase):
 
 
 class ConferenceSlotUpdate(BaseModel):
-    date: Optional[date] = None
+    # Aliased import: see the identical comment in
+    # src/schemas/community_service.py's ServiceActivityUpdate for why a
+    # field literally named `date` needs Optional[date_type] here, not
+    # Optional[date] -- the latter resolves to NoneType under pydantic v2.
+    date: Optional[date_type] = None
     time_slot: Optional[time] = None
     duration_minutes: Optional[int] = Field(None, ge=15, le=120)
     location: Optional[LocationType] = None

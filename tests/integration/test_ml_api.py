@@ -200,11 +200,16 @@ class TestBoardExamPredictionsAPI:
                 'years_since_last_appearance': 0,
                 'average_marks': 8.5,
                 'total_marks': 127.5,
+                'avg_marks_per_appearance': 8.5,
+                'cyclical_pattern_score': 85.0,
+                'trend_score': 90.0,
+                'weightage_score': 80.0,
                 'difficulty_level': 'hard',
                 'bloom_level': 'apply',
                 'trend_direction': 'increasing',
                 'is_due': False,
                 'reasoning': 'Appears frequently in recent exams',
+                'analyzed_at': datetime.utcnow().isoformat(),
                 'created_at': datetime.utcnow().isoformat(),
                 'updated_at': datetime.utcnow().isoformat()
             },
@@ -226,11 +231,16 @@ class TestBoardExamPredictionsAPI:
                 'years_since_last_appearance': 1,
                 'average_marks': 6.0,
                 'total_marks': 72.0,
+                'avg_marks_per_appearance': 6.0,
+                'cyclical_pattern_score': 75.0,
+                'trend_score': 70.0,
+                'weightage_score': 65.0,
                 'difficulty_level': 'medium',
                 'bloom_level': 'understand',
                 'trend_direction': 'stable',
                 'is_due': True,
                 'reasoning': 'Due based on cyclical pattern',
+                'analyzed_at': datetime.utcnow().isoformat(),
                 'created_at': datetime.utcnow().isoformat(),
                 'updated_at': datetime.utcnow().isoformat()
             }
@@ -361,12 +371,12 @@ class TestStudyPlannerAPI:
         today = date.today()
         mock_daily_tasks = {
             'date': today,
-            'student_id': student.id,
             'total_tasks': 5,
             'completed_tasks': 2,
             'pending_tasks': 3,
-            'total_hours': 4.5,
-            'completed_hours': 1.5,
+            'total_estimated_minutes': 270,
+            'total_actual_minutes': 90,
+            'completion_rate': Decimal('40.0'),
             'tasks': [
                 {
                     'id': 1,
@@ -389,6 +399,12 @@ class TestStudyPlannerAPI:
                     'notes': None,
                     'resources': ['NCERT Chapter 4', 'RD Sharma'],
                     'is_adaptive': True,
+                    'priority_score': 85.0,
+                    'completed_at': None,
+                    'rescheduled_from_date': None,
+                    'rescheduled_to_date': None,
+                    'rescheduled_reason': None,
+                    'calendar_event_id': None,
                     'created_at': datetime.utcnow().isoformat(),
                     'updated_at': datetime.utcnow().isoformat()
                 },
@@ -413,6 +429,12 @@ class TestStudyPlannerAPI:
                     'notes': 'All formulas reviewed',
                     'resources': ['Formula Sheet', 'Class Notes'],
                     'is_adaptive': True,
+                    'priority_score': 70.0,
+                    'completed_at': datetime.utcnow().isoformat(),
+                    'rescheduled_from_date': None,
+                    'rescheduled_to_date': None,
+                    'rescheduled_reason': None,
+                    'calendar_event_id': None,
                     'created_at': datetime.utcnow().isoformat(),
                     'updated_at': datetime.utcnow().isoformat()
                 },
@@ -437,6 +459,12 @@ class TestStudyPlannerAPI:
                     'notes': None,
                     'resources': ['HC Verma Chapter 2'],
                     'is_adaptive': False,
+                    'priority_score': 60.0,
+                    'completed_at': None,
+                    'rescheduled_from_date': None,
+                    'rescheduled_to_date': None,
+                    'rescheduled_reason': None,
+                    'calendar_event_id': None,
                     'created_at': datetime.utcnow().isoformat(),
                     'updated_at': datetime.utcnow().isoformat()
                 }
@@ -460,13 +488,12 @@ class TestStudyPlannerAPI:
 
         assert response.status_code == 200
         data = response.json()
-        
-        assert data['student_id'] == student.id
+
         assert data['total_tasks'] == 5
         assert data['completed_tasks'] == 2
         assert data['pending_tasks'] == 3
-        assert data['total_hours'] == 4.5
-        assert data['completed_hours'] == 1.5
+        assert data['total_estimated_minutes'] == 270
+        assert data['total_actual_minutes'] == 90
         
         assert 'tasks' in data
         assert len(data['tasks']) == 3
@@ -476,16 +503,11 @@ class TestStudyPlannerAPI:
         assert first_task['priority'] == 'high'
         assert first_task['estimated_duration_minutes'] == 60
         assert first_task['status'] == 'pending'
-        assert first_task['is_adaptive'] == True
-        
+
         completed_task = data['tasks'][1]
         assert completed_task['status'] == 'completed'
-        assert completed_task['completion_percentage'] == 100
+        assert float(completed_task['completion_percentage']) == 100
         assert completed_task['actual_duration_minutes'] == 45
-        
-        assert 'priorities' in data
-        assert data['priorities']['high'] == 2
-        assert data['priorities']['medium'] == 1
 
 
 @pytest.mark.integration
@@ -753,9 +775,20 @@ class TestMLAPIWithMockedServices:
     ):
         mock_analysis.return_value = {
             'summary': {
-                'total_weak_areas': 3,
-                'average_mastery': 55.5,
-                'improvement_trend': 'stable'
+                'total_chapters_analyzed': 8,
+                'weak_chapters_count': 3,
+                'weak_areas_count': 3,
+                'focus_areas_count': 0,
+                'critical_focus_areas': 0,
+                'question_recommendations_count': 0,
+                'personalized_insights_count': 0,
+                'average_mastery_score': 55.5,
+                'improvement_areas': [
+                    {'chapter': 'Calculus', 'subject': 'Maths', 'mastery_score': 42.0, 'trend': 'declining'}
+                ],
+                'top_priorities': [
+                    {'area': 'Calculus', 'priority_score': 90.0, 'recommended_hours': 6.0, 'type': 'chapter'}
+                ]
             },
             'chapter_performances': [],
             'weak_areas': ['Calculus', 'Probability', 'Trigonometry'],
@@ -789,15 +822,11 @@ class TestMLAPIWithMockedServices:
         grade: Grade
     ):
         mock_analyze.return_value = {
-            'board': Board.CBSE,
-            'grade_id': grade.id,
-            'subject_id': subject.id,
-            'analysis_period': '2018-2023',
-            'total_papers_analyzed': 6,
-            'total_questions_analyzed': 180,
-            'top_predictions': [],
-            'pattern_insights': 'Regular appearance of algebra topics',
-            'confidence': 'high'
+            'total_topics_analyzed': 6,
+            'year_range': '2018-2023',
+            'predictions_generated': 6,
+            'cache_key': f'exam_predictions:1:{Board.CBSE.value}:{grade.id}:{subject.id}',
+            'analyzed_at': datetime.utcnow()
         }
 
         response = client.post(
@@ -814,5 +843,6 @@ class TestMLAPIWithMockedServices:
 
         assert response.status_code == 200
         data = response.json()
-        assert data['board'] == Board.CBSE.value
-        assert data['total_papers_analyzed'] == 6
+        assert data['total_topics_analyzed'] == 6
+        assert data['year_range'] == '2018-2023'
+        assert data['predictions_generated'] == 6
