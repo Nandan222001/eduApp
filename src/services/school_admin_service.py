@@ -39,6 +39,7 @@ from src.schemas.school_admin import (
     SMSTemplateUpdate,
     StaffMemberCreate,
     StaffMemberUpdate,
+    StaffPayrollResponse,
     StaffPayrollUpdate,
     StaffStatistics,
 )
@@ -578,7 +579,7 @@ class SchoolAdminService:
             "total_net_salary": float(total_net),
             "paid_count": paid_count,
             "pending_count": pending_count,
-            "payrolls": payrolls
+            "payrolls": [StaffPayrollResponse.model_validate(p) for p in payrolls]
         }
 
     def list_sms_templates(
