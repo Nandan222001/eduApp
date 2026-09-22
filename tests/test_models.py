@@ -87,7 +87,7 @@ class TestModels:
             teacher_id=teacher.id,
             due_date=datetime.now(),
             max_marks=100,
-            status=AssignmentStatus.ACTIVE,
+            status=AssignmentStatus.PUBLISHED,
         )
         db_session.add(assignment)
         db_session.commit()
