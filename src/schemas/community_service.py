@@ -54,7 +54,13 @@ class ServiceActivityResponse(ServiceActivityBase):
     verification_status: VerificationStatus
     verifier_signature_url: Optional[str]
     verification_date: Optional[date]
-    metadata: Optional[Dict[str, Any]]
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # the declarative base for its MetaData registry, so the model maps the
+    # `metadata` DB column to `metadata_json`). Without this alias,
+    # from_attributes lookup of `metadata` on the ORM instance resolves to
+    # that reserved MetaData object instead of the JSON column, and Pydantic
+    # v2 fails to serialize it as Dict[str, Any].
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     student_name: Optional[str] = None
@@ -111,7 +117,8 @@ class OrganizationContactResponse(OrganizationContactBase):
     institution_id: int
     is_verified: bool
     is_active: bool
-    metadata: Optional[Dict[str, Any]]
+    # See ServiceActivityResponse.metadata for why the alias is needed.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -193,7 +200,8 @@ class GraduationRequirementResponse(GraduationRequirementBase):
     id: int
     institution_id: int
     is_active: bool
-    metadata: Optional[Dict[str, Any]]
+    # See ServiceActivityResponse.metadata for why the alias is needed.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -252,7 +260,8 @@ class ServiceCertificateResponse(ServiceCertificateBase):
     certificate_url: Optional[str]
     pdf_path: Optional[str]
     signed_by: Optional[int]
-    metadata: Optional[Dict[str, Any]]
+    # See ServiceActivityResponse.metadata for why the alias is needed.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     student_name: Optional[str] = None
