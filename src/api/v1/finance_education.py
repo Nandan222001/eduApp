@@ -555,8 +555,16 @@ def update_participation(
         raise HTTPException(status_code=404, detail="Participation not found")
     
     for key, value in update_data.model_dump(exclude_unset=True).items():
-        setattr(participation, key, value)
-    
+        # `metadata` is reserved by SQLAlchemy's declarative base for the
+        # MetaData object -- the real column is mapped as `metadata_json`.
+        # A plain setattr(participation, 'metadata', value) would silently
+        # shadow the class attribute with an instance attribute that is
+        # never persisted, losing the update without raising any error.
+        if key == 'metadata':
+            participation.metadata_json = value
+        else:
+            setattr(participation, key, value)
+
     if update_data.status == ChallengeStatus.COMPLETED and not participation.completed_at:
         participation.completed_at = datetime.utcnow()
         
