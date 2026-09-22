@@ -18,7 +18,13 @@ class SubscriptionTaskManager:
         
         reminders_sent = []
         for subscription in subscriptions_due:
-            days_until_renewal = (subscription.next_billing_date - datetime.utcnow()).days
+            # Compare calendar dates, not exact timestamps -- subtracting
+            # full datetimes and flooring via .days under-reports by one
+            # whenever "now" is later in the day than next_billing_date's
+            # time-of-day, even by a few milliseconds (e.g. a subscription
+            # due in exactly 7 days would floor to 6), which would make a
+            # "N days until renewal" reminder fire off by a day.
+            days_until_renewal = (subscription.next_billing_date.date() - datetime.utcnow().date()).days
             
             reminder_info = {
                 "subscription_id": subscription.id,

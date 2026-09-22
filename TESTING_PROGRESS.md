@@ -631,17 +631,56 @@ is True` assertions failing) -- not yet root-caused, next in line. `tests/migrat
 test_mysql_comprehensive.py` needs its own separate MySQL database (`test_mysql_migration`) and
 real `alembic upgrade head` -- heavier standalone infra, lower priority than the main suite.
 
+## Backend fixes, sixth pass — commits pending (tests/unit/test_celery_tasks.py: 21/31 → 31/31)
+Picked up exactly where the fifth pass left off. All 10 pre-existing `test_celery_tasks.py`
+failures root-caused and fixed:
+
+31. `test_sendgrid_api_mocked` patched `sendgrid.SendGridAPIClient` (the origin module), but
+    `src/services/notification_providers.py` does `from sendgrid import SendGridAPIClient` at
+    import time, binding its own name in its own module namespace -- patching the origin
+    module after that import doesn't affect the already-bound reference. Classic
+    patch-the-wrong-namespace bug. Fixed to patch
+    `src.services.notification_providers.SendGridAPIClient`.
+32. `test_send_expo_push_notification_success` / `test_send_bulk_notifications_success` /
+    `test_bulk_notification_chain`: constructed `NotificationDevice`/`User` rows missing
+    required NOT-NULL columns (`role`, `platform` on `NotificationDevice`; `role_id` on `User`,
+    ForeignKey to `roles.id`). Added them (using the existing `student_role` fixture for the
+    `User` rows).
+33. `test_process_grouped_notifications` / `test_grouped_notification_chain`: set
+    `grouped_with_id=1`, a hardcoded FK to a `Notification.id` that never existed --
+    `notifications_ibfk_3` FK violation. Fixed by creating a real parent `Notification` row
+    first and using its actual `.id`.
+34. `test_send_scheduled_announcements`: constructed `Announcement` rows missing 3 required
+    NOT-NULL columns (`created_by` FK to `users.id`, `audience_type`, `channels`). Added them.
+35. **Real app bug** in `src/tasks/notification_tasks.py`'s `retry_failed_notifications`:
+    `notification.data["retry_count"] = retry_count + 1` mutates a plain (non-`Mutable`-wrapped)
+    JSON column's dict **in place**, which SQLAlchemy's change-tracking never detects for a bare
+    `Column(JSON)` -- so the increment silently never persisted to the database. Every fresh
+    query re-read the same stale `retry_count`, meaning **failed notifications could retry
+    forever, never actually respecting `max_retries`**, since the persisted counter never grew.
+    Fixed to reassign the whole dict (`notification.data = {**(notification.data or {}),
+    "retry_count": retry_count + 1}`), which SQLAlchemy always detects as a change on plain
+    attribute reassignment regardless of mutability tracking.
+36. **Real app bug** in `src/utils/subscription_tasks.py`'s `process_renewal_reminders`:
+    `days_until_renewal = (subscription.next_billing_date - datetime.utcnow()).days` subtracts
+    full timestamps and floors, so it under-reports by one day whenever `datetime.utcnow()`'s
+    time-of-day is later than `next_billing_date`'s (which is true almost always in practice,
+    since a scheduled task doesn't fire at the exact same wall-clock instant `next_billing_date`
+    was computed) -- a subscription due in exactly 7 days would compute `days_until_renewal ==
+    6`. This would make the 7-day/3-day renewal reminder emails fire with the wrong "N days"
+    label, or on the wrong day entirely, in real production use. Fixed to compare calendar
+    dates (`.date()` on both sides) instead of exact timestamps, which is what "N days until
+    renewal" actually means for a reminder feature.
+
+`tests/unit/test_celery_tasks.py` is now 31/31 passing (verified `-n0` and `-n auto`). Also
+re-verified the whole set of files touched across passes five and six together, both
+sequentially and under `-n auto`: 146 passed, 10 skipped (the skips are the
+`test_websocket.py` tests that intentionally skip without a live server), 0 failed.
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the fifth-pass changes above (#18-30) if not already done, and confirm the push
+1. Commit + push the sixth-pass changes above (#31-36) if not already done, and confirm the push
    succeeded (`git log --oneline -1`, `git status`).
-2. Root-cause `tests/unit/test_celery_tasks.py`'s 10 pre-existing failures (confirmed unrelated
-   to this session's changes, listed at the end of pass #18-30 above): `TestNotificationSendingTasks`,
-   `TestScheduledTasks`, `TestSubscriptionRenewalReminders`, `TestTaskChaining`,
-   `TestExternalServiceMocking::test_sendgrid_api_mocked`. Start with `test_sendgrid_api_mocked`
-   since its error is concrete (`Error sending email: HTTP Error 401: Unauthorized` from
-   `src/services/notification_providers.py:60`) -- likely a mocking gap (real SendGrid call
-   escaping the mock) rather than an app bug; verify which before assuming.
-3. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
+2. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
    schema-lock sentinels first, per the commands earlier in this file):
    `mysql -u root -ptest_password -e "DROP DATABASE IF EXISTS test_db; CREATE DATABASE test_db CHARACTER SET utf8mb4;"`
    `rm -f /tmp/eduapp_schema.lock /tmp/eduapp_schema.done`
