@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
@@ -9,6 +10,11 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.ts', './tests/setup.ts'],
+    // tests/e2e/** are Playwright specs (run via `npx playwright test`, using
+    // the root playwright.config.ts) that need a live browser + dev server --
+    // exclude them so Vitest's default *.spec.ts glob doesn't try to collect
+    // them as unit tests.
+    exclude: [...configDefaults.exclude, 'tests/e2e/**'],
     server: {
       deps: {
         // @mui/x-date-pickers' ESM build does bare directory imports like
