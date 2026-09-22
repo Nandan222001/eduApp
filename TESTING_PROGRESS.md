@@ -125,11 +125,18 @@ All remaining files from the earlier checkpoint were fixed this session:
 
 ## Environment setup commands (re-run at the start of a fresh container/session)
 ```
-service mysql start   # or: mysqld_safe & — check with `mysqladmin ping`
+service mysql start   # or: mysqld_safe & — check with `mysqladmin -u root -ptest_password ping`
 redis-server --daemonize yes --port 6379   # check with `redis-cli ping`
 cd /home/user/eduApp && pip install -r requirements.txt -r requirements-dev.txt
 cd frontend && npm install
 ```
+NOTE: observed mid-session (same container, ~1hr later) that `pip install`'d backend packages
+had vanished (`import fastapi` → ModuleNotFoundError) even though mysql/redis and the
+frontend's node_modules were untouched and disk had plenty of free space. Cause unconfirmed
+(possibly this environment's python/pip resolve to different install locations depending on
+something transient). Just re-run the pip install command above if `python3 -c "import
+fastapi"` fails — don't assume the backend environment is broken, it may just need a rerun.
+Always verify with that one-liner before assuming pytest will work.
 
 ## Backend route modules (113 total) — test coverage checklist
 Legend: [x] has dedicated test file & passing | [~] has test file, some failing | [ ] no test file yet
