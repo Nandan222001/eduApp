@@ -1275,32 +1275,59 @@ Verified individually and together, `-n0` and `-n auto`: `test_api_auth.py` (8/8
 (`test_document_vault.py`, documented below). App import skip-list unchanged (11 routers, same
 as before this pass -- no new breakage).
 
+## Confirmed baseline after the thirteenth pass (commits 09468c1, d7e33fe, 13ad918)
+Fresh full uncapped run (`test_db` + schema-lock sentinels reset first, per the commands below):
+**796 passed / 25 failed / 20 errors / 11 skipped** (up from 776/45/20/11 before this pass --
+20 more passing, 20 fewer failures, confirming #73/#74/#75-81 landed as expected).
+
+Every one of the 25 failures + 20 errors was individually triaged against this file's existing
+documentation -- **none are new/unknown**:
+- `test_auth.py` (6) -- the documented SQLite-vs-MySQL xdist race (passes 8/8 standalone,
+  re-verified again this pass).
+- `test_security.py` (2) -- the two already-flagged design-decision items from pass eight
+  (subscriptions router has no auth at all; no server-side XSS input sanitization anywhere in
+  the codebase) -- unchanged, still not bugs to fix unilaterally.
+- `migration/test_migrations.py`, `migration/test_mysql_comprehensive.py`,
+  `migration/test_api_endpoints_mysql.py` (19 combined) -- need a separate
+  `test_mysql_migration` database that doesn't exist yet (`Unknown database
+  'test_mysql_migration'`) plus a real `alembic upgrade head` run -- heavier standalone infra,
+  already flagged lower-priority in earlier passes.
+- `test_performance_benchmarks.py`, `benchmark/test_performance.py` (13 combined) -- lower
+  priority, already flagged in earlier passes.
+- `test_document_vault.py` (1 collection error) -- the documented dead/unwired
+  `document_vault_service.py`, see the resume-point item below.
+- `test_external_services_integration.py::test_payment_with_notification` -- re-verified
+  standalone: 1/1 passed. Full-suite-only flakiness (same DB-contention class as the
+  `institutions`-insert flake from pass eleven), not a real failure.
+
+**Backend Phase 1 (fix all pre-existing failing tests) is essentially complete** -- everything
+remaining is either heavier standalone infra (migration/benchmark), a flagged design decision,
+known dead code, or full-suite-only DB contention flakiness that isn't reproducible standalone.
+Next priorities, in order: (1) finish `ml_analytics`'s schema gap since it's now blocking two
+things (see the "MAJOR FINDING" table above -- fully scoped, just needs the schema file
+written), (2) the remaining 8 silently-disabled routers, (3) `document_vault_service.py`'s
+dead-code decision below, (4) Phase 2 (new test coverage for untested route modules/pages).
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the thirteenth-pass changes above (#73-81) if not already done (already done:
-   commits 09468c1, d7e33fe), and confirm the push succeeded (`git log --oneline -1`,
-   `git status`).
-2. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
-   schema-lock sentinels first, per the commands earlier in this file):
-   `mysql -u root -ptest_password -e "DROP DATABASE IF EXISTS test_db; CREATE DATABASE test_db CHARACTER SET utf8mb4;"`
-   `rm -f /tmp/eduapp_schema.lock /tmp/eduapp_schema.done`
-   `cd /home/user/eduApp && python3 -m pytest --no-cov -p no:cacheprovider -q -n auto --maxfail=1000 2>&1 | tail -100`
-   Compare against the 776/45/20/11 baseline noted at the top of the twelfth pass above --
-   expect a notably better number now that both the raw-ORM-list bug (#73, ~40 endpoints) and
-   the date-shadowing bug (#74, 4 endpoints) are fixed, plus all of #75-81. Remaining known
-   clusters to work through next (from the twelfth-pass full-run tail, not yet triaged):
-   `test_security.py`'s 2 already-flagged design-decision items (unchanged, see the eighth pass
-   above -- not bugs to fix casually), `migration/`/`benchmark/`/`test_performance_benchmarks.py`
-   (lower priority, heavier standalone infra requirements, already noted in earlier passes).
-   Note: `-n auto` can still show flaky/unrelated failures on files not touched this session
-   (e.g. test_auth.py's separate SQLite setup racing MySQL-based workers, or the
-   institutions-insert flake noted in pass eleven) -- always re-verify red results standalone
-   with `-n0` before trusting them.
-3. Pick the next individual failing test FILE (not scattershot individual tests) and drive it
+1. Commit + push the thirteenth-pass baseline-confirmation update above if not already done.
+2. **`ml_analytics`'s schema gap** (see the "MAJOR FINDING" router table far above for the full
+   field-by-field scoping already done): `src/services/analytics_service.py` imports 11 classes
+   from `src.schemas.analytics` that don't exist there (that file is for a different,
+   already-implemented feature -- event tracking). Write the missing schema classes (in a new
+   file, e.g. `src/schemas/academic_analytics.py`, then repoint the import -- or append to the
+   existing file) by reading `analytics_service.py`'s actual field usage per class (same method
+   used for the earlier model fixes in this file). This unblocks the `ml_analytics` router AND
+   `test_division_by_zero_error_handling` (see pass eleven) at once.
+3. Then the remaining 8 silently-disabled routers (was 9, `ml_analytics` now counted separately
+   above) -- see the router table for the recommended order (schema-file-having ones first:
+   `merchandise`, `journalism`, `learning_styles`, `yearbook`, `ml_training`,
+   `super_admin_reports`, then the 3 with no schema file last).
+4. Pick the next individual failing test FILE (not scattershot individual tests) and drive it
    to green the same way as the last several files were: read the file, run just that file
    (`-n0` for clean sequential output), fix fixtures/imports first (often the actual root cause
    — collection errors, stale field/enum names, missing deps), then real service-layer bugs the
    fixes newly expose, re-verify, commit each file/small-batch separately.
-4. `document_vault_service.py` (and its test `tests/test_document_vault.py`) is a known, deeper
+5. `document_vault_service.py` (and its test `tests/test_document_vault.py`) is a known, deeper
    case — investigated in an earlier pass but not fixed: the router (`src/api/v1/document_vault.py`)
    does NOT use this service at all (imports only schemas that exist and work fine), so the
    service is dead/unwired code with its own broken imports (`DocumentType`, `ShareType`,
@@ -1311,7 +1338,6 @@ as before this pass -- no new breakage).
    either finish wiring it into a real feature (bigger job, needs product-intent judgment on
    what the OCR/encryption/S3 vault feature should actually do), or explicitly mark it
    out-of-scope dead code in this file and move on -- don't half-fix it.
-5. Once the backend suite is green (or remaining failures are individually understood/triaged
-   as out of scope), finish the remaining 9 silently-disabled routers (see the "MAJOR FINDING"
-   table above -- start with `ml_analytics` since its schema gap is now blocking two things, not
-   just one), then move to Phase 2 (new coverage for untested route modules/pages).
+6. Once the remaining disabled routers are finished (or triaged as out of scope), move to
+   Phase 2 (new test coverage for untested route modules/pages -- see the checklists earlier in
+   this file).
