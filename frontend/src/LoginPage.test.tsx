@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -29,16 +29,24 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /sign in|login/i })).toBeInTheDocument();
   });
 
-  it('shows validation errors for empty fields', async () => {
+  it('blocks submission of empty required fields via native validation', async () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginPage />);
+
+    // The login form uses plain HTML `required` fields (no inline validation
+    // messages are rendered), so an empty submit is rejected by the browser's
+    // native constraint validation rather than by any DOM-queryable text.
+    const emailInput = screen.getByRole('textbox', { name: /email/i });
+    const passwordInput = screen.getByLabelText(/password/i);
+    expect(emailInput).toBeInvalid();
+    expect(passwordInput).toBeInvalid();
 
     const submitButton = screen.getByRole('button', { name: /sign in|login/i });
     await user.click(submitButton);
 
-    await waitFor(() => {
-      expect(screen.queryByText(/required|enter/i)).toBeInTheDocument();
-    });
+    // Submission stays blocked (still on the login form) since required
+    // fields are still empty.
+    expect(screen.getByRole('button', { name: /sign in|login/i })).toBeInTheDocument();
   });
 
   it('submits form with valid credentials', async () => {

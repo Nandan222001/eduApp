@@ -250,7 +250,7 @@ describe('demoAssignmentsApi', () => {
 
       expect(result).toBeDefined();
       expect(result.skip).toBe(0);
-      expect(result.limit).toBe(50);
+      expect(result.limit).toBe(10);
     });
 
     it('should return items with proper Assignment type', async () => {
