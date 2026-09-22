@@ -703,9 +703,23 @@ class WellbeingService:
         ).first()
         
         if not profile:
+            # The trend/score columns declare `default=0.0`, but a
+            # SQLAlchemy column default is only applied on flush/INSERT --
+            # right after construction (before this function reads and
+            # compares them below, e.g. `profile.sentiment_trend < -0.5`)
+            # they're still plain `None` in Python, so the very first alert
+            # for any student crashed with `TypeError: '<' not supported
+            # between instances of 'NoneType' and 'float'`. Set them
+            # explicitly instead of relying on the DB-side default.
             profile = StudentWellbeingProfile(
                 institution_id=institution_id,
-                student_id=student_id
+                student_id=student_id,
+                sentiment_trend=0.0,
+                attendance_trend=0.0,
+                grade_trend=0.0,
+                participation_trend=0.0,
+                social_trend=0.0,
+                overall_risk_score=0.0,
             )
             self.db.add(profile)
         
