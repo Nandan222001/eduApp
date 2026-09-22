@@ -130,13 +130,17 @@ redis-server --daemonize yes --port 6379   # check with `redis-cli ping`
 cd /home/user/eduApp && pip install -r requirements.txt -r requirements-dev.txt
 cd frontend && npm install
 ```
-NOTE: observed mid-session (same container, ~1hr later) that `pip install`'d backend packages
-had vanished (`import fastapi` → ModuleNotFoundError) even though mysql/redis and the
-frontend's node_modules were untouched and disk had plenty of free space. Cause unconfirmed
-(possibly this environment's python/pip resolve to different install locations depending on
-something transient). Just re-run the pip install command above if `python3 -c "import
-fastapi"` fails — don't assume the backend environment is broken, it may just need a rerun.
-Always verify with that one-liner before assuming pytest will work.
+NOTE (root-caused): `pip install -r requirements.txt -r requirements-dev.txt` looks like it
+succeeds (prints `[exited with code 0]`) but actually silently fails partway through:
+`ERROR: Cannot uninstall PyYAML 6.0.1, RECORD file not found. Hint: The package was installed
+by debian.` PyYAML was installed via apt (no pip RECORD metadata), so pip can't upgrade/
+uninstall it mid-batch, aborts installing most of the remaining packages (fastapi included,
+since it sorts late in the dependency-installation order), yet still exits 0. ALWAYS use:
+```
+pip install --ignore-installed -r requirements.txt -r requirements-dev.txt
+```
+and verify afterwards with `python3 -c "import fastapi, sqlalchemy, pytest"` — don't trust
+a bare `pip install ...` exit code for this repo's backend deps.
 
 ## Backend route modules (113 total) — test coverage checklist
 Legend: [x] has dedicated test file & passing | [~] has test file, some failing | [ ] no test file yet
