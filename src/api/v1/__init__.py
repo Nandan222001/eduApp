@@ -46,6 +46,13 @@ ROUTERS = [
     ("src.api.v1.assignments", "/assignments", ["assignments"], "router"),
     ("src.api.v1.submissions", "/submissions", ["submissions"], "router"),
     ("src.api.v1.exams", "/exams", ["exams"], "router"),
+    # Registered directly (not via `_include_optional_router`'s try/except
+    # swallowing) until now, so it silently never mounted -- confirmed via
+    # frontend/src/api/fees.ts calling /api/v1/fees/structures and every
+    # other endpoint this router defines, meaning the entire Fee Management
+    # feature (FeeManagement.tsx) has been unreachable in the real app.
+    # Found while writing real integration test coverage for this router.
+    ("src.api.v1.fees", "/fees", ["fees"], "router"),
     ("src.api.v1.previous_year_papers", "/previous-year-papers", ["previous-year-papers"], "router"),
     ("src.api.v1.question_bank", "/question-bank", ["question-bank"], "router"),
     ("src.api.v1.question_bookmarks", "/question-bookmarks", ["question-bookmarks"], "router"),
