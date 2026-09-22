@@ -63,7 +63,7 @@ from src.schemas.wellbeing import (
     ReferralResponse,
 )
 
-router = APIRouter(prefix="/wellbeing", tags=["Wellbeing"])
+router = APIRouter(tags=["Wellbeing"])
 
 
 @router.post("/sentiment-analysis", response_model=SentimentAnalysisResponse)

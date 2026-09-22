@@ -15,7 +15,7 @@ from src.schemas.examination import (
 )
 from src.services.examination_service import ExaminationService
 
-router = APIRouter(prefix="/exams", tags=["Examinations"])
+router = APIRouter(tags=["Examinations"])
 
 
 @router.post("", response_model=ExamResponse, status_code=status.HTTP_201_CREATED)
@@ -44,6 +44,22 @@ def list_exams(
         institution_id, academic_year_id, grade_id, exam_type, status, skip, limit
     )
     return exams
+
+
+@router.get("/grade-configurations", response_model=List[GradeConfigurationResponse])
+def list_grade_configurations(
+    institution_id: int = Query(...),
+    active_only: bool = Query(True),
+    db: Session = Depends(get_db)
+):
+    # Registered before GET /{exam_id} deliberately: a single-literal-segment
+    # path here would otherwise be shadowed by the param route below (which
+    # FastAPI/Starlette matches in registration order), making this endpoint
+    # permanently unreachable -- 422 int_parsing on "grade-configurations"
+    # trying to parse as exam_id. Found via real integration test coverage.
+    service = ExaminationService(db)
+    configs = service.list_grade_configurations(institution_id, active_only)
+    return configs
 
 
 @router.get("/{exam_id}", response_model=ExamDetailResponse)
@@ -161,7 +177,7 @@ def create_exam_schedule(
     service = ExaminationService(db)
     schedule, conflicts = service.create_exam_schedule(schedule_data)
     return {
-        "schedule": schedule,
+        "schedule": ExamScheduleResponse.model_validate(schedule),
         "conflicts": conflicts,
         "has_conflicts": len(conflicts) > 0
     }
@@ -193,7 +209,7 @@ def update_exam_schedule(
             detail="Exam schedule not found"
         )
     return {
-        "schedule": schedule,
+        "schedule": ExamScheduleResponse.model_validate(schedule),
         "conflicts": conflicts,
         "has_conflicts": len(conflicts) > 0
     }
@@ -358,17 +374,6 @@ def create_grade_configuration(
     service = ExaminationService(db)
     config = service.create_grade_configuration(config_data)
     return config
-
-
-@router.get("/grade-configurations", response_model=List[GradeConfigurationResponse])
-def list_grade_configurations(
-    institution_id: int = Query(...),
-    active_only: bool = Query(True),
-    db: Session = Depends(get_db)
-):
-    service = ExaminationService(db)
-    configs = service.list_grade_configurations(institution_id, active_only)
-    return configs
 
 
 @router.put("/grade-configurations/{config_id}", response_model=GradeConfigurationResponse)
