@@ -35,7 +35,6 @@ class TestAttendanceService:
             section_id=section.id,
             date=date.today(),
             status="present",
-            period=1,
         )
 
         attendance = attendance_service.create_attendance(attendance_data)
@@ -58,7 +57,6 @@ class TestAttendanceService:
             section_id=section.id,
             subject_id=subject.id,
             date=date.today(),
-            period=1,
             attendance_records=[
                 {"student_id": student.id, "status": "present"}
             ],
@@ -91,7 +89,6 @@ class TestAttendanceService:
                 section_id=section.id,
                 date=date.today(),
                 status=AttendanceStatus.PRESENT if i < 8 else AttendanceStatus.ABSENT,
-                period=i + 1,
             )
             db_session.add(attendance)
         db_session.commit()
@@ -122,7 +119,6 @@ class TestAttendanceService:
                 section_id=section.id,
                 date=date.today(),
                 status=AttendanceStatus.ABSENT if i < 7 else AttendanceStatus.PRESENT,
-                period=i + 1,
             )
             db_session.add(attendance)
         db_session.commit()

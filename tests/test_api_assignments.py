@@ -68,7 +68,7 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
             status=AssignmentStatus.ACTIVE,
         )
         db_session.add(assignment)
@@ -105,7 +105,7 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
             status=AssignmentStatus.ACTIVE,
         )
         db_session.add(assignment)
@@ -142,7 +142,7 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
             status=AssignmentStatus.ACTIVE,
         )
         db_session.add(assignment)
@@ -183,7 +183,7 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
             status=AssignmentStatus.ACTIVE,
         )
         db_session.add(assignment)
@@ -217,7 +217,7 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
             status=AssignmentStatus.ACTIVE,
         )
         db_session.add(assignment)

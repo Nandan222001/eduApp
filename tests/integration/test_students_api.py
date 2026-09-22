@@ -20,16 +20,8 @@ def second_institution(db_session: Session) -> Institution:
     """Create a second institution for multi-tenant testing."""
     institution = Institution(
         name="Second Test School",
-        short_name="STS",
-        code="TEST002",
-        email="admin@secondschool.com",
         phone="+1234567891",
         address="456 Second Street",
-        city="Test City",
-        state="Test State",
-        country="Test Country",
-        postal_code="12346",
-        website="https://secondschool.com",
         is_active=True,
     )
     db_session.add(institution)
@@ -106,7 +98,7 @@ def second_student(
         email=second_student_user.email,
         section_id=section.id,
         date_of_birth=date(2008, 5, 20),
-        date_of_admission=date(2020, 4, 1),
+        admission_date=date(2020, 4, 1),
         gender="Male",
         blood_group="A+",
         is_active=True,

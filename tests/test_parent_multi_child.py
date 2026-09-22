@@ -93,9 +93,8 @@ class TestParentMultiChildIntegration:
             last_name="One",
             email="child1@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 3, 15).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Male",
         )
         db_session.add(child1)
@@ -122,9 +121,8 @@ class TestParentMultiChildIntegration:
             last_name="Two",
             email="child2@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2012, 7, 20).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Female",
         )
         db_session.add(child2)
@@ -248,9 +246,8 @@ class TestParentMultiChildIntegration:
             last_name="Filter",
             email="child_filter@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 5, 10).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Male",
         )
         db_session.add(child)
@@ -362,9 +359,8 @@ class TestParentMultiChildIntegration:
             last_name="Specific",
             email="child_specific@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 8, 25).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Female",
         )
         db_session.add(child)
@@ -497,9 +493,8 @@ class TestParentMultiChildIntegration:
             last_name="Child",
             email="unlinked@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 1, 1).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Male",
         )
         db_session.add(unlinked_child)

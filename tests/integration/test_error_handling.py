@@ -347,15 +347,8 @@ class TestErrorHandling403:
         """Test 403 when accessing data from different institution"""
         other_institution = Institution(
             name="Other School",
-            short_name="OS",
-            code="OTHER001",
-            email="admin@other.com",
             phone="+9999999999",
             address="999 Other St",
-            city="Other City",
-            state="Other State",
-            country="Other Country",
-            postal_code="99999",
             is_active=True,
         )
         db_session.add(other_institution)

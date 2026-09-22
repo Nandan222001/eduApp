@@ -714,7 +714,7 @@ class TestWeeklyPerformanceReports:
             title="Math Assignment",
             description="Test assignment",
             due_date=datetime.utcnow() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
         )
         db_session.add(assignment)
         db_session.commit()

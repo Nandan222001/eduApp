@@ -91,7 +91,6 @@ class TestAttendanceAPI:
             section_id=section.id,
             date=date.today(),
             status=AttendanceStatus.PRESENT,
-            period=1,
         )
         db_session.add(attendance)
         db_session.commit()
@@ -130,7 +129,6 @@ class TestAttendanceAPI:
                 section_id=section.id,
                 date=date.today(),
                 status=AttendanceStatus.PRESENT if i < 4 else AttendanceStatus.ABSENT,
-                period=i + 1,
             )
             db_session.add(attendance)
         db_session.commit()
@@ -167,7 +165,6 @@ class TestAttendanceAPI:
                 section_id=section.id,
                 date=date.today(),
                 status=AttendanceStatus.ABSENT if i < 6 else AttendanceStatus.PRESENT,
-                period=i + 1,
             )
             db_session.add(attendance)
         db_session.commit()
@@ -204,7 +201,6 @@ class TestAttendanceAPI:
             section_id=section.id,
             date=date.today(),
             status=AttendanceStatus.PRESENT,
-            period=1,
         )
         db_session.add(attendance)
         db_session.commit()
@@ -240,7 +236,6 @@ class TestAttendanceAPI:
             section_id=section.id,
             date=date.today(),
             status=AttendanceStatus.PRESENT,
-            period=1,
         )
         db_session.add(attendance)
         db_session.commit()

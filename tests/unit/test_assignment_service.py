@@ -872,9 +872,8 @@ class TestSubmissionService:
                 last_name=user.last_name,
                 email=user.email,
                 section_id=section.id,
-                academic_year_id=academic_year.id,
                 date_of_birth=datetime(2008, 3, 20).date(),
-                date_of_admission=datetime(2020, 4, 1).date(),
+                admission_date=datetime(2020, 4, 1).date(),
                 gender="Male",
                 is_active=True,
             )
@@ -959,9 +958,8 @@ class TestSubmissionService:
                 last_name=user.last_name,
                 email=user.email,
                 section_id=section.id,
-                academic_year_id=academic_year.id,
                 date_of_birth=datetime(2008, 3, 20).date(),
-                date_of_admission=datetime(2020, 4, 1).date(),
+                admission_date=datetime(2020, 4, 1).date(),
                 gender="Male",
                 is_active=True,
             )

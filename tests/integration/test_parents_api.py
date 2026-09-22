@@ -102,7 +102,7 @@ def child_student(
         email=user.email,
         section_id=section.id,
         date_of_birth=date(2010, 5, 15),
-        date_of_admission=date(2020, 4, 1),
+        admission_date=date(2020, 4, 1),
         gender="Male",
         is_active=True,
     )
@@ -155,7 +155,7 @@ def second_child_student(
         email=user.email,
         section_id=section.id,
         date_of_birth=date(2012, 8, 20),
-        date_of_admission=date(2020, 4, 1),
+        admission_date=date(2020, 4, 1),
         gender="Female",
         is_active=True,
     )

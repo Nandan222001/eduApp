@@ -64,9 +64,8 @@ class TestMobileAPICompleteFlow:
             last_name="Student",
             email="mobile_student@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2008, 5, 15).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Male",
         )
         db_session.add(student)
@@ -270,9 +269,8 @@ class TestMobileAPICompleteFlow:
             last_name="Test",
             email="parent_child@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 3, 20).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Female",
         )
         db_session.add(child)

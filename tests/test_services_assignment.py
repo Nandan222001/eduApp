@@ -37,7 +37,7 @@ class TestAssignmentService:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
         )
 
         assignment = assignment_service.create_assignment(assignment_data)
@@ -67,7 +67,7 @@ class TestAssignmentService:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
             status=AssignmentStatus.ACTIVE,
         )
         db_session.add(assignment)
@@ -75,7 +75,7 @@ class TestAssignmentService:
 
         update_data = AssignmentUpdate(
             title="Updated Title",
-            total_marks=150,
+            max_marks=150,
         )
 
         updated = assignment_service.update_assignment(assignment.id, update_data)
@@ -104,7 +104,7 @@ class TestAssignmentService:
                 subject_id=subject.id,
                 teacher_id=teacher.id,
                 due_date=datetime.now() + timedelta(days=7),
-                total_marks=100,
+                max_marks=100,
                 status=AssignmentStatus.ACTIVE,
             )
             db_session.add(assignment)
@@ -138,7 +138,7 @@ class TestAssignmentService:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
             status=AssignmentStatus.ACTIVE,
         )
         db_session.add(assignment)

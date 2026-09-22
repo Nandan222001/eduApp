@@ -20,16 +20,8 @@ def second_institution(db_session: Session) -> Institution:
     institution = Institution(
         name="Second School",
         slug="second-school",
-        short_name="SS",
-        code="TEST002",
-        email="admin@secondschool.com",
         phone="+9876543210",
         address="456 Second Street",
-        city="Second City",
-        state="Second State",
-        country="Test Country",
-        postal_code="54321",
-        website="https://secondschool.com",
         is_active=True,
     )
     db_session.add(institution)
@@ -371,7 +363,7 @@ class TestMultiTenantDataIsolation:
             last_name=second_institution_student.last_name,
             email=second_institution_student.email,
             date_of_birth=datetime(2008, 5, 15).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Female",
             is_active=True,
         )
@@ -458,7 +450,7 @@ class TestMultiTenantDataIsolation:
             email=other_teacher_user.email,
             phone="+9999999999",
             date_of_birth=datetime(1985, 5, 15).date(),
-            date_of_joining=datetime(2020, 6, 1).date(),
+            joining_date=datetime(2020, 6, 1).date(),
             qualification="M.Sc",
             specialization="Physics",
             is_active=True,

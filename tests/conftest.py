@@ -302,7 +302,6 @@ def subject(db_session: Session, institution: Institution, grade: Grade) -> Subj
     """Create a subject."""
     subject = Subject(
         institution_id=institution.id,
-        grade_id=grade.id,
         name="Mathematics",
         code="MATH10",
         description="Mathematics for Grade 10",
@@ -326,7 +325,7 @@ def teacher(db_session: Session, institution: Institution, teacher_user: User) -
         email=teacher_user.email,
         phone="+1234567890",
         date_of_birth=datetime(1985, 5, 15).date(),
-        date_of_joining=datetime(2020, 6, 1).date(),
+        joining_date=datetime(2020, 6, 1).date(),
         qualification="M.Sc Mathematics",
         specialization="Mathematics",
         is_active=True,
@@ -354,9 +353,8 @@ def student(
         last_name=student_user.last_name,
         email=student_user.email,
         section_id=section.id,
-        academic_year_id=academic_year.id,
         date_of_birth=datetime(2008, 3, 20).date(),
-        date_of_admission=datetime(2020, 4, 1).date(),
+        admission_date=datetime(2020, 4, 1).date(),
         gender="Female",
         blood_group="O+",
         is_active=True,

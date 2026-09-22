@@ -44,9 +44,8 @@ class TestModels:
             last_name="Doe",
             email="john@example.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=date(2008, 1, 1),
-            date_of_admission=date(2020, 4, 1),
+            admission_date=date(2020, 4, 1),
             gender="Male",
             is_active=True,
         )
@@ -67,7 +66,6 @@ class TestModels:
             section_id=section.id,
             date=date.today(),
             status=AttendanceStatus.PRESENT,
-            period=1,
         )
         db_session.add(attendance)
         db_session.commit()
@@ -88,7 +86,7 @@ class TestModels:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now(),
-            total_marks=100,
+            max_marks=100,
             status=AssignmentStatus.ACTIVE,
         )
         db_session.add(assignment)
