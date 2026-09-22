@@ -172,11 +172,14 @@ class ContentTagResponse(BaseModel):
     supports_solitary_learning: bool
     sequential_flow: bool
     holistic_approach: bool
-    metadata: Optional[Dict[str, Any]]
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # Declarative models for the MetaData object), but the API keeps `metadata`
+    # as the JSON key -- same pattern as src/schemas/merchandise.py.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     auto_tagged: bool
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
