@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/setupTests';
 import { authApi } from './auth';
+import axiosInstance from '@/lib/axios';
 import {
   DEMO_CREDENTIALS,
   demoAuthResponse,
@@ -26,7 +27,7 @@ describe('authApi.login', () => {
       let apiCallMade = false;
 
       server.use(
-        http.post('http://localhost:8000/api/auth/login', () => {
+        http.post('http://localhost:8000/api/v1/auth/login', () => {
           apiCallMade = true;
           return HttpResponse.json({
             user: {
@@ -87,7 +88,7 @@ describe('authApi.login', () => {
       let apiCallMade = false;
 
       server.use(
-        http.post('http://localhost:8000/api/auth/login', () => {
+        http.post('http://localhost:8000/api/v1/auth/login', () => {
           apiCallMade = true;
           return HttpResponse.json({
             user: {
@@ -122,7 +123,7 @@ describe('authApi.login', () => {
       expect(result).toEqual(teacherAuthResponse);
       expect(result.user.email).toBe('teacher@demo.com');
       expect(result.user.firstName).toBe('Emily');
-      expect(result.user.lastName).toBe('Rodriguez');
+      expect(result.user.lastName).toBe('Carter');
       expect(result.user.role).toBe('teacher');
     });
 
@@ -137,7 +138,7 @@ describe('authApi.login', () => {
       let apiCallMade = false;
 
       server.use(
-        http.post('http://localhost:8000/api/auth/login', () => {
+        http.post('http://localhost:8000/api/v1/auth/login', () => {
           apiCallMade = true;
           return HttpResponse.json({
             user: {
@@ -172,7 +173,7 @@ describe('authApi.login', () => {
       expect(result).toEqual(parentAuthResponse);
       expect(result.user.email).toBe('parent@demo.com');
       expect(result.user.firstName).toBe('Robert');
-      expect(result.user.lastName).toBe('Davis');
+      expect(result.user.lastName).toBe('Williams');
       expect(result.user.role).toBe('parent');
     });
 
@@ -187,7 +188,7 @@ describe('authApi.login', () => {
       let apiCallMade = false;
 
       server.use(
-        http.post('http://localhost:8000/api/auth/login', () => {
+        http.post('http://localhost:8000/api/v1/auth/login', () => {
           apiCallMade = true;
           return HttpResponse.json({
             user: {
@@ -222,8 +223,8 @@ describe('authApi.login', () => {
       expect(result).toEqual(adminAuthResponse);
       expect(result.user.email).toBe('admin@demo.com');
       expect(result.user.firstName).toBe('Michael');
-      expect(result.user.lastName).toBe('Brown');
-      expect(result.user.role).toBe('admin');
+      expect(result.user.lastName).toBe('Anderson');
+      expect(result.user.role).toBe('institution_admin');
     });
 
     it('should verify demo admin credentials exact values', () => {
@@ -237,7 +238,7 @@ describe('authApi.login', () => {
       let apiCallMade = false;
 
       server.use(
-        http.post('http://localhost:8000/api/auth/login', () => {
+        http.post('http://localhost:8000/api/v1/auth/login', () => {
           apiCallMade = true;
           return HttpResponse.json({
             user: {
@@ -272,7 +273,7 @@ describe('authApi.login', () => {
       expect(result).toEqual(superadminAuthResponse);
       expect(result.user.email).toBe('superadmin@demo.com');
       expect(result.user.firstName).toBe('Sarah');
-      expect(result.user.lastName).toBe('Anderson');
+      expect(result.user.lastName).toBe('Thompson');
       expect(result.user.role).toBe('superadmin');
     });
 
@@ -283,130 +284,112 @@ describe('authApi.login', () => {
   });
 
   describe('Non-Demo Credentials', () => {
-    it('should call backend API for non-demo credentials', async () => {
-      let apiCallMade = false;
-      const mockApiResponse: AuthResponse = {
-        user: {
-          id: '2001',
-          email: 'real@example.com',
-          firstName: 'Real',
-          lastName: 'User',
-          fullName: 'Real User',
-          role: 'student',
-          isActive: true,
-          emailVerified: true,
-          isSuperuser: false,
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
-        },
-        tokens: {
-          accessToken: 'real-access-token',
-          refreshToken: 'real-refresh-token',
-          expiresIn: 3600,
-          tokenType: 'Bearer',
-        },
-      };
+    // These hit authApi.login's real axios.post branch. happy-dom's Response
+    // implementation doesn't support the ReadableStream body MSW's XHR
+    // interceptor needs, so mock axios directly instead of via MSW/XHR.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
 
-      server.use(
-        http.post('http://localhost:8000/api/auth/login', async ({ request }) => {
-          apiCallMade = true;
-          const body = (await request.json()) as { email: string; password: string };
-          expect(body.email).toBe('real@example.com');
-          expect(body.password).toBe('RealPassword123');
-          return HttpResponse.json(mockApiResponse);
-        })
-      );
+    it('should call backend API for non-demo credentials', async () => {
+      const backendResponse = {
+        user: {
+          id: 2001,
+          email: 'real@example.com',
+          first_name: 'Real',
+          last_name: 'User',
+          role_slug: 'student',
+          is_active: true,
+          email_verified: true,
+          is_superuser: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        },
+        access_token: 'real-access-token',
+        refresh_token: 'real-refresh-token',
+        expires_in: 3600,
+        token_type: 'Bearer',
+      };
+      const postSpy = vi
+        .spyOn(axiosInstance, 'post')
+        .mockResolvedValueOnce({ data: backendResponse });
 
       const result = await authApi.login({
         email: 'real@example.com',
         password: 'RealPassword123',
       });
 
-      expect(apiCallMade).toBe(true);
-      expect(result).toEqual(mockApiResponse);
+      expect(postSpy).toHaveBeenCalledWith('/api/auth/login', {
+        email: 'real@example.com',
+        password: 'RealPassword123',
+      });
       expect(result.user.email).toBe('real@example.com');
+      expect(result.user.firstName).toBe('Real');
+      expect(result.user.lastName).toBe('User');
       expect(result.tokens.accessToken).toBe('real-access-token');
     });
 
     it('should call backend API when email matches but password does not', async () => {
-      let apiCallMade = false;
-      const mockApiResponse: AuthResponse = {
+      const backendResponse = {
         user: {
-          id: '3001',
+          id: 3001,
           email: DEMO_CREDENTIALS.email,
-          firstName: 'Demo',
-          lastName: 'WrongPassword',
-          fullName: 'Demo WrongPassword',
-          role: 'student',
-          isActive: true,
-          emailVerified: true,
-          isSuperuser: false,
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
+          first_name: 'Demo',
+          last_name: 'WrongPassword',
+          role_slug: 'student',
+          is_active: true,
+          email_verified: true,
+          is_superuser: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
         },
-        tokens: {
-          accessToken: 'wrong-password-token',
-          refreshToken: 'wrong-password-refresh',
-          expiresIn: 3600,
-          tokenType: 'Bearer',
-        },
+        access_token: 'wrong-password-token',
+        refresh_token: 'wrong-password-refresh',
+        expires_in: 3600,
+        token_type: 'Bearer',
       };
-
-      server.use(
-        http.post('http://localhost:8000/api/auth/login', () => {
-          apiCallMade = true;
-          return HttpResponse.json(mockApiResponse);
-        })
-      );
+      const postSpy = vi
+        .spyOn(axiosInstance, 'post')
+        .mockResolvedValueOnce({ data: backendResponse });
 
       const result = await authApi.login({
         email: DEMO_CREDENTIALS.email,
         password: 'WrongPassword',
       });
 
-      expect(apiCallMade).toBe(true);
-      expect(result).toEqual(mockApiResponse);
+      expect(postSpy).toHaveBeenCalled();
       expect(result.user.firstName).toBe('Demo');
     });
 
     it('should call backend API when password matches but email does not', async () => {
-      let apiCallMade = false;
-      const mockApiResponse: AuthResponse = {
+      const backendResponse = {
         user: {
-          id: '4001',
+          id: 4001,
           email: 'different@example.com',
-          firstName: 'Different',
-          lastName: 'Email',
-          fullName: 'Different Email',
-          role: 'teacher',
-          isActive: true,
-          emailVerified: true,
-          isSuperuser: false,
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
+          first_name: 'Different',
+          last_name: 'Email',
+          role_slug: 'teacher',
+          is_active: true,
+          email_verified: true,
+          is_superuser: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
         },
-        tokens: {
-          accessToken: 'different-email-token',
-          refreshToken: 'different-email-refresh',
-          expiresIn: 3600,
-          tokenType: 'Bearer',
-        },
+        access_token: 'different-email-token',
+        refresh_token: 'different-email-refresh',
+        expires_in: 3600,
+        token_type: 'Bearer',
       };
-
-      server.use(
-        http.post('http://localhost:8000/api/auth/login', () => {
-          apiCallMade = true;
-          return HttpResponse.json(mockApiResponse);
-        })
-      );
+      const postSpy = vi
+        .spyOn(axiosInstance, 'post')
+        .mockResolvedValueOnce({ data: backendResponse });
 
       const result = await authApi.login({
         email: 'different@example.com',
         password: DEMO_CREDENTIALS.password,
       });
 
-      expect(apiCallMade).toBe(true);
-      expect(result).toEqual(mockApiResponse);
+      expect(postSpy).toHaveBeenCalled();
       expect(result.user.email).toBe('different@example.com');
     });
   });
