@@ -75,6 +75,10 @@ class CredentialResponse(CredentialBase):
     recipient_id: int
     issuer_id: Optional[int]
     certificate_number: str
+    # Overrides CredentialBase.metadata: the ORM attribute is `metadata_json`
+    # (SQLAlchemy reserves `metadata` on Declarative models), matching the
+    # pattern already established in src/schemas/merchandise.py.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     blockchain_hash: Optional[str]
     blockchain_credential_id: Optional[str]
     blockchain_status: Optional[str]
@@ -119,7 +123,7 @@ class CredentialVerificationResponse(BaseModel):
     verifier_ip: Optional[str]
     verification_method: str
     verification_result: str
-    metadata: Optional[Dict[str, Any]]
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     verified_at: datetime
     credential: Optional[CredentialResponse] = None
 

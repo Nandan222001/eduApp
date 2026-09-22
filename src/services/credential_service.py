@@ -91,7 +91,7 @@ class CredentialService:
             description=credential_data.description,
             certificate_number=certificate_number,
             skills=credential_data.skills or [],
-            metadata=credential_data.metadata or {},
+            metadata_json=credential_data.metadata or {},
             expires_at=credential_data.expires_at,
             course_id=credential_data.course_id,
             exam_id=credential_data.exam_id,
@@ -246,7 +246,7 @@ class CredentialService:
             verifier_ip=verifier_ip,
             verification_method="certificate_number" if certificate_number else "blockchain_id",
             verification_result="valid" if is_valid else "invalid",
-            metadata={
+            metadata_json={
                 "blockchain_verified": blockchain_verified,
                 "status": credential.status.value,
                 "expired": credential.expires_at < datetime.utcnow() if credential.expires_at else False
