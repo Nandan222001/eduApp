@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 
 from src.database import get_db
-from src.api.deps import get_current_user
+from src.dependencies.auth import get_current_user
 from src.models.user import User
 
 router = APIRouter()

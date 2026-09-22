@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 
-from src.dependencies.database import get_db
+from src.database import get_db
 from src.services.ml_analytics_integration_service import MLAnalyticsIntegrationService
 from src.schemas.ml_analytics_schemas import (
     UnifiedDashboardResponse,
