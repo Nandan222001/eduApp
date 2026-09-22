@@ -179,6 +179,82 @@ a bare `pip install ...` exit code for this repo's backend deps.
     above for why `--ignore-installed` is required) and confirm no duplicate `==` entries:
     `python3 -c "names=[l.split('==')[0].lower() for l in open('requirements.txt') if '==' in l]; print(set(n for n in names if names.count(n)>1))"`.
 
+## MAJOR FINDING: 16 of ~123 API routers are silently disabled at startup
+`src/api/v1/__init__.py`'s `_include_optional_router()` wraps EVERY router import in a bare
+`try/except Exception` that just does `logger.warning(...)` and moves on -- so a broken router
+never fails app startup, it just silently vanishes from the API with no error anyone would
+normally see. To see the full current list yourself:
+```python
+import logging; logging.basicConfig(level=logging.WARNING)
+from src.api.v1 import api_router   # prints "Skipping router ..." for each broken one
+```
+This is **not test infrastructure work** — these are real, otherwise-fully-implemented
+features (service + router + often a schema file already exist, hundreds of lines each) that
+silently don't work at all in the running app because their SQLAlchemy model was never
+written, or a shared dependency was imported from the wrong path. Treat this as its own
+priority tier, above writing new unit tests for already-working modules (Phase 2) — there is
+no point unit-testing routers that don't even mount.
+
+### Fixed so far (6 of 16) — commits e005a27, 3eb9d7e (also see 4b607f0-era commits)
+- `wellbeing` — trivial `NameError: Dict` (missing typing import).
+- `chatbot` — imported `get_current_user` from nonexistent `src.api.deps`; real path is
+  `src.dependencies.auth`.
+- `ml_monitoring` — imported `get_db` from nonexistent `src.dependencies.database`; real path
+  is `src.database`.
+- `parent_roi` — `src/services/parent_roi_service.py` imported a class `Doubt` that was
+  renamed to `DoubtPost`; also had to fix a real bug this exposed: it filtered
+  `Doubt.student_id == child.id`, but `DoubtPost` only has `user_id` (FK to `users.id`) and
+  `Student.id != Student.user_id` — corrected to `DoubtPost.user_id == child.user_id`.
+- `college_planning` — **model file genuinely never existed**. Wrote
+  `src/models/college_planning.py` (`CollegeVisit`, `CollegeApplication`,
+  `ApplicationStatus`, `DecisionOutcome`) from `src/schemas/college_planning.py` (the
+  authoritative field spec — Pydantic request/response models already existed) plus every
+  field the ~290-line fully-implemented service actually reads/writes. Verified against
+  real MySQL with `Base.metadata.tables[name].create(bind=engine, checkfirst=True)` before
+  committing, then dropped the ad-hoc tables (`DROP TABLE IF EXISTS ...` in test_db).
+- `institution_health` — same pattern as college_planning. Model needed 4 classes
+  (`InstitutionHealthScore`, `InstitutionHealthAlert`, `InstitutionHealthHistory`,
+  `ChurnPredictionModel` — the last one wasn't even in the router's own import line, only
+  discovered once the service's own imports were checked) derived from
+  `src/schemas/institution_health.py` + the ~970-line service.
+
+### Still broken (10 of 16) — diagnostic info gathered, NOT yet fixed
+Use the exact same method for each: (1) find the service/router file that does
+`from src.models.X import (...)` and read every class/field it actually constructs or
+queries (`grep -n "ClassName("` and `"ClassName\."` in the consuming service file is the
+fastest way), (2) check `src/schemas/X.py` if it exists — it's the authoritative Pydantic
+field spec, response schemas especially, (3) write the SQLAlchemy model matching the
+codebase's established conventions (see `src/models/parent_roi.py` or the two files above
+for the house style: `id`, FK `institution_id`, `created_at`/`updated_at` via
+`Column(DateTime, default=datetime.utcnow, ...)`, `Index(...)` in `__table_args__`), (4)
+verify against real MySQL with the `Base.metadata.tables[...].create(bind=engine,
+checkfirst=True)` snippet above BEFORE committing — a bad column definition (see the
+Feedback model VARCHAR-length bug earlier in this file) won't show up just from Python
+import succeeding, (5) drop the ad-hoc test tables, (6) re-run the "MAJOR FINDING" snippet
+above to confirm the router no longer appears, (7) commit.
+
+| Router | Missing/broken import | Schema file exists? | Notes |
+|---|---|---|---|
+| `institution_admin` `credentials` (both prefixes) | `No module named 'src.models.digital_credential'` (`DigitalCredential`, `CredentialShare`), from `src/api/v1/credentials.py` directly | No — derive purely from `src/api/v1/credentials.py` (455 lines) and `src/services/credential_service.py`. This is the one that backs the blockchain-credential feature from the feature survey; check `src/services/credential_service.py` for Hyperledger Fabric integration details, QR code fields etc. |
+| `merchandise` | `src/services/merchandise_service.py` → `from src.models.merchandise import (...)` | Yes: `src/schemas/merchandise.py` | Printful integration feature; check the service for order/fulfillment status fields. |
+| `journalism` | `src/api/v1/journalism.py` → `from src.models.journalism import (...)` directly (979 lines, largest remaining router) | Yes: `src/schemas/journalism.py` | Student newspaper module. |
+| `learning_styles` | `src/services/learning_styles_service.py` → `from src.models.learning_styles import (...)` | Yes: `src/schemas/learning_styles.py` | 1218-line router — check if it needs multiple model classes for assessment results, adaptive content mapping etc. |
+| `yearbook` | `src/api/v1/yearbook.py` → `from src.models.yearbook import (...)` directly (1155 lines) | Yes: `src/schemas/yearbook.py` | Digital yearbook builder — photos/memories/signatures/print orders per the earlier feature survey; likely needs several related model classes, not just one. |
+| `parent_teacher_collab` | `src/api/v1/parent_teacher_collab.py` → `from src.models.collaboration import (...)` directly (1240 lines, largest remaining) | No — derive from the router + `src/services/` (check for a `collaboration_service.py` or similar) | |
+| `ml_training` | `src/tasks/ml_training_tasks.py` → `from src.models.ml_training import MLTrainingJob, ModelPromotionLog, TrainingStatus, TrainingJobType` | Yes: `src/schemas/ml_training.py` | Imported via a Celery task file, not directly by the router — check `src/tasks/ml_training_tasks.py` too, not just the router/service. |
+| `super_admin_reports` | `src/api/v1/super_admin_reports.py` → `from src.models.super_admin_reports import ScheduledReport, DataRetentionPolicy, ArchivalJob` directly (802 lines) | Yes: `src/schemas/super_admin_reports.py` | |
+| `virtual_classrooms` | `src/services/virtual_classroom_service.py` → `from src.models.virtual_classroom import (...)` | No — derive from the router (655 lines) + service. This backs Agora video conferencing per the feature survey; check for session/participant/recording fields. | |
+| `document_vault` (different bug shape) | `cannot import name 'DocumentFolder' from 'src.models.document_vault'` — **the file exists** (`FamilyDocument`, `DocumentAccessLog`, `DocumentShare`, `DocumentExpirationAlert` all already defined), it's just missing ONE class, `DocumentFolder`, that the router uses extensively for folder CRUD (`POST /folders`, `GET /folders`, etc. — see `src/api/v1/document_vault.py` around line 107+). Add `DocumentFolder` to the EXISTING `src/models/document_vault.py`, don't create a new file. | `src/schemas/document_vault.py` should exist (has `DocumentFolderCreate/Update/Response`) — check it. | Smallest remaining fix — just one class, not a whole new file. Do this one next. |
+| `ml_analytics` (different bug shape, already partially fixed) | Was `No module named 'src.dependencies.database'` (fixed — see above), NOW: `cannot import name 'AnalyticsCache' from 'src.models.analytics'` — `src/models/analytics.py` already exists with other classes, just needs `AnalyticsCache` added, same pattern as document_vault's `DocumentFolder`. Check `src/services/ml_analytics_integration_service.py` for the field usage. | n/a | Also a small, single-class addition, not a new file. |
+
+**Recommended order for next iteration**: `document_vault` and `ml_analytics` first (both are
+single-class additions to existing files, smallest possible diffs), then the ones with schema
+files (`merchandise`, `journalism`, `learning_styles`, `yearbook`, `ml_training`,
+`super_admin_reports`) since the schema gives the field spec for free, then the three with no
+schema file (`credentials`/digital_credential, `parent_teacher_collab`/collaboration,
+`virtual_classrooms`/virtual_classroom) last since those need more reading of router+service
+code to reverse-engineer the fields.
+
 ## Backend route modules (113 total) — test coverage checklist
 Legend: [x] has dedicated test file & passing | [~] has test file, some failing | [ ] no test file yet
 
@@ -241,14 +317,31 @@ _(none yet — Phase 0 in progress)_
 ## Next resume point
 Frontend Phase 1 is complete (337/337) — do not re-investigate it, just spot-check with a
 full `npx vitest run` if picking this up much later.
-Backend deps are now correctly installed (`pip install --ignore-installed ...`, verified with
-`python3 -c "import fastapi, sqlalchemy, pytest, redis, celery"`). First-ever backend
-`pytest` run for this session is in progress/was just kicked off — when you resume, check
-whether it completed and read its results (baseline pass/fail counts, which tests failed) as
-the very next step, then start Phase 1 (fix failures) for backend same as was done for
-frontend: investigate root cause per failure, prefer fixing the actual bug over papering over
-symptoms, batch related fixes into one commit + push, update this file's log after each
-batch. Expect this to take multiple iterations given the backend has 113 route modules and
-only 45 existing test files. Only after backend Phase 1 is green (or remaining failures are
-understood/triaged) move to Phase 2 (new test coverage for the 108 backend route modules and
-~210 frontend pages that currently have zero dedicated tests — see checklists above).
+
+Backend: deps install correctly now (`pip install --ignore-installed -r requirements.txt -r
+requirements-dev.txt`, verified with `python3 -c "import fastapi, sqlalchemy, pytest, redis,
+celery"`). **Priority order for backend work, in this order**:
+1. **Finish the silently-disabled-routers fix** (see the "MAJOR FINDING" section above) —
+   10 of 16 remain, all diagnosed with exact missing classes/fields already identified, no
+   re-investigation needed, just implementation. Start with `document_vault` and
+   `ml_analytics` (single-class additions to existing model files, smallest diffs), work down
+   the table there in the recommended order. After each fix: verify with the Python snippet
+   in that section, verify the new table(s) actually `CREATE` against real MySQL before
+   committing, drop the ad-hoc tables, commit+push individually or in small batches.
+2. Once all 16 (or as many as reasonably tractable) routers are fixed, re-run the full
+   backend `pytest` suite (`cd /home/user/eduApp && python3 -m pytest --no-cov -p
+   no:cacheprovider -q -n auto` — use `--no-cov` for speed while iterating, the real coverage
+   gate can run once things are green) for an updated baseline — the earlier baseline (90
+   errors, capped at "stopping after 10 failures") was taken BEFORE the Feedback model fix,
+   the httpx pin fix, and any of the router fixes, so it's stale. Expect a very different,
+   hopefully much smaller failure count now.
+3. Fix whatever that baseline reveals using the same investigate-root-cause-don't-paper-over
+   approach used throughout this file. Known already-fixed items you don't need to
+   re-diagnose: the Feedback model VARCHAR bug, the httpx/starlette TestClient
+   incompatibility, the moto/slowapi/qrcode/python-barcode/python-pptx missing deps.
+4. Only after backend Phase 1 is green (or remaining failures are understood/triaged) move to
+   Phase 2 (new test coverage for the 108 backend route modules and ~210 frontend pages that
+   currently have zero dedicated tests — see checklists above). Note the route-module count
+   there may need revisiting once routers gain their missing models — some of Tier 1/2's
+   "no test yet" modules are among the 16 that were completely non-functional until this
+   session, so "no test" previously also meant "nothing to test."
