@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 from faker import Faker
 from datetime import datetime, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
 import boto3
 from moto import mock_aws
 
@@ -421,9 +421,16 @@ def mock_redis():
 
 
 @pytest.fixture
-def mock_session_manager(mock_redis):
-    """Mock SessionManager for testing."""
-    return SessionManager(mock_redis)
+def mock_session_manager():
+    """Mock SessionManager for testing.
+
+    A real SessionManager(mock_redis) has plain bound methods, not Mocks --
+    tests calling e.g. mock_session_manager.create_session.assert_called_once()
+    or setting .return_value on a method need actual Mock objects.
+    create_autospec detects SessionManager's async methods and gives each
+    one an AsyncMock automatically, matching the real class's signatures.
+    """
+    return create_autospec(SessionManager, instance=True)
 
 
 @pytest.fixture

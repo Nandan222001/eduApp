@@ -24,6 +24,12 @@ def create_access_token(
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
 
+    # JWT's "sub" claim must be a string per RFC 7521/python-jose's validation
+    # (jwt.decode raises JWTClaimsError otherwise) -- callers pass the numeric
+    # user id, so coerce it here rather than at every call site.
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
+
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
@@ -37,6 +43,9 @@ def create_refresh_token(
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
 
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)

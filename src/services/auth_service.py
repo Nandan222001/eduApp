@@ -120,7 +120,8 @@ class AuthService:
                 detail="Invalid refresh token",
             )
 
-        user_id: int = payload.get("sub")
+        raw_sub = payload.get("sub")
+        user_id: int = int(raw_sub) if raw_sub is not None else None
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
