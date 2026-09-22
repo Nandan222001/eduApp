@@ -24,7 +24,7 @@ update it before stopping, and commit+push every iteration so work is never lost
 6. Mobile app tests are lower priority (explicit ask was "frontend to backend") — touch only
    after 1-4 are in good shape, time permitting.
 
-## Status: PHASE 1 — fixing failing tests in existing suite (frontend in progress, backend not started yet)
+## Status: PHASE 1 — FRONTEND DONE (337/337 passing, 13/13 files). Backend not started yet.
 
 ## Baseline
 - Frontend (`npx vitest run` in `frontend/`): 133 failed / 199 passed (335 total), 10 of 14 files failing.
@@ -75,20 +75,53 @@ update it before stopping, and commit+push every iteration so work is never lost
    making `pip install -r requirements.txt -r requirements-dev.txt` fail with
    `ResolutionImpossible`. Removed the redundant/stale dev pin.
 
-## Frontend — still failing after auth.test.ts + 4 layouts fix (re-check counts, don't trust blindly)
-As of the last full run before this checkpoint: 8 of 14 files still failing (52 tests) —
-recheck with `cd frontend && npx vitest run` since auth.test.ts's fix may have changed the
-overall count. Known remaining files (from that run):
-- `src/AssignmentForm.test.tsx` — whole file failing to run/collect, not yet investigated.
-- `src/LoginPage.test.tsx` — 1 test: "shows validation errors for empty fields"
-- `src/api/demoDataApi.test.ts` — 1 test: "should handle list params"
-- `src/api/demoUser.integration.test.tsx` — 7 tests failing (role-specific dashboard access,
-  demo user consistency/RBAC checks) — not yet investigated, may share root causes with each
-  other (single investigation should cover multiple).
-- `tests/e2e/demo-user-flow.spec.ts` — whole file failing to run/collect (this is a Playwright
-  spec file sitting in the vitest test glob — may just need excluding from vitest's config
-  rather than "fixing", check `vitest.config.ts` testMatch/exclude patterns first).
-- `tests/examples/integration-example.test.tsx` — 4 tests failing.
+## Frontend: DONE — 337/337 passing (verified `cd frontend && npx vitest run`)
+All remaining files from the earlier checkpoint were fixed this session:
+4. **AssignmentForm.test.tsx** (commit c15fef6) — happy-dom v12's `cancelAnimationFrame` is
+   broken for handles MUI's `TextareaAutosize` passes on unmount (`Cannot create property
+   '_destroyed' on number '-1'`) — replaced `window.requestAnimationFrame`/
+   `cancelAnimationFrame` globally in `src/setupTests.ts` with setTimeout-based equivalents.
+   Also: `@mui/x-date-pickers`' ESM build does bare directory imports (`@mui/material/
+   useMediaQuery`, no `/index.js`) that fail under Vitest's native Node ESM resolution
+   (`ERR_UNSUPPORTED_DIR_IMPORT`) — added it to `vitest.config.ts`'s `test.server.deps.inline`
+   so Vite's transform pipeline handles it instead.
+   IMPORTANT: tried bumping happy-dom 12→20 to fix this at the root — regressed the suite
+   heavily (72 failed vs 17 baseline, other libs incompatible with its breaking changes).
+   Do NOT re-attempt a happy-dom major bump without re-validating the entire suite.
+5. **LoginPage.test.tsx** (commit 52c3d6e) — "shows validation errors" expected inline
+   DOM text, but the form uses plain HTML `required` fields with no inline-message UI, so
+   validation is native-browser-only (not DOM-queryable). Rewrote to assert the real
+   behavior (fields report `:invalid`, form stays unsubmitted).
+6. **demoDataApi.test.ts** (commit 52c3d6e) — test called `list({ limit: 10 })` but asserted
+   `result.limit` toBe(50) — copy-paste bug from the function's default; fixed to expect 10.
+7. **tests/e2e/demo-user-flow.spec.ts** (commit 9336a95) — this is a Playwright spec (real
+   browser + dev server) that Vitest's default include glob was wrongly collecting. Excluded
+   `tests/e2e/**` in `vitest.config.ts`. (Not "fixed" as a unit test — it's simply out of
+   Vitest's scope; if E2E coverage is ever run, use `npx playwright test` from repo root,
+   which has its own `playwright.config.ts`.)
+8. **demoUser.integration.test.tsx** (commit 55f6fa4) — same stale admin-role mismatch as #1
+   (7 assertions), plus 5 tests querying `getByRole('main')` on dashboard pages rendered
+   *without* their Layout wrapper (the `main` landmark only exists on the Layout, which this
+   file intentionally doesn't render) — switched to checking the render actually produced
+   content.
+9. **tests/examples/integration-example.test.tsx** (commit 64a68d0) — an example `LoginForm`'s
+   `<h1>Login</h1>` and its submit button both say "Login", so `getByText('Login')` was
+   ambiguous once earlier fixes let both actually render — switched to
+   `getByRole('button', {name: 'Login'})`. Separately, "should handle role switching" rendered
+   `<Dashboard/>` twice (student then teacher) without unmounting between renders (`render()`
+   appends rather than replaces) — added a `cleanup()` call between them.
+
+## Known recurring gotchas to remember for backend/future frontend work
+- **Stale demo-data assertions**: `data/dummyData.ts`'s demo users use last names / role
+  strings (e.g. `institution_admin`, not `admin`) that many older tests don't reflect. If you
+  hit a role/name mismatch, check `dummyData.ts` as the source of truth before assuming the
+  app is broken.
+- **happy-dom v12 has real bugs** (ReadableStream.getReader missing, cancelAnimationFrame
+  broken) — don't re-diagnose from scratch if you see similar crashes elsewhere; check
+  `src/setupTests.ts`'s rAF polyfill and the mock-axios-directly pattern in `auth.test.ts`
+  first, and extend those rather than reinventing.
+- **MUI temporary Drawer portals to document.body** — an aria-label on a wrapping element
+  never reaches it; label the Drawer's own `Paper` via `PaperProps`.
 
 ## Environment setup commands (re-run at the start of a fresh container/session)
 ```
@@ -158,10 +191,13 @@ don't duplicate that inventory work until we get there.
 _(none yet — Phase 0 in progress)_
 
 ## Next resume point
-Continue Phase 1: investigate/fix the remaining frontend files listed above (AssignmentForm,
-LoginPage, demoDataApi, demoUser.integration, e2e/demo-user-flow.spec.ts config issue,
-examples/integration-example), re-running the full frontend suite after each fix to track
-the real remaining count. Once frontend Phase 1 is clean, run the backend `pytest` suite for
-the first time this session (deps + DB are installed — see Environment setup commands above)
-and repeat Phase 1 for backend. Only after both suites are green (or remaining failures are
-understood/triaged) move to Phase 2 (new test coverage for untested modules).
+Frontend Phase 1 is complete (337/337). Next: run the backend `pytest` suite for the first
+time this session (deps + DB were installed earlier — see Environment setup commands above,
+but RE-VERIFY mysql/redis are running first, they don't survive a container restart) and
+repeat Phase 1 (fix failures) for backend. Expect this to take multiple iterations given the
+backend has 113 route modules and only 45 existing test files. Only after backend Phase 1 is
+green (or remaining failures are understood/triaged) move to Phase 2 (new test coverage for
+the 108 backend route modules and ~210 frontend pages that currently have zero dedicated
+tests — see checklists above). Do not restart frontend Phase 1 work — it's done; spot-check
+with a full `npx vitest run` if picking this up much later, but don't re-investigate
+individual files that are already marked fixed above.
