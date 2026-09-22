@@ -111,6 +111,7 @@ def admin_role(db_session: Session) -> Role:
     """Create admin role."""
     role = Role(
         name="Admin",
+        slug="admin",
         description="Administrator role",
         is_system_role=True,
     )
@@ -125,6 +126,7 @@ def teacher_role(db_session: Session) -> Role:
     """Create teacher role."""
     role = Role(
         name="Teacher",
+        slug="teacher",
         description="Teacher role",
         is_system_role=True,
     )
@@ -139,6 +141,7 @@ def student_role(db_session: Session) -> Role:
     """Create student role."""
     role = Role(
         name="Student",
+        slug="student",
         description="Student role",
         is_system_role=True,
     )
@@ -431,6 +434,7 @@ def parent_role(db_session: Session) -> Role:
     """Create parent role."""
     role = Role(
         name="Parent",
+        slug="parent",
         description="Parent role",
         is_system_role=True,
     )
