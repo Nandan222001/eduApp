@@ -55,11 +55,9 @@ export default function ParentLayout() {
       </Box>
 
       <Box
-        component="nav"
         sx={{
           display: { xs: 'block', md: 'none' },
         }}
-        aria-label="Mobile navigation"
       >
         <ParentSidebar
           variant="temporary"
