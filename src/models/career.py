@@ -316,9 +316,9 @@ class PersonalizedLearningPath(Base):
     student_profile = relationship("StudentCareerProfile", back_populates="learning_paths")
     
     __table_args__ = (
-        Index('idx_learning_path_institution', 'institution_id'),
-        Index('idx_learning_path_student', 'student_profile_id'),
-        Index('idx_learning_path_active', 'is_active'),
+        Index('idx_personalized_learning_path_institution', 'institution_id'),
+        Index('idx_personalized_learning_path_student', 'student_profile_id'),
+        Index('idx_personalized_learning_path_active', 'is_active'),
         Index('idx_learning_path_priority', 'priority'),
     )
 

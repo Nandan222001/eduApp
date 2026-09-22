@@ -96,9 +96,9 @@ class CompetitionEvent(Base):
     teams = relationship("CompetitionTeam", back_populates="event", cascade="all, delete-orphan")
     
     __table_args__ = (
-        Index('idx_event_institution', 'institution_id'),
+        Index('idx_competition_event_institution', 'institution_id'),
         Index('idx_event_competition', 'competition_id'),
-        Index('idx_event_type', 'event_type'),
+        Index('idx_competition_event_type', 'event_type'),
         Index('idx_event_times', 'start_time', 'end_time'),
     )
 
@@ -189,7 +189,7 @@ class CompetitionLeaderboard(Base):
     
     __table_args__ = (
         UniqueConstraint('competition_id', 'scope', name='uq_competition_scope_leaderboard'),
-        Index('idx_leaderboard_institution', 'institution_id'),
+        Index('idx_competition_leaderboard_institution', 'institution_id'),
         Index('idx_leaderboard_competition', 'competition_id'),
         Index('idx_leaderboard_scope', 'scope'),
         Index('idx_leaderboard_updated', 'last_updated'),

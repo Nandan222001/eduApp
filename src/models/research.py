@@ -142,7 +142,7 @@ class ResearchMilestone(Base):
     
     __table_args__ = (
         Index('idx_milestone_project', 'project_id'),
-        Index('idx_milestone_status', 'status'),
+        Index('idx_research_milestone_status', 'status'),
         Index('idx_milestone_deadline', 'deadline'),
     )
 
