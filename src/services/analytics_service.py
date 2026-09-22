@@ -1081,9 +1081,9 @@ class AnalyticsService:
     ) -> List[str]:
         exam_marks = (
             self.db.query(ExamMarks, Subject.name)
-            .join(ExamSubject)
-            .join(Subject)
-            .join(Exam)
+            .join(ExamSubject, ExamMarks.exam_subject_id == ExamSubject.id)
+            .join(Subject, ExamSubject.subject_id == Subject.id)
+            .join(Exam, ExamSubject.exam_id == Exam.id)
             .filter(
                 ExamMarks.student_id == student_id,
                 ExamMarks.institution_id == institution_id,
@@ -1135,9 +1135,9 @@ class AnalyticsService:
     ) -> List[str]:
         exam_marks = (
             self.db.query(ExamMarks, Subject.name)
-            .join(ExamSubject)
-            .join(Subject)
-            .join(Exam)
+            .join(ExamSubject, ExamMarks.exam_subject_id == ExamSubject.id)
+            .join(Subject, ExamSubject.subject_id == Subject.id)
+            .join(Exam, ExamSubject.exam_id == Exam.id)
             .filter(
                 ExamMarks.student_id == student_id,
                 ExamMarks.institution_id == institution_id,
