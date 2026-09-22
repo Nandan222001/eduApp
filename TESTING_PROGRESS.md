@@ -142,6 +142,43 @@ pip install --ignore-installed -r requirements.txt -r requirements-dev.txt
 and verify afterwards with `python3 -c "import fastapi, sqlalchemy, pytest"` — don't trust
 a bare `pip install ...` exit code for this repo's backend deps.
 
+## Backend dependency fixes applied (Phase 1, before any test could even collect)
+10. **moto missing entirely** — `tests/conftest.py` does `from moto import mock_aws` but moto
+    was never declared in `requirements.txt` or `requirements-dev.txt` in the first place (not
+    a drift issue, just never added). Added `moto==5.0.28` to `requirements-dev.txt`
+    (test-only dependency, used to mock AWS S3).
+11. **requirements.txt drifted from pyproject.toml** — cross-checked every `[tool.poetry.
+    dependencies]` entry in `pyproject.toml` against `requirements.txt` and found 4 packages
+    declared in pyproject.toml, actually imported in `src/` (`slowapi` in `src/main.py`;
+    `qrcode`/`python-barcode` in `src/services/credential_service.py`; `python-pptx` in
+    `src/services/certificate_service.py`), but missing from `requirements.txt` — so
+    `src/main.py` itself couldn't even be imported (`ModuleNotFoundError: No module named
+    'slowapi'`), which broke test collection entirely (conftest imports `src.main.app`).
+    Added `python-pptx==1.0.2`, `qrcode==7.4.2`, `python-barcode==0.15.1`, `slowapi==0.1.10`
+    plus their transitive deps (`limits`, `deprecated`, `wrapt`, `pypng`, `lxml`,
+    `xlsxwriter`) to `requirements.txt` in the correct alphabetical spots, and bumped the
+    existing `pillow` pin 10.4.0 → 12.3.0 (qrcode/python-barcode pulled in a newer pillow
+    transitively; kept the file internally consistent rather than fighting the resolver).
+    **If you hit another `ModuleNotFoundError` for a package that legitimately belongs**
+    (i.e. really is used in `src/`), re-run the pyproject.toml-vs-requirements.txt
+    cross-check script below rather than adding packages one error at a time — there may be
+    more than one at once:
+    ```python
+    import re
+    content = open('pyproject.toml').read()
+    section = re.search(r'\[tool\.poetry\.dependencies\](.*?)\n\[', content, re.S).group(1)
+    pkgs = [re.match(r'^([A-Za-z0-9_\-\.]+)\s*=', l.strip()).group(1).lower()
+            for l in section.splitlines() if l.strip() and not l.strip().startswith('#')
+            and re.match(r'^([A-Za-z0-9_\-\.]+)\s*=', l.strip())]
+    req = open('requirements.txt').read().lower()
+    missing = [p for p in pkgs if p != 'python' and p.replace('_','-') not in req and p not in req]
+    print(missing)
+    ```
+    After adding any new package to `requirements.txt`, install with `pip install
+    --ignore-installed -r requirements.txt -r requirements-dev.txt` (see the PyYAML note
+    above for why `--ignore-installed` is required) and confirm no duplicate `==` entries:
+    `python3 -c "names=[l.split('==')[0].lower() for l in open('requirements.txt') if '==' in l]; print(set(n for n in names if names.count(n)>1))"`.
+
 ## Backend route modules (113 total) — test coverage checklist
 Legend: [x] has dedicated test file & passing | [~] has test file, some failing | [ ] no test file yet
 
@@ -202,13 +239,16 @@ don't duplicate that inventory work until we get there.
 _(none yet — Phase 0 in progress)_
 
 ## Next resume point
-Frontend Phase 1 is complete (337/337). Next: run the backend `pytest` suite for the first
-time this session (deps + DB were installed earlier — see Environment setup commands above,
-but RE-VERIFY mysql/redis are running first, they don't survive a container restart) and
-repeat Phase 1 (fix failures) for backend. Expect this to take multiple iterations given the
-backend has 113 route modules and only 45 existing test files. Only after backend Phase 1 is
-green (or remaining failures are understood/triaged) move to Phase 2 (new test coverage for
-the 108 backend route modules and ~210 frontend pages that currently have zero dedicated
-tests — see checklists above). Do not restart frontend Phase 1 work — it's done; spot-check
-with a full `npx vitest run` if picking this up much later, but don't re-investigate
-individual files that are already marked fixed above.
+Frontend Phase 1 is complete (337/337) — do not re-investigate it, just spot-check with a
+full `npx vitest run` if picking this up much later.
+Backend deps are now correctly installed (`pip install --ignore-installed ...`, verified with
+`python3 -c "import fastapi, sqlalchemy, pytest, redis, celery"`). First-ever backend
+`pytest` run for this session is in progress/was just kicked off — when you resume, check
+whether it completed and read its results (baseline pass/fail counts, which tests failed) as
+the very next step, then start Phase 1 (fix failures) for backend same as was done for
+frontend: investigate root cause per failure, prefer fixing the actual bug over papering over
+symptoms, batch related fixes into one commit + push, update this file's log after each
+batch. Expect this to take multiple iterations given the backend has 113 route modules and
+only 45 existing test files. Only after backend Phase 1 is green (or remaining failures are
+understood/triaged) move to Phase 2 (new test coverage for the 108 backend route modules and
+~210 frontend pages that currently have zero dedicated tests — see checklists above).
