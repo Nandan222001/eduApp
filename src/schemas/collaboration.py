@@ -82,7 +82,10 @@ class CollaborationGoalResponse(BaseModel):
     teacher_agreed_at: Optional[datetime]
     achievement_notes: Optional[str]
     achieved_at: Optional[datetime]
-    metadata: Optional[Dict[str, Any]]
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # Declarative models for the MetaData object), but the API keeps
+    # `metadata` as the JSON key -- same pattern as src/schemas/merchandise.py.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     progress_updates: List[CollaborationGoalProgressResponse] = []
@@ -430,7 +433,7 @@ class CollaborationDocumentResponse(BaseModel):
     rejected_by_user_id: Optional[int]
     rejected_at: Optional[datetime]
     expires_at: Optional[datetime]
-    metadata: Optional[Dict[str, Any]]
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 

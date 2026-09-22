@@ -79,7 +79,7 @@ def create_collaboration_goal(
         success_criteria=goal_data.success_criteria,
         start_date=goal_data.start_date,
         target_date=goal_data.target_date,
-        metadata=goal_data.metadata,
+        metadata_json=goal_data.metadata,
         created_by_user_id=current_user.id,
     )
     db.add(goal)
@@ -1044,10 +1044,10 @@ def create_collaboration_document(
         requires_parent_signature=document_data.requires_parent_signature,
         requires_teacher_signature=document_data.requires_teacher_signature,
         expires_at=document_data.expires_at,
-        metadata=document_data.metadata,
+        metadata_json=document_data.metadata,
         created_by_user_id=current_user.id,
     )
-    
+
     db.add(document)
     db.commit()
     db.refresh(document)
