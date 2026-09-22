@@ -273,15 +273,15 @@ class StudentService:
                 Submission.student_id == student_id
             ).first()
             
-            days_until_due = (assignment.due_date - today).days
-            
+            days_until_due = (assignment.due_date.date() - today).days
+
             dashboard_data["upcoming_assignments"].append({
                 "id": assignment.id,
                 "title": assignment.title,
                 "subject": assignment.subject.name if assignment.subject else None,
                 "due_date": str(assignment.due_date),
                 "days_until_due": days_until_due,
-                "total_marks": assignment.total_marks,
+                "total_marks": assignment.max_marks,
                 "submission_status": submission.status.value if submission else "not_started",
                 "is_submitted": submission.submitted_at is not None if submission else False,
             })

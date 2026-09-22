@@ -306,25 +306,25 @@ class TeacherService:
                 
                 submissions = self.db.query(Submission).filter(
                     Submission.assignment_id == assignment.id,
-                    Submission.score.isnot(None)
+                    Submission.marks_obtained.isnot(None)
                 ).all()
                 
                 avg_score = 0.0
                 if submissions:
-                    avg_score = sum(s.score for s in submissions if s.score) / len(submissions)
+                    avg_score = sum(float(s.marks_obtained) for s in submissions if s.marks_obtained) / len(submissions)
                 
                 class_found = False
                 for cls in my_classes:
-                    if (cls['class_id'] == section.id and 
-                        cls['class_name'] == section.class_level.name if section.class_level else '' and
+                    if (cls['class_id'] == section.id and
+                        cls['class_name'] == (section.grade.name if section.grade else '') and
                         cls['section'] == section.name):
                         class_found = True
                         break
                 
-                if not class_found and section.class_level:
+                if not class_found and section.grade:
                     my_classes.append({
                         'class_id': section.id,
-                        'class_name': section.class_level.name,
+                        'class_name': section.grade.name,
                         'section': section.name,
                         'subject': assignment.subject.name if assignment.subject else '',
                         'student_count': student_count,
@@ -355,7 +355,7 @@ class TeacherService:
         for assignment in assignments:
             ungraded = self.db.query(Submission).filter(
                 Submission.assignment_id == assignment.id,
-                Submission.score.is_(None)
+                Submission.marks_obtained.is_(None)
             ).count()
             
             if ungraded > 0:
@@ -365,7 +365,7 @@ class TeacherService:
                 pending_assignments.append({
                     'id': assignment.id,
                     'title': assignment.title,
-                    'class_name': assignment.section.class_level.name if assignment.section and assignment.section.class_level else 'N/A',
+                    'class_name': assignment.section.grade.name if assignment.section and assignment.section.grade else 'N/A',
                     'section': assignment.section.name if assignment.section else 'N/A',
                     'subject': assignment.subject.name if assignment.subject else 'N/A',
                     'submission_count': ungraded,
@@ -387,11 +387,11 @@ class TeacherService:
                 'student_name': f"{student.first_name} {student.last_name}" if student else "Unknown",
                 'student_photo': None,
                 'assignment_title': sub.assignment.title if sub.assignment else '',
-                'class_name': sub.assignment.section.class_level.name if sub.assignment and sub.assignment.section and sub.assignment.section.class_level else 'N/A',
+                'class_name': sub.assignment.section.grade.name if sub.assignment and sub.assignment.section and sub.assignment.section.grade else 'N/A',
                 'section': sub.assignment.section.name if sub.assignment and sub.assignment.section else 'N/A',
                 'submitted_at': sub.submitted_at or datetime.now(),
-                'status': 'graded' if sub.score is not None else 'pending',
-                'score': sub.score
+                'status': 'graded' if sub.marks_obtained is not None else 'pending',
+                'score': sub.marks_obtained
             })
         
         class_performance = []
@@ -409,19 +409,19 @@ class TeacherService:
         upcoming_exams = []
         exams = self.db.query(Exam).filter(
             Exam.institution_id == current_user.institution_id,
-            Exam.exam_date >= datetime.now()
-        ).order_by(Exam.exam_date).limit(5).all()
-        
+            Exam.start_date >= date.today()
+        ).order_by(Exam.start_date).limit(5).all()
+
         for exam in exams:
             upcoming_exams.append({
                 'id': exam.id,
                 'exam_name': exam.name,
-                'exam_type': exam.exam_type or 'Regular',
+                'exam_type': exam.exam_type.value if exam.exam_type else 'Regular',
                 'class_name': 'N/A',
                 'section': 'N/A',
                 'subject': 'N/A',
-                'date': exam.exam_date or datetime.now(),
-                'duration_minutes': exam.duration_minutes or 60,
+                'date': exam.start_date,
+                'duration_minutes': 60,
                 'total_marks': exam.total_marks or 100
             })
         

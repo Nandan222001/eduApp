@@ -19,16 +19,30 @@ from src.utils.security import create_access_token, get_password_hash
 
 
 @pytest.fixture
-def teacher_auth_headers(teacher_user: User) -> dict:
-    token = create_access_token(
-        data={
-            "sub": teacher_user.id,
-            "institution_id": teacher_user.institution_id,
-            "role_id": teacher_user.role_id,
-            "email": teacher_user.email,
-        }
+def teacher_auth_headers(client: TestClient, teacher_user: User) -> dict:
+    """Log in for real so a matching session exists in the fake Redis --
+    get_current_user requires both a valid JWT AND an active session."""
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": teacher_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def second_institution(db_session: Session) -> Institution:
+    """Create a second institution for multi-tenant testing."""
+    institution = Institution(
+        name="Second Test School",
+        phone="+1234567892",
+        address="789 Third Street",
+        is_active=True,
+    )
+    db_session.add(institution)
+    db_session.commit()
+    db_session.refresh(institution)
+    return institution
 
 
 @pytest.fixture
@@ -708,7 +722,7 @@ class TestAssignmentCreateAPI:
         data = response.json()
         
         assert data["title"] == "Basic Assignment"
-        assert data["max_marks"] == 50
+        assert float(data["max_marks"]) == 50
 
     def test_teacher_cannot_create_assignment_for_other_institution(
         self,
@@ -787,7 +801,7 @@ class TestAssignmentGradingAPI:
             "feedback": "Excellent work!",
         }
         
-        response = client.put(
+        response = client.post(
             f"/api/v1/submissions/{submission.id}/grade",
             json=grade_data,
             headers=teacher_auth_headers
@@ -847,7 +861,7 @@ class TestAssignmentGradingAPI:
                 "feedback": f"Good work student {i+1}",
             }
             
-            response = client.put(
+            response = client.post(
                 f"/api/v1/submissions/{submission.id}/grade",
                 json=grade_data,
                 headers=teacher_auth_headers
@@ -896,7 +910,7 @@ class TestAssignmentGradingAPI:
             "feedback": "Good",
         }
         
-        response = client.put(
+        response = client.post(
             f"/api/v1/submissions/{submission.id}/grade",
             json=grade_data,
             headers=teacher_auth_headers
@@ -1105,7 +1119,7 @@ class TestTeacherDataAccessControl:
         assert response.status_code == 200
         subjects = response.json()
         
-        subject_ids = [s.get("subject_id") for s in subjects]
+        subject_ids = [s.get("id") for s in subjects]
         assert subject.id in subject_ids
 
     def test_teacher_cannot_grade_unassigned_class_submissions(
@@ -1149,7 +1163,7 @@ class TestTeacherDataAccessControl:
             "feedback": "Good",
         }
         
-        response = client.put(
+        response = client.post(
             f"/api/v1/submissions/{submission.id}/grade",
             json=grade_data,
             headers=teacher_auth_headers
@@ -1298,14 +1312,11 @@ class TestTeacherAuthenticationAndAuthorization:
         student_user: User,
         teacher: Teacher,
     ):
-        student_token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        student_token = login_response.json()["access_token"]
         student_headers = {"Authorization": f"Bearer {student_token}"}
         
         response = client.get(
@@ -1342,5 +1353,8 @@ class TestTeacherAuthenticationAndAuthorization:
             "/api/v1/teachers/my-dashboard",
             headers=headers
         )
-        
-        assert response.status_code == 403
+
+        # 401 (not 403): a present-but-invalid/expired token is an
+        # authentication failure -- 403 is what FastAPI's HTTPBearer raises
+        # only when no Authorization header is sent at all.
+        assert response.status_code == 401

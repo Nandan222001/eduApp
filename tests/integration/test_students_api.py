@@ -110,30 +110,29 @@ def second_student(
 
 
 @pytest.fixture
-def student_auth_headers(student_user: User) -> dict:
-    """Create authentication headers for student user."""
-    token = create_access_token(
-        data={
-            "sub": student_user.id,
-            "institution_id": student_user.institution_id,
-            "role_id": student_user.role_id,
-            "email": student_user.email,
-        }
+def student_auth_headers(client: TestClient, student_user: User) -> dict:
+    """Create authentication headers for student user.
+
+    Logs in for real through the API (rather than hand-crafting a JWT) so a
+    matching session exists in the client fixture's fake Redis --
+    get_current_user requires both a valid JWT AND an active session.
+    """
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": student_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
-def second_student_auth_headers(second_student_user: User) -> dict:
+def second_student_auth_headers(client: TestClient, second_student_user: User) -> dict:
     """Create authentication headers for second student user."""
-    token = create_access_token(
-        data={
-            "sub": second_student_user.id,
-            "institution_id": second_student_user.institution_id,
-            "role_id": second_student_user.role_id,
-            "email": second_student_user.email,
-        }
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": second_student_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -1100,8 +1099,13 @@ class TestRoleBasedAccessControl:
             f"/api/v1/students/{student.id}/dashboard",
             headers=headers
         )
-        
-        assert response.status_code == 403
+
+        # 401 (not 403): a present-but-invalid/expired token is an
+        # authentication failure, distinct from the 403 FastAPI's
+        # HTTPBearer raises only when no Authorization header is sent at
+        # all (see get_current_user, and the convention used throughout
+        # the rest of the test suite, e.g. test_error_handling.py).
+        assert response.status_code == 401
 
 
 @pytest.mark.integration

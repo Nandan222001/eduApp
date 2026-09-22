@@ -78,7 +78,7 @@ async def list_assignments(
         is_active=is_active
     )
     return {
-        "items": assignments,
+        "items": [AssignmentResponse.model_validate(a) for a in assignments],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -101,6 +101,12 @@ async def get_assignment(
         )
 
     if assignment.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this assignment"
+        )
+
+    if current_user.teacher_profile and assignment.teacher_id != current_user.teacher_profile.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this assignment"

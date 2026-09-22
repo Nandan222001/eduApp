@@ -73,44 +73,34 @@ def second_institution_student(
 
 
 @pytest.fixture
-def teacher_auth_headers(teacher_user: User) -> dict:
-    token = create_access_token(
-        data={
-            "sub": teacher_user.id,
-            "institution_id": teacher_user.institution_id,
-            "role_id": teacher_user.role_id,
-            "email": teacher_user.email,
-            "role_slug": "teacher",
-        }
+def teacher_auth_headers(client: TestClient, teacher_user: User) -> dict:
+    """Log in for real so a matching session exists in the fake Redis --
+    get_current_user requires both a valid JWT AND an active session."""
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": teacher_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
-def student_auth_headers(student_user: User) -> dict:
-    token = create_access_token(
-        data={
-            "sub": student_user.id,
-            "institution_id": student_user.institution_id,
-            "role_id": student_user.role_id,
-            "email": student_user.email,
-            "role_slug": "student",
-        }
+def student_auth_headers(client: TestClient, student_user: User) -> dict:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": student_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
-def admin_auth_headers(admin_user: User) -> dict:
-    token = create_access_token(
-        data={
-            "sub": admin_user.id,
-            "institution_id": admin_user.institution_id,
-            "role_id": admin_user.role_id,
-            "email": admin_user.email,
-            "role_slug": "admin",
-        }
+def admin_auth_headers(client: TestClient, admin_user: User) -> dict:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": admin_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -680,14 +670,10 @@ class TestCORSConfiguration:
 @pytest.mark.integration
 class TestRateLimitingEnforcement:
     
-    @patch('src.middleware.rate_limit.limiter.test')
     def test_rate_limit_enforced_for_anonymous_users(
         self,
-        mock_limiter,
         client: TestClient,
     ):
-        mock_limiter.return_value = True
-        
         for i in range(60):
             response = client.get("/api/v1/health")
             if response.status_code == 429:
