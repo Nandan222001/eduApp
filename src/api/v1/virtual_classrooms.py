@@ -36,6 +36,7 @@ from src.schemas.virtual_classroom import (
     RecordingStatus
 )
 from src.services.virtual_classroom_service import VirtualClassroomService
+from src.models.virtual_classroom import BreakoutRoom
 from src.config import settings
 
 router = APIRouter()
@@ -341,9 +342,9 @@ async def join_breakout_room(
     
     try:
         participant, token = await service.join_breakout_room(breakout_room_id, user_id)
-        
-        breakout_room = db.query(service.db.query.__self__.__class__).get(breakout_room_id)
-        
+
+        breakout_room = db.query(BreakoutRoom).filter(BreakoutRoom.id == breakout_room_id).first()
+
         participant_count = len(breakout_room.participants)
         breakout_response = BreakoutRoomResponse.model_validate(breakout_room)
         breakout_response.participant_count = participant_count
@@ -519,7 +520,11 @@ async def get_classroom_polls(
     for poll in classroom.polls:
         response = PollResponse.model_validate(poll)
         response.total_responses = len(poll.responses)
-        if poll.status.value == "ended":
+        # `poll.status` is a plain String column (see src/models/virtual_classroom.py),
+        # not a SQLAlchemy Enum-typed one, so values read back from the DB are
+        # plain str, not PollStatus instances -- comparing directly instead of via
+        # `.value` (which would raise AttributeError on every call here).
+        if poll.status == "ended":
             response.results = service.get_poll_results(poll.id)
         items.append(response)
     
