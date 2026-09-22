@@ -164,7 +164,10 @@ class RecordingResponse(BaseModel):
     status: RecordingStatus
     started_at: Optional[datetime]
     stopped_at: Optional[datetime]
-    metadata: Optional[Dict[str, Any]]
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # Declarative models for the MetaData object), but the API keeps
+    # `metadata` as the JSON key -- same pattern as src/schemas/merchandise.py.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     error_message: Optional[str]
     created_at: datetime
     updated_at: datetime
