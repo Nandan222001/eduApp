@@ -1405,40 +1405,104 @@ given 4 more routers' worth of previously-unreachable code now actually gets exe
 whatever coverage exists for them (currently none dedicated, but they're covered indirectly by
 `--collect-only` and the app-level import checks).
 
+## MILESTONE: all 16 silently-disabled routers are now fixed (fifteenth pass)
+Commits: `9f93b8f` (yearbook), `9ed7825` (ml_training), `4aaf812` (credentials),
+`9c011d5` (parent_teacher_collab), `4ff79d1` (super_admin_reports), `dcb4147`
+(virtual_classrooms) — plus the four from the fourteenth pass (`merchandise`, `ml_analytics`,
+`journalism`, `learning_styles`). **The entire "MAJOR FINDING" section above is now historical**
+— every router it flagged mounts cleanly. `python3 -c "import logging;
+logging.basicConfig(level=logging.WARNING); from src.api.v1 import api_router" 2>&1 | grep -i
+skipping` now produces **zero output** (confirmed after all commits landed, both independently
+by the last two fixes' own verification and again by a clean re-check here). This was 8 more
+routers fixed in one focused push (3 done directly, 5 via background agents run in parallel,
+each independently verified against real MySQL and the full skip-log check before being pushed).
+
+88. **`yearbook`** (commit `9f93b8f`, background agent) — wrote `src/models/yearbook.py` (6
+    classes: `YearbookEdition`, `YearbookPage`, `YearbookSignature`,
+    `YearbookPhotoSubmission`, `YearbookQuoteSubmission`, `YearbookMemorySubmission` + 3 enums).
+89. **`ml_training`** (commit `9ed7825`) — wrote `src/models/ml_training.py` (`MLTrainingJob`,
+    `ModelPromotionLog` + `TrainingStatus`/`TrainingJobType` enums), imported via
+    `src/tasks/ml_training_tasks.py` (Celery training pipeline: manual/scheduled jobs,
+    auto-promotion, model comparison, cleanup, admin notifications), FKs into the existing
+    `ml_models`/`ml_model_versions` tables from `src/models/ml_prediction.py`.
+90. **`credentials`** (commit `4aaf812`) — wrote `src/models/digital_credential.py`
+    (`DigitalCredential`, `CredentialVerification`, `CredentialShare`, `CredentialTemplate` + 3
+    enums) for the blockchain-backed digital badges/certificates feature. **Found and fixed 2
+    more real latent metadata-kwarg no-op bugs** (same class as #86): `DigitalCredential(
+    metadata=...)` and `CredentialVerification(metadata=...)` in `credential_service.py` neither
+    would have persisted; renamed both to `metadata_json=` and added the matching
+    `validation_alias`/`serialization_alias` to the 2 affected response schemas.
+91. **`parent_teacher_collab`** (commit `9c011d5`, background agent) — wrote
+    `src/models/collaboration.py` (10 classes: `CollaborationGoal`+`CollaborationGoalProgress`,
+    `ParentTeacherConference`, `SharedActionPlan`+`TeacherCommitment`+`ParentCommitment`,
+    `HomeLearningActivity`, `ParentTeacherMessageThread`+`ParentTeacherMessage`,
+    `CollaborationDocument`, + 6 enums), 1240 lines of router read in full (largest of the
+    remaining routers). **Note for future scoping**: the "MAJOR FINDING" table's "No schema
+    file" note for this router was stale/wrong — `src/schemas/collaboration.py` (438 lines)
+    existed all along and was used as the field spec. **Found and fixed 2 more metadata-kwarg
+    no-op bugs** in the router itself (`CollaborationGoal`/`CollaborationDocument` construction).
+92. **`super_admin_reports`** (commit `4ff79d1`, background agent) — wrote
+    `src/models/super_admin_reports.py` (10 classes: `ScheduledReport`+`ReportExecution`,
+    `DataExportJob`, `ComplianceReport`, `SecurityAuditReport`,
+    `DataRetentionPolicy`+`DataRetentionExecution`, `ArchivalJob`, `ReportBuilderSavedQuery`,
+    `ExecutiveDashboard` + 4 enums). This is a platform-wide/cross-institution feature
+    (`require_super_admin`-gated), so none of these tables carry an `institution_id` FK, unlike
+    most other fixed routers — correctly scoped that way after reading the router's own auth
+    dependency.
+93. **`virtual_classrooms`** (commit `dcb4147`, background agent) — wrote
+    `src/models/virtual_classroom.py` (12 classes: `VirtualClassroom`, `ClassroomParticipant`,
+    `ClassroomRecording`+`RecordingView`, `BreakoutRoom`+`BreakoutRoomParticipant`,
+    `ClassroomAttendance`, `ClassroomPoll`+`PollResponse`, `ClassroomQuiz`+`QuizSubmission`,
+    `WhiteboardSession` + 6 enums) for the Agora-backed live-classroom feature (882-line
+    service). Largest single model file written this session. Same stale-"no schema file" note
+    as #91 — `src/schemas/virtual_classroom.py` (423 lines) existed and was used correctly.
+
+**Full-suite verification after all 8 fixes landed**: fresh baseline run (reset test_db +
+schema-lock sentinels first) = **793 passed / 24 failed / 24 errors / 11 skipped**. Every
+failure/error re-triaged against this file's existing documentation, same as pass fourteen's
+methodology — `test_websocket.py`'s 3 "new"-looking failures re-verified standalone: 3/3 passed
+(full-suite-only flakiness, same asyncio/DB-contention class already tracked). Everything else
+matches already-known categories (test_auth.py's xdist race, the 2 flagged security design
+decisions, migration/benchmark heavy-infra tests, test_document_vault.py's dead code). **No new
+real failures from any of the 8 router fixes.** This basically matches the post-fourteenth-pass
+baseline (789/32/20/11, later corrected to ~796/~21 accounting for flakiness and the schema
+threshold) — consistent, no regression, despite 8 more routers' worth of previously-unreachable
+code now actually being imported and exercised by the app-level and collection-level checks.
+
+**Every router the "MAJOR FINDING" section flagged is now fixed.** That whole section (the
+table of missing classes, the "16 of ~123 API routers" framing, the recommended-order notes) is
+now historical context, not an active work item — leave it in the file for the record but don't
+treat it as a todo list anymore.
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the fourteenth-pass changes above (#82-87) if not already done (already done:
-   commits 257d331, 7429d41, ff5a377, 567f2f6, 04ea00b, 8955555).
-2. **6 silently-disabled routers remain**: `super_admin_reports`, `ml_training`,
-   `virtual_classrooms`, `credentials`/`digital_credential`, `parent_teacher_collab`/
-   `collaboration`, `yearbook`. See the "MAJOR FINDING" router table far above for per-router
-   scoping (missing classes, whether a schema file already exists). Recommended order (schema-
-   file-having ones first, same reasoning as before): `yearbook`, `ml_training`,
-   `super_admin_reports`, then the 3 with no schema file last (`credentials`/
-   `digital_credential`, `parent_teacher_collab`/`collaboration`, `virtual_classrooms`/
-   `virtual_classroom` -- these need more reading of router+service code to reverse-engineer the
-   fields since there's no Pydantic spec to lean on). The established method (used successfully
-   9 times now): read the consuming service/router's actual field usage
-   (`grep -n "ClassName("` and `"ClassName\."`), cross-reference the schema file if one exists,
-   write the model matching `src/models/merchandise.py`'s house style, verify every table
-   `CREATE`s against real MySQL before committing, drop the ad-hoc tables, confirm the router
-   disappears from the `_include_optional_router` skip-log, re-verify `pytest --collect-only`
-   still collects cleanly, commit. This can be delegated to a background agent per router (as
-   done this pass for 3 of the 4) if useful, but only one agent per router/file to avoid
-   conflicting edits, and always verify + push the agent's commit yourself before moving on.
-3. `document_vault_service.py` (and its test `tests/test_document_vault.py`) is a known, deeper
-   case — investigated in an earlier pass but not fixed: the router (`src/api/v1/document_vault.py`)
-   does NOT use this service at all (imports only schemas that exist and work fine), so the
-   service is dead/unwired code with its own broken imports (`DocumentType`, `ShareType`,
-   `BulkUploadResult`, `DocumentFolderStructure`, `ExpiringDocumentAlert` -- none exist in
-   `src/schemas/document_vault.py`) AND deeper field-name mismatches against the real schemas
-   even after those are added (e.g. it constructs `DocumentUploadRequest` with `document_name=`/
-   `shared_with=`/`metadata=` kwargs that don't exist on that schema). Decide when picked up:
-   either finish wiring it into a real feature (bigger job, needs product-intent judgment on
-   what the OCR/encryption/S3 vault feature should actually do), or explicitly mark it
-   out-of-scope dead code in this file and move on -- don't half-fix it.
-4. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
-   `analytics_service.py` flagged in #83 above -- needs an explicit join condition on `Exam`.
-   Low priority (no test currently exercises it) but real.
-5. Once the remaining disabled routers are finished (or triaged as out of scope), move to
+1. Commit + push the fifteenth-pass changes above (#88-93) if not already done (already done:
+   commits 9f93b8f, 9ed7825, 4aaf812, 9c011d5, 4ff79d1, dcb4147).
+2. **All previously-disabled routers are fixed — this priority tier is DONE.** Next real
+   priorities, in order:
+   a. `document_vault_service.py` (and its test `tests/test_document_vault.py`) — the one
+      remaining known-broken piece, a known, deeper case investigated in an earlier pass but not
+      fixed: the router (`src/api/v1/document_vault.py`) does NOT use this service at all
+      (imports only schemas that exist and work fine), so the service is dead/unwired code with
+      its own broken imports (`DocumentType`, `ShareType`, `BulkUploadResult`,
+      `DocumentFolderStructure`, `ExpiringDocumentAlert` -- none exist in
+      `src/schemas/document_vault.py`) AND deeper field-name mismatches against the real schemas
+      even after those are added (e.g. it constructs `DocumentUploadRequest` with
+      `document_name=`/`shared_with=`/`metadata=` kwargs that don't exist on that schema).
+      Decide when picked up: either finish wiring it into a real feature (bigger job, needs
+      product-intent judgment on what the OCR/encryption/S3 vault feature should actually do),
+      or explicitly mark it out-of-scope dead code in this file and move on -- don't half-fix it.
+   b. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
+      `analytics_service.py` flagged in pass fourteen (#83) -- needs an explicit join condition
+      on `Exam`. Low priority (no test currently exercises it) but real.
+   c. Given the sheer number of newly-mounted routers with zero dedicated test coverage
+      (merchandise, ml_analytics, journalism, learning_styles, yearbook, ml_training,
+      credentials, parent_teacher_collab, super_admin_reports, virtual_classrooms — 10 routers,
+      dozens of endpoints, all currently untested beyond "does it import"), consider writing at
+      least smoke-test coverage for each as an early Phase 2 priority, ahead of alphabetically
+      working through the full untested-modules checklist below — these are the ones most likely
+      to have latent bugs precisely because they've never been exercised by a real request
+      before this session (the metadata-kwarg bugs found in #86/#90/#91 are exactly the kind of
+      thing that only surfaces once you actually try to call the code).
+3. Once (a) and (b) above are resolved or explicitly triaged as out of scope, move fully into
    Phase 2 (new test coverage for untested route modules/pages -- see the checklists earlier in
-   this file).
+   this file, updated per 2c above for where to start).
