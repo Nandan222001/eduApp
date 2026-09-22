@@ -717,10 +717,15 @@ def submit_student_assessment(
                 if category in scores:
                     scores[category] += score
     
-    # Normalize scores to percentage
+    # Normalize scores to a 0-1 fraction (visual_score/etc. are Numeric(5, 4)
+    # columns constrained to the 0-1 range, matching
+    # LearningStyleProfileBase's Field(ge=0, le=1) in the schema and the
+    # normalization LearningStylesService._calculate_assessment_scores does
+    # for the other scoring path -- NOT a 0-100 percentage, which overflows
+    # Numeric(5, 4) (max 9.9999) on every non-trivial score and 500s.
     total = sum(scores.values())
     if total > 0:
-        scores = {k: (v / total) * 100 for k, v in scores.items()}
+        scores = {k: (v / total) for k, v in scores.items()}
     
     # Determine primary and secondary styles
     sorted_styles = sorted(scores.items(), key=lambda x: x[1], reverse=True)
