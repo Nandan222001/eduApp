@@ -2056,3 +2056,148 @@ static path and a same-shaped `{param}` sibling).
    could connect. Check `service mysql status` first if tests fail with "Connection refused"
    before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
    fresh MySQL start, since a prior container's schema-created sentinel can be stale.
+
+## Backend fixes, twenty-third pass — commits 8238386, 229ded4, ed4a587, f18b8a2 (complete;
+the most consequential pass of this whole multi-pass effort -- found a second, more severe
+class of "never actually registered" router bugs)
+115. **`fees`** (commit `8238386`, written directly) — `tests/integration/test_fees_api.py`,
+    8 tests covering fee structure CRUD (+cross-institution 403), payment recording with
+    sequential receipt-number generation, receipt lookup, payment listing/filtering, outstanding
+    -dues aggregation, and fee waiver create/list. **Found the most severe bug of this entire
+    session**: `src/api/v1/fees.py` was a complete, working, 362-line router file that was
+    simply never added to `src/api/v1/__init__.py`'s `ROUTERS` list at all -- not skipped by the
+    `_include_optional_router` try/except guard (which logs a warning), just never registered,
+    so it left no trace in logs. Confirmed against `frontend/src/api/fees.ts` and
+    `frontend/src/pages/FeeManagement.tsx`, which call every endpoint this router defines,
+    meaning **the entire Fee Management feature has been completely unreachable in the deployed
+    app** the whole time. Fixed by registering it at `/fees`. Once reachable, real testing found
+    2 more bugs that had never been exercised: `get_receipt` and `get_outstanding_dues` both did
+    `Student.grade_id`, but `Student` has no such column (grade is only reachable via
+    `Student.section_id -> Section.grade_id`) -- fixed both to join through `Section`.
+116. **`carpools`** (commit `229ded4`, background agent, verified) —
+    `tests/integration/test_carpools_api.py`, 16 tests covering carpool group create/get/
+    institution-scoping/list/update/delete, join-group + driver-rotation workflow, ride-schedule
+    generation, carpool requests CRUD + filtering, route matching (pure in-process haversine,
+    no external geocoding needed), ride CRUD + the confirm-ride workflow with two passengers,
+    and emergency create/list/get/update/resolve. Found a **new, eighth tracked bug class**:
+    `add_member_to_group`, `rotate_driver`, and `confirm_ride` all read a JSON column's Python
+    list/dict, mutated it **in place**, then reassigned the *same object* back onto the
+    attribute (`members = group.members; members.append(...); group.members = members`).
+    SQLAlchemy's dirty-tracking for JSON columns compares old vs. new **by object identity** --
+    since the reassigned value is literally the same object, attribute history records it as
+    unchanged and the column is silently excluded from the UPDATE. `db.commit()`/`db.refresh()`
+    both report success, but the mutation never reaches the database. Caught by a test asserting
+    a joined member actually appeared in the group's member list after the join call -- it
+    didn't. `confirm_ride` had partially masked this by accident (its first confirmation
+    "worked" because the column started `None`, and `None or {}` produces a genuinely new dict;
+    a *second* confirmation on the same ride would have silently dropped the first). Fixed all
+    three call sites to build a genuinely new list/dict (`list(...)`/`dict(...)`/`{**x, ...}`)
+    before reassigning.
+117. **`learning_paths`** (commit `ed4a587`, background agent, verified) —
+    `tests/integration/test_learning_paths_api.py`, 20 tests covering path create/get-detail/
+    list-with-filters/update/delete + institution-scoping 404, milestone creation, the AI-driven
+    `/generate` personalized-sequence workflow (topological sort, adaptive difficulty, auto
+    milestones), progress/visualization aggregates, mastery-update workflow (auto-unlock next
+    topic), performance recording, spaced-repetition create/due-listing/SM-2 review update,
+    velocity calculate + trend, and prerequisite-relationship CRUD (+self-reference rejection).
+    Found 2 bugs in `LearningVelocityService.calculate_velocity`, the second only reachable once
+    the first was fixed:
+    - `period_end = date.today()` (a bare `date`) was used directly against `DateTime` columns
+      in `<=` comparisons -- MySQL treats a bare date as midnight, so virtually all of "today"'s
+      real activity (anything after 00:00:00) was silently excluded from the completed-topics
+      count. Fixed by using `datetime.combine(period_end, datetime.max.time())` as the bound.
+    - Once real completed-topic data was counted, `metrics["daily_completions"]` turned out to
+      use `date` objects as dict keys inside a value about to be written to a JSON column --
+      `json.dumps` rejects non-str/int/float/bool/None keys, so every velocity calculation with
+      real data raised an unhandled `TypeError` deep in the DB driver's JSON serializer. Fixed by
+      serializing keys to ISO date strings before assignment.
+118. **The big one: a full router-inventory audit found 17 more completely unregistered router
+    files** (commit `f18b8a2`) — after finding `fees.py` was silently dead, ran a scripted
+    cross-reference of every `.py` file in `src/api/v1/` against every module path actually
+    present in `ROUTERS`. Found 17 more real router files, none of them ever registered, none
+    of them ever logged as skipped (that log line only fires for modules that ARE in the list
+    but fail to import -- these were simply never added to the list at all, a structurally
+    invisible failure mode distinct from every other bug class tracked this session). Of the 17:
+    - **12 import and mount cleanly, registered immediately**: `dashboard_widgets`,
+      `database_maintenance`, `elections`, `events`, `family`, `library`, `live_events`,
+      `live_events_websocket`, `performance_monitoring`, `rate_limits`, `recommendations`,
+      `transport`. Three of these are confirmed to have real, currently-broken frontend
+      consumers: `frontend/src/api/transport.ts` (used by 3 page/component files),
+      `library.ts` (5 files), `dashboardWidgets.ts` (**11 files** -- likely the single
+      highest-impact fix of this whole session, given how many UI surfaces depend on it).
+    - **5 do NOT import cleanly**, left unregistered: `branding` (missing third-party `pydub`
+      dependency), `collaboration` (missing `StudyBuddyProfileCreate` schema class),
+      `parent_education` (missing `CourseModule` model class, 1 frontend consumer found),
+      `sel` (missing `src.models.sel` module entirely), `timetable` (missing `DayOfWeek` in
+      `src.models.timetable`, 3 frontend consumers found -- distinct from the already-registered
+      `timetables` (plural) router, both are real and both have real frontend usage under
+      different URL paths, not a duplicate).
+    Verified the app boots with zero "Skipping router" warnings for any of the 12, and the full
+    `tests/integration/` suite (617 tests) passes at 605/607 non-skipped -- the only 2 failures
+    are the pre-existing, already-documented `test_security.py` design-decision gaps from pass
+    eight (subscriptions has no auth dependency; XSS input isn't server-side sanitized),
+    unrelated to this change.
+
+**This pass's central lesson, worth internalizing for all future backend work on this repo**:
+this session already knew that "does it import" is insufficient (bug classes 1-8 all require a
+real request to catch). This pass adds a *third* failure mode above even that: **a router can be
+100% correct, fully tested in isolation, and still be completely unreachable in the running app
+if nobody added one line to `src/api/v1/__init__.py`'s `ROUTERS` list** -- and unlike an
+import-failure skip, this leaves *zero trace in logs*, since `_include_optional_router` is never
+even called for it. The only way to catch this is the inventory-scan method used here: list
+every file in `src/api/v1/`, list every module path actually in `ROUTERS`, diff them. **This
+scan should be run again periodically** (it's cheap, a few lines of Python) any time a new
+router file might have been added without a corresponding registration -- it is not a one-time
+fix, it's a class of regression that can recur with every new router file.
+
+`pytest --collect-only tests/` now collects **1141 tests, 0 errors** (up from 1097 after pass
+twenty-two; note the 12 newly-registered routers have zero test coverage yet themselves --
+that's the natural next-priority work, see below).
+
+## Next resume point (current, supersedes the ones above)
+1. **Highest priority: write real integration test coverage for the 12 routers just
+   registered** (`dashboard_widgets`, `database_maintenance`, `elections`, `events`, `family`,
+   `library`, `live_events`, `live_events_websocket`, `performance_monitoring`, `rate_limits`,
+   `recommendations`, `transport`) — they mount cleanly but have never been exercised by a real
+   request, so per this session's own repeatedly-proven finding, real bugs are likely (`fees`,
+   discovered via the exact same "never registered" mechanism, had 2 more bugs once reachable).
+   Prioritize `transport`/`library`/`dashboard_widgets` first since they have confirmed,
+   currently-broken frontend consumers. Same method as every router above: background-agent
+   delegation for large ones (`live_events` is 1174 lines, `family` 793, `elections` 950),
+   direct work for small ones, always verify independently, always `git add` only your own files.
+2. **Fix the 5 routers that don't import cleanly**, matching this session's established
+   "16 disabled routers" repair method (read the consuming router/schema code, add the missing
+   model/schema classes matching the house style, verify against real MySQL, re-run the doubled
+   -prefix/route-ordering checks once reachable): `branding` (needs the `pydub` pip dependency
+   added, or the one endpoint using it reworked), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable` -- note this is separate from the already-working `timetables` router).
+3. **Re-run the router-inventory-scan + doubled-prefix audit again** once the above is done, in
+   case any more files were added without registration, or any more doubled/duplicated prefixes
+   exist among routers not yet checked.
+4. **Continue the Phase-2/3 backend route-module audit more broadly** — the ~95-router count
+   itself will grow once the 5 broken ones above are fixed and registered, and roughly 35 of the
+   originally-known ~95 (before this pass's +12) still have no real test coverage. Eight tracked
+   bug classes now (give each agent this full list): (1) metadata/metadata_json shadowing,
+   (2) `.value` on a plain-string column, (3) raw ORM objects under `response_model=dict`/`list`,
+   (4) `func.case([(...)], else_=...)` misuse, (5) doubled router URL prefixes, (6) default
+   -valued columns read before their owning row is ever flushed, (7) intra-router route
+   -registration-order shadowing between a static path and a same-shaped `{param}` sibling,
+   (8) same-object JSON-column reassignment invisible to SQLAlchemy's change tracking (mutate a
+   JSON column's list/dict in place then reassign the same object -- always copy first).
+5. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings (unauthenticated routers incl. a hardcoded institution_id,
+   insecure secret defaults, debug=True with no prod override, unused rate-limiting
+   infrastructure, an unused AuditLog table). Do NOT start fixing these without the user's
+   confirmation landing first.
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work, likely to be picked up once
+   the backend router-registration/audit work above reaches a natural stopping point.
+7. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+   guaranteed to be running at the start of a session/iteration -- both needed a manual
+   `service mysql start` / `service redis-server start` at the top of this pass before any test
+   could connect. Check `service mysql status` first if tests fail with "Connection refused"
+   before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
+   fresh MySQL start, since a prior container's schema-created sentinel can be stale.
