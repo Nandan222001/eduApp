@@ -1874,8 +1874,7 @@ since pass fourteen**:
    before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
    fresh MySQL start, since a prior container's schema-created sentinel can be stale.
 
-## Backend fixes, twenty-first pass — commit 7907cf6 so far (in progress; two background agents
-still running for `wellbeing` and `finance_education` at time of writing)
+## Backend fixes, twenty-first pass — commits 7907cf6, 75408eb, f46f12b (complete)
 109. **`gamification`** (commit `7907cf6`, written directly) — `tests/integration/test_gamification_api.py`,
     8 tests covering badge create/get/list/update, award-badge + user badges, points
     add/history/user-points, leaderboard + user stats + showcase, achievement create/list,
@@ -1884,13 +1883,86 @@ still running for `wellbeing` and `finance_education` at time of writing)
     (`UserBadgeResponse`, `PointHistoryResponse`, `UserAchievementResponse`,
     `LeaderboardEntryDBResponse`, `StreakTrackerResponse`) — same bug class as `volunteer_hours`/
     `community_service` above, fixed with the same alias pattern.
+110. **`finance_education`** (commit `75408eb`, background agent, verified) —
+    `tests/integration/test_finance_education_api.py`, 9 tests covering module CRUD + filtering,
+    module-completion progress tracking, virtual wallet create/duplicate-rejection/update,
+    wallet transactions (deposit, insufficient-balance 400, category filter), investment
+    simulation + portfolio performance, finance-challenge CRUD + participation + capacity limit,
+    challenge-completion + leaderboard, literacy assessments, and financial-health/-progress
+    aggregate reports. Found 2 real bugs:
+    - The metadata/metadata_json bug hit 3 more response schemas at once
+      (`WalletTransactionResponse`, `InvestmentHoldingResponse`, `ChallengeParticipationResponse`).
+    - `update_participation`'s generic `setattr(participation, key, value)` update loop silently
+      no-ops when `key == 'metadata'` (shadows the reserved class attribute instead of writing
+      the real `metadata_json` column) — a client submitting metadata via `PUT /participations/{id}`
+      got a 200 with the value silently dropped, never persisted. Fixed by special-casing that key
+      to write `metadata_json` directly, mirroring an existing fix in `subscription_service.py`.
+111. **`wellbeing`** (commit `f46f12b`, background agent, verified) —
+    `tests/integration/test_wellbeing_api.py`, 15 tests covering consent-gated alert
+    create/get/list/filter + PATCH status workflow + notes, sentiment analysis (deterministic
+    keyword path, real HuggingFace model download skipped — same spirit as the Razorpay/Printful
+    skips elsewhere) and behavioral analysis (both consent-gated), counselor profiles +
+    dashboard, interventions, consent lifecycle, mood entries, weekly surveys, anonymous reports,
+    mental health resources (full CRUD), referrals, parent notifications, and the stress-level/
+    burnout-risk aggregate. Found 4 real bugs, including a new bug class:
+    - The metadata/metadata_json bug hit `WellbeingAlertResponse` — every alert response 500'd,
+      the create-alert endpoint was 100% broken.
+    - `create_alert` did `WellbeingAlert(**alert_data.model_dump())`, so the dumped `'metadata'`
+      key silently shadowed the reserved class attribute instead of writing `metadata_json` —
+      any metadata a caller sent was always discarded. Fixed by popping it out and passing
+      `metadata_json=` explicitly.
+    - `get_counselor_dashboard` returned raw `WellbeingAlert` ORM instances nested inside a
+      `response_model=dict` body — the same raw-ORM-serialization anti-pattern found repeatedly
+      this session. The counselor dashboard never worked once real alert data existed. Fixed by
+      converting each alert with `WellbeingAlertResponse.model_validate(a)`.
+    - **New bug class**: `_update_wellbeing_profile` constructed a brand-new
+      `StudentWellbeingProfile` passing only `institution_id`/`student_id`, relying on the
+      model's `default=0.0` column defaults for its trend/score fields — but a SQLAlchemy column
+      default only applies at flush/INSERT time, so those attributes were still plain `None` in
+      Python immediately after construction. The function then compared them (`if
+      profile.sentiment_trend < -0.5`) before any flush, so **creating the very first alert for
+      any student always crashed** with a `TypeError` comparing `None` to a float. Fixed by
+      passing all six trend/score fields explicitly in the constructor instead of relying on the
+      DB-side default. Worth a repo-wide grep (`grep -rn "= Column(.*default=" src/models/ | ...`)
+      for other services that read a freshly-constructed row's default-valued column before ever
+      flushing it, since this is a distinct failure mode from the other four tracked bug classes.
 
-Two more background agents were dispatched and are still running at time of writing:
-`wellbeing` (1113 lines, its doubled-prefix bug already fixed as part of pass twenty's `exams`
-work — this agent is giving it real test coverage for the first time) and `finance_education`
-(817 lines). Both were also asked to check for the doubled-router-prefix bug pattern as a
-cheap, high-value side check. **Next resume point**: if their commits aren't in `git log` yet,
-check whether they're still running (`ListAgents`) before assuming they were interrupted; verify
-each independently (collect-only + run its test file) before trusting its handback report, then
-continue the same router-inventory-audit method from pass twenty's opening paragraph to pick the
-next targets from the ~44 still-untested routers.
+Verified `wellbeing`/`finance_education` independently (collect-only + ran both test files
+myself before trusting their handback reports, per this session's standing discipline).
+`pytest --collect-only tests/` now collects **1059 tests, 0 errors** (up from 1027 after pass
+twenty). Twenty-first pass running tally: 3 routers (`gamification`, `finance_education`,
+`wellbeing`), 32 new tests, 9 real bugs found and fixed, including one brand-new bug class
+(column defaults not applied until flush).
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue the Phase-2/3 backend route-module audit** — roughly 41 of the ~95 registered
+   routers still have no real endpoint-level test coverage after this pass. Rerun the
+   router-inventory script described at the top of pass twenty's section to get a fresh,
+   accurate untested list. Same method as every router above: background-agent delegation for
+   large routers (500+ lines), direct work for small/medium ones, always verify independently
+   before trusting a handback report, always `git add` only your own files in this shared
+   working directory. Watch for all 5 tracked bug classes now: metadata/metadata_json shadowing,
+   `.value` on a plain-string column, raw ORM objects under `response_model=dict`,
+   `func.case([(...)], else_=...)` misuse, doubled router URL prefixes, and (new)
+   default-valued columns read before their owning row is ever flushed.
+2. **A user asked for a security-posture audit against a 17-point checklist this pass (not yet
+   acted on beyond reporting findings)**. Top findings, if picking this up: (a) 26+ routers with
+   zero auth dependency, including `institution_admin.py` which hardcodes `institution_id = 1`
+   instead of deriving it from the authenticated user (a real cross-tenant bug, most actionable
+   of the bunch); (b) `src/config.py` has insecure hardcoded fallback secrets
+   (`secret_key="secret-key"`, DB password default) with no required-env enforcement; (c)
+   `debug=True` by default with no prod override and no global exception handler (traceback-leak
+   risk); (d) slowapi/Redis rate-limiting infrastructure exists but is applied to zero routes,
+   including `/login`; (e) `AuditLog` model exists but nothing ever writes to it. The user was
+   asked whether to proceed with fixes and hadn't responded as of this note -- do not start
+   fixing these without that confirmation landing first (some of these, e.g. the secrets
+   defaults, are a judgment call on how aggressively to change vs. just flag).
+3. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+4. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+   guaranteed to be running at the start of a session/iteration -- both needed a manual
+   `service mysql start` / `service redis-server start` at the top of this pass before any test
+   could connect. Check `service mysql status` first if tests fail with "Connection refused"
+   before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
+   fresh MySQL start, since a prior container's schema-created sentinel can be stale.
