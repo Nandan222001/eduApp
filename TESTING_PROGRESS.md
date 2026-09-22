@@ -259,6 +259,71 @@ schema gives the field spec for free, then the three with no schema file
 `virtual_classrooms`/virtual_classroom) last since those need more reading of router+service
 code to reverse-engineer the fields.
 
+## Backend test-suite mechanics fixed (Phase 1, second pass) — commits eb92c35
+through b42c3b8
+After the router fixes above, the actual `pytest` run itself was blocked by a chain of
+independent bugs, each cascading through most of the suite until fixed one at a time. In
+order found/fixed:
+1. `Feedback.user_id` was `CHAR(36)` FK'd to `users.id`, but `User.id` is `Integer` -- MySQL
+   rejects a FK between mismatched column types. Fixed `Feedback.user_id` to `Integer`
+   (schema's `FeedbackResponse.user_id` too) -- `User.id` is `Integer` everywhere else in the
+   codebase, so the Feedback model was the outlier, not User.
+2. `tests/conftest.py`'s `institution` fixture passed 8 kwargs that aren't real `Institution`
+   columns (and aren't referenced anywhere in `src/` either -- pure stale test data), AND was
+   separately missing `logo_url`, which genuinely IS used by 2 services (incl.
+   institution_health_service.py). Trimmed the fixture, added the real column.
+3. `src/models/doubt.py` and `study_material.py` both had `Index(...)` directly on a JSON
+   column (`tags`, `auto_generated_tags`) -- MySQL can't index JSON directly, only via a
+   generated column on a specific path. Removed those indexes.
+   **After these three, `Base.metadata.create_all()` succeeds for every model in the
+   codebase against real MySQL for the first time this session** -- verify this still holds
+   with the snippet in the "MAJOR FINDING" section above before assuming it's still true.
+4. All 4 Role fixtures (`admin_role`/`teacher_role`/`student_role`/`parent_role`) never set
+   `slug`, which is `nullable=False` -- added slugs.
+5. Running under `-n auto` (pytest-xdist), `tests/conftest.py`'s `db_session` fixture called
+   `Base.metadata.create_all` on EVERY test, and many parallel workers hit MySQL's DDL
+   concurrently ("Table was skipped since its definition is being modified by concurrent DDL
+   statement"). Fixed with the standard pytest-xdist pattern: a session-scoped autouse
+   fixture using a cross-worker `FileLock` (already an installed transitive dep) + sentinel
+   file so schema creation runs exactly once total, not once per test.
+6. Real deadlocks (MySQL error 1213), not just the DDL race above: the `institution` fixture
+   used a hardcoded, unique-constrained `name`/`slug` ("Test School"/"test-school"), so
+   concurrent xdist workers' uncommitted INSERTs of the identical value contended for the
+   same index gap lock. Now generates a random suffix per call.
+7. A **static AST scan** (parse every model's real columns, check every `ModelName(...)`
+   call across `tests/` against them) found the same handful of stale/renamed fields repeated
+   across ~18 test files: `Institution` (8 bogus kwargs), `Student` (`academic_year_id` bogus,
+   `date_of_admission` should be `admission_date`), `Teacher` (`date_of_joining` should be
+   `joining_date`), `Subject` (`grade_id` bogus -- relates via `GradeSubject` association, not
+   a direct FK), `Attendance` (`period` bogus, unused anywhere in `src/` too), `Assignment`
+   (`total_marks` should be `max_marks` -- NOTE `total_marks` IS real on Exam/Quiz/
+   previous_year_papers models, so don't blanket-rename it codebase-wide, only within
+   `Assignment(...)` calls). **If you add new fixtures or test data, re-run this scan
+   pattern before assuming a model's field names** -- it's cheap and catches this whole class
+   of bug in one pass instead of one pytest run at a time:
+   ```python
+   # Walks src/models/*.py to collect each class's real column names (any class-level
+   # assignment, so also matches relationships etc., not just Column() -- deliberately
+   # loose so it doesn't miss anything), then walks tests/**/*.py for ModelName(kwarg=...)
+   # calls and reports any kwarg not in that set. See git log commit b42c3b8 for the
+   # exact script if you need the AST-boundary-precise auto-fix version too.
+   ```
+8. **NOT fixed, needs a real decision**: `tests/test_api_subscriptions.py` constructs a
+   `SubscriptionPlan` model that doesn't exist anywhere in `src/models/` -- `Subscription`
+   only has a plain `plan_name` string column, no FK to a plans table. This is either (a) a
+   genuinely missing model (build `SubscriptionPlan` + a `plan_id` FK column on
+   `Subscription`, migrate `plan_name` data), or (b) the whole test file needs rewriting to
+   match the simpler plan_name-string design. Given `subscription_service.py` and the
+   `subscriptions` API were both working (not in the disabled-routers list) using just
+   `plan_name`, (b) — rewriting the test — is probably right, but read
+   `src/services/subscription_service.py`'s actual plan-handling logic first to be sure
+   before picking either path.
+
+Expect the next full-suite `pytest` run (in progress as this checkpoint is being written) to
+reveal further, hopefully much narrower, issues -- possibly genuine test logic bugs now that
+setup/fixtures are largely sound, rather than more setup-blocking issues. Read its actual
+output rather than assuming a number.
+
 ## Backend route modules (113 total) — test coverage checklist
 Legend: [x] has dedicated test file & passing | [~] has test file, some failing | [ ] no test file yet
 
