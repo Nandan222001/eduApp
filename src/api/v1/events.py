@@ -74,7 +74,7 @@ async def list_events(
     events = query.order_by(Event.start_date.desc()).offset(skip).limit(limit).all()
     
     return {
-        "items": events,
+        "items": [EventResponse.model_validate(e) for e in events],
         "total": total,
         "skip": skip,
         "limit": limit

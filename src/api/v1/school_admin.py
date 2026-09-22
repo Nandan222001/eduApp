@@ -175,7 +175,7 @@ async def list_staff(
         search=search
     )
     return {
-        "items": staff,
+        "items": [StaffMemberResponse.model_validate(s) for s in staff],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -313,7 +313,7 @@ async def list_payroll(
         year=year
     )
     return {
-        "items": payrolls,
+        "items": [StaffPayrollResponse.model_validate(p) for p in payrolls],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -567,7 +567,7 @@ async def list_enquiries(
         search=search
     )
     return {
-        "items": enquiries,
+        "items": [EnquiryRecordResponse.model_validate(e) for e in enquiries],
         "total": total,
         "skip": skip,
         "limit": limit,

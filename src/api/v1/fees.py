@@ -71,7 +71,7 @@ async def list_fee_structures(
     structures = query.offset(skip).limit(limit).all()
     
     return {
-        "items": structures,
+        "items": [FeeStructureResponse.model_validate(s) for s in structures],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -204,7 +204,7 @@ async def list_payments(
     payments = query.order_by(FeePayment.payment_date.desc()).offset(skip).limit(limit).all()
     
     return {
-        "items": payments,
+        "items": [FeePaymentResponse.model_validate(p) for p in payments],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -354,7 +354,7 @@ async def list_waivers(
     waivers = query.offset(skip).limit(limit).all()
     
     return {
-        "items": waivers,
+        "items": [FeeWaiverResponse.model_validate(w) for w in waivers],
         "total": total,
         "skip": skip,
         "limit": limit

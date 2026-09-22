@@ -69,7 +69,7 @@ async def list_routes(
     routes = query.offset(skip).limit(limit).all()
     
     return {
-        "items": routes,
+        "items": [TransportRouteResponse.model_validate(r) for r in routes],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -259,7 +259,7 @@ async def list_student_assignments(
     assignments = query.offset(skip).limit(limit).all()
     
     return {
-        "items": assignments,
+        "items": [StudentTransportResponse.model_validate(a) for a in assignments],
         "total": total,
         "skip": skip,
         "limit": limit

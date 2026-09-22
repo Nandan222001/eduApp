@@ -42,7 +42,7 @@ async def list_institutions(
         is_active=is_active
     )
     return {
-        "items": institutions,
+        "items": [InstitutionResponse.model_validate(i) for i in institutions],
         "total": total,
         "skip": skip,
         "limit": limit,

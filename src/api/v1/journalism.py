@@ -123,7 +123,7 @@ async def list_editions(
     editions = query.order_by(desc(NewspaperEdition.publication_date)).offset(skip).limit(limit).all()
     
     return {
-        "items": editions,
+        "items": [NewspaperEditionResponse.model_validate(e) for e in editions],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -301,9 +301,9 @@ async def list_articles(
     
     total = query.count()
     articles = query.order_by(desc(Article.submission_date)).offset(skip).limit(limit).all()
-    
+
     return {
-        "items": articles,
+        "items": [ArticleResponse.model_validate(a) for a in articles],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -336,9 +336,9 @@ async def list_published_articles(
     
     total = query.count()
     articles = query.order_by(desc(Article.publish_date)).offset(skip).limit(limit).all()
-    
+
     return {
-        "items": articles,
+        "items": [ArticleResponse.model_validate(a) for a in articles],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -701,7 +701,7 @@ async def list_members(
     members = query.order_by(JournalismMember.join_date).offset(skip).limit(limit).all()
     
     return {
-        "items": members,
+        "items": [JournalismMemberResponse.model_validate(m) for m in members],
         "total": total,
         "skip": skip,
         "limit": limit,

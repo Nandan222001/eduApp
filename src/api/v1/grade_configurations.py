@@ -67,7 +67,7 @@ async def list_grade_configurations(
     ).offset(skip).limit(limit).all()
     
     return {
-        "items": configs,
+        "items": [GradeConfigurationResponse.model_validate(c) for c in configs],
         "total": total,
         "skip": skip,
         "limit": limit,

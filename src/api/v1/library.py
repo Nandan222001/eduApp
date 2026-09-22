@@ -129,7 +129,7 @@ async def list_books(
     books = query.offset(skip).limit(limit).all()
     
     return {
-        "items": books,
+        "items": [BookResponse.model_validate(b) for b in books],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -306,7 +306,7 @@ async def list_issues(
     issues = query.order_by(BookIssue.issue_date.desc()).offset(skip).limit(limit).all()
     
     return {
-        "items": issues,
+        "items": [BookIssueResponse.model_validate(i) for i in issues],
         "total": total,
         "skip": skip,
         "limit": limit

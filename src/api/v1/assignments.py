@@ -259,7 +259,7 @@ async def list_assignment_submissions(
     )
 
     return {
-        "items": submissions,
+        "items": [SubmissionResponse.model_validate(s) for s in submissions],
         "total": total,
         "skip": skip,
         "limit": limit,

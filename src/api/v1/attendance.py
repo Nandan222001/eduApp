@@ -199,7 +199,7 @@ async def list_corrections(
         limit=limit
     )
     return {
-        "items": corrections,
+        "items": [AttendanceCorrectionResponse.model_validate(c) for c in corrections],
         "total": total,
         "skip": skip,
         "limit": limit,

@@ -51,7 +51,7 @@ async def list_subjects(
         is_active=is_active
     )
     return {
-        "items": subjects,
+        "items": [SubjectResponse.model_validate(s) for s in subjects],
         "total": total,
         "skip": skip,
         "limit": limit,

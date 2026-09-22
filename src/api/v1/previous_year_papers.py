@@ -64,7 +64,7 @@ async def list_papers(
         search=search
     )
     return {
-        "items": papers,
+        "items": [PreviousYearPaperResponse.model_validate(p) for p in papers],
         "total": total,
         "skip": skip,
         "limit": limit,

@@ -158,7 +158,7 @@ async def list_timetables(
     timetables = query.offset(skip).limit(limit).all()
     
     return {
-        "items": timetables,
+        "items": [TimetableResponse.model_validate(t) for t in timetables],
         "total": total,
         "skip": skip,
         "limit": limit

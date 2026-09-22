@@ -56,7 +56,7 @@ async def list_teachers(
         is_active=is_active
     )
     return {
-        "items": teachers,
+        "items": [TeacherResponse.model_validate(t) for t in teachers],
         "total": total,
         "skip": skip,
         "limit": limit,

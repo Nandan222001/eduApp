@@ -43,7 +43,7 @@ async def list_bookmarks(
         limit=limit
     )
     return {
-        "items": bookmarks,
+        "items": [QuestionBookmarkResponse.model_validate(b) for b in bookmarks],
         "total": total,
         "skip": skip,
         "limit": limit,
