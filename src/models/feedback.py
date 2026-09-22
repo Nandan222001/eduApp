@@ -9,7 +9,7 @@ class Feedback(Base):
     __tablename__ = "feedbacks"
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(CHAR(36), ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     category = Column(String(50), nullable=False)
     subject = Column(String(200), nullable=False)
     message = Column(Text, nullable=False)

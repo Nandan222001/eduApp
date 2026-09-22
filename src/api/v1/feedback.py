@@ -27,7 +27,7 @@ class FeedbackResponse(BaseModel):
     message: str
     rating: Optional[int]
     status: str
-    user_id: UUID
+    user_id: int
     created_at: datetime
     updated_at: datetime
 
