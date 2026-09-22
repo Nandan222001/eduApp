@@ -1566,25 +1566,105 @@ sixteen's document_vault fix).
 `super_admin_reports`, `virtual_classrooms` — 8 remaining, and given 3-for-3 so far, assume more
 bugs are waiting in each.
 
+## Backend fixes, eighteenth pass — commits f5a5f56, 4a5b6b1, b749649, 74a4328 (4 more of the 10
+newly-mounted routers now have real coverage; found 7 more real bugs; `merchandise` is the
+first of the 10 to pass clean with zero bugs found)
+Continuing the same Phase-2 priority, split across direct work and two background agents running
+in parallel (one per router, matching pass fifteen's pattern; each verified independently --
+collected + ran its test file myself -- before trusting its self-report, per this session's
+standing discipline never to blindly trust an agent's handback):
+
+97. **`merchandise`** (commit `f5a5f56`, written directly) — `tests/integration/test_merchandise_api.py`,
+    9 tests covering item CRUD, institution-scoping enforcement (403 for another institution),
+    order creation/listing/tracking/status-update, the mockup-generation 501 "not configured"
+    fallback, and the admin commission-report endpoint. **First of the 10 routers this pass to
+    pass clean on the first run — no bugs found.** Breaks the "every router tested so far has
+    found real bugs" streak from pass seventeen (credentials, ml_training, document_vault all
+    had bugs); good evidence the streak was about router complexity/field-drift risk, not an
+    inherent property of every newly-mounted router.
+98. **`parent_teacher_collab`** (commit `4a5b6b1`, background agent, verified) —
+    `tests/integration/test_parent_teacher_collab_api.py`, 25 tests across 6 classes (goals,
+    conferences, action plans w/ nested teacher/parent commitments, home learning activities,
+    message threads w/ translation, document signing flow). Found and fixed 2 real bugs:
+    - `agree_to_goal` checked `hasattr(current_user, 'parent_profile')`, a relationship that
+      doesn't exist on `User` (only `teacher_profile` does) — a parent could never record
+      agreement on a shared goal via this endpoint, ever. Fixed to query `Parent` by `user_id`
+      (matches the pattern already used in `document_vault.py`/`parent_education.py`).
+    - `create_conference` assigned pydantic `ConferenceAgendaItem` objects directly into the
+      `agenda` JSON column (`TypeError: not JSON serializable` on every conference created with
+      an agenda). Fixed with `.model_dump(mode="json")`. Also found and fixed an ordering bug in
+      the same function while fixing it: `video_conference_url`/`video_conference_id` were built
+      from `conference.id` *before* the row was flushed, so every video-conference URL literally
+      contained the string "None" — moved that block after `db.add()`/`db.flush()`.
+99. **`virtual_classrooms`** (commit `b749649`, background agent, verified) —
+    `tests/integration/test_virtual_classrooms_api.py`, 17 tests covering classroom
+    create/get/list/update/start/end, participants (join/leave, token/channel checks), breakout
+    rooms, polls, quizzes, whiteboard save, analytics, and recordings (AgoraService HTTP calls
+    mocked). Found and fixed 4 real bugs, the most of any router this pass:
+    - `join_breakout_room` literally queried the SQLAlchemy `Session` class as if it were a
+      mapped entity (`db.query(service.db.query.__self__.__class__)`) — broken on every call,
+      `BreakoutRoom` wasn't even imported into the router. Fixed to a real
+      `db.query(BreakoutRoom).filter(...)`.
+    - `get_classroom_polls` did `poll.status.value` on a plain `String(20)` column (not
+      SQLAlchemy-`Enum`-typed) — the same `.value`-on-plain-string bug class found repeatedly in
+      `credentials`/`ml_training` last pass. `AttributeError` on every call once any poll
+      existed. Fixed to compare the plain string directly.
+    - `start_recording`/`stop_recording` used `metadata=`/`recording.metadata` instead of
+      `metadata_json` — the same reserved-name shadowing bug class found in nearly every
+      newly-written model this session. `TypeError` constructing the row, then
+      `TypeError: 'MetaData' object does not support item assignment` reading it back. Also, once
+      that was fixed, `stop_recording` mutated the existing `metadata_json` dict in place and
+      reassigned the same object, so SQLAlchemy's change tracking never saw a diff and silently
+      never persisted the update — fixed by copying the dict before mutating.
+    - `get_classroom_analytics` returned dict keys that don't match the `ClassroomAnalytics`
+      response schema at all (`polls_created` vs. the schema's `poll_engagement_rate`, etc.) —
+      `ValidationError` on every call, so the analytics endpoint was completely broken. Rewrote
+      to compute and return the fields the schema actually declares.
+100. **`ml_analytics`** (commit `74a4328`, written directly) — `tests/integration/test_ml_analytics_api.py`,
+    9 tests covering the unified dashboard (empty + with models), student ML insights (no
+    predictions + with a real prediction), model performance analytics (404 + happy path),
+    accuracy analysis (no matching students + a matched student), schedule-monitoring with no
+    active models. Found 1 real bug: `get_unified_institution_dashboard` did a local
+    `from src.schemas.analytics import AnalyticsQueryParams, DateRangeType`, but those classes
+    actually live in `src.schemas.academic_analytics` (confirmed by checking what
+    `analytics_service.py` itself imports) — the `analytics` module has no such names at all.
+    This `ImportError` fired before the function's try/except (which only wraps the downstream
+    analytics-service *call*, not the import above it), so `GET .../unified-dashboard` 500'd on
+    every single request regardless of institution data. Fixed the import path.
+
+Verified every file above individually, `-n0` and `-n auto`, plus together. `pytest
+--collect-only tests/` now collects **941 tests, 0 errors** (up from 881 after pass seventeen).
+
+**Running tally of routers with real test coverage vs. still untested**: `document_vault`,
+`credentials`, `ml_training` (pass seventeen); `merchandise`, `parent_teacher_collab`,
+`virtual_classrooms`, `ml_analytics` (pass eighteen, this pass) — 7 of 10 done, 11 real bugs
+found and fixed across all of them combined. Still untested: `journalism`, `learning_styles`,
+`yearbook`, `super_admin_reports` — all 4 are large (802-1218 lines each), good candidates for
+background-agent delegation same as `virtual_classrooms`/`parent_teacher_collab` were.
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the seventeenth-pass changes above (#95-96) if not already done (already done:
-   commits a9ef149, 825c842).
-2. **Continue the Phase-2 router-testing priority — 8 of 10 newly-mounted routers still have
-   zero real test coverage**: `merchandise`, `ml_analytics`, `journalism`, `learning_styles`,
-   `yearbook`, `parent_teacher_collab`, `super_admin_reports`, `virtual_classrooms`. Same method
-   as `credentials`/`ml_training`/`document_vault` above: pick 3-5 central endpoints per router
-   (create + list/get at minimum), write real TestClient-based integration tests using each
-   feature's actual request/response schemas, run against real MySQL, watch specifically for
-   constructor `TypeError`s and response-serialization errors (the two failure classes an
-   import-only check structurally cannot catch — 3 for 3 routers tested so far have hit at least
-   one). `virtual_classrooms` and `parent_teacher_collab` are the largest (12 and 10 model
-   classes respectively) — consider delegating those two to background agents individually (one
-   agent per router/file, matching pass fifteen's successful pattern) if picking up fresh,
-   verifying + pushing each agent's commit yourself before moving to the next.
+1. Commit + push the eighteenth-pass changes above (#97-100) if not already done (already done:
+   commits f5a5f56, 4a5b6b1, b749649, 74a4328).
+2. **Finish the Phase-2 router-testing priority — 4 of 10 newly-mounted routers still have zero
+   real test coverage**: `journalism` (979 lines), `learning_styles` (1218 lines), `yearbook`
+   (1155 lines), `super_admin_reports` (802 lines). Same method as all routers above: pick 3-5
+   central endpoints per router (create + list/get at minimum), write real TestClient-based
+   integration tests using each feature's actual request/response schemas, run against real
+   MySQL, watch specifically for constructor `TypeError`s and response-serialization errors (the
+   `metadata`/`metadata_json` and `.value`-on-plain-string bug classes especially — both have
+   recurred in nearly every router tested so far). All 4 remaining routers are large enough to
+   be good background-agent delegation candidates (one agent per router/file, matching passes
+   fifteen and eighteen's pattern) — verify + push each agent's commit yourself (collect-only +
+   run its test file) before moving on, never trust a handback report blindly.
 3. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
    `analytics_service.py` flagged in pass fourteen (#83) -- needs an explicit join condition on
-   `Exam`. Low priority (no test currently exercises it) but real; consider picking up once
-   writing `ml_analytics`'s test coverage, since that's the same service file.
+   `Exam`. Low priority (no test currently exercises it) but real; still not picked up.
 4. Once all 10 newly-mounted routers have real coverage, continue through Phase 2 more broadly
    (new test coverage for the rest of the untested route modules/pages -- see the checklists
    earlier in this file).
+5. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+   guaranteed to be running at the start of a session/iteration -- both needed a manual
+   `service mysql start` / `service redis-server start` at the top of this pass before any test
+   could connect. Check `service mysql status` first if tests fail with "Connection refused"
+   before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
+   fresh MySQL start, since a prior container's schema-created sentinel can be stale.
