@@ -17,12 +17,6 @@ from src.models.examination import (
 from src.models.attendance import Attendance, AttendanceSummary, AttendanceStatus
 from src.models.assignment import Assignment, Submission, SubmissionStatus
 from src.models.gamification import UserPoints, Badge, UserBadge
-from src.models.analytics import (
-    AnalyticsCache,
-    StudentPerformanceMetrics,
-    ClassPerformanceMetrics,
-    InstitutionPerformanceMetrics,
-)
 from src.schemas.analytics import (
     AnalyticsQueryParams,
     StudentMetrics,
