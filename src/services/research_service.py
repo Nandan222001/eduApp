@@ -227,12 +227,17 @@ class ResearchDocumentService:
             return None
         
         if create_version and (data.content or data.file_url):
+            # Snapshot the document's content as it stood BEFORE this update
+            # is applied below, not the incoming new content -- otherwise the
+            # version row and the post-update document end up holding the
+            # identical (new) text, and the version history can never show
+            # what the document said prior to this edit.
             latest_version_number = self.version_repo.get_latest_version_number(document_id)
             self.version_repo.create(
                 document_id=document_id,
                 version_number=latest_version_number + 1,
-                content=data.content or document.content,
-                file_url=data.file_url or document.file_url,
+                content=document.content,
+                file_url=document.file_url,
                 created_by_student_id=student_id
             )
         
