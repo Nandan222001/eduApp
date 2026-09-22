@@ -9,6 +9,15 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.ts', './tests/setup.ts'],
+    server: {
+      deps: {
+        // @mui/x-date-pickers' ESM build does bare directory imports like
+        // '@mui/material/useMediaQuery' (no explicit /index.js), which Node's
+        // native ESM resolver rejects (ERR_UNSUPPORTED_DIR_IMPORT). Inlining
+        // routes it through Vite's more lenient transform pipeline instead.
+        inline: ['@mui/x-date-pickers'],
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
