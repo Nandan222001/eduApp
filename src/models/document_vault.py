@@ -5,6 +5,29 @@ from sqlalchemy.orm import relationship
 from src.database import Base
 
 
+class DocumentFolder(Base):
+    __tablename__ = "document_folders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey('institutions.id', ondelete='CASCADE'), nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey('parents.id', ondelete='CASCADE'), nullable=False, index=True)
+    parent_folder_id = Column(Integer, ForeignKey('document_folders.id', ondelete='CASCADE'), nullable=True, index=True)
+
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    color = Column(String(50), nullable=True)
+    icon = Column(String(100), nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index('idx_doc_folder_parent', 'parent_id'),
+        Index('idx_doc_folder_parent_folder', 'parent_folder_id'),
+    )
+
+
 class FamilyDocument(Base):
     __tablename__ = "family_documents"
     
