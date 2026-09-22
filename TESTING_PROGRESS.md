@@ -232,8 +232,26 @@ no point unit-testing routers that don't even mount.
 - `document_vault` — `src/models/document_vault.py` already had 4 of 5 needed classes, just
   missing `DocumentFolder` (folder CRUD + self-referencing hierarchy). Added it.
 
-### Partially fixed (1) — `ml_analytics`: one real bug fixed (dead imports removed), a
-second, bigger one found and documented below but not yet fixed. See its row in the table.
+### Fixed (1 more) — `ml_analytics`: both bugs now fixed. (1) dead imports from
+`src.models.analytics` removed (done earlier). (2) the 11 missing names from
+`src.schemas.analytics` — genuinely a different feature's import path — now live in a new
+`src/schemas/academic_analytics.py` (student/class/institution metrics, exam analytics,
+subject performance, YoY comparison, student performance comparison/trend, plus
+`DateRangeType`/`MetricType` enums), and `analytics_service.py`'s import line now points
+there. `src/schemas/analytics.py` (event-tracking) was left untouched. Router confirmed no
+longer in the "Skipping router" list; 851 tests still collect cleanly (same pre-existing
+`test_document_vault.py` error, untouched).
+
+**New latent bug found while verifying against real MySQL (NOT fixed, out of scope for the
+schema task — flagging for a future pass):** `AnalyticsService._identify_strength_subjects`
+and `_identify_weak_subjects` (~line 1082-1183) build
+`db.query(ExamMarks, Subject.name).join(ExamSubject).join(Subject).join(Exam)` — SQLAlchemy
+can't determine the implicit join path from `ExamSubject` to both `Subject` and `Exam`
+simultaneously and raises `InvalidRequestError: Can't determine which FROM clause to join
+from`. Reproduced live via `get_student_performance_comparison`. Needs an explicit
+`.join(Exam, Exam.id == ExamSubject.exam_id)` (or similar `isouter`/explicit-condition join)
+to fix; `get_exam_analytics`/`_get_subject_performances` doesn't hit this because it doesn't
+join `Exam` in the same query.
 
 ### Still broken (9 of 16 fully, +1 partial) — diagnostic info gathered, NOT yet fixed
 Use the exact same method for each: (1) find the service/router file that does
@@ -261,7 +279,6 @@ above to confirm the router no longer appears, (7) commit.
 | `ml_training` | `src/tasks/ml_training_tasks.py` → `from src.models.ml_training import MLTrainingJob, ModelPromotionLog, TrainingStatus, TrainingJobType` | Yes: `src/schemas/ml_training.py` | Imported via a Celery task file, not directly by the router — check `src/tasks/ml_training_tasks.py` too, not just the router/service. |
 | `super_admin_reports` | `src/api/v1/super_admin_reports.py` → `from src.models.super_admin_reports import ScheduledReport, DataRetentionPolicy, ArchivalJob` directly (802 lines) | Yes: `src/schemas/super_admin_reports.py` | |
 | `virtual_classrooms` | `src/services/virtual_classroom_service.py` → `from src.models.virtual_classroom import (...)` | No — derive from the router (655 lines) + service. This backs Agora video conferencing per the feature survey; check for session/participant/recording fields. | |
-| `ml_analytics` (bigger than it looked, partially fixed) | Chain: `ml_analytics.py` → `ml_analytics_integration_service.py` → `analytics_service.py`. Two layers, both now diagnosed: (1) DONE — `analytics_service.py` imported 4 classes from `src.models.analytics` (`AnalyticsCache`, `StudentPerformanceMetrics`, `ClassPerformanceMetrics`, `InstitutionPerformanceMetrics`) that were genuinely **dead/unused** (grep confirmed zero other references in the 1227-line file) — removed the import, don't re-add these. (2) NOT DONE — the next line imports 11 classes from `src.schemas.analytics` (`AnalyticsQueryParams`, `StudentMetrics`, `ClassMetrics`, `InstitutionMetrics`, `ExamAnalytics`, `SubjectPerformance`, `YoYComparison`, `StudentPerformanceComparison`, `DateRangeType`, `MetricType`, `StudentPerformanceTrend`) that ARE genuinely used throughout (usage counts: 10, 4, 4, 4, 4, 3, 3, 3, 11, 1, 3 respectively — `grep -c "\bClassName\b" src/services/analytics_service.py` to re-verify). **The existing `src/schemas/analytics.py` is for a different, unrelated feature** (event-tracking: `AnalyticsEventCreate`/`PerformanceMetricCreate`/`UserSessionCreate`/`FeatureUsageCreate` — these match `src/models/analytics.py`'s actual classes, `AnalyticsEvent`/`PerformanceMetric`/`UserSession`/`FeatureUsage`). `analytics_service.py` is genuinely a different feature (academic performance analytics: student/class/institution metrics, exam analytics, YoY comparisons — check its model imports at the top, Student/Exam/Attendance/Assignment/Grade) that needs its OWN schema classes, either in a new file (e.g. `src/schemas/academic_analytics.py`, then repoint the import) or appended to the existing file if you'd rather not split it — read through all 1227 lines of `analytics_service.py` to extract exact field usage per class (same method as the model fixes above, just for Pydantic schemas instead of SQLAlchemy models, which is arguably easier since there's no MySQL column-type gotcha to verify against). | schemas/analytics.py exists but is NOT the right one — see above | This is the most involved of the remaining routers content-wise (11 classes, largest service file of the bunch) even though its *router* file itself is small — don't let the small router file size mislead you like it misled the initial triage. |
 
 **Recommended order for next iteration**: finish `ml_analytics` first (the schema-file work is
 now fully scoped, just needs doing), then the ones with schema files (`merchandise`,

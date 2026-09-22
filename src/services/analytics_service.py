@@ -17,7 +17,7 @@ from src.models.examination import (
 from src.models.attendance import Attendance, AttendanceSummary, AttendanceStatus
 from src.models.assignment import Assignment, Submission, SubmissionStatus
 from src.models.gamification import UserPoints, Badge, UserBadge
-from src.schemas.analytics import (
+from src.schemas.academic_analytics import (
     AnalyticsQueryParams,
     StudentMetrics,
     ClassMetrics,
