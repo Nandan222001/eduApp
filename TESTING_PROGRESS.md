@@ -1520,27 +1520,71 @@ exact class of drift — but none of them have been exercised by a real request 
 the Phase-2 priority below). `document_vault` is proof this specific failure mode is real in
 this codebase, not hypothetical.
 
+## Backend fixes, seventeenth pass — commits a9ef149, 825c842 (2 of 10 newly-mounted routers now have real coverage; found 5 more real bugs)
+Directly continuing #94's Phase-2 priority: writing real integration tests (TestClient + real
+MySQL fixtures, not just smoke tests) for the 10 routers fixed in passes fourteen/fifteen, since
+`document_vault` proved a router can mount cleanly and still be completely broken underneath.
+Confirmed again, twice more, this pass — every router tested so far has found real bugs:
+
+95. **`credentials`** (commit `a9ef149`) — `tests/integration/test_credentials_api.py`, 10 tests
+    covering issue/bulk-issue/get/list/update/revoke/share/verify (public + internal)/templates/
+    statistics. Found and fixed 3 more real bugs, none catchable by an import-only check:
+    - `DigitalCredential.qr_code_url` was `String(500)`, but `credential_service.py`'s
+      `_generate_qr_code` actually stores a base64 data-URI PNG (several KB) there — every real
+      credential issuance would have failed with MySQL "Data too long for column". Changed to
+      `Text`.
+    - `get_credential_statistics` did `cred_type.value`/`sub_type.value` on `GROUP BY` query
+      results, but `credential_type`/`sub_type` are plain `String` columns (not SQLAlchemy
+      `Enum`-typed), so query results come back as plain `str`, not enum instances —
+      `AttributeError` on every call to `GET /statistics`.
+    - `verify_credential` did the same `credential.status.value` mistake on another plain-string
+      ORM attribute — `AttributeError` on every certificate verification (both the public
+      `/verify/certificate/{number}` and internal `/verify` endpoints).
+96. **`ml_training`** (commit `825c842`) — `tests/integration/test_ml_training_api.py`, 11 tests
+    covering the pure-DB endpoints (schedule get/put, training history for one model and for a
+    whole institution, version detail, compare, promote, ab-test status, metrics summary);
+    `/train` and `/compare-and-promote` dispatch real Celery tasks with no eager-mode broker in
+    this test environment, so weren't exercised end-to-end. **Found a real, significant
+    pre-existing bug, unrelated to anything built this session**: `Institution` had no
+    `settings` column at all, but 3 call sites across 2 files depend on it —
+    `get_training_schedule`/`update_training_schedule`/`get_ab_test_status` in
+    `src/api/v1/ml_training.py`, and `scheduled_training_task` in
+    `src/tasks/ml_training_tasks.py` — every one of them would raise `AttributeError` on any
+    real request. Added the missing column (`Text`, JSON-serialized via the existing
+    `json.loads`/`json.dumps` call sites — matches how the consuming code already expects to use
+    it). This means the entire "configure per-institution scheduled ML retraining" feature has
+    never worked, not just something broken by this session's router-mounting work.
+
+Verified both files individually and together, `-n0` and `-n auto`: 21/21 passing.
+`pytest --collect-only tests/` now collects **881 tests, 0 errors** (up from 860 after pass
+sixteen's document_vault fix).
+
+**Running tally of routers with real test coverage vs. still untested**: `document_vault`
+(pass sixteen, 9 tests, fixed a completely-broken feature), `credentials` (10 tests, 3 bugs),
+`ml_training` (11 tests, 1 significant pre-existing bug). Still untested: `merchandise`,
+`ml_analytics`, `journalism`, `learning_styles`, `yearbook`, `parent_teacher_collab`,
+`super_admin_reports`, `virtual_classrooms` — 8 remaining, and given 3-for-3 so far, assume more
+bugs are waiting in each.
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the sixteenth-pass change above (#94) if not already done (already done:
-   commit d453d00).
-2. **All previously-disabled routers are fixed, and the one known live-but-broken router
-   (document_vault) is now fixed too. Backend Phase 1 (fix everything pre-existing that's
-   broken) is essentially complete.** Remaining priorities, in order:
-   a. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
-      `analytics_service.py` flagged in pass fourteen (#83) -- needs an explicit join condition
-      on `Exam`. Low priority (no test currently exercises it) but real.
-   b. **Highest-value Phase 2 priority, given #94's takeaway above**: write real integration-test
-      coverage (TestClient + real DB fixtures, matching `tests/test_document_vault.py`'s new
-      style as the template) for the 10 newly-mounted, still-completely-untested routers:
-      `merchandise`, `ml_analytics`, `journalism`, `learning_styles`, `yearbook`, `ml_training`,
-      `credentials`, `parent_teacher_collab`, `super_admin_reports`, `virtual_classrooms`. Don't
-      just smoke-test the happy path -- `document_vault` shows that a router can mount cleanly
-      and still be 100% broken underneath; only an actual request (not just an import check)
-      would have caught it. For each router: pick 3-5 of its most central endpoints (create +
-      list/get at minimum), write real TestClient-based tests using each feature's actual
-      request/response schemas, run against real MySQL, and specifically watch for constructor
-      TypeErrors and response-serialization errors (both classes of bug found repeatedly this
-      session) -- those are the two failure modes an import-only check can never catch.
-   c. Once (a) and the highest-priority routers from (b) are covered, continue through Phase 2
-      more broadly (new test coverage for the rest of the untested route modules/pages -- see
-      the checklists earlier in this file).
+1. Commit + push the seventeenth-pass changes above (#95-96) if not already done (already done:
+   commits a9ef149, 825c842).
+2. **Continue the Phase-2 router-testing priority — 8 of 10 newly-mounted routers still have
+   zero real test coverage**: `merchandise`, `ml_analytics`, `journalism`, `learning_styles`,
+   `yearbook`, `parent_teacher_collab`, `super_admin_reports`, `virtual_classrooms`. Same method
+   as `credentials`/`ml_training`/`document_vault` above: pick 3-5 central endpoints per router
+   (create + list/get at minimum), write real TestClient-based integration tests using each
+   feature's actual request/response schemas, run against real MySQL, watch specifically for
+   constructor `TypeError`s and response-serialization errors (the two failure classes an
+   import-only check structurally cannot catch — 3 for 3 routers tested so far have hit at least
+   one). `virtual_classrooms` and `parent_teacher_collab` are the largest (12 and 10 model
+   classes respectively) — consider delegating those two to background agents individually (one
+   agent per router/file, matching pass fifteen's successful pattern) if picking up fresh,
+   verifying + pushing each agent's commit yourself before moving to the next.
+3. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
+   `analytics_service.py` flagged in pass fourteen (#83) -- needs an explicit join condition on
+   `Exam`. Low priority (no test currently exercises it) but real; consider picking up once
+   writing `ml_analytics`'s test coverage, since that's the same service file.
+4. Once all 10 newly-mounted routers have real coverage, continue through Phase 2 more broadly
+   (new test coverage for the rest of the untested route modules/pages -- see the checklists
+   earlier in this file).
