@@ -104,9 +104,9 @@ async def list_yearbook_editions(
     
     total = query.count()
     editions = query.order_by(desc(YearbookEdition.academic_year)).offset(skip).limit(limit).all()
-    
+
     return {
-        "items": editions,
+        "items": [YearbookEditionResponse.model_validate(e) for e in editions],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -413,9 +413,9 @@ async def list_yearbook_signatures(
     
     total = query.count()
     signatures = query.order_by(desc(YearbookSignature.created_at)).offset(skip).limit(limit).all()
-    
+
     return {
-        "items": signatures,
+        "items": [YearbookSignatureResponse.model_validate(s) for s in signatures],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -439,13 +439,7 @@ async def get_my_signatures(
             detail="Only students can view signatures"
         )
     
-    signatures = db.query(
-        YearbookSignature,
-        Student.alias("from_student"),
-        Student.alias("to_student")
-    ).join(
-        Student, YearbookSignature.from_student_id == Student.id, isouter=True
-    ).filter(
+    signatures = db.query(YearbookSignature).filter(
         YearbookSignature.edition_id == edition_id,
         YearbookSignature.to_student_id == student.id
     ).all()
@@ -596,9 +590,9 @@ async def list_photo_submissions(
     
     total = query.count()
     submissions = query.order_by(desc(YearbookPhotoSubmission.submitted_at)).offset(skip).limit(limit).all()
-    
+
     return {
-        "items": submissions,
+        "items": [YearbookPhotoSubmissionResponse.model_validate(s) for s in submissions],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -736,9 +730,9 @@ async def list_quote_submissions(
     
     total = query.count()
     submissions = query.order_by(desc(YearbookQuoteSubmission.submitted_at)).offset(skip).limit(limit).all()
-    
+
     return {
-        "items": submissions,
+        "items": [YearbookQuoteSubmissionResponse.model_validate(s) for s in submissions],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -876,9 +870,9 @@ async def list_memory_submissions(
     
     total = query.count()
     submissions = query.order_by(desc(YearbookMemorySubmission.submitted_at)).offset(skip).limit(limit).all()
-    
+
     return {
-        "items": submissions,
+        "items": [YearbookMemorySubmissionResponse.model_validate(s) for s in submissions],
         "total": total,
         "skip": skip,
         "limit": limit
