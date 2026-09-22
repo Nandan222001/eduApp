@@ -127,6 +127,37 @@ ROUTERS = [
     ("src.api.v1.feedback", "", ["feedback"], "router"),
     ("src.api.v1.migrations", "", ["migrations"], "router"),
     ("src.api.v1.school_admin", "/school-admin", ["school-admin"], "router"),
+    # The 12 entries below were, like `fees` above, real router files that
+    # existed in this codebase but were NEVER added to this list at all --
+    # not skipped by the try/except import guard, just never registered.
+    # Found via a full inventory scan (every .py file in this directory
+    # cross-referenced against every module path registered here).
+    # `transport`/`library`/`dashboard_widgets` are confirmed to have real,
+    # currently-broken frontend consumers (frontend/src/api/transport.ts,
+    # library.ts, dashboardWidgets.ts, used by 3/5/11 page or component
+    # files respectively) -- these three were completely unreachable
+    # features, not just missing test coverage. The other 9 have no
+    # frontend consumer found yet but import and mount cleanly, so are
+    # registered for the same reason `fees` was: a real, working feature
+    # should not sit disconnected from the app by omission. 5 more router
+    # files (`branding`, `collaboration`, `parent_education`, `sel`,
+    # `timetable`) were found by the same scan but do NOT import cleanly
+    # (missing model classes/schema classes/a whole models module, or a
+    # genuinely missing third-party dependency) -- those need the same
+    # model-repair work this session's earlier "16 disabled routers" pass
+    # did, and are deliberately left out of this list until that happens.
+    ("src.api.v1.dashboard_widgets", "/dashboard", ["dashboard-widgets"], "router"),
+    ("src.api.v1.database_maintenance", "", ["database-maintenance"], "router"),
+    ("src.api.v1.elections", "/elections", ["elections"], "router"),
+    ("src.api.v1.events", "/events", ["events"], "router"),
+    ("src.api.v1.family", "/family", ["family"], "router"),
+    ("src.api.v1.library", "/library", ["library"], "router"),
+    ("src.api.v1.live_events", "/live-events", ["live-events"], "router"),
+    ("src.api.v1.live_events_websocket", "/live-events", ["live-events-ws"], "router"),
+    ("src.api.v1.performance_monitoring", "/performance-monitoring", ["performance-monitoring"], "router"),
+    ("src.api.v1.rate_limits", "/rate-limits", ["rate-limits"], "router"),
+    ("src.api.v1.recommendations", "", ["recommendations"], "router"),
+    ("src.api.v1.transport", "/transport", ["transport"], "router"),
 ]
 
 for module_path, prefix, tags, router_attr in ROUTERS:
