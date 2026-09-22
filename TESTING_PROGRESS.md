@@ -1474,35 +1474,73 @@ table of missing classes, the "16 of ~123 API routers" framing, the recommended-
 now historical context, not an active work item — leave it in the file for the record but don't
 treat it as a todo list anymore.
 
+## Backend fixes, sixteenth pass — commit d453d00 (CRITICAL: document-vault feature was completely broken)
+94. **CRITICAL, real production bug, deeper than previously scoped** — while replacing
+    `tests/test_document_vault.py`'s dead-code unit tests (against
+    `src.services.document_vault_service`, confirmed genuinely unused — nothing in `src/`
+    imports it — left alone) with real integration tests against the actual **mounted, live**
+    router (`src/api/v1/document_vault.py` — this one was never in the disabled-routers list),
+    discovered its models (`FamilyDocument`, `DocumentShare`, `DocumentAccessLog` in
+    `src/models/document_vault.py`) were written for an entirely different, earlier design and
+    didn't match what the router actually constructs at all: `FamilyDocument(...)` passed
+    `parent_id`/`title`/`folder_id`/encryption-hash+iv/OCR fields that didn't exist on a model
+    still using `document_name`/`file_url`/`uploaded_by_user_id`/required `student_id` — every
+    call raised `TypeError: 'parent_id' is an invalid keyword argument for FamilyDocument`.
+    Same class of mismatch on `DocumentShare` (`share_type`/`shared_by_user_id`/`expiry_date`
+    vs. the router's `permission`/`shared_by_id`/`expires_at`) and `DocumentAccessLog`
+    (`action_type` vs. `action` — and since every upload/view/update/delete/share call logs
+    access immediately after its main operation, this crashed nearly every successful request
+    too, not just edge cases). **Net effect: the parent document-vault feature (upload encrypted
+    family documents, organize into folders, OCR text extraction, share with other users, FERPA
+    access logging) has apparently never actually worked beyond folder creation/listing** (the
+    one model, `DocumentFolder`, that happened to already match the router). This was NOT caught
+    by the app-level "does it import" check used throughout this session's router-fixing work,
+    because Python doesn't validate constructor keyword arguments against a SQLAlchemy model's
+    columns at import time — only when the code actually runs. **This is the kind of bug the
+    app-level import check structurally cannot catch — only exercising the actual code path
+    (real requests via TestClient, or an agent explicitly calling the methods, as several of the
+    disabled-router fixes did this session) finds it.** Rewrote all 3 models to match the real,
+    intentional design in the router + `src/schemas/document_vault.py` (verified against real
+    MySQL), also fixed a metadata/metadata_json shadowing bug in `DocumentAccessLogResponse`
+    (same class of bug fixed repeatedly this session). `tests/test_document_vault.py` rewritten
+    from 11 dead-service unit tests to 9 real integration tests covering every endpoint (folders,
+    upload, list, get, update, delete, share, access logs, statistics, and a 403-for-
+    non-parent-user check) — 9/9 passing, `-n0` and `-n auto`. This also resolves the one
+    remaining `--collect-only` error tracked since early in this session: **851 → 860 tests
+    collected, 0 errors** (first time this whole session `--collect-only` has been fully clean).
+
+**Takeaway for future passes**: the "does the router mount / does app import cleanly" check that
+found and fixed the 16 disabled routers is necessary but not sufficient — it only catches
+missing classes/modules, not models whose fields have drifted from what their consuming code
+actually needs. The 10 newly-mounted routers from pass fourteen/fifteen (merchandise,
+ml_analytics, journalism, learning_styles, yearbook, ml_training, credentials,
+parent_teacher_collab, super_admin_reports, virtual_classrooms) were all built fresh this
+session by directly reading the consuming code's actual field usage, so they shouldn't have this
+exact class of drift — but none of them have been exercised by a real request yet either (see
+the Phase-2 priority below). `document_vault` is proof this specific failure mode is real in
+this codebase, not hypothetical.
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the fifteenth-pass changes above (#88-93) if not already done (already done:
-   commits 9f93b8f, 9ed7825, 4aaf812, 9c011d5, 4ff79d1, dcb4147).
-2. **All previously-disabled routers are fixed — this priority tier is DONE.** Next real
-   priorities, in order:
-   a. `document_vault_service.py` (and its test `tests/test_document_vault.py`) — the one
-      remaining known-broken piece, a known, deeper case investigated in an earlier pass but not
-      fixed: the router (`src/api/v1/document_vault.py`) does NOT use this service at all
-      (imports only schemas that exist and work fine), so the service is dead/unwired code with
-      its own broken imports (`DocumentType`, `ShareType`, `BulkUploadResult`,
-      `DocumentFolderStructure`, `ExpiringDocumentAlert` -- none exist in
-      `src/schemas/document_vault.py`) AND deeper field-name mismatches against the real schemas
-      even after those are added (e.g. it constructs `DocumentUploadRequest` with
-      `document_name=`/`shared_with=`/`metadata=` kwargs that don't exist on that schema).
-      Decide when picked up: either finish wiring it into a real feature (bigger job, needs
-      product-intent judgment on what the OCR/encryption/S3 vault feature should actually do),
-      or explicitly mark it out-of-scope dead code in this file and move on -- don't half-fix it.
-   b. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
+1. Commit + push the sixteenth-pass change above (#94) if not already done (already done:
+   commit d453d00).
+2. **All previously-disabled routers are fixed, and the one known live-but-broken router
+   (document_vault) is now fixed too. Backend Phase 1 (fix everything pre-existing that's
+   broken) is essentially complete.** Remaining priorities, in order:
+   a. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
       `analytics_service.py` flagged in pass fourteen (#83) -- needs an explicit join condition
       on `Exam`. Low priority (no test currently exercises it) but real.
-   c. Given the sheer number of newly-mounted routers with zero dedicated test coverage
-      (merchandise, ml_analytics, journalism, learning_styles, yearbook, ml_training,
-      credentials, parent_teacher_collab, super_admin_reports, virtual_classrooms — 10 routers,
-      dozens of endpoints, all currently untested beyond "does it import"), consider writing at
-      least smoke-test coverage for each as an early Phase 2 priority, ahead of alphabetically
-      working through the full untested-modules checklist below — these are the ones most likely
-      to have latent bugs precisely because they've never been exercised by a real request
-      before this session (the metadata-kwarg bugs found in #86/#90/#91 are exactly the kind of
-      thing that only surfaces once you actually try to call the code).
-3. Once (a) and (b) above are resolved or explicitly triaged as out of scope, move fully into
-   Phase 2 (new test coverage for untested route modules/pages -- see the checklists earlier in
-   this file, updated per 2c above for where to start).
+   b. **Highest-value Phase 2 priority, given #94's takeaway above**: write real integration-test
+      coverage (TestClient + real DB fixtures, matching `tests/test_document_vault.py`'s new
+      style as the template) for the 10 newly-mounted, still-completely-untested routers:
+      `merchandise`, `ml_analytics`, `journalism`, `learning_styles`, `yearbook`, `ml_training`,
+      `credentials`, `parent_teacher_collab`, `super_admin_reports`, `virtual_classrooms`. Don't
+      just smoke-test the happy path -- `document_vault` shows that a router can mount cleanly
+      and still be 100% broken underneath; only an actual request (not just an import check)
+      would have caught it. For each router: pick 3-5 of its most central endpoints (create +
+      list/get at minimum), write real TestClient-based tests using each feature's actual
+      request/response schemas, run against real MySQL, and specifically watch for constructor
+      TypeErrors and response-serialization errors (both classes of bug found repeatedly this
+      session) -- those are the two failure modes an import-only check can never catch.
+   c. Once (a) and the highest-priority routers from (b) are covered, continue through Phase 2
+      more broadly (new test coverage for the rest of the untested route modules/pages -- see
+      the checklists earlier in this file).
