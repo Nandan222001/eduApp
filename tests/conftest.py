@@ -1,7 +1,10 @@
 import pytest
 import asyncio
+import tempfile
+from pathlib import Path
 from typing import Generator, AsyncGenerator
 from fastapi.testclient import TestClient
+from filelock import FileLock
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
@@ -46,10 +49,37 @@ def event_loop():
     loop.close()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _create_schema_once(tmp_path_factory, worker_id) -> None:
+    """Create all tables exactly once for the whole test run.
+
+    Previously each test's db_session fixture called Base.metadata.create_all
+    on every single test, which is redundant and -- under pytest-xdist's
+    parallel workers, all hitting the same shared MySQL database -- actively
+    racy ("Table was skipped since its definition is being modified by
+    concurrent DDL statement"). This follows pytest-xdist's documented
+    pattern for a one-time shared resource: a cross-worker file lock so only
+    the first worker to reach it runs create_all, and a sentinel file so
+    later workers (and later sessions reusing the same tmp root) skip it.
+    """
+    if worker_id == "master":
+        # Not running under xdist -- just create directly.
+        Base.metadata.create_all(bind=engine)
+        return
+
+    root_tmp_dir = tmp_path_factory.getbasetemp().parent
+    lock_path = root_tmp_dir / "eduapp_schema.lock"
+    done_path = root_tmp_dir / "eduapp_schema.done"
+
+    with FileLock(str(lock_path)):
+        if not done_path.exists():
+            Base.metadata.create_all(bind=engine)
+            done_path.write_text("done")
+
+
 @pytest.fixture(scope="function")
 def db_session() -> Generator[Session, None, None]:
     """Create a new database session for a test."""
-    Base.metadata.create_all(bind=engine)
     connection = engine.connect()
     transaction = connection.begin()
     session = TestingSessionLocal(bind=connection)
