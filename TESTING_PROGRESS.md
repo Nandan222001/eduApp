@@ -1642,26 +1642,66 @@ found and fixed across all of them combined. Still untested: `journalism`, `lear
 `yearbook`, `super_admin_reports` — all 4 are large (802-1218 lines each), good candidates for
 background-agent delegation same as `virtual_classrooms`/`parent_teacher_collab` were.
 
+## Backend fixes, nineteenth pass — commits 5d57e10, f1b4469, 42b4daa so far (in progress;
+`yearbook`, the last of the 10 newly-mounted routers, still being written by a background agent
+at time of writing)
+Continuing the same Phase-2 priority, again split across direct work and a background agent:
+
+101. **`journalism`** (commit `5d57e10`, written directly) — `tests/integration/test_journalism_api.py`,
+    11 tests covering newspaper edition CRUD (incl. duplicate edition-number rejection and
+    cross-institution 403), article CRUD with slug generation and word-count calculation, the
+    submit/approve/publish workflow (incl. publish-before-approval rejection), article reviews,
+    journalism member assignment (incl. duplicate-role rejection), and article/edition/member
+    analytics. **Came back clean — no bugs found**, joining `merchandise` as the second of the
+    10 routers to pass on the first run.
+102. **`learning_styles`** (commit `f1b4469`, background agent, verified) —
+    `tests/integration/test_learning_styles_api.py`, 12 tests covering profile create/get/update,
+    the full assessment flow (create/start/submit/list, profile roll-up), the separate
+    direct-write VARK quiz-scoring path plus `/parent-guide`, content-tag CRUD (explicitly
+    asserting the metadata/metadata_json round-trip), effectiveness records/analysis, the
+    adaptive-session lifecycle (create/adjust-difficulty/adjust-format/update-performance/end/
+    performance-trend), and the static default-questions/study-tips endpoints. Found 1 real bug:
+    `submit_student_assessment`'s own inline VARK-scoring path (separate from
+    `LearningStylesService`'s sibling scoring path) normalized category scores to a 0-100
+    percentage (`(v / total) * 100`) before writing them into
+    `LearningStyleProfile.visual_score`/etc., but those columns are `Numeric(5, 4)` (max 9.9999)
+    matching the 0-1 fraction convention used everywhere else in this model/schema — every
+    non-trivial real submission raised `sqlalchemy.exc.DataError: Out of range value`, a 500 on
+    every call. Fixed by removing the `* 100` to match the correct sibling convention.
+103. **`super_admin_reports`** (commit `42b4daa`, written directly) —
+    `tests/integration/test_super_admin_reports_api.py`, 7 tests covering the
+    `require_super_admin` authorization gate (403 for a regular admin — needed a dedicated
+    `super_admin_user`/`super_admin_headers` fixture pair, since no existing fixture sets
+    `is_superuser=True`), static reference endpoints, report-builder field discovery/validation/
+    execution against real `Institution` rows, scheduled-report CRUD, data-retention-policy CRUD,
+    and archival-job create/list/get/storage-stats. **Came back clean — no bugs found**, the
+    third of the 10 routers to pass on the first run (after `merchandise`, `journalism`).
+
+**Running tally so far this pass**: 9 of 10 newly-mounted routers now have real coverage; only
+`yearbook` remains (background agent in progress). 3 of the 9 tested routers this session have
+come back completely clean (`merchandise`, `journalism`, `super_admin_reports`) — useful
+evidence that a router built fresh this session by directly reading its own consuming code
+doesn't automatically have drift bugs; the earlier "every router has bugs" pattern was concentrated
+in the more complex/service-heavy routers (credentials, ml_training, document_vault,
+parent_teacher_collab, virtual_classrooms, ml_analytics, learning_styles), not universal.
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the eighteenth-pass changes above (#97-100) if not already done (already done:
-   commits f5a5f56, 4a5b6b1, b749649, 74a4328).
-2. **Finish the Phase-2 router-testing priority — 4 of 10 newly-mounted routers still have zero
-   real test coverage**: `journalism` (979 lines), `learning_styles` (1218 lines), `yearbook`
-   (1155 lines), `super_admin_reports` (802 lines). Same method as all routers above: pick 3-5
-   central endpoints per router (create + list/get at minimum), write real TestClient-based
-   integration tests using each feature's actual request/response schemas, run against real
-   MySQL, watch specifically for constructor `TypeError`s and response-serialization errors (the
-   `metadata`/`metadata_json` and `.value`-on-plain-string bug classes especially — both have
-   recurred in nearly every router tested so far). All 4 remaining routers are large enough to
-   be good background-agent delegation candidates (one agent per router/file, matching passes
-   fifteen and eighteen's pattern) — verify + push each agent's commit yourself (collect-only +
-   run its test file) before moving on, never trust a handback report blindly.
+1. **Finish and verify the `yearbook` router test coverage** — a background agent was dispatched
+   for it (same pattern as `virtual_classrooms`/`parent_teacher_collab`/`learning_styles`
+   above); if its commit isn't in `git log` yet when resuming, check whether the agent is still
+   running (it may have been interrupted by a context/session boundary) and either wait for its
+   completion notification or pick up the router directly. Once done: verify independently
+   (collect-only + run its test file yourself, never trust the handback report blindly), then
+   this completes the full "give all 10 newly-mounted routers real coverage" Phase-2 priority
+   that's been running since pass fourteen/fifteen.
+2. Once `yearbook` is done and verified, write a final tally entry summarizing all 10 routers'
+   results (bugs found per router, total bug count) and update the "Running tally" section above.
 3. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
    `analytics_service.py` flagged in pass fourteen (#83) -- needs an explicit join condition on
    `Exam`. Low priority (no test currently exercises it) but real; still not picked up.
 4. Once all 10 newly-mounted routers have real coverage, continue through Phase 2 more broadly
    (new test coverage for the rest of the untested route modules/pages -- see the checklists
-   earlier in this file).
+   earlier in this file). This is the natural next major body of work for a future pass.
 5. **Environment note for future iterations**: this container's MySQL and Redis are NOT
    guaranteed to be running at the start of a session/iteration -- both needed a manual
    `service mysql start` / `service redis-server start` at the top of this pass before any test
