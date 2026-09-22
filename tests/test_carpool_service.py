@@ -19,8 +19,8 @@ from src.models.student import Parent, Student
 
 class TestCarpoolService:
     
-    def test_calculate_distance(self, db: Session):
-        service = CarpoolService(db)
+    def test_calculate_distance(self, db_session: Session):
+        service = CarpoolService(db_session)
         
         lat1 = Decimal("40.7128")
         lon1 = Decimal("-74.0060")
@@ -33,8 +33,8 @@ class TestCarpoolService:
         assert distance > 0
         assert distance < 10
     
-    def test_calculate_time_difference(self, db: Session):
-        service = CarpoolService(db)
+    def test_calculate_time_difference(self, db_session: Session):
+        service = CarpoolService(db_session)
         
         time1 = time(7, 30)
         time2 = time(7, 45)
@@ -43,8 +43,8 @@ class TestCarpoolService:
         
         assert diff == 15
     
-    def test_calculate_route_compatibility_requests(self, db: Session, sample_requests):
-        service = CarpoolService(db)
+    def test_calculate_route_compatibility_requests(self, db_session: Session, sample_requests):
+        service = CarpoolService(db_session)
         request1, request2 = sample_requests
         
         score, details = service.calculate_route_compatibility(request1, request2=request2)
@@ -54,8 +54,8 @@ class TestCarpoolService:
         assert 'time_compatible' in details
         assert 'schedule_compatible' in details
     
-    def test_calculate_route_compatibility_group(self, db: Session, sample_request, sample_group):
-        service = CarpoolService(db)
+    def test_calculate_route_compatibility_group(self, db_session: Session, sample_request, sample_group):
+        service = CarpoolService(db_session)
         
         score, details = service.calculate_route_compatibility(sample_request, group=sample_group)
         
@@ -64,14 +64,45 @@ class TestCarpoolService:
         assert 'has_capacity' in details
         assert 'group_active' in details
     
-    def test_find_compatible_carpools(self, db: Session, sample_request, sample_group):
-        service = CarpoolService(db)
-        db.add(sample_request)
-        db.add(sample_group)
-        db.commit()
-        
+    def test_find_compatible_carpools(self, db_session: Session, institution, sample_group):
+        service = CarpoolService(db_session)
+
+        other_parent = Parent(
+            institution_id=institution.id,
+            first_name="Jane",
+            last_name="Smith",
+            email="jane.smith@example.com",
+            phone="+1234567891"
+        )
+        db_session.add(other_parent)
+        db_session.commit()
+
+        other_request = CarpoolRequest(
+            institution_id=institution.id,
+            parent_id=other_parent.id,
+            request_type=CarpoolRequestType.SEEKING.value,
+            student_ids=[3],
+            route={
+                "start_address": "123 Main St",
+                "start_latitude": 40.7128,
+                "start_longitude": -74.0060,
+                "end_address": "School",
+                "end_latitude": 40.7300,
+                "end_longitude": -74.0200
+            },
+            schedule_days=["monday", "wednesday", "friday"],
+            departure_time=time(7, 30),
+            matching_criteria={
+                "max_distance_km": 5,
+                "preferred_departure_time_window": 15
+            }
+        )
+        db_session.add(other_request)
+        db_session.add(sample_group)
+        db_session.commit()
+
         matches = service.find_compatible_carpools(
-            sample_request.id,
+            other_request.id,
             max_results=10,
             include_groups=True,
             include_requests=False
@@ -81,11 +112,11 @@ class TestCarpoolService:
         assert len(matches) > 0
         assert all(isinstance(m, CarpoolMatch) for m in matches)
     
-    def test_rotate_driver(self, db: Session, sample_group, sample_parent):
-        service = CarpoolService(db)
-        db.add(sample_group)
-        db.add(sample_parent)
-        db.commit()
+    def test_rotate_driver(self, db_session: Session, sample_group, sample_parent):
+        service = CarpoolService(db_session)
+        db_session.add(sample_group)
+        db_session.add(sample_parent)
+        db_session.commit()
         
         new_week = date.today() + timedelta(days=7)
         
@@ -98,10 +129,10 @@ class TestCarpoolService:
         assert group.active_driver_parent_id == sample_parent.id
         assert group.current_week_start == new_week
     
-    def test_create_ride_schedule(self, db: Session, sample_group):
-        service = CarpoolService(db)
-        db.add(sample_group)
-        db.commit()
+    def test_create_ride_schedule(self, db_session: Session, sample_group):
+        service = CarpoolService(db_session)
+        db_session.add(sample_group)
+        db_session.commit()
         
         start_date = date.today()
         end_date = start_date + timedelta(days=7)
@@ -116,11 +147,11 @@ class TestCarpoolService:
         assert len(rides) > 0
         assert all(isinstance(r, CarpoolRide) for r in rides)
     
-    def test_confirm_ride(self, db: Session, sample_ride, sample_parent):
-        service = CarpoolService(db)
-        db.add(sample_ride)
-        db.add(sample_parent)
-        db.commit()
+    def test_confirm_ride(self, db_session: Session, sample_ride, sample_parent):
+        service = CarpoolService(db_session)
+        db_session.add(sample_ride)
+        db_session.add(sample_parent)
+        db_session.commit()
         
         ride = service.confirm_ride(
             sample_ride.id,
@@ -133,11 +164,11 @@ class TestCarpoolService:
         assert str(sample_parent.id) in ride.confirmations
         assert ride.confirmations[str(sample_parent.id)]['confirmed'] is True
     
-    def test_create_emergency_notification(self, db: Session, sample_ride, sample_parent):
-        service = CarpoolService(db)
-        db.add(sample_ride)
-        db.add(sample_parent)
-        db.commit()
+    def test_create_emergency_notification(self, db_session: Session, sample_ride, sample_parent):
+        service = CarpoolService(db_session)
+        db_session.add(sample_ride)
+        db_session.add(sample_parent)
+        db_session.commit()
         
         emergency = service.create_emergency_notification(
             sample_ride.id,
@@ -154,11 +185,11 @@ class TestCarpoolService:
         assert emergency.emergency_type == "delay"
         assert emergency.estimated_delay == 15
     
-    def test_add_member_to_group(self, db: Session, sample_group, sample_parent):
-        service = CarpoolService(db)
-        db.add(sample_group)
-        db.add(sample_parent)
-        db.commit()
+    def test_add_member_to_group(self, db_session: Session, sample_group, sample_parent):
+        service = CarpoolService(db_session)
+        db_session.add(sample_group)
+        db_session.add(sample_parent)
+        db_session.commit()
         
         students = [
             {
@@ -179,23 +210,25 @@ class TestCarpoolService:
 
 
 @pytest.fixture
-def sample_parent(db: Session):
+def sample_parent(db_session: Session, institution):
     parent = Parent(
         id=1,
-        institution_id=1,
+        institution_id=institution.id,
         first_name="John",
         last_name="Doe",
         email="john@example.com",
         phone="+1234567890"
     )
+    db_session.add(parent)
+    db_session.commit()
     return parent
 
 
 @pytest.fixture
-def sample_request(db: Session):
+def sample_request(db_session: Session, institution, sample_parent):
     request = CarpoolRequest(
-        institution_id=1,
-        parent_id=1,
+        institution_id=institution.id,
+        parent_id=sample_parent.id,
         request_type=CarpoolRequestType.SEEKING.value,
         student_ids=[1, 2],
         route={
@@ -213,14 +246,16 @@ def sample_request(db: Session):
             "preferred_departure_time_window": 15
         }
     )
+    db_session.add(request)
+    db_session.commit()
     return request
 
 
 @pytest.fixture
-def sample_requests(db: Session):
+def sample_requests(db_session: Session, institution, sample_parent):
     request1 = CarpoolRequest(
-        institution_id=1,
-        parent_id=1,
+        institution_id=institution.id,
+        parent_id=sample_parent.id,
         request_type=CarpoolRequestType.SEEKING.value,
         student_ids=[1],
         route={
@@ -231,10 +266,10 @@ def sample_requests(db: Session):
         departure_time=time(7, 30),
         matching_criteria={"max_distance_km": 5}
     )
-    
+
     request2 = CarpoolRequest(
-        institution_id=1,
-        parent_id=2,
+        institution_id=institution.id,
+        parent_id=sample_parent.id,
         request_type=CarpoolRequestType.OFFERING.value,
         student_ids=[2],
         route={
@@ -246,19 +281,22 @@ def sample_requests(db: Session):
         available_seats=3,
         matching_criteria={"max_distance_km": 5}
     )
-    
+
+    db_session.add(request1)
+    db_session.add(request2)
+    db_session.commit()
     return request1, request2
 
 
 @pytest.fixture
-def sample_group(db: Session):
+def sample_group(db_session: Session, institution, sample_parent):
     group = CarpoolGroup(
-        institution_id=1,
-        organizer_parent_id=1,
+        institution_id=institution.id,
+        organizer_parent_id=sample_parent.id,
         group_name="Test Carpool",
         members=[
             {
-                "parent_id": 1,
+                "parent_id": sample_parent.id,
                 "parent_name": "John Doe",
                 "phone": "+1234567890",
                 "students": [{"student_id": 1, "student_name": "Jane"}]
@@ -278,15 +316,17 @@ def sample_group(db: Session):
         },
         max_members=8
     )
+    db_session.add(group)
+    db_session.commit()
     return group
 
 
 @pytest.fixture
-def sample_ride(db: Session, sample_group):
+def sample_ride(db_session: Session, sample_group, institution, sample_parent):
     ride = CarpoolRide(
-        institution_id=1,
+        institution_id=institution.id,
         group_id=sample_group.id,
-        driver_parent_id=1,
+        driver_parent_id=sample_parent.id,
         ride_date=date.today(),
         ride_type="morning",
         passengers=[

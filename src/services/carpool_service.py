@@ -382,8 +382,8 @@ class CarpoolService:
                     ride_type='afternoon',
                     passengers=passengers,
                     pickup_sequence=list(reversed(pickup_sequence)),
-                    pickup_time=pickup_sequence[-1].get('drop_time') if pickup_sequence else time(14, 0),
-                    drop_time=pickup_sequence[0].get('drop_time') if pickup_sequence else time(15, 0),
+                    pickup_time=pickup_sequence[-1].get('drop_time') or pickup_sequence[-1].get('pickup_time') if pickup_sequence else time(14, 0),
+                    drop_time=pickup_sequence[0].get('drop_time') or pickup_sequence[0].get('pickup_time') if pickup_sequence else time(15, 0),
                     confirmation_status=RideStatus.SCHEDULED.value
                 )
                 rides.append(afternoon_ride)

@@ -479,3 +479,55 @@ celery"`). **Priority order for backend work, in this order**:
    there may need revisiting once routers gain their missing models — some of Tier 1/2's
    "no test yet" modules are among the 16 that were completely non-functional until this
    session, so "no test" previously also meant "nothing to test."
+
+## Backend fixes, fourth pass — commits pending (test_carpool_service.py: 0/10 → 10/10)
+Baseline before this pass: full uncapped run was 471 passed / 255 failed / 60 errors / 1
+skipped. Picked `tests/test_carpool_service.py` as the next individual file to fully green
+(was 3/10 → 5/10 → 8/10 → 10/10 across fixture fixes):
+14. Fixture `db: Session` params didn't match the actual fixture name `db_session` — renamed
+    throughout the file (`sed -i 's/\bdb\b/db_session/g'`, verified via diff).
+15. `sample_parent`/`sample_request`/`sample_requests`/`sample_group` fixtures used hardcoded
+    `institution_id=1`/`parent_id=1` disconnected from any real row, causing FK violations
+    against the real `institution` fixture. Rewired all of them to depend on the real
+    `institution` and `sample_parent` fixtures and to self-persist (`db_session.add()` +
+    `.commit()`), instead of relying on individual tests to add them.
+16. **Real bug in `src/services/carpool_service.py`'s `create_ride_schedule`** — the afternoon
+    return-trip `CarpoolRide` read a `'drop_time'` key out of each `pickup_points` entry, but
+    `pickup_points` entries only ever carry a `'pickup_time'` key (see the `CarpoolGroup`
+    schema/fixtures) — `'drop_time'` never exists, so `.get('drop_time')` was always `None`.
+    `pickup_time` is `nullable=False` on `CarpoolRide`, so every afternoon-ride row (and any
+    schedule spanning a matching weekday) hit `IntegrityError: Column 'pickup_time' cannot be
+    null` in real usage, not just in tests. Fixed to fall back to `'pickup_time'` when
+    `'drop_time'` isn't present: `pickup_sequence[-1].get('drop_time') or
+    pickup_sequence[-1].get('pickup_time')` (and symmetrically for `drop_time`).
+17. `test_find_compatible_carpools` reused `sample_request`, which (after fix #15) shares the
+    same `sample_parent` as `sample_group`'s only member/organizer. `find_compatible_carpools`
+    correctly skips a group the requesting parent already belongs to (`continue` on
+    `request.parent_id in [m.get('parent_id') for m in group.members]`), so the group was
+    always filtered out and `matches` was always empty — a test fixture-data bug, not a service
+    bug (verified `calculate_route_compatibility` alone does return a positive score for this
+    exact institution/group/route data via `test_calculate_route_compatibility_group`, which
+    passes). Fixed by giving this test its own distinct parent + request instead of reusing the
+    shared `sample_parent`/`sample_request`.
+
+`tests/test_carpool_service.py` is now 10/10 passing. Not yet re-run against the full suite.
+
+## Next resume point (current, supersedes the two above)
+1. Commit + push the `src/services/carpool_service.py` + `tests/test_carpool_service.py`
+   changes (pass #14-17 above) if not already done.
+2. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
+   schema-lock sentinels first, per the commands earlier in this file):
+   `mysql -u root -ptest_password -e "DROP DATABASE IF EXISTS test_db; CREATE DATABASE test_db CHARACTER SET utf8mb4;"`
+   `rm -f /tmp/eduapp_schema.lock /tmp/eduapp_schema.done`
+   `cd /home/user/eduApp && python3 -m pytest --no-cov -p no:cacheprovider -q -n auto --maxfail=1000 2>&1 | tail -100`
+   Compare against the 471/255/60/1 baseline above — expect improvement from the JWT/session/
+   fixture-plumbing fixes even in files not touched directly, since those were systemic.
+3. Pick the next individual failing test FILE (not scattershot individual tests) and drive it
+   to green the same way as `test_carpool_service.py` just was: read the file, run just that
+   file (`-n0` for clean sequential output), fix fixtures first (often the actual model/FK
+   mismatch), then real service-layer bugs the fixture fixes newly expose, re-verify, commit.
+4. Keep working down the remaining ~255 failed/~60 errored tests file-by-file, committing after
+   each file (or small batch) goes green — don't batch too much uncommitted work at once.
+5. Once the backend suite is green (or remaining failures are individually understood/triaged
+   as out of scope), finish the remaining 9 silently-disabled routers (see the "MAJOR FINDING"
+   table above), then move to Phase 2 (new coverage for untested route modules/pages).
