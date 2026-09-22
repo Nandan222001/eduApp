@@ -195,7 +195,7 @@ written, or a shared dependency was imported from the wrong path. Treat this as 
 priority tier, above writing new unit tests for already-working modules (Phase 2) — there is
 no point unit-testing routers that don't even mount.
 
-### Fixed so far (6 of 16) — commits e005a27, 3eb9d7e (also see 4b607f0-era commits)
+### Fixed so far (7 of 16, +1 partial) — commits e005a27, 3eb9d7e, 4e0305c, a9fae6d
 - `wellbeing` — trivial `NameError: Dict` (missing typing import).
 - `chatbot` — imported `get_current_user` from nonexistent `src.api.deps`; real path is
   `src.dependencies.auth`.
@@ -217,8 +217,13 @@ no point unit-testing routers that don't even mount.
   `ChurnPredictionModel` — the last one wasn't even in the router's own import line, only
   discovered once the service's own imports were checked) derived from
   `src/schemas/institution_health.py` + the ~970-line service.
+- `document_vault` — `src/models/document_vault.py` already had 4 of 5 needed classes, just
+  missing `DocumentFolder` (folder CRUD + self-referencing hierarchy). Added it.
 
-### Still broken (10 of 16) — diagnostic info gathered, NOT yet fixed
+### Partially fixed (1) — `ml_analytics`: one real bug fixed (dead imports removed), a
+second, bigger one found and documented below but not yet fixed. See its row in the table.
+
+### Still broken (9 of 16 fully, +1 partial) — diagnostic info gathered, NOT yet fixed
 Use the exact same method for each: (1) find the service/router file that does
 `from src.models.X import (...)` and read every class/field it actually constructs or
 queries (`grep -n "ClassName("` and `"ClassName\."` in the consuming service file is the
@@ -244,14 +249,13 @@ above to confirm the router no longer appears, (7) commit.
 | `ml_training` | `src/tasks/ml_training_tasks.py` → `from src.models.ml_training import MLTrainingJob, ModelPromotionLog, TrainingStatus, TrainingJobType` | Yes: `src/schemas/ml_training.py` | Imported via a Celery task file, not directly by the router — check `src/tasks/ml_training_tasks.py` too, not just the router/service. |
 | `super_admin_reports` | `src/api/v1/super_admin_reports.py` → `from src.models.super_admin_reports import ScheduledReport, DataRetentionPolicy, ArchivalJob` directly (802 lines) | Yes: `src/schemas/super_admin_reports.py` | |
 | `virtual_classrooms` | `src/services/virtual_classroom_service.py` → `from src.models.virtual_classroom import (...)` | No — derive from the router (655 lines) + service. This backs Agora video conferencing per the feature survey; check for session/participant/recording fields. | |
-| `document_vault` (different bug shape) | `cannot import name 'DocumentFolder' from 'src.models.document_vault'` — **the file exists** (`FamilyDocument`, `DocumentAccessLog`, `DocumentShare`, `DocumentExpirationAlert` all already defined), it's just missing ONE class, `DocumentFolder`, that the router uses extensively for folder CRUD (`POST /folders`, `GET /folders`, etc. — see `src/api/v1/document_vault.py` around line 107+). Add `DocumentFolder` to the EXISTING `src/models/document_vault.py`, don't create a new file. | `src/schemas/document_vault.py` should exist (has `DocumentFolderCreate/Update/Response`) — check it. | Smallest remaining fix — just one class, not a whole new file. Do this one next. |
-| `ml_analytics` (different bug shape, already partially fixed) | Was `No module named 'src.dependencies.database'` (fixed — see above), NOW: `cannot import name 'AnalyticsCache' from 'src.models.analytics'` — `src/models/analytics.py` already exists with other classes, just needs `AnalyticsCache` added, same pattern as document_vault's `DocumentFolder`. Check `src/services/ml_analytics_integration_service.py` for the field usage. | n/a | Also a small, single-class addition, not a new file. |
+| `ml_analytics` (bigger than it looked, partially fixed) | Chain: `ml_analytics.py` → `ml_analytics_integration_service.py` → `analytics_service.py`. Two layers, both now diagnosed: (1) DONE — `analytics_service.py` imported 4 classes from `src.models.analytics` (`AnalyticsCache`, `StudentPerformanceMetrics`, `ClassPerformanceMetrics`, `InstitutionPerformanceMetrics`) that were genuinely **dead/unused** (grep confirmed zero other references in the 1227-line file) — removed the import, don't re-add these. (2) NOT DONE — the next line imports 11 classes from `src.schemas.analytics` (`AnalyticsQueryParams`, `StudentMetrics`, `ClassMetrics`, `InstitutionMetrics`, `ExamAnalytics`, `SubjectPerformance`, `YoYComparison`, `StudentPerformanceComparison`, `DateRangeType`, `MetricType`, `StudentPerformanceTrend`) that ARE genuinely used throughout (usage counts: 10, 4, 4, 4, 4, 3, 3, 3, 11, 1, 3 respectively — `grep -c "\bClassName\b" src/services/analytics_service.py` to re-verify). **The existing `src/schemas/analytics.py` is for a different, unrelated feature** (event-tracking: `AnalyticsEventCreate`/`PerformanceMetricCreate`/`UserSessionCreate`/`FeatureUsageCreate` — these match `src/models/analytics.py`'s actual classes, `AnalyticsEvent`/`PerformanceMetric`/`UserSession`/`FeatureUsage`). `analytics_service.py` is genuinely a different feature (academic performance analytics: student/class/institution metrics, exam analytics, YoY comparisons — check its model imports at the top, Student/Exam/Attendance/Assignment/Grade) that needs its OWN schema classes, either in a new file (e.g. `src/schemas/academic_analytics.py`, then repoint the import) or appended to the existing file if you'd rather not split it — read through all 1227 lines of `analytics_service.py` to extract exact field usage per class (same method as the model fixes above, just for Pydantic schemas instead of SQLAlchemy models, which is arguably easier since there's no MySQL column-type gotcha to verify against). | schemas/analytics.py exists but is NOT the right one — see above | This is the most involved of the remaining routers content-wise (11 classes, largest service file of the bunch) even though its *router* file itself is small — don't let the small router file size mislead you like it misled the initial triage. |
 
-**Recommended order for next iteration**: `document_vault` and `ml_analytics` first (both are
-single-class additions to existing files, smallest possible diffs), then the ones with schema
-files (`merchandise`, `journalism`, `learning_styles`, `yearbook`, `ml_training`,
-`super_admin_reports`) since the schema gives the field spec for free, then the three with no
-schema file (`credentials`/digital_credential, `parent_teacher_collab`/collaboration,
+**Recommended order for next iteration**: finish `ml_analytics` first (the schema-file work is
+now fully scoped, just needs doing), then the ones with schema files (`merchandise`,
+`journalism`, `learning_styles`, `yearbook`, `ml_training`, `super_admin_reports`) since the
+schema gives the field spec for free, then the three with no schema file
+(`credentials`/digital_credential, `parent_teacher_collab`/collaboration,
 `virtual_classrooms`/virtual_classroom) last since those need more reading of router+service
 code to reverse-engineer the fields.
 
