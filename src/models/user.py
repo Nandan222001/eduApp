@@ -1,6 +1,7 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Index, func
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 from src.database import Base
 
 
@@ -18,6 +19,14 @@ class User(Base):
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
     phone = Column(String(20), nullable=True)
+
+    @hybrid_property
+    def full_name(self):
+        return f"{self.first_name or ''} {self.last_name or ''}".strip()
+
+    @full_name.expression
+    def full_name(cls):
+        return func.trim(func.concat(func.coalesce(cls.first_name, ''), ' ', func.coalesce(cls.last_name, '')))
 
     is_active = Column(Boolean, default=True, nullable=False)
     is_superuser = Column(Boolean, default=False, nullable=False)

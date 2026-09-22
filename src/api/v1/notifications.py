@@ -85,6 +85,22 @@ def get_group_summary(
     return service.get_group_summary(current_user.id)
 
 
+@router.get("/devices", response_model=List[PushDeviceResponse])
+def get_user_devices(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all registered devices for current user"""
+    devices = db.query(PushDevice).filter(
+        and_(
+            PushDevice.user_id == current_user.id,
+            PushDevice.is_active == True
+        )
+    ).all()
+
+    return devices
+
+
 @router.get("/{notification_id}", response_model=NotificationResponse)
 def get_notification(
     notification_id: int,
@@ -531,21 +547,5 @@ def unsubscribe_from_topic(
     
     db.delete(device_topic)
     db.commit()
-    
+
     return {"message": f"Unsubscribed from topic: {subscription.topic}"}
-
-
-@router.get("/devices", response_model=List[PushDeviceResponse])
-def get_user_devices(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get all registered devices for current user"""
-    devices = db.query(PushDevice).filter(
-        and_(
-            PushDevice.user_id == current_user.id,
-            PushDevice.is_active == True
-        )
-    ).all()
-    
-    return devices

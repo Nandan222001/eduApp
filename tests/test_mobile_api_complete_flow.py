@@ -36,7 +36,7 @@ class TestMobileAPICompleteFlow:
         
         # Setup: Create student role and user
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -205,7 +205,7 @@ class TestMobileAPICompleteFlow:
         
         # Setup: Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -241,7 +241,7 @@ class TestMobileAPICompleteFlow:
         
         # Create student role and child
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -363,7 +363,7 @@ class TestMobileAPICompleteFlow:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -406,8 +406,12 @@ class TestMobileAPICompleteFlow:
         assert user_data["email"] == "auth_test@test.com"
         
         # Test 3: Access protected endpoint without token
+        # FastAPI's HTTPBearer(auto_error=True) returns 403, not 401, when no
+        # Authorization header is present at all (401 is reserved for an
+        # invalid/expired token) -- matches the convention used throughout
+        # the rest of the test suite (see test_error_handling.py).
         no_auth_response = client.get("/api/v1/notifications/devices")
-        assert no_auth_response.status_code == 401
+        assert no_auth_response.status_code == 403
         
         # Test 4: Refresh token
         refresh_response = client.post(

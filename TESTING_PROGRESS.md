@@ -512,22 +512,161 @@ skipped. Picked `tests/test_carpool_service.py` as the next individual file to f
 
 `tests/test_carpool_service.py` is now 10/10 passing. Not yet re-run against the full suite.
 
-## Next resume point (current, supersedes the two above)
-1. Commit + push the `src/services/carpool_service.py` + `tests/test_carpool_service.py`
-   changes (pass #14-17 above) if not already done.
-2. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
+## Backend fixes, fifth pass — commits pending (many collection-error files unblocked + real bugs found)
+Baseline before this pass (full uncapped run): 483 passed / 260 failed / 43 errors / 1 skipped.
+Worked through several whole-file collection ERRORs and the failures they unblocked, file by file
+(same root-cause-first approach). All individually verified green with `-n0`; xdist (`-n auto`)
+can show unrelated flakiness on files not touched here (e.g. test_auth.py's separate SQLite
+setup racing MySQL-based workers) -- always re-check standalone before trusting a red result.
+
+18. **Dead/wrong imports fixed** (unblocked whole files that couldn't even collect before):
+    `tests/test_mobile_api_integration.py` (`src.models.parent` doesn't exist -> `Parent`/
+    `StudentParent` actually live in `src.models.student`), `tests/unit/test_celery_tasks.py`
+    (`AssignmentSubmission` -> the real class is `Submission`; `src.models.exam` -> the real
+    module is `src.models.examination`), `tests/migration/test_mysql_comprehensive.py` (dead
+    `DashboardMetric` import that doesn't exist in `src.models.analytics`).
+19. **`websocket-client` was never in `requirements-dev.txt`**, so `tests/integration/
+    test_websocket.py` (37 tests) couldn't even import. Added it. The file's tests gracefully
+    `pytest.skip` when no live server is running, so this alone unblocked most of them --
+    remaining real failures below (#25).
+20. **22 test-local `Role(...)` constructions across 6 files were missing the required `slug`
+    field** (same class of bug as the conftest fixture fix in an earlier pass, just reproduced
+    ad-hoc): `test_mobile_api_complete_flow.py`, `test_mobile_api_integration.py`,
+    `test_parent_multi_child.py`, `migration/test_api_endpoints_mysql.py`,
+    `migration/test_mysql_comprehensive.py`. Fixed via a small script deriving
+    `slug=name.lower().replace(' ', '_')`.
+21. **~26 hand-crafted `create_access_token(...)` calls, across `test_mobile_api_integration.py`
+    (20), `test_parent_multi_child.py` (4), and `tests/integration/test_parents_api.py`'s
+    `parent_auth_headers` fixture + 1 inline call** -- same root cause as the `auth_headers`
+    fixture fix from an earlier pass, just reproduced ad-hoc in these files instead of using
+    the shared fixture: a hand-crafted JWT has no matching session in the fake Redis, so
+    `get_current_user` 401s regardless of token validity. Replaced with a real
+    `client.post("/api/v1/auth/login", ...)` call (all these users share the conftest-standard
+    "password123").
+22. **CRITICAL, real production bug** -- `exponent-server-sdk` (the Expo push notification SDK)
+    was never installed/declared as a dependency. `ExpoPushService.validate_token` silently
+    degrades to always returning `False` when the SDK import fails, so **every real device
+    registration for push notifications (`POST /api/v1/notifications/register-device`) was
+    failing with 400 "Invalid Expo push token" in any environment without this package** --
+    not a test-only issue. Added `exponent-server-sdk==2.2.0` to `requirements.txt`.
+23. **Real routing bug** in `src/api/v1/notifications.py`: `GET /{notification_id}` (int path
+    param) was registered before `GET /devices`, and FastAPI/Starlette matches GET routes in
+    registration order -- so `GET /api/v1/notifications/devices` was always being captured by
+    the `/{notification_id}` route first, failing int conversion on `"devices"` and returning
+    422 instead of ever reaching the real handler. Moved `get_user_devices` before the
+    parameterized route (standard FastAPI convention: static routes before dynamic ones).
+24. **CRITICAL, real production bug, widespread** -- `S3Client.upload_file(file_content, s3_key,
+    content_type=None) -> str` (single return value, `s3_key` provided by the caller) was
+    called with the WRONG, apparently-stale signature `upload_file(file_obj=..., file_name=...,
+    folder=..., content_type=...)` unpacked as `file_url, s3_key = ...` in **9 call sites across
+    6 service files**: `assignment_service.py` (x2 -- assignment files, submission files),
+    `branded_media_service.py` (x2 -- notification sounds, animations), `branding_service.py`
+    (x1 -- institution branding assets), `previous_year_papers_service.py` (x2 -- PDFs, question
+    images), `homework_scanner_service.py` (x1), plus `document_vault_service.py` (x1, but that
+    whole service is separately broken/unwired -- see the still-open document_vault item below).
+    Every one of these would raise `TypeError: upload_file() got an unexpected keyword argument
+    'folder'` the instant a real user tried to upload a file through any of these features. Fixed
+    all 8 live call sites to build their own unique `s3_key` (via `uuid.uuid4()`) and call the
+    real single-return signature. Updated the two stale test mocks in `tests/unit/
+    test_assignment_service.py` that asserted against the old (wrong) call signature.
+25. `study_buddy_service.py`'s `chat()` method returned `session_id=None` in its "AI not
+    configured" fallback path when the caller didn't pass an existing `session_id` -- violates
+    `StudyBuddyChatResponse.session_id: int` (required). Fixed to still create a session in the
+    fallback path, matching the on-path behavior just above it.
+26. `homework_scanner.py`'s `create_scan` route let a `ValueError` (e.g. "S3 is not configured
+    properly" in an environment without AWS creds) propagate as an unhandled exception instead
+    of a clean error response. Wrapped in try/except -> `HTTPException(500)`.
+27. **Real authorization inconsistency/bug in `parent_service.py`** -- of 7 methods that check
+    `_verify_parent_child_relationship` before returning a child's data, 2 (`get_recent_grades`,
+    `get_pending_assignments`) silently returned `[]` (200 OK, empty list) instead of denying
+    access when a parent queried a child that wasn't theirs, rather than a clean 403/404 like
+    the other 5. Changed both to `raise ValueError(...)` (matching `get_weekly_progress`'s
+    existing pattern), and added router-level `except ValueError -> HTTPException(403)` on the
+    4 routes that call a raising method but had no handler at all before (`get_today_attendance`,
+    `get_recent_grades`, `get_pending_assignments`, `get_weekly_progress` -- the last 3 previously
+    let the ValueError crash out as an unhandled 500 with no clean response). Also added a
+    missing `None` -> 404 check on `get_performance_comparison`'s route (previously would have
+    failed FastAPI response-model validation with a 500 for the same "not my child" case).
+    `get_child_goals` has the same latent issue (silently returns an empty-goals dict) but has
+    no test coverage exercising it yet -- flagged here for whoever adds one next, not fixed now
+    to keep this batch's diff reviewable.
+28. **CRITICAL, real production bug, three call sites** -- `User.full_name` was referenced in
+    live application code (`src/services/study_material_service.py`,
+    `src/services/quiz_realtime_service.py` as a SQL column in a `.query(User.id, User.full_name,
+    ...)`, and `src/api/v1/websocket.py`) but the `User` model has **no `full_name` attribute at
+    all** (only `first_name`/`last_name`). Every one of these code paths would raise
+    `AttributeError` the moment it actually ran -- `quiz_realtime_service.py`'s leaderboard query
+    would fail to even build. Added a proper SQLAlchemy `hybrid_property full_name` to
+    `src/models/user.py` (works both as `user.full_name` on an instance and as `User.full_name`
+    inside a query, via `.expression`), computed from `first_name`/`last_name` with NULL-safe
+    SQL concatenation.
+29. `tests/unit/test_assignment_service.py`: 2 unrelated pre-existing failures found while
+    verifying #24 didn't regress this file -- `test_create_assignment_with_due_dates` compared
+    datetimes for exact equality across a MySQL round-trip (MySQL's `DATETIME` column has only
+    second-level precision and *rounds*, doesn't truncate, so exact equality is never reliable);
+    changed to `abs(actual - expected) < timedelta(seconds=1)`. `test_create_assignment_
+    passing_marks_validation` expected the service's `create_assignment` to raise `HTTPException`
+    for `passing_marks > max_marks`, but `AssignmentCreate` already has a `field_validator` that
+    correctly rejects this at schema-construction time (a better fix, already in place) --
+    updated the test to expect `pydantic.ValidationError` from schema construction instead.
+30. `tests/test_services_assignment.py` (a separate, smaller/older duplicate of `tests/unit/
+    test_assignment_service.py`): stale field name `assignment.total_marks` (real column is
+    `max_marks`) and stale enum member `AssignmentStatus.ACTIVE` (real enum is
+    DRAFT/PUBLISHED/CLOSED/ARCHIVED; a freshly-created assignment defaults to DRAFT, not
+    "active").
+
+Verified individually green with `-n0`: test_mobile_api_integration.py (21/21),
+test_mobile_api_complete_flow.py (3/3), test_parent_multi_child.py (4/4),
+tests/integration/test_websocket.py (27 passed/10 skipped, 0 failed),
+tests/unit/test_assignment_service.py (27/27), tests/test_services_assignment.py (4/4),
+tests/integration/test_parents_api.py (19/19), tests/test_carpool_service.py (10/10, from the
+prior pass, re-verified still green).
+
+**Still failing, NOT yet fixed** (found while verifying the above, unrelated to this batch's
+changes -- confirmed pre-existing via standalone `-n0` runs): `tests/unit/test_celery_tasks.py`
+has 10 failures (`TestNotificationSendingTasks`, `TestScheduledTasks`,
+`TestSubscriptionRenewalReminders`, `TestTaskChaining`, `TestExternalServiceMocking` ::
+`test_sendgrid_api_mocked` -- e.g. `Error sending email: HTTP Error 401: Unauthorized`, `result
+is True` assertions failing) -- not yet root-caused, next in line. `tests/migration/
+test_mysql_comprehensive.py` needs its own separate MySQL database (`test_mysql_migration`) and
+real `alembic upgrade head` -- heavier standalone infra, lower priority than the main suite.
+
+## Next resume point (current, supersedes the ones above)
+1. Commit + push the fifth-pass changes above (#18-30) if not already done, and confirm the push
+   succeeded (`git log --oneline -1`, `git status`).
+2. Root-cause `tests/unit/test_celery_tasks.py`'s 10 pre-existing failures (confirmed unrelated
+   to this session's changes, listed at the end of pass #18-30 above): `TestNotificationSendingTasks`,
+   `TestScheduledTasks`, `TestSubscriptionRenewalReminders`, `TestTaskChaining`,
+   `TestExternalServiceMocking::test_sendgrid_api_mocked`. Start with `test_sendgrid_api_mocked`
+   since its error is concrete (`Error sending email: HTTP Error 401: Unauthorized` from
+   `src/services/notification_providers.py:60`) -- likely a mocking gap (real SendGrid call
+   escaping the mock) rather than an app bug; verify which before assuming.
+3. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
    schema-lock sentinels first, per the commands earlier in this file):
    `mysql -u root -ptest_password -e "DROP DATABASE IF EXISTS test_db; CREATE DATABASE test_db CHARACTER SET utf8mb4;"`
    `rm -f /tmp/eduapp_schema.lock /tmp/eduapp_schema.done`
    `cd /home/user/eduApp && python3 -m pytest --no-cov -p no:cacheprovider -q -n auto --maxfail=1000 2>&1 | tail -100`
-   Compare against the 471/255/60/1 baseline above — expect improvement from the JWT/session/
-   fixture-plumbing fixes even in files not touched directly, since those were systemic.
-3. Pick the next individual failing test FILE (not scattershot individual tests) and drive it
-   to green the same way as `test_carpool_service.py` just was: read the file, run just that
-   file (`-n0` for clean sequential output), fix fixtures first (often the actual model/FK
-   mismatch), then real service-layer bugs the fixture fixes newly expose, re-verify, commit.
-4. Keep working down the remaining ~255 failed/~60 errored tests file-by-file, committing after
-   each file (or small batch) goes green — don't batch too much uncommitted work at once.
-5. Once the backend suite is green (or remaining failures are individually understood/triaged
+   Compare against the 483/260/43/1 baseline noted at the top of the fifth pass above -- this
+   batch fixed whole-file collection errors plus real bugs, so expect a meaningfully better
+   number. Note: `-n auto` can show flaky/unrelated failures on files not touched this session
+   (e.g. test_auth.py's separate SQLite setup racing MySQL-based workers under parallel
+   execution) -- always re-verify red results standalone with `-n0` before trusting them.
+4. Pick the next individual failing test FILE (not scattershot individual tests) and drive it
+   to green the same way as the last several files were: read the file, run just that file
+   (`-n0` for clean sequential output), fix fixtures/imports first (often the actual root cause
+   — collection errors, stale field/enum names, missing deps), then real service-layer bugs the
+   fixes newly expose, re-verify, commit each file/small-batch separately.
+5. `document_vault_service.py` (and its test `tests/test_document_vault.py`) is a known, deeper
+   case — investigated in this pass but not fixed: the router (`src/api/v1/document_vault.py`)
+   does NOT use this service at all (imports only schemas that exist and work fine), so the
+   service is dead/unwired code with its own broken imports (`DocumentType`, `ShareType`,
+   `BulkUploadResult`, `DocumentFolderStructure`, `ExpiringDocumentAlert` -- none exist in
+   `src/schemas/document_vault.py`) AND deeper field-name mismatches against the real schemas
+   even after those are added (e.g. it constructs `DocumentUploadRequest` with `document_name=`/
+   `shared_with=`/`metadata=` kwargs that don't exist on that schema). Decide when picked up:
+   either finish wiring it into a real feature (bigger job, needs product-intent judgment on
+   what the OCR/encryption/S3 vault feature should actually do), or explicitly mark it
+   out-of-scope dead code in this file and move on -- don't half-fix it.
+6. Once the backend suite is green (or remaining failures are individually understood/triaged
    as out of scope), finish the remaining 9 silently-disabled routers (see the "MAJOR FINDING"
    table above), then move to Phase 2 (new coverage for untested route modules/pages).

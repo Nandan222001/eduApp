@@ -27,7 +27,7 @@ class TestParentMultiChildIntegration:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -64,7 +64,7 @@ class TestParentMultiChildIntegration:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -147,14 +147,11 @@ class TestParentMultiChildIntegration:
         db_session.commit()
         
         # Create access token for parent
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test getting children list
@@ -182,7 +179,7 @@ class TestParentMultiChildIntegration:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -217,7 +214,7 @@ class TestParentMultiChildIntegration:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -264,14 +261,11 @@ class TestParentMultiChildIntegration:
         db_session.commit()
         
         # Create access token for parent
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test dashboard with child filter
@@ -295,7 +289,7 @@ class TestParentMultiChildIntegration:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -330,7 +324,7 @@ class TestParentMultiChildIntegration:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -377,14 +371,11 @@ class TestParentMultiChildIntegration:
         db_session.commit()
         
         # Create access token for parent
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test child overview
@@ -429,7 +420,7 @@ class TestParentMultiChildIntegration:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -464,7 +455,7 @@ class TestParentMultiChildIntegration:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -501,14 +492,11 @@ class TestParentMultiChildIntegration:
         db_session.commit()
         
         # Create access token for parent
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Try to access unlinked child's overview

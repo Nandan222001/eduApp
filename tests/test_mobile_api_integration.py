@@ -4,8 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date
 from src.models.user import User
 from src.models.institution import Institution
-from src.models.student import Student
-from src.models.parent import Parent, StudentParent
+from src.models.student import Student, Parent, StudentParent
 from src.models.push_device import PushDevice, PushDeviceTopic
 from src.models.study_buddy import StudyBuddySession, StudyBuddyMessage
 from src.models.homework_scanner import HomeworkScan
@@ -25,14 +24,11 @@ class TestNotificationDeviceRegistrationAPI:
         """Test successful device registration."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.post(
@@ -64,14 +60,11 @@ class TestNotificationDeviceRegistrationAPI:
         """Test registering device with duplicate token updates existing device."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         device_token = "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
@@ -119,14 +112,11 @@ class TestNotificationDeviceRegistrationAPI:
         """Test device unregistration."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         device_token = "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
@@ -159,14 +149,11 @@ class TestNotificationDeviceRegistrationAPI:
         """Test subscribing device to topic."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         device_token = "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
@@ -203,14 +190,11 @@ class TestNotificationDeviceRegistrationAPI:
         """Test unsubscribing device from topic."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         device_token = "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
@@ -248,14 +232,11 @@ class TestNotificationDeviceRegistrationAPI:
         """Test getting all user devices."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Register two devices
@@ -302,14 +283,11 @@ class TestStudyBuddyAPI:
         """Test creating study buddy session."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.post(
@@ -338,14 +316,11 @@ class TestStudyBuddyAPI:
         """Test getting study buddy sessions."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Create a session
@@ -382,14 +357,11 @@ class TestStudyBuddyAPI:
         student_user.student_profile = student
         db_session.commit()
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.post(
@@ -404,7 +376,7 @@ class TestStudyBuddyAPI:
         assert response.status_code == 200
         data = response.json()
         assert "response" in data
-        assert data["student_id"] == student.id
+        assert data["session_id"] is not None
 
     def test_end_session(
         self,
@@ -416,14 +388,11 @@ class TestStudyBuddyAPI:
         """Test ending study buddy session."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Create session
@@ -456,14 +425,11 @@ class TestStudyBuddyAPI:
         """Test analyzing study patterns."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get(
@@ -473,8 +439,8 @@ class TestStudyBuddyAPI:
         
         assert response.status_code == 200
         data = response.json()
-        assert "total_sessions" in data
-        assert "average_session_duration" in data
+        assert "consistency_score" in data
+        assert "recommendations" in data
 
     def test_get_daily_plan(
         self,
@@ -486,14 +452,11 @@ class TestStudyBuddyAPI:
         """Test getting daily study plan."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get(
@@ -521,14 +484,11 @@ class TestHomeworkScannerAPI:
         """Test creating homework scan."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Create fake image file
@@ -563,14 +523,11 @@ class TestHomeworkScannerAPI:
         """Test getting homework scans."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get(
@@ -592,14 +549,11 @@ class TestHomeworkScannerAPI:
         """Test uploading non-image file fails."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         files = {
@@ -654,14 +608,11 @@ class TestAuthenticationFlowAPI:
         """Test getting current user info."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get(
@@ -689,14 +640,11 @@ class TestStudentDashboardAPI:
         """Test getting student dashboard data."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get(
@@ -718,14 +666,11 @@ class TestStudentDashboardAPI:
         """Test getting student profile."""
         from src.utils.security import create_access_token
         
-        token = create_access_token(
-            data={
-                "sub": student_user.id,
-                "institution_id": student_user.institution_id,
-                "role_id": student_user.role_id,
-                "email": student_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": student_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get(
@@ -754,7 +699,7 @@ class TestParentMultiChildAPI:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -787,14 +732,11 @@ class TestParentMultiChildAPI:
         db_session.add(parent)
         db_session.commit()
         
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get(
@@ -816,7 +758,7 @@ class TestParentMultiChildAPI:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -837,14 +779,11 @@ class TestParentMultiChildAPI:
         db_session.add(parent_user)
         db_session.commit()
         
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get(

@@ -78,6 +78,14 @@ class StudyBuddyService:
         context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         if not self.openai_client:
+            if not session_id:
+                session = self.create_session(
+                    institution_id=institution_id,
+                    student_id=student_id,
+                    session_title=message[:50] if len(message) > 50 else message,
+                    context=context
+                )
+                session_id = session.id
             return {
                 "session_id": session_id,
                 "response": "AI service is not configured. Please contact administrator.",

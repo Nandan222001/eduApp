@@ -31,13 +31,19 @@ async def create_scan(
         )
     
     service = HomeworkScannerService(db)
-    scan = await service.create_scan(
-        institution_id=current_user.institution_id,
-        student_id=student_id,
-        file=file,
-        subject_id=subject_id,
-        scan_title=scan_title
-    )
+    try:
+        scan = await service.create_scan(
+            institution_id=current_user.institution_id,
+            student_id=student_id,
+            file=file,
+            subject_id=subject_id,
+            scan_title=scan_title
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process homework scan: {str(e)}"
+        )
     return scan
 
 

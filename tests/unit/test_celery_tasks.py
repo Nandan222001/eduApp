@@ -698,19 +698,21 @@ class TestWeeklyPerformanceReports:
     
     @patch('src.tasks.email_tasks.send_verification_email.delay')
     def test_weekly_performance_report_generation(
-        self, mock_delay, db_session: Session, institution, student, teacher
+        self, mock_delay, db_session: Session, institution, student, teacher, grade, subject
     ):
         """Test generating weekly performance reports"""
         # This would be implemented in a separate task file
         # Simulating the concept here
-        
-        from src.models.assignment import Assignment, AssignmentSubmission
-        from src.models.exam import Exam, ExamResult
-        
+
+        from src.models.assignment import Assignment, Submission
+        from src.models.examination import Exam, ExamResult
+
         # Create assignments and submissions
         assignment = Assignment(
             institution_id=institution.id,
             teacher_id=teacher.id,
+            grade_id=grade.id,
+            subject_id=subject.id,
             title="Math Assignment",
             description="Test assignment",
             due_date=datetime.utcnow() + timedelta(days=7),
@@ -718,11 +720,10 @@ class TestWeeklyPerformanceReports:
         )
         db_session.add(assignment)
         db_session.commit()
-        
-        submission = AssignmentSubmission(
+
+        submission = Submission(
             assignment_id=assignment.id,
             student_id=student.id,
-            institution_id=institution.id,
             marks_obtained=Decimal("85.00"),
             submitted_at=datetime.utcnow(),
         )

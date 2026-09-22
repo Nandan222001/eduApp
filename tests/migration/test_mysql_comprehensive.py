@@ -36,7 +36,7 @@ from src.models.attendance import Attendance, AttendanceStatus
 from src.models.assignment import Assignment, Submission, AssignmentStatus, SubmissionStatus
 from src.models.gamification import UserPoints, LeaderboardEntry, Leaderboard, LeaderboardType, LeaderboardPeriod
 from src.models.ml_prediction import PerformancePrediction, MLModel, MLModelVersion, ModelType, PredictionType, ModelStatus
-from src.models.analytics import DashboardMetric, AnalyticsEvent
+from src.models.analytics import AnalyticsEvent
 from src.models.role import Role
 from src.models.academic import AcademicYear, Grade, Section, Subject
 
@@ -215,7 +215,7 @@ class TestMySQLMigrationComprehensive:
             
             # Create roles
             role = Role(
-                name="Student",
+                name="Student", slug="student",
                 description="Student role",
                 is_system_role=True
             )
@@ -423,7 +423,7 @@ class TestMySQLMigrationComprehensive:
             
             # Create role
             role = Role(
-                name="Student",
+                name="Student", slug="student",
                 description="Student role",
                 is_system_role=True
             )
@@ -637,7 +637,7 @@ class TestMySQLMigrationComprehensive:
             # Test 1: Student count by section
             print("\n Analytics Test 1: Count Aggregation")
             
-            role = Role(name="Student", description="Student", is_system_role=True)
+            role = Role(name="Student", slug="student", description="Student", is_system_role=True)
             session.add(role)
             session.flush()
             
@@ -852,7 +852,7 @@ class TestMySQLMigrationComprehensive:
             # Create student for prediction
             print("\n ML Test 3: Generate Predictions")
             
-            role = Role(name="Student", description="Student", is_system_role=True)
+            role = Role(name="Student", slug="student", description="Student", is_system_role=True)
             session.add(role)
             session.flush()
             
@@ -1049,7 +1049,7 @@ class TestMySQLRealTimeFeatures:
             print(f"   ✓ Created leaderboard: {leaderboard.name}")
             
             # Create users with points
-            role = Role(name="Student", description="Student", is_system_role=True)
+            role = Role(name="Student", slug="student", description="Student", is_system_role=True)
             session.add(role)
             session.flush()
             

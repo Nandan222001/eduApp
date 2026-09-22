@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from fastapi import UploadFile
 import re
 import os
+import uuid
 from io import BytesIO
 from PIL import Image
 
@@ -52,10 +53,10 @@ class HomeworkScannerService:
         file_name = file.filename or "homework_scan.jpg"
         
         file_obj = BytesIO(file_content)
-        file_url, s3_key = s3_client.upload_file(
+        s3_key = f"homework_scans/{institution_id}/{student_id}/{uuid.uuid4()}_{file_name}"
+        file_url = s3_client.upload_file(
             file_obj,
-            file_name,
-            folder=f"homework_scans/{institution_id}/{student_id}",
+            s3_key,
             content_type=file.content_type or "image/jpeg"
         )
         

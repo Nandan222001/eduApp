@@ -4,6 +4,7 @@ from decimal import Decimal
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, UploadFile
+from pydantic import ValidationError
 from io import BytesIO
 
 from src.services.assignment_service import AssignmentService, SubmissionService, RubricService
@@ -34,10 +35,7 @@ class TestAssignmentService:
     def mock_s3_client(self):
         """Mock S3 client for file upload operations."""
         with patch('src.services.assignment_service.s3_client') as mock_s3:
-            mock_s3.upload_file.return_value = (
-                "https://test-bucket.s3.us-east-1.amazonaws.com/test-file.pdf",
-                "assignments/1/test-file.pdf"
-            )
+            mock_s3.upload_file.return_value = "https://test-bucket.s3.us-east-1.amazonaws.com/test-file.pdf"
             mock_s3.delete_file.return_value = True
             yield mock_s3
 
@@ -117,10 +115,13 @@ class TestAssignmentService:
 
         assignment = assignment_service.create_assignment(assignment_data)
 
+        # MySQL's DATETIME column has only second-level precision (rounded,
+        # not truncated), so a round trip through the database can shift
+        # each value by up to half a second.
         assert assignment is not None
-        assert assignment.publish_date == publish_date
-        assert assignment.due_date == due_date
-        assert assignment.close_date == close_date
+        assert abs(assignment.publish_date - publish_date) < timedelta(seconds=1)
+        assert abs(assignment.due_date - due_date) < timedelta(seconds=1)
+        assert abs(assignment.close_date - close_date) < timedelta(seconds=1)
 
     def test_create_assignment_with_target_classes(
         self,
@@ -225,25 +226,29 @@ class TestAssignmentService:
         subject: Subject,
         teacher: Teacher,
     ):
-        """Test that passing marks cannot exceed max marks."""
-        assignment_data = AssignmentCreate(
-            institution_id=institution.id,
-            title="Invalid Passing Marks Assignment",
-            description="Test validation",
-            grade_id=grade.id,
-            section_id=section.id,
-            subject_id=subject.id,
-            teacher_id=teacher.id,
-            due_date=datetime.utcnow() + timedelta(days=7),
-            max_marks=Decimal("100.00"),
-            passing_marks=Decimal("150.00"),
-        )
+        """Test that passing marks cannot exceed max marks.
 
-        with pytest.raises(HTTPException) as exc_info:
-            assignment_service.create_assignment(assignment_data)
-        
-        assert exc_info.value.status_code == 400
-        assert "Passing marks cannot exceed max marks" in str(exc_info.value.detail)
+        This is now rejected by AssignmentCreate's own field_validator at
+        schema-construction time (before it would ever reach the service's
+        create_assignment, which still has an equivalent check as a
+        defense-in-depth backstop for callers that build the model
+        directly rather than through validated request parsing).
+        """
+        with pytest.raises(ValidationError) as exc_info:
+            AssignmentCreate(
+                institution_id=institution.id,
+                title="Invalid Passing Marks Assignment",
+                description="Test validation",
+                grade_id=grade.id,
+                section_id=section.id,
+                subject_id=subject.id,
+                teacher_id=teacher.id,
+                due_date=datetime.utcnow() + timedelta(days=7),
+                max_marks=Decimal("100.00"),
+                passing_marks=Decimal("150.00"),
+            )
+
+        assert "Passing marks cannot exceed max marks" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_upload_assignment_file_to_s3(
@@ -289,15 +294,16 @@ class TestAssignmentService:
 
         # Verify S3 upload was called
         mock_s3_client.upload_file.assert_called_once()
-        call_kwargs = mock_s3_client.upload_file.call_args[1]
-        assert call_kwargs['file_name'] == "test-assignment.pdf"
-        assert call_kwargs['folder'] == f"assignments/{assignment.id}"
-        assert call_kwargs['content_type'] == "application/pdf"
+        call_args = mock_s3_client.upload_file.call_args
+        uploaded_s3_key = call_args[0][1]
+        assert uploaded_s3_key.startswith(f"assignments/{assignment.id}/")
+        assert uploaded_s3_key.endswith("_test-assignment.pdf")
+        assert call_args[1]['content_type'] == "application/pdf"
 
         # Verify result
         assert result.file_name == "test-assignment.pdf"
         assert result.file_url == "https://test-bucket.s3.us-east-1.amazonaws.com/test-file.pdf"
-        assert result.s3_key == f"assignments/{assignment.id}/test-file.pdf"
+        assert result.s3_key == uploaded_s3_key
         assert result.file_size == len(file_content)
 
         # Verify database record
@@ -413,10 +419,7 @@ class TestSubmissionService:
     def mock_s3_client(self):
         """Mock S3 client for file upload operations."""
         with patch('src.services.assignment_service.s3_client') as mock_s3:
-            mock_s3.upload_file.return_value = (
-                "https://test-bucket.s3.us-east-1.amazonaws.com/test-file.pdf",
-                "submissions/1/test-file.pdf"
-            )
+            mock_s3.upload_file.return_value = "https://test-bucket.s3.us-east-1.amazonaws.com/test-file.pdf"
             mock_s3.delete_file.return_value = True
             yield mock_s3
 
@@ -667,10 +670,11 @@ class TestSubmissionService:
 
         # Verify S3 upload was called
         mock_s3_client.upload_file.assert_called_once()
-        call_kwargs = mock_s3_client.upload_file.call_args[1]
-        assert call_kwargs['file_name'] == "submission.pdf"
-        assert call_kwargs['folder'] == f"submissions/{submission.id}"
-        assert call_kwargs['content_type'] == "application/pdf"
+        call_args = mock_s3_client.upload_file.call_args
+        uploaded_s3_key = call_args[0][1]
+        assert uploaded_s3_key.startswith(f"submissions/{submission.id}/")
+        assert uploaded_s3_key.endswith("_submission.pdf")
+        assert call_args[1]['content_type'] == "application/pdf"
 
         # Verify result
         assert result.file_name == "submission.pdf"

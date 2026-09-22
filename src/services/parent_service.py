@@ -57,17 +57,17 @@ class ParentService:
         self,
         user_id: int,
         institution_id: int
-    ) -> List[ChildBasicInfo]:
-        """Get all children associated with a parent"""
+    ) -> List[ChildOverviewResponse]:
+        """Get all children associated with a parent, with overview stats"""
         parent = self.db.query(Parent).filter(
             Parent.user_id == user_id,
             Parent.institution_id == institution_id,
             Parent.is_active == True
         ).first()
-        
+
         if not parent:
             return []
-        
+
         children = (
             self.db.query(Student)
             .join(StudentParent, StudentParent.student_id == Student.id)
@@ -79,24 +79,12 @@ class ParentService:
             )
             .all()
         )
-        
-        result = []
-        for child in children:
-            section_name = child.section.name if child.section else None
-            grade_name = child.section.grade.name if child.section and child.section.grade else None
-            
-            result.append(ChildBasicInfo(
-                id=child.id,
-                first_name=child.first_name,
-                last_name=child.last_name,
-                admission_number=child.admission_number,
-                photo_url=child.photo_url,
-                section_name=section_name,
-                grade_name=grade_name
-            ))
-        
-        return result
-    
+
+        return [
+            self._build_child_overview(child, institution_id)
+            for child in children
+        ]
+
     def get_child_overview(
         self,
         child_id: int,
@@ -106,7 +94,7 @@ class ParentService:
         """Get detailed overview for a specific child"""
         if not self._verify_parent_child_relationship(user_id, child_id, institution_id):
             return None
-        
+
         student = (
             self.db.query(Student)
             .outerjoin(Section, Section.id == Student.section_id)
@@ -114,10 +102,20 @@ class ParentService:
             .filter(Student.id == child_id)
             .first()
         )
-        
+
         if not student:
             return None
-        
+
+        return self._build_child_overview(student, institution_id)
+
+    def _build_child_overview(
+        self,
+        student: Student,
+        institution_id: int
+    ) -> ChildOverviewResponse:
+        """Compute overview stats (attendance, rank, average score) for a child"""
+        child_id = student.id
+
         # Get attendance percentage
         attendance_summary = self.db.query(AttendanceSummary).filter(
             AttendanceSummary.student_id == child_id,
@@ -244,7 +242,7 @@ class ParentService:
     ) -> List[RecentGradeResponse]:
         """Get recent grades for a child"""
         if not self._verify_parent_child_relationship(user_id, child_id, institution_id):
-            return []
+            raise ValueError("Not authorized to view this child's information")
         
         marks = (
             self.db.query(ExamMarks, ExamSubject, Subject, Exam)
@@ -309,7 +307,7 @@ class ParentService:
     ) -> List[PendingAssignmentResponse]:
         """Get pending assignments for a child"""
         if not self._verify_parent_child_relationship(user_id, child_id, institution_id):
-            return []
+            raise ValueError("Not authorized to view this child's information")
         
         now = datetime.utcnow()
         

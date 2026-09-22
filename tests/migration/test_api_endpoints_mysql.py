@@ -108,9 +108,9 @@ class TestAPIEndpointsMySQL:
     def test_roles(self, db_session):
         """Create test roles"""
         roles = {
-            'admin': Role(name="Admin", description="Administrator", is_system_role=True),
-            'teacher': Role(name="Teacher", description="Teacher", is_system_role=True),
-            'student': Role(name="Student", description="Student", is_system_role=True),
+            'admin': Role(name="Admin", slug="admin", description="Administrator", is_system_role=True),
+            'teacher': Role(name="Teacher", slug="teacher", description="Teacher", is_system_role=True),
+            'student': Role(name="Student", slug="student", description="Student", is_system_role=True),
         }
         for role in roles.values():
             db_session.add(role)

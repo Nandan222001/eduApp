@@ -95,12 +95,18 @@ async def get_today_attendance(
     Get today's attendance status for a child
     """
     service = ParentService(db)
-    attendance = service.get_today_attendance(
-        child_id=child_id,
-        user_id=current_user.id,
-        institution_id=current_user.institution_id
-    )
-    
+    try:
+        attendance = service.get_today_attendance(
+            child_id=child_id,
+            user_id=current_user.id,
+            institution_id=current_user.institution_id
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this child's information"
+        )
+
     return attendance
 
 
@@ -115,13 +121,19 @@ async def get_recent_grades(
     Get recent grades for a child
     """
     service = ParentService(db)
-    grades = service.get_recent_grades(
-        child_id=child_id,
-        user_id=current_user.id,
-        institution_id=current_user.institution_id,
-        limit=limit
-    )
-    
+    try:
+        grades = service.get_recent_grades(
+            child_id=child_id,
+            user_id=current_user.id,
+            institution_id=current_user.institution_id,
+            limit=limit
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this child's information"
+        )
+
     return grades
 
 
@@ -135,12 +147,18 @@ async def get_pending_assignments(
     Get pending assignments for a child
     """
     service = ParentService(db)
-    assignments = service.get_pending_assignments(
-        child_id=child_id,
-        user_id=current_user.id,
-        institution_id=current_user.institution_id
-    )
-    
+    try:
+        assignments = service.get_pending_assignments(
+            child_id=child_id,
+            user_id=current_user.id,
+            institution_id=current_user.institution_id
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this child's information"
+        )
+
     return assignments
 
 
@@ -154,12 +172,18 @@ async def get_weekly_progress(
     Get weekly progress summary for a child
     """
     service = ParentService(db)
-    progress = service.get_weekly_progress(
-        child_id=child_id,
-        user_id=current_user.id,
-        institution_id=current_user.institution_id
-    )
-    
+    try:
+        progress = service.get_weekly_progress(
+            child_id=child_id,
+            user_id=current_user.id,
+            institution_id=current_user.institution_id
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this child's information"
+        )
+
     return progress
 
 
@@ -178,7 +202,13 @@ async def get_performance_comparison(
         user_id=current_user.id,
         institution_id=current_user.institution_id
     )
-    
+
+    if not comparison:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Child not found or not associated with this parent"
+        )
+
     return comparison
 
 
