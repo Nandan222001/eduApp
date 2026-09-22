@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Generator, AsyncGenerator
 from fastapi.testclient import TestClient
@@ -123,9 +124,15 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 @pytest.fixture
 def institution(db_session: Session) -> Institution:
     """Create a test institution."""
+    # name/slug must be unique per test: under pytest-xdist, many parallel
+    # workers run this fixture concurrently against the same shared MySQL
+    # database, and identical unique-constrained values across concurrent
+    # uncommitted transactions cause real lock contention/deadlocks
+    # (MySQL error 1213), not just a would-be duplicate-key error.
+    unique_suffix = uuid.uuid4().hex[:12]
     institution = Institution(
-        name="Test School",
-        slug="test-school",
+        name=f"Test School {unique_suffix}",
+        slug=f"test-school-{unique_suffix}",
         phone="+1234567890",
         address="123 Test Street, Test City, Test State, Test Country 12345",
         is_active=True,
