@@ -1765,3 +1765,111 @@ the new `analytics_service` unit test).
    could connect. Check `service mysql status` first if tests fail with "Connection refused"
    before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
    fresh MySQL start, since a prior container's schema-created sentinel can be stale.
+
+## Backend fixes, twentieth pass — commits 8eab8dc, 4626e25, 58616fe (starting the broader
+Phase-2/3 backend route-module audit beyond the original 10 routers; found two new systemic bug
+classes, one of them severe)
+Built an accurate router inventory by parsing every `("src.api.v1.X", "<prefix>", [...], "router")`
+tuple in `src/api/v1/__init__.py` (95 registered modules total) and cross-referencing each
+module's real, fully-resolved URL prefix (registration prefix + the router's own internal
+`prefix=` if any) against every string literal in `tests/**/*.py`. ~50 modules had zero real
+endpoint-level test coverage anywhere. Picked 3 more (2 of the largest, 1 core/pre-existing) via
+a mix of background-agent delegation and direct work, same discipline as passes fourteen-nineteen:
+
+106. **`volunteer_hours`** (commit `8eab8dc`, background agent, verified) —
+    `tests/integration/test_volunteer_hours_api.py`, 15 tests (the single largest router in the
+    codebase, 1307 lines) covering hour-log CRUD, filtered listing, the verify workflow (locks
+    further parent edits, updates summary), bulk verify, parent/school reports, the leaderboard,
+    badge lifecycle (create + auto-award-on-verify), certificate generation (+duplicate-rejected,
+    tax-deduction export), CSV export, and statistics. Found 2 real bugs:
+    - `VolunteerHourLogResponse`/`ParentVolunteerBadgeResponse`/`VolunteerCertificateResponse`
+      each declared a bare `metadata: Optional[Dict[str, Any]]` field with no alias — the
+      metadata/metadata_json reserved-name bug class, hitting 3 schemas at once this time.
+      Every endpoint returning any of them 500'd on real data. Fixed with the established
+      `validation_alias='metadata_json'`/`serialization_alias='metadata'` pattern.
+    - `verify_volunteer_hour_log` returned `VolunteerHourLogResponse.model_validate(log)` directly
+      without populating `parent_name`/`supervisor_name`/`verifier_name` the way every other
+      log-returning endpoint does — the verify endpoint itself never reported who did the
+      verifying. Fixed by adding the same name-population logic used elsewhere.
+107. **`community_service`** (commit `4626e25`, background agent, verified) —
+    `tests/integration/test_community_service_api.py`, 17 tests (1200 lines, second-largest
+    router) covering activity create/get/list-with-filters/update/delete (with a
+    can't-edit-once-verified lock), token-based external verification, teacher/admin-only
+    rejection, organization contact CRUD (+duplicate-key rejection), student portfolio detail,
+    graduation requirement CRUD + status, certificate generation (verified-hours gate) +
+    listing, student/institution service reports, and CSV export. Found 2 real bugs:
+    - Four aggregate-report queries built `func.sum(func.case([(cond, val)], else_=0))` —
+      `func.case(...)` constructs a literal SQL function named `case(...)`, not SQLAlchemy's
+      CASE-WHEN construct, and doesn't accept `else_` at all — `TypeError` at query-construction
+      time, before ever reaching the database. Made portfolio-detail, student-report, and
+      institution-report 100% broken. Fixed by importing the real `case` from `sqlalchemy` and
+      using `case((cond, val), else_=0)`.
+    - The same metadata/metadata_json shadowing bug hit 4 more response schemas
+      (`ServiceActivityResponse`, `OrganizationContactResponse`, `GraduationRequirementResponse`,
+      `ServiceCertificateResponse`) — fixed with the same alias pattern.
+108. **`exams`** (commit `58616fe`, written directly) — `tests/integration/test_exams_api.py`,
+    7 tests covering exam CRUD, exam-subject create/list, marks entry, result generation and
+    student-result lookup, grade-configuration CRUD, and schedule create/list. Found a new,
+    **severe systemic bug class not seen anywhere earlier in this file**:
+    - **The entire exams API was mounted at the wrong URL.** `src/api/v1/exams.py` created its
+      router with `APIRouter(prefix="/exams", ...)`, but `src/api/v1/__init__.py` *also*
+      registers it with external prefix `"/exams"` — doubling the real mount to
+      `/api/v1/exams/exams/*` instead of the intended `/api/v1/exams/*`. Confirmed against
+      `frontend/src/api/examinations.ts`, which calls the correct single-prefixed path —
+      meaning **every exam-related request from the real frontend has been 404ing**. A scripted
+      audit of all 95 registered routers (comparing each one's external registration prefix
+      against its own internal `APIRouter(prefix=...)`, looking for the doubled-and-identical
+      case) found exactly one other instance: **`wellbeing`** (`src/api/v1/wellbeing.py`), same
+      bug, same fix, no frontend consumer yet but still a real, previously-unreachable API.
+      Fixed both by dropping the router's own internal prefix, matching the established
+      convention used by every other router in this codebase (registration owns the prefix).
+    - **`GET /grade-configurations` was permanently unreachable**, shadowed by the
+      earlier-registered `GET /{exam_id}` — FastAPI/Starlette match routes in registration
+      order, so any request to `/exams/grade-configurations` was captured by the `exam_id` path
+      parameter first and 422'd trying to parse the literal string as an integer. Fixed by
+      moving the list route ahead of the `/{exam_id}` route (with an explanatory comment).
+    - `create_exam_schedule`/`update_exam_schedule` returned raw SQLAlchemy `ExamSchedule`
+      instances inside a `response_model=dict` body — the same raw-ORM-serialization
+      anti-pattern found repeatedly across this whole session. Fixed with
+      `ExamScheduleResponse.model_validate(schedule)`.
+
+`pytest --collect-only tests/` now collects **1027 tests, 0 errors** (up from 988 after pass
+nineteen).
+
+**New systemic bug classes found this pass, distinct from the metadata/`.value` pair tracked
+since pass fourteen**:
+- **Doubled router prefix** (router's own internal `APIRouter(prefix=X)` duplicating the
+  external registration's prefix in `src/api/v1/__init__.py`) — makes the entire router
+  unreachable at its intended URL. Confirmed exactly 2 instances (`exams`, `wellbeing`) via a
+  full scripted audit of all 95 registered routers; both fixed. Given `exams` is a long-established,
+  core feature with real frontend consumers all along, this suggests the doubled prefix may be a
+  regression from some past refactor rather than always having been broken -- worth keeping an
+  eye out for in git blame if it comes up again, though not chased down this pass.
+- **`func.case([(cond, val)], else_=...)` instead of `case((cond, val), else_=...)`** — using the
+  generic SQL-function-call constructor (`func.X(...)`) for what should be SQLAlchemy's dedicated
+  `case()` construct. Raises `TypeError` at query-construction time (not even a DB round-trip),
+  so it's cheap to grep for across the codebase if it recurs: `grep -rn "func.case(" src/`.
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue the Phase-2/3 backend route-module audit** — ~47 of the ~95 registered routers
+   still have no real endpoint-level test coverage after this pass (95 total - 10 from the
+   original Phase-2 pass - 3 from this pass = ~82 covered-or-untested-but-not-yet-tallied; rerun
+   the router-inventory script described above, in this pass's opening paragraph, to get a fresh,
+   accurate untested list rather than trusting a stale count here). Also worth a repeat of the
+   doubled-prefix audit script periodically as new routers get added, since it's cheap and found
+   a real, severe bug this pass. Same method as every router above: background-agent delegation
+   for the large ones (volunteer_hours/community_service-sized, 1000+ lines), direct work for
+   small/medium ones, always verify independently before trusting a handback report, always
+   `git add` only your own files in this shared working directory.
+2. Frontend Phase 2/3 (the ~210 untested frontend pages) and the mobile app (confirmed to exist
+   at `/home/user/eduApp/mobile` — a fairly complete Expo/React Native app with its own Jest/
+   Detox test setup, but no `node_modules` installed in this container and `npm install` for a
+   project this size would be a substantial, slow bootstrap step) remain the two largest
+   not-yet-started bodies of work whenever the backend route audit above is judged far enough
+   along to switch focus.
+3. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+   guaranteed to be running at the start of a session/iteration -- both needed a manual
+   `service mysql start` / `service redis-server start` at the top of this pass before any test
+   could connect. Check `service mysql status` first if tests fail with "Connection refused"
+   before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
+   fresh MySQL start, since a prior container's schema-created sentinel can be stale.
