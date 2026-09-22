@@ -1,5 +1,5 @@
 import pytest
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -59,8 +59,7 @@ class TestAttendanceAPI:
                 "section_id": section.id,
                 "subject_id": subject.id,
                 "date": str(date.today()),
-                "period": 1,
-                "attendance_records": [
+                "attendances": [
                     {
                         "student_id": student.id,
                         "status": "present",
@@ -71,7 +70,7 @@ class TestAttendanceAPI:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["total_marked"] > 0
+        assert data["total"] > 0
 
     def test_get_attendance_list(
         self,
@@ -121,13 +120,14 @@ class TestAttendanceAPI:
         institution,
     ):
         """Test getting student attendance statistics."""
+        start = date.today() - timedelta(days=4)
         for i in range(5):
             attendance = Attendance(
                 institution_id=institution.id,
                 student_id=student.id,
                 subject_id=subject.id,
                 section_id=section.id,
-                date=date.today(),
+                date=start + timedelta(days=i),
                 status=AttendanceStatus.PRESENT if i < 4 else AttendanceStatus.ABSENT,
             )
             db_session.add(attendance)
@@ -137,7 +137,7 @@ class TestAttendanceAPI:
             f"/api/v1/attendance/reports/student/{student.id}/stats",
             headers=auth_headers,
             params={
-                "start_date": str(date.today()),
+                "start_date": str(start),
                 "end_date": str(date.today()),
             },
         )
@@ -157,13 +157,14 @@ class TestAttendanceAPI:
         institution,
     ):
         """Test getting attendance defaulters."""
+        start = date.today() - timedelta(days=9)
         for i in range(10):
             attendance = Attendance(
                 institution_id=institution.id,
                 student_id=student.id,
                 subject_id=subject.id,
                 section_id=section.id,
-                date=date.today(),
+                date=start + timedelta(days=i),
                 status=AttendanceStatus.ABSENT if i < 6 else AttendanceStatus.PRESENT,
             )
             db_session.add(attendance)
@@ -173,7 +174,7 @@ class TestAttendanceAPI:
             "/api/v1/attendance/reports/defaulters",
             headers=auth_headers,
             params={
-                "start_date": str(date.today()),
+                "start_date": str(start),
                 "end_date": str(date.today()),
                 "threshold_percentage": 75.0,
             },

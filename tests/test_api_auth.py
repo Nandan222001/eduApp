@@ -96,9 +96,17 @@ class TestAuthAPI:
         assert "refresh_token" in data
 
     def test_protected_route_without_token(self, client: TestClient):
-        """Test accessing protected route without token."""
-        response = client.get("/api/v1/users/me")
-        assert response.status_code == 401
+        """Test accessing protected route without token.
+
+        /api/v1/users/me isn't a real route -- users.py only has
+        GET /{user_id}, so "me" was being parsed as the int path param and
+        422ing before auth even ran. /api/v1/auth/me is the real
+        current-user endpoint. HTTPBearer(auto_error=True) 403s when the
+        Authorization header is missing entirely (401 is for a
+        present-but-invalid/expired token) -- see src/dependencies/auth.py.
+        """
+        response = client.get("/api/v1/auth/me")
+        assert response.status_code == 403
 
     def test_protected_route_with_valid_token(
         self,
@@ -106,8 +114,8 @@ class TestAuthAPI:
         auth_headers: dict,
     ):
         """Test accessing protected route with valid token."""
-        response = client.get("/api/v1/users/me", headers=auth_headers)
-        assert response.status_code in [200, 404]  # May not have /me endpoint
+        response = client.get("/api/v1/auth/me", headers=auth_headers)
+        assert response.status_code == 200
 
     def test_logout(
         self,

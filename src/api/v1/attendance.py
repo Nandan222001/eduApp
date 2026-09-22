@@ -84,7 +84,7 @@ async def list_attendances(
         limit=limit
     )
     return {
-        "items": attendances,
+        "items": [AttendanceResponse.model_validate(a) for a in attendances],
         "total": total,
         "skip": skip,
         "limit": limit,

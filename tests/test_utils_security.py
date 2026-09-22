@@ -77,7 +77,7 @@ class TestTokenGeneration:
         payload = decode_token(token)
 
         assert payload is not None
-        assert payload["sub"] == 1
+        assert payload["sub"] == "1"
         assert payload["email"] == "test@example.com"
         assert payload["type"] == "access"
 
@@ -88,7 +88,7 @@ class TestTokenGeneration:
         payload = decode_token(token)
 
         assert payload is not None
-        assert payload["sub"] == 1
+        assert payload["sub"] == "1"
         assert payload["email"] == "test@example.com"
         assert payload["type"] == "refresh"
 
@@ -136,7 +136,7 @@ class TestTokenGeneration:
         payload = decode_token(token)
 
         assert payload is not None
-        assert payload["sub"] == 1
+        assert payload["sub"] == "1"
         assert payload["email"] == "test@example.com"
         assert payload["institution_id"] == 5
         assert payload["role_id"] == 2
