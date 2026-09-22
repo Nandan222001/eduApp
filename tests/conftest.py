@@ -95,16 +95,9 @@ def institution(db_session: Session) -> Institution:
     """Create a test institution."""
     institution = Institution(
         name="Test School",
-        short_name="TS",
-        code="TEST001",
-        email="admin@testschool.com",
+        slug="test-school",
         phone="+1234567890",
-        address="123 Test Street",
-        city="Test City",
-        state="Test State",
-        country="Test Country",
-        postal_code="12345",
-        website="https://testschool.com",
+        address="123 Test Street, Test City, Test State, Test Country 12345",
         is_active=True,
     )
     db_session.add(institution)

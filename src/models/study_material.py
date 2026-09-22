@@ -71,7 +71,8 @@ class StudyMaterial(Base):
         Index('idx_study_material_active', 'is_active'),
         Index('idx_study_material_public', 'is_public'),
         Index('idx_study_material_created', 'created_at'),
-        Index('idx_study_material_tags', 'tags'),
+        # No index on tags -- MySQL can't index a JSON column directly, only
+        # via a generated column on a specific path.
     )
 
 

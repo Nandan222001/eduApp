@@ -94,8 +94,8 @@ class DoubtPost(Base):
         Index('idx_doubt_post_priority_score', 'priority_score'),
         Index('idx_doubt_post_assigned_teacher', 'assigned_teacher_id'),
         Index('idx_doubt_post_created', 'created_at'),
-        Index('idx_doubt_post_tags', 'tags'),
-        Index('idx_doubt_post_auto_tags', 'auto_generated_tags'),
+        # No index on tags/auto_generated_tags -- MySQL can't index a JSON
+        # column directly, only via a generated column on a specific path.
     )
 
 
