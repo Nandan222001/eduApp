@@ -79,7 +79,7 @@ async def list_students(
         gender=gender
     )
     return {
-        "items": students,
+        "items": [StudentResponse.model_validate(s) for s in students],
         "total": total,
         "skip": skip,
         "limit": limit,

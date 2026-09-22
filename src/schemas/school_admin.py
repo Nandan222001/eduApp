@@ -363,6 +363,10 @@ class EnquiryRecordUpdate(BaseModel):
     follow_up_date: date | None = None
 
 
+class EnquiryStatusUpdate(BaseModel):
+    new_status: str
+
+
 class EnquiryRecordResponse(EnquiryRecordBase):
     model_config = ConfigDict(from_attributes=True)
 

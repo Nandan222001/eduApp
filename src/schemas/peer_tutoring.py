@@ -264,6 +264,10 @@ class SessionModerationLogCreate(SessionModerationLogBase):
     session_id: int
 
 
+class SessionModerationLogResolve(BaseModel):
+    resolution_notes: str
+
+
 class SessionModerationLogResponse(SessionModerationLogBase):
     id: int
     institution_id: int

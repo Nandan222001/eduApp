@@ -17,7 +17,7 @@ from src.schemas.finance_education import (
     ModuleCompletionCreate, ModuleCompletionUpdate, ModuleCompletionResponse,
     VirtualWalletCreate, VirtualWalletUpdate, VirtualWalletResponse,
     WalletTransactionCreate, WalletTransactionResponse,
-    InvestmentHoldingCreate, InvestmentHoldingUpdate, InvestmentHoldingResponse,
+    InvestmentHoldingCreate, InvestmentHoldingUpdate, InvestmentHoldingResponse, InvestmentPriceUpdate,
     FinanceChallengeCreate, FinanceChallengeUpdate, FinanceChallengeResponse,
     ChallengeParticipationCreate, ChallengeParticipationUpdate, ChallengeParticipationResponse,
     FinancialLiteracyAssessmentCreate, FinancialLiteracyAssessmentResponse,
@@ -413,13 +413,14 @@ def get_portfolio_performance(
 @router.put("/investments/{holding_id}/update-price", response_model=InvestmentHoldingResponse)
 def update_investment_price(
     holding_id: int,
-    new_price: Decimal,
+    payload: InvestmentPriceUpdate,
     db: Session = Depends(get_db)
 ):
     holding = db.query(InvestmentHolding).filter(InvestmentHolding.id == holding_id).first()
     if not holding:
         raise HTTPException(status_code=404, detail="Investment holding not found")
-    
+
+    new_price = payload.new_price
     holding.current_price = new_price
     holding.total_value = holding.quantity * new_price
     holding.gain_loss = holding.total_value - (holding.quantity * holding.purchase_price)

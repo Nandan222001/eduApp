@@ -14,6 +14,7 @@ from src.schemas.school_admin import (
     EnquiryRecordCreate,
     EnquiryRecordResponse,
     EnquiryRecordUpdate,
+    EnquiryStatusUpdate,
     EnquiryStatistics,
     GenerateBulkIDCardsRequest,
     IssueCertificateRequest,
@@ -677,7 +678,7 @@ async def delete_enquiry(
 @router.put("/enquiries/{id}/status", response_model=EnquiryRecordResponse)
 async def update_enquiry_status(
     id: int,
-    new_status: str,
+    payload: EnquiryStatusUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -696,7 +697,7 @@ async def update_enquiry_status(
             detail="Not authorized to update this enquiry"
         )
 
-    updated_enquiry = service.update_enquiry_status(id, new_status)
+    updated_enquiry = service.update_enquiry_status(id, payload.new_status)
     return updated_enquiry
 
 

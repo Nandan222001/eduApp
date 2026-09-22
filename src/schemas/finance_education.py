@@ -163,6 +163,10 @@ class InvestmentHoldingUpdate(BaseModel):
     current_price: Optional[Decimal] = None
 
 
+class InvestmentPriceUpdate(BaseModel):
+    new_price: Decimal
+
+
 class InvestmentHoldingResponse(InvestmentHoldingBase):
     id: int
     institution_id: int

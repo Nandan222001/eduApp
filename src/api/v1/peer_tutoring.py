@@ -12,7 +12,7 @@ from src.schemas.peer_tutoring import (
     TutorReviewCreate, TutorReviewResponse,
     TutorEndorsementCreate, TutorEndorsementResponse,
     TutorBadgeResponse, TutorIncentiveResponse, TutorPointHistoryResponse,
-    SessionModerationLogCreate, SessionModerationLogResponse,
+    SessionModerationLogCreate, SessionModerationLogResponse, SessionModerationLogResolve,
     TutorLeaderboardResponse, LeaderboardListResponse, LeaderboardEntryResponse,
     MatchingPreferenceCreate, MatchingPreferenceUpdate, MatchingPreferenceResponse,
     TutorMatchRequest, TutorMatchResponse, TutorStatsResponse,
@@ -405,16 +405,16 @@ def list_moderation_logs(
 @router.put("/moderation/{log_id}/resolve", response_model=SessionModerationLogResponse)
 def resolve_moderation_log(
     log_id: int,
-    resolution_notes: str,
+    payload: SessionModerationLogResolve,
     db: Session = Depends(get_db)
 ):
     log = db.query(SessionModerationLog).filter(SessionModerationLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Moderation log not found")
-    
+
     log.resolved = True
     log.resolved_at = datetime.utcnow()
-    log.resolution_notes = resolution_notes
+    log.resolution_notes = payload.resolution_notes
     
     db.commit()
     db.refresh(log)
