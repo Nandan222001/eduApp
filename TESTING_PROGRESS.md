@@ -896,14 +896,61 @@ Verified individually green with `-n0` and then together with `-n auto`: 175 pas
 `test_services_assignment.py`, `test_api_assignments.py`, `test_parents_api.py`,
 `test_mobile_api_integration.py`.
 
+## Backend fixes, ninth pass — commits pending (attendance marking was completely broken; now fully green)
+Baseline before this pass: full uncapped run was 702 passed / 119 failed / 20 errors / 11 skipped
+(up from 625/195/21/11 -- the eighth pass's auth/routing/ownership fixes kept paying off broadly).
+
+56. **CRITICAL, real production bug, core feature completely broken** --
+    `attendance_repository.py`'s `get_student_attendance_stats` (and 3 near-identical sibling
+    methods: `get_section_attendance_report`, `get_defaulters`, one more percentage calculation)
+    computed `present_count = (result.present_days or 0) + (result.late_days or 0) * 0.5 + ...`.
+    MySQL's `SUM(CASE ...)` comes back through pymysql as a `decimal.Decimal`, and Python
+    refuses to mix `Decimal` with a bare float literal (`0.5`): `TypeError: unsupported operand
+    type(s) for +: 'decimal.Decimal' and 'float'`. **`AttendanceService.create_attendance` calls
+    this on every single call (via `_update_summary`/`_recalculate_summary`), so marking
+    attendance for even one student -- arguably this app's single most core, highest-frequency
+    action -- has apparently never worked.** Fixed all 4 call sites by converting each aggregate
+    to `float(...)` before doing the arithmetic. `tests/unit/test_attendance_service.py` went
+    from 17/39 to 39/39 the instant this landed -- 22 of its failures were this one root cause.
+57. `tests/test_services_attendance.py` (1/4 → 4/4): `test_calculate_attendance_percentage` and
+    `test_get_defaulters` both looped 10x constructing `Attendance` rows for the same student
+    with the same hardcoded `date.today()` every iteration -- immediately violates the real
+    `uq_student_date_subject_attendance` unique constraint (a student can only have one
+    attendance record per subject per day, which is correct real-world behavior) on the 2nd
+    insert. Varied the date per iteration (`date.today() - timedelta(days=i)`) and widened the
+    query's date range to match, matching what the tests were actually trying to simulate ("10
+    days of history"). `test_bulk_mark_attendance` used a schema field name that doesn't exist
+    (`attendance_records`, real field is `attendances`) and asserted on response keys that don't
+    exist either (`total_marked`/`successful`, real keys are `total`/`success`) -- fixed both.
+    Also passed a hardcoded `marked_by_id=1` with no real `User` behind it, silently violating
+    the FK constraint on `Attendance.marked_by_id` (caught internally by the service's own
+    try/except per-item, so it silently counted as a failure rather than raising) -- used the
+    real `admin_user` fixture's id instead.
+58. `tests/unit/test_subscription_service.py::TestSuspendSubscription` (2 failures): same
+    `.days`-floor-across-a-DB-round-trip class of bug fixed repeatedly in earlier passes,
+    appearing again in two more tests in this file that weren't touched before. Same fix
+    (compare `.date()` instead of exact timestamps).
+
+Verified individually green with `-n0` and then together with `-n auto`: 125 passed, 0 failed,
+across `test_attendance_service.py`, `test_services_attendance.py`, `test_subscription_service.py`,
+`test_teachers_api.py` (re-verified as a spot-check, untouched this pass).
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the eighth-pass changes above (#45-55) if not already done, and confirm the
+1. Commit + push the ninth-pass changes above (#56-58) if not already done, and confirm the
    push succeeded (`git log --oneline -1`, `git status`).
 2. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
    schema-lock sentinels first, per the commands earlier in this file):
    `mysql -u root -ptest_password -e "DROP DATABASE IF EXISTS test_db; CREATE DATABASE test_db CHARACTER SET utf8mb4;"`
    `rm -f /tmp/eduapp_schema.lock /tmp/eduapp_schema.done`
    `cd /home/user/eduApp && python3 -m pytest --no-cov -p no:cacheprovider -q -n auto --maxfail=1000 2>&1 | tail -100`
+   Compare against the 702/119/20/11 baseline noted at the top of the ninth pass above. Remaining
+   known clusters to work through next (from the eighth-pass full-run tail, not yet triaged):
+   `test_auth_service.py` (TestLogout x3, TestTokenSecurity, TestEdgeCases), `test_users.py` (3
+   failures, one with a `KeyError: 'id'`), `test_auth_api.py` (register/refresh-token tests),
+   `test_error_handling.py` (403/500 handling tests), `test_api_schema.py` (schema-completeness
+   tests), `test_models.py::test_assignment_model`, `test_ml_api.py` (several). The
+   `migration/`, `benchmark/`, and `test_performance_benchmarks.py` failures are lower priority
+   (heavier standalone infra requirements, already noted in earlier passes).
    Compare against the 625/195/21/11 baseline noted at the top of the eighth pass above.
    Note: `-n auto` can show flaky/unrelated failures on files not touched this session
    (e.g. test_auth.py's separate SQLite setup racing MySQL-based workers under parallel

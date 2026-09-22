@@ -159,8 +159,10 @@ class AttendanceRepository:
         result = query.first()
         
         if result and result.total_days:
-            present_count = (result.present_days or 0) + (result.late_days or 0) * 0.5 + (result.half_days or 0) * 0.5
-            percentage = (present_count / result.total_days) * 100
+            # MySQL's SUM(CASE ...) comes back as Decimal, which can't be
+            # mixed with a float literal directly.
+            present_count = float(result.present_days or 0) + float(result.late_days or 0) * 0.5 + float(result.half_days or 0) * 0.5
+            percentage = (present_count / float(result.total_days)) * 100
         else:
             percentage = 0.0
         
@@ -213,8 +215,8 @@ class AttendanceRepository:
         report_data = []
         for row in results:
             if row.total_days:
-                present_count = (row.present_days or 0) + (row.late_days or 0) * 0.5 + (row.half_days or 0) * 0.5
-                percentage = (present_count / row.total_days) * 100
+                present_count = float(row.present_days or 0) + float(row.late_days or 0) * 0.5 + float(row.half_days or 0) * 0.5
+                percentage = (present_count / float(row.total_days)) * 100
             else:
                 percentage = 0.0
             
@@ -281,8 +283,8 @@ class AttendanceRepository:
         defaulters = []
         for row in results:
             if row.total_days:
-                present_count = (row.present_days or 0) + (row.late_days or 0) * 0.5 + (row.half_days or 0) * 0.5
-                percentage = (present_count / row.total_days) * 100
+                present_count = float(row.present_days or 0) + float(row.late_days or 0) * 0.5 + float(row.half_days or 0) * 0.5
+                percentage = (present_count / float(row.total_days)) * 100
                 
                 if percentage < threshold_percentage:
                     defaulters.append({
@@ -331,8 +333,8 @@ class AttendanceRepository:
         stats = []
         for row in results:
             if row.total_days:
-                present_count = (row.present_days or 0) + (row.late_days or 0) * 0.5 + (row.half_days or 0) * 0.5
-                percentage = (present_count / row.total_days) * 100
+                present_count = float(row.present_days or 0) + float(row.late_days or 0) * 0.5 + float(row.half_days or 0) * 0.5
+                percentage = (present_count / float(row.total_days)) * 100
             else:
                 percentage = 0.0
             
