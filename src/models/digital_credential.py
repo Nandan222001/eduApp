@@ -52,7 +52,11 @@ class DigitalCredential(Base):
     blockchain_credential_id = Column(String(100), nullable=True, index=True)
     blockchain_status = Column(String(20), nullable=True)
     verification_url = Column(String(500), nullable=True)
-    qr_code_url = Column(String(500), nullable=True)
+    # qr_code_url holds a base64 data-URI PNG (see credential_service.py's
+    # _generate_qr_code), not a short URL -- can be several KB, so Text not
+    # String(500). Found via a real /credentials/ POST hitting MySQL's
+    # "Data too long" error while writing test_credentials_api.py.
+    qr_code_url = Column(Text, nullable=True)
 
     issued_at = Column(DateTime, nullable=True)
     expires_at = Column(DateTime, nullable=True)
