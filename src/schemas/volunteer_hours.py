@@ -46,7 +46,11 @@ class VolunteerHourLogResponse(VolunteerHourLogBase):
     verification_notes: Optional[str]
     verified_at: Optional[datetime]
     verified_by: Optional[int]
-    metadata: Optional[Dict[str, Any]]
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # declarative model instances for its own MetaData object), so reading
+    # this field via from_attributes must pull from `metadata_json` while
+    # still round-tripping over the wire as `metadata`.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     parent_name: Optional[str] = None
@@ -191,7 +195,8 @@ class ParentVolunteerBadgeResponse(BaseModel):
     academic_year_id: int
     earned_at: datetime
     hours_at_earning: Decimal
-    metadata: Optional[Dict[str, Any]]
+    # See VolunteerHourLogResponse.metadata for why this needs an alias.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     badge_name: Optional[str] = None
     badge_tier: Optional[str] = None
@@ -246,7 +251,8 @@ class VolunteerCertificateResponse(VolunteerCertificateBase):
     certificate_url: Optional[str]
     pdf_path: Optional[str]
     signed_by: Optional[int]
-    metadata: Optional[Dict[str, Any]]
+    # See VolunteerHourLogResponse.metadata for why this needs an alias.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     parent_name: Optional[str] = None

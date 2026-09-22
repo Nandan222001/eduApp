@@ -427,8 +427,18 @@ async def verify_volunteer_hour_log(
     update_hour_summary(db, log.parent_id, log.academic_year_id, current_user.institution_id)
     check_and_award_badges(db, log.parent_id, log.academic_year_id, current_user.institution_id)
     update_leaderboard(db, log.academic_year_id, current_user.institution_id)
-    
-    return VolunteerHourLogResponse.model_validate(log)
+
+    response = VolunteerHourLogResponse.model_validate(log)
+    parent = db.query(Parent).filter(Parent.id == log.parent_id).first()
+    if parent:
+        response.parent_name = f"{parent.first_name} {parent.last_name}"
+    response.verifier_name = f"{teacher.first_name} {teacher.last_name}"
+    if log.supervisor_teacher_id:
+        supervisor = db.query(Teacher).filter(Teacher.id == log.supervisor_teacher_id).first()
+        if supervisor:
+            response.supervisor_name = f"{supervisor.first_name} {supervisor.last_name}"
+
+    return response
 
 
 @router.post("/logs/verify-bulk", status_code=status.HTTP_200_OK)
