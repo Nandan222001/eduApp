@@ -15,6 +15,7 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
 import boto3
 from moto import mock_aws
+from fakeredis import FakeAsyncRedis
 
 from src.database import Base, get_db
 from src.main import app
@@ -101,19 +102,19 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         finally:
             pass
 
-    async def mock_get_redis():
-        mock_redis = AsyncMock()
-        mock_redis.get.return_value = None
-        mock_redis.set.return_value = True
-        mock_redis.delete.return_value = True
-        mock_redis.exists.return_value = False
-        mock_redis.expire.return_value = True
-        mock_redis.ttl.return_value = 3600
-        mock_redis.keys.return_value = []
-        return mock_redis
+    # A plain AsyncMock with fixed return values (exists()->False, get()->None,
+    # ...) can't support flows that need real state across calls within one
+    # test -- e.g. login stores a refresh token then a follow-up /auth/refresh
+    # call checks it exists. FakeAsyncRedis is a real in-memory implementation
+    # of the redis.asyncio.Redis interface, so SET/GET/EXISTS/DELETE/EXPIRE
+    # etc. behave like actual Redis would.
+    fake_redis = FakeAsyncRedis()
+
+    async def override_get_redis():
+        return fake_redis
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_redis] = mock_get_redis
+    app.dependency_overrides[get_redis] = override_get_redis
 
     with TestClient(app) as test_client:
         yield test_client
@@ -389,17 +390,20 @@ def subscription(db_session: Session, institution: Institution) -> Subscription:
 
 
 @pytest.fixture
-def auth_headers(admin_user: User) -> dict:
-    """Create authentication headers for testing."""
-    from src.utils.security import create_access_token
-    token = create_access_token(
-        data={
-            "sub": admin_user.id,
-            "institution_id": admin_user.institution_id,
-            "role_id": admin_user.role_id,
-            "email": admin_user.email,
-        }
+def auth_headers(client: TestClient, admin_user: User) -> dict:
+    """Create authentication headers for testing.
+
+    Logs in for real through the API (rather than just minting a JWT with
+    create_access_token) so a matching session actually exists in the
+    client fixture's fake Redis -- get_current_user requires both a valid
+    JWT AND an active session (SessionManager.get_session), by design, so
+    a hand-crafted token alone gets a 401 from every protected endpoint.
+    """
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": admin_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 

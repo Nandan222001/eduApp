@@ -370,7 +370,7 @@ class SubmissionService:
 
         marks = grade_data.marks_obtained
         if submission.is_late and assignment.late_penalty_percentage:
-            penalty = (assignment.late_penalty_percentage / 100) * marks
+            penalty = (assignment.late_penalty_percentage / 100) * float(marks)
             marks = marks - Decimal(str(penalty))
             marks = max(marks, Decimal("0"))
 
