@@ -51,7 +51,7 @@ class UserBadgeResponse(BaseModel):
     badge_id: int
     earned_at: datetime
     points_awarded: int
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     badge: BadgeResponse
     created_at: datetime
 
@@ -91,7 +91,7 @@ class PointHistoryResponse(BaseModel):
     description: Optional[str] = None
     reference_id: Optional[int] = None
     reference_type: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -182,7 +182,7 @@ class UserAchievementResponse(BaseModel):
     is_completed: bool
     completed_at: Optional[datetime] = None
     times_completed: int
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     achievement: AchievementResponse
     created_at: datetime
     updated_at: datetime
@@ -250,7 +250,7 @@ class LeaderboardEntryDBResponse(BaseModel):
     rank: int
     score: int
     previous_rank: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -269,7 +269,7 @@ class StreakTrackerResponse(BaseModel):
     current_streak: int
     longest_streak: int
     last_activity_date: Optional[datetime] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
