@@ -935,24 +935,52 @@ Verified individually green with `-n0` and then together with `-n auto`: 125 pas
 across `test_attendance_service.py`, `test_services_attendance.py`, `test_subscription_service.py`,
 `test_teachers_api.py` (re-verified as a spot-check, untouched this pass).
 
+## Backend fixes, tenth pass — commits pending (test_auth_service.py, test_users.py fully green)
+59. `tests/unit/test_auth_service.py` (55/61 → 61/61): 4 tests asserted `payload["sub"] ==
+    admin_user.id` / `isinstance(payload["sub"], int)` -- stale expectations from before the
+    critical JWT `sub`-must-be-a-string fix (see the flagged section at the top of this file);
+    updated to expect a string, matching the intentional, correct behavior. One test
+    (`test_reset_password_nonexistent_user`) hardcoded `institution_id=1, role_id=1` with no
+    real rows behind them -- FK violation; used the real `institution`/`admin_role` fixtures.
+60. **Real (minor) bug**: `test_tokens_are_unique` expected 5 back-to-back `create_access_token`
+    calls for the same user to produce 5 distinct tokens ("due to different exp times" per the
+    test's own comment) -- but `exp` has only second-level resolution, so any calls landing in
+    the same wall-clock second produced byte-identical tokens. Since sessions are looked up by
+    the literal token string (`SessionManager.get_session(user_id, token)`), two genuinely
+    separate login events within the same second would collide on the same Redis session key.
+    Added a `jti` (JWT ID, a `uuid4`) claim to both `create_access_token` and
+    `create_refresh_token` -- the standard RFC 7519 mechanism for exactly this, and cheap/
+    inert for every other consumer of these tokens.
+61. `tests/test_users.py` (0/3 → 3/3): all 3 tests called `POST /users/`/`GET /users/{id}`
+    (both permission-gated via `require_permissions`) with **no auth headers and no
+    `institution_id`/`role_id` in the request body** (both required by `UserCreate`) -- this
+    file predates the RBAC/permission system entirely. Rewrote with a `superuser_auth_headers`
+    fixture (a superuser bypasses `PermissionChecker` entirely, simpler than wiring up real
+    `Permission` rows for a 3-test file) and the required body fields.
+
+Verified individually green with `-n0` and then together with `-n auto`: 188 passed / 2 failed
+(the two design-decision items flagged in the eighth pass, unchanged) / 1 xdist-only flake in
+`test_auth.py` (re-verified standalone: 8/8, matches the documented SQLite-vs-MySQL-worker race
+noted earlier in this file) across `test_auth_service.py`, `test_users.py`, `test_auth.py`,
+`test_students_api.py`, `test_teachers_api.py`, `test_security.py`, `test_parents_api.py`.
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the ninth-pass changes above (#56-58) if not already done, and confirm the
+1. Commit + push the tenth-pass changes above (#59-61) if not already done, and confirm the
    push succeeded (`git log --oneline -1`, `git status`).
 2. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
    schema-lock sentinels first, per the commands earlier in this file):
    `mysql -u root -ptest_password -e "DROP DATABASE IF EXISTS test_db; CREATE DATABASE test_db CHARACTER SET utf8mb4;"`
    `rm -f /tmp/eduapp_schema.lock /tmp/eduapp_schema.done`
    `cd /home/user/eduApp && python3 -m pytest --no-cov -p no:cacheprovider -q -n auto --maxfail=1000 2>&1 | tail -100`
-   Compare against the 702/119/20/11 baseline noted at the top of the ninth pass above. Remaining
-   known clusters to work through next (from the eighth-pass full-run tail, not yet triaged):
-   `test_auth_service.py` (TestLogout x3, TestTokenSecurity, TestEdgeCases), `test_users.py` (3
-   failures, one with a `KeyError: 'id'`), `test_auth_api.py` (register/refresh-token tests),
-   `test_error_handling.py` (403/500 handling tests), `test_api_schema.py` (schema-completeness
-   tests), `test_models.py::test_assignment_model`, `test_ml_api.py` (several). The
-   `migration/`, `benchmark/`, and `test_performance_benchmarks.py` failures are lower priority
-   (heavier standalone infra requirements, already noted in earlier passes).
-   Compare against the 625/195/21/11 baseline noted at the top of the eighth pass above.
-   Note: `-n auto` can show flaky/unrelated failures on files not touched this session
+   Compare against the 702/119/20/11 baseline noted at the top of the ninth pass above (the
+   tenth pass fixed `test_auth_service.py` and `test_users.py` fully, which should also help
+   `test_auth_api.py` and anything else touching JWT `sub`-type assertions). Remaining known
+   clusters to work through next (from the ninth-pass full-run tail, not yet triaged):
+   `test_auth_api.py` (register/refresh-token tests), `test_error_handling.py` (403/500 handling
+   tests), `test_api_schema.py` (schema-completeness tests), `test_models.py::test_assignment_model`,
+   `test_ml_api.py` (several). The `migration/`, `benchmark/`, and `test_performance_benchmarks.py`
+   failures are lower priority (heavier standalone infra requirements, already noted in earlier
+   passes). Note: `-n auto` can show flaky/unrelated failures on files not touched this session
    (e.g. test_auth.py's separate SQLite setup racing MySQL-based workers under parallel
    execution) -- always re-verify red results standalone with `-n0` before trusting them.
 4. Pick the next individual failing test FILE (not scattershot individual tests) and drive it

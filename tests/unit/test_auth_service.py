@@ -394,7 +394,7 @@ class TestTokenOperations:
         # Decode and verify
         payload = decode_token(token)
         assert payload is not None
-        assert payload["sub"] == admin_user.id
+        assert payload["sub"] == str(admin_user.id)  # sub is always encoded as a string per RFC 7519
         assert payload["email"] == admin_user.email
         assert payload["type"] == "access"
 
@@ -435,7 +435,7 @@ class TestTokenOperations:
         
         payload = decode_token(token)
         assert payload is not None
-        assert payload["sub"] == admin_user.id
+        assert payload["sub"] == str(admin_user.id)  # sub is always encoded as a string per RFC 7519
         assert payload["type"] == "refresh"
 
     def test_verify_valid_token(self, admin_user: User):
@@ -449,7 +449,7 @@ class TestTokenOperations:
         payload = decode_token(token)
         
         assert payload is not None
-        assert payload["sub"] == admin_user.id
+        assert payload["sub"] == str(admin_user.id)  # sub is always encoded as a string per RFC 7519
         assert payload["email"] == admin_user.email
 
     def test_verify_expired_token(self, admin_user: User):
@@ -838,7 +838,7 @@ class TestResetPassword:
 
     @pytest.mark.asyncio
     async def test_reset_password_nonexistent_user(
-        self, db_session: Session, mock_session_manager
+        self, db_session: Session, mock_session_manager, institution: Institution, admin_role: Role
     ):
         """Test password reset fails for non-existent user"""
         # Create a reset token for a user that will be deleted
@@ -847,8 +847,8 @@ class TestResetPassword:
             username="temp",
             email="temp@test.com",
             hashed_password=get_password_hash("temp"),
-            institution_id=1,
-            role_id=1,
+            institution_id=institution.id,
+            role_id=admin_role.id,
         )
         db_session.add(temp_user)
         db_session.commit()
@@ -1157,8 +1157,10 @@ class TestEdgeCases:
         
         token = create_access_token(token_data)
         payload = decode_token(token)
-        
-        assert isinstance(payload["sub"], int)
+
+        # sub is always coerced to a string on encode (python-jose/RFC 7519
+        # require it); every other claim keeps its original type.
+        assert isinstance(payload["sub"], str)
         assert isinstance(payload["email"], str)
         assert isinstance(payload["is_superuser"], bool)
         assert isinstance(payload["institution_id"], int)

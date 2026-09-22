@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+import uuid
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from src.config import settings
@@ -30,7 +31,7 @@ def create_access_token(
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
 
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire, "type": "access", "jti": str(uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
@@ -47,7 +48,7 @@ def create_refresh_token(
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
 
-    to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.update({"exp": expire, "type": "refresh", "jti": str(uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
