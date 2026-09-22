@@ -4,6 +4,18 @@ Tracks the ongoing task: "unit test all components, frontend to backend, fix any
 This file is the single source of truth across loop iterations/sessions — always read it first,
 update it before stopping, and commit+push every iteration so work is never lost.
 
+## ⚠️ CRITICAL FINDING, FIXED — flag this to the user, don't just bury it in the log
+Commit 54433b3: `create_access_token`/`create_refresh_token` (`src/utils/security.py`) encoded
+the JWT `sub` claim as a raw Python `int` (`user.id`), but `python-jose`'s `jwt.decode` requires
+`sub` to be a string per RFC 7519 and raises `JWTClaimsError` otherwise. `decode_token` swallows
+that into a silent `None`. **This meant `get_current_user` — the auth dependency behind nearly
+every protected API endpoint — would reject every real, validly-issued token, and refresh
+tokens could never be redeemed.** This was not a test-only bug; it looks like it would break
+real login/session behavior for actual users in any deployed instance of this backend before
+this fix. Already fixed and pushed, but this is exactly the kind of thing to surface to a human
+explicitly rather than just noting in a commit message, in case it needs backporting somewhere
+this branch hasn't reached yet, or explains a previously-reported "can't stay logged in" issue.
+
 ## Environment (set up once, iteration 1)
 - MySQL 8 installed locally via apt, running as a system service (`service mysql start`).
   root password: `test_password` (matches `tests/conftest.py`), db `test_db` created.
