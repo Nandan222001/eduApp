@@ -98,8 +98,14 @@ httpcore==1.0.9
     # via httpx
 httptools==0.7.1
     # via uvicorn
-httpx==0.28.1
-    # via openai
+httpx==0.27.2
+    # via
+    #   fastapi-app (pyproject.toml)
+    #   openai
+    # pinned below 0.28 deliberately: httpx 0.28 removed the app= shortcut
+    # from Client.__init__, which starlette 0.36.x's TestClient still relies
+    # on (TypeError: Client.__init__() got an unexpected keyword argument
+    # 'app'). openai only requires httpx<1,>=0.23.0 so this stays compatible.
 huggingface-hub==0.36.2
     # via
     #   sentence-transformers
