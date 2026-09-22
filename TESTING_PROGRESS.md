@@ -1873,3 +1873,24 @@ since pass fourteen**:
    could connect. Check `service mysql status` first if tests fail with "Connection refused"
    before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
    fresh MySQL start, since a prior container's schema-created sentinel can be stale.
+
+## Backend fixes, twenty-first pass — commit 7907cf6 so far (in progress; two background agents
+still running for `wellbeing` and `finance_education` at time of writing)
+109. **`gamification`** (commit `7907cf6`, written directly) — `tests/integration/test_gamification_api.py`,
+    8 tests covering badge create/get/list/update, award-badge + user badges, points
+    add/history/user-points, leaderboard + user stats + showcase, achievement create/list,
+    streak tracking + daily login, and leaderboard (DB) create/list/get-with-entries. Found the
+    metadata/metadata_json reserved-name bug in 5 response schemas at once
+    (`UserBadgeResponse`, `PointHistoryResponse`, `UserAchievementResponse`,
+    `LeaderboardEntryDBResponse`, `StreakTrackerResponse`) — same bug class as `volunteer_hours`/
+    `community_service` above, fixed with the same alias pattern.
+
+Two more background agents were dispatched and are still running at time of writing:
+`wellbeing` (1113 lines, its doubled-prefix bug already fixed as part of pass twenty's `exams`
+work — this agent is giving it real test coverage for the first time) and `finance_education`
+(817 lines). Both were also asked to check for the doubled-router-prefix bug pattern as a
+cheap, high-value side check. **Next resume point**: if their commits aren't in `git log` yet,
+check whether they're still running (`ListAgents`) before assuming they were interrupted; verify
+each independently (collect-only + run its test file) before trusting its handback report, then
+continue the same router-inventory-audit method from pass twenty's opening paragraph to pick the
+next targets from the ~44 still-untested routers.
