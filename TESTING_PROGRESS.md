@@ -1642,10 +1642,10 @@ found and fixed across all of them combined. Still untested: `journalism`, `lear
 `yearbook`, `super_admin_reports` — all 4 are large (802-1218 lines each), good candidates for
 background-agent delegation same as `virtual_classrooms`/`parent_teacher_collab` were.
 
-## Backend fixes, nineteenth pass — commits 5d57e10, f1b4469, 42b4daa so far (in progress;
-`yearbook`, the last of the 10 newly-mounted routers, still being written by a background agent
-at time of writing)
-Continuing the same Phase-2 priority, again split across direct work and a background agent:
+## Backend fixes, nineteenth pass — commits 5d57e10, f1b4469, 42b4daa, 226f590, 7a5a6ea (final
+pass of the 10-router Phase-2 priority: journalism, learning_styles, super_admin_reports,
+yearbook all given real coverage, plus the long-flagged analytics_service.py join bug fixed)
+Continuing the same Phase-2 priority, again split across direct work and background agents:
 
 101. **`journalism`** (commit `5d57e10`, written directly) — `tests/integration/test_journalism_api.py`,
     11 tests covering newspaper edition CRUD (incl. duplicate edition-number rejection and
@@ -1677,32 +1677,89 @@ Continuing the same Phase-2 priority, again split across direct work and a backg
     and archival-job create/list/get/storage-stats. **Came back clean — no bugs found**, the
     third of the 10 routers to pass on the first run (after `merchandise`, `journalism`).
 
-**Running tally so far this pass**: 9 of 10 newly-mounted routers now have real coverage; only
-`yearbook` remains (background agent in progress). 3 of the 9 tested routers this session have
-come back completely clean (`merchandise`, `journalism`, `super_admin_reports`) — useful
-evidence that a router built fresh this session by directly reading its own consuming code
-doesn't automatically have drift bugs; the earlier "every router has bugs" pattern was concentrated
-in the more complex/service-heavy routers (credentials, ml_training, document_vault,
-parent_teacher_collab, virtual_classrooms, ml_analytics, learning_styles), not universal.
+104. **`yearbook`** (commit `226f590`, background agent, verified) —
+    `tests/integration/test_yearbook_api.py`, 16 tests covering edition create/get-with-stats/
+    list-with-filters/update (publish sets `published_at`)/404s; page create/list(+section
+    filter)/get/duplicate-page-number 400/locked-page update+delete 403; student-only signature
+    creation + institution list + recipient-side `get_my_signatures` (name/photo enrichment);
+    full photo-submission lifecycle (submit/list/update/review/post-review-lock); quote and
+    memory submission create/list/review; flipbook publish-gating (403 until published); archive
+    (published-only filter); generate-pdf status gating + print-order creation (cost calc,
+    order_id format); aggregate statistics. Found and fixed 2 real bugs:
+    - **Five `list_*` endpoints** (`list_yearbook_editions`, `list_yearbook_signatures`,
+      `list_photo_submissions`, `list_quote_submissions`, `list_memory_submissions`) declared
+      `response_model=dict` but returned raw SQLAlchemy ORM instances inside `"items"` — the
+      same raw-ORM-list-serialization anti-pattern flagged repeatedly across the whole session
+      (see the `document_vault`/general findings above). Every one of these 500'd with
+      `PydanticSerializationError` as soon as a single row existed. Fixed by converting each item
+      to its already-imported `*Response` schema via `.model_validate(x)` before returning.
+    - **`get_my_signatures`** called `Student.alias("from_student")`/`Student.alias(...)` —
+      Declarative ORM classes have no `.alias()` method at all (that's the standalone
+      `sqlalchemy.orm.aliased()` function, not a class method) — `AttributeError` on literally
+      every call, this endpoint was 100% broken. The function already re-fetched
+      `from_student`/`to_student` by id inside its loop regardless, making the aliased entities
+      dead weight even if the call had worked. Fixed by simplifying the query to
+      `db.query(YearbookSignature).filter(...)` alone, no behavior change to the (already
+      correct) enrichment logic.
+
+105. **`analytics_service.py`'s ambiguous-join bug, finally fixed** (commit `7a5a6ea`) — the
+    `_identify_strength_subjects`/`_identify_weak_subjects` bug flagged and left unfixed since
+    pass fourteen (#83): `db.query(ExamMarks, Subject.name).join(ExamSubject).join(Subject)
+    .join(Exam)` with no explicit ON conditions raised `InvalidRequestError: Can't determine
+    which FROM clause to join from` on every real call, because SQLAlchemy can't resolve an
+    unambiguous implicit path from the already-joined entities to `Exam`. Fixed both methods with
+    explicit join conditions matching the real FK relationships (`ExamMarks.exam_subject_id ==
+    ExamSubject.id`, `ExamSubject.subject_id == Subject.id`, `ExamSubject.exam_id == Exam.id`).
+    Added `tests/test_analytics_service_subjects.py` — a service-level test, since
+    `get_student_performance_comparison` (the only caller) isn't wired to any API endpoint yet,
+    so there's no router to exercise this through. Builds a strong-subject/weak-subject exam
+    result pair and verifies both methods return the correct subject first, without raising.
+
+## Phase-2 router-testing priority: COMPLETE — all 10 newly-mounted routers now have real
+integration test coverage (passes fourteen through nineteen)
+Final tally, in the order tested: `document_vault` (9 tests, completely broken — 3 model classes
+rewritten from scratch), `credentials` (10 tests, 3 bugs), `ml_training` (11 tests, 1 significant
+pre-existing bug), `merchandise` (9 tests, clean), `parent_teacher_collab` (25 tests, 2 bugs),
+`virtual_classrooms` (17 tests, 4 bugs — the most of any single router), `ml_analytics` (9 tests,
+1 bug), `journalism` (11 tests, clean), `learning_styles` (12 tests, 1 bug), `super_admin_reports`
+(7 tests, clean), `yearbook` (16 tests, 2 bugs). **136 new tests total, 17 real bugs found and
+fixed** across 8 of the 11 items above (document_vault counts as a full rewrite rather than a
+"bug", so 7 of the other 10 routers had at least one real bug; only `merchandise`, `journalism`,
+and `super_admin_reports` came back clean on the first run). Plus the standalone
+`analytics_service.py` ambiguous-join fix (#105), a pre-existing bug unrelated to any of the 10
+routers, found while verifying `ml_training`'s schema fix back in pass fourteen and finally
+picked up this pass.
+
+**Confirmed conclusively, repeatedly, across this whole multi-pass effort**: a router/service
+mounting and importing cleanly is necessary but never sufficient evidence it works. Every bug
+found in this effort was invisible to an import-only check — SQLAlchemy doesn't validate
+constructor kwargs against model columns at import time, and Pydantic response-model mismatches,
+ambiguous ORM joins, and `AttributeError`s on wrong method/attribute usage only surface when the
+actual code path runs. Only real TestClient requests (or, for `analytics_service.py`, a direct
+service-level call) against a real database reliably catches this whole class of bug.
+
+`pytest --collect-only tests/` now collects **988 tests, 0 errors** (up from 881 at the start of
+this pass, +108 across the `merchandise`/`parent_teacher_collab`/`virtual_classrooms`/
+`ml_analytics`/`journalism`/`learning_styles`/`super_admin_reports`/`yearbook` test files plus
+the new `analytics_service` unit test).
 
 ## Next resume point (current, supersedes the ones above)
-1. **Finish and verify the `yearbook` router test coverage** — a background agent was dispatched
-   for it (same pattern as `virtual_classrooms`/`parent_teacher_collab`/`learning_styles`
-   above); if its commit isn't in `git log` yet when resuming, check whether the agent is still
-   running (it may have been interrupted by a context/session boundary) and either wait for its
-   completion notification or pick up the router directly. Once done: verify independently
-   (collect-only + run its test file yourself, never trust the handback report blindly), then
-   this completes the full "give all 10 newly-mounted routers real coverage" Phase-2 priority
-   that's been running since pass fourteen/fifteen.
-2. Once `yearbook` is done and verified, write a final tally entry summarizing all 10 routers'
-   results (bugs found per router, total bug count) and update the "Running tally" section above.
-3. The `_identify_strength_subjects`/`_identify_weak_subjects` ambiguous-join bug in
-   `analytics_service.py` flagged in pass fourteen (#83) -- needs an explicit join condition on
-   `Exam`. Low priority (no test currently exercises it) but real; still not picked up.
-4. Once all 10 newly-mounted routers have real coverage, continue through Phase 2 more broadly
-   (new test coverage for the rest of the untested route modules/pages -- see the checklists
-   earlier in this file). This is the natural next major body of work for a future pass.
-5. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+1. **The Phase-2 "give all 10 newly-mounted routers real coverage" priority (passes
+   fourteen-nineteen) is now done.** The next major body of work is Phase 2/3 more broadly:
+   - Backend: real integration test coverage for the rest of the untested route modules beyond
+     the 10 routers above (see the module checklists earlier in this file for what's already
+     covered vs. not — this file has grown very large across many passes; a `grep -c
+     "^[0-9]\+\." TESTING_PROGRESS.md`-style scan of the numbered items, or a fresh `find
+     src/api/v1 -name "*.py"` vs. `find tests -iname "test_*_api.py"` diff, is the fastest way to
+     see what's left without re-reading the whole file).
+   - Frontend: Phase 1 (component-level tests) was completed earlier in the overall session at
+     337/337. Phase 2/3 (the ~210 untested frontend pages, plus any frontend/backend integration
+     mismatches) has NOT been started in any pass visible in this file's history yet — this is
+     likely the single largest remaining body of work and a good next area to pick up.
+   - Mobile: not yet investigated in any pass so far — check whether the repo actually has a
+     mobile app directory (the original standing directive says "mobile if applicable") before
+     assuming there's nothing to do there.
+2. **Environment note for future iterations**: this container's MySQL and Redis are NOT
    guaranteed to be running at the start of a session/iteration -- both needed a manual
    `service mysql start` / `service redis-server start` at the top of this pass before any test
    could connect. Check `service mysql status` first if tests fail with "Connection refused"
