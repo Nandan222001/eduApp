@@ -677,16 +677,138 @@ re-verified the whole set of files touched across passes five and six together, 
 sequentially and under `-n auto`: 146 passed, 10 skipped (the skips are the
 `test_websocket.py` tests that intentionally skip without a live server), 0 failed.
 
+## Backend fixes, seventh pass — commits pending (fixed the `metadata`/`metadata_json` bug class at scale + subscriptions/webhooks)
+Baseline before this pass: full uncapped run was 579 passed / 218 failed / 40 errors / 11 skipped
+(up from 483/260/43/1 — the fifth/sixth pass fixes already helped broadly). Only 2 whole-file
+collection errors remained project-wide at this point (`test_api_subscriptions.py`,
+`test_document_vault.py` — see below).
+
+37. `tests/test_external_services_integration.py` (18 tests, all erroring): the test file
+    imports `MockSendGridClient`/`MockRazorpayClient`/`MockS3Client`/`MockRedisClient` **classes**
+    from `tests/test_mocks.py`, but the actual pytest **fixtures** wrapping them
+    (`mock_sendgrid_client`, `mock_razorpay_client`, `mock_s3_client`, `mock_redis_client`,
+    also defined in `test_mocks.py`) were never visible to pytest -- fixtures aren't shared
+    across sibling test modules, only via `conftest.py`. Re-exported the 4 fixtures by importing
+    them into `conftest.py`. This alone took the file from 0/18 to 16/18.
+38. **Real, previously-undiscovered missing dependency**: `razorpay` (the payment gateway SDK)
+    was never in `requirements.txt` at all, despite being imported by `src/api/v1/merchandise.py`
+    and needed by `test_razorpay_payment_flow`/`test_payment_with_notification`. Added
+    `razorpay==2.0.1`.
+39. `test_payment_with_notification` referenced `subscription.institution.email`, a field that
+    doesn't exist on the `Institution` model (only `name`/`slug`/`domain`/`address`/`phone`/
+    `logo_url`) and isn't referenced anywhere in real app code either -- test-only bug, fixed to
+    use a literal email address (this test only exercises Mail-object construction, not real
+    field validation). `tests/test_external_services_integration.py` is now 18/18.
+40. **`tests/test_api_subscriptions.py` fully rewritten** (the "needs a design decision" item
+    flagged in earlier passes) -- it referenced a `SubscriptionPlan` DB model + `plan_id` FK that
+    never existed anywhere in the app; the real design is a denormalized `plan_name` string
+    column on `Subscription` plus an in-code plan catalog (`SubscriptionPlans` in
+    `subscription_service.py`, served via `GET /api/v1/subscriptions/plans`). Rewrote the whole
+    file against the real, already-implemented API (the same design `tests/integration/
+    test_subscriptions_api.py` already exercises successfully) instead of inventing a new model.
+    This was the last real collection blocker for `SubscriptionPlan`.
+41. **CRITICAL, real bug class found at scale, 14 instances across 8 files** — `metadata` is
+    reserved by SQLAlchemy's Declarative base for the `MetaData` object, so every one of the
+    ~50 models in this codebase that needs a JSON/text metadata column maps it as
+    `metadata_json = Column('metadata', JSON, ...)` specifically to avoid the collision (there's
+    even a comment saying so on several models). Despite that, plenty of call sites still wrote
+    `SomeModel(..., metadata=value)` or `obj.metadata = value` / `obj.metadata['key'] = value` --
+    which doesn't error, it just silently shadows the class attribute at the instance level
+    (`obj.metadata` starts returning your dict back), while the real `metadata_json` column
+    **never gets the value and is never persisted**. Found via the same static-audit technique
+    used earlier for stale field names: listed every pydantic schema with a `metadata:` field via
+    AST, then manually verified each live (non-disabled-router) call site against its target
+    model. Fixed all confirmed-live instances:
+    - `gamification_service.py` (`award_badge`, `add_points`): `UserBadge`/`PointHistory`
+      constructor calls -- awarding a badge or adding points with metadata silently lost it.
+    - `src/api/v1/community_service.py` (verify/reject activity): worse than silent here --
+      `if not activity.metadata: activity.metadata = {}` is always False (a `MetaData` object is
+      truthy), so `activity.metadata['x'] = y` hits `TypeError: 'MetaData' object does not
+      support item assignment` -- these two endpoints were an unconditional 500 whenever a
+      verifier left comments or a rejection reason was given.
+    - `src/services/study_planner_service.py` (`reschedule_task`) +
+      `src/repositories/study_planner_repository.py` (`update_task`'s generic
+      `setattr(task, field, value)` loop): `**(task.metadata or {})` on a `MetaData` object
+      raises `TypeError` (not iterable via `**`) -- rescheduling a task with existing metadata
+      always crashed; the generic update loop) silently dropped metadata for any partial update.
+    - `src/services/homework_scanner_service.py` (`create_scan`): metadata silently lost.
+    - `src/api/v1/finance_education.py` (wallet transaction creation, investment simulation x2):
+      metadata silently lost on 3 separate endpoints.
+    - `src/services/wellbeing_service.py` (2 alert-creation sites): metadata silently lost.
+    - `src/services/subscription_service.py` (`cancel_subscription`, `update_subscription`):
+      `cancel_subscription` called `json.loads(subscription.metadata)` -- `TypeError: the JSON
+      object must be str, bytes or bytearray, not MetaData` -- **cancelling a subscription with
+      a reason was an unconditional 500** in real use, not just a test gap. `update_subscription`
+      had the same generic-setattr-loop silent-drop issue.
+    All fixed by writing to `metadata_json` instead of `metadata` at each site (constructor
+    kwarg rename, or an `if field == 'metadata': obj.metadata_json = value` branch added to each
+    generic setattr-loop). Left unfixed (dead/unreachable code, part of the still-disabled
+    routers): `document_vault_service.py`, `virtual_classroom_service.py` -- no point fixing
+    call sites in code nothing can currently reach.
+42. **Same bug, one level up**: response schemas with `from_attributes=True` (`SubscriptionResponse`,
+    `PaymentResponse`, `InvoiceResponse`, `UsageRecordResponse` in `src/schemas/subscription.py`)
+    declared a plain `metadata: Optional[str] = None` field -- `model_validate(orm_instance)`
+    reads attributes by field name, so it read the reserved `MetaData` object too, and
+    `pydantic.ValidationError: Input should be a valid string` on **every single subscription /
+    payment / invoice / usage-record API response** that went through serialization. This was
+    the single highest-impact bug found this pass -- essentially the whole subscriptions/billing
+    API surface was down. Fixed by adding `validation_alias='metadata_json',
+    serialization_alias='metadata'` to the field on all 4 response schemas, so the JSON API
+    contract (`"metadata"` key) is unchanged for clients while reading from the correct column.
+    (Did NOT apply this to `SubscriptionUpdate`, which is a request/input schema parsed from
+    client JSON, not from an ORM instance -- that one correctly stays a plain `metadata` field;
+    the service layer already maps it to `metadata_json` manually per #41.)
+43. **Real bug, unrelated to the metadata class** — `src/api/v1/webhooks.py`'s
+    `handle_payment_captured` (the Razorpay `payment.captured` webhook handler) had
+    `service.db.query(service.db.query(service.db.models.Payment))...` and
+    `payment.paid_at = service.db.func.now()` -- `Session` has neither a `.models` nor a `.func`
+    attribute, so this handler has apparently never actually run successfully; **every real
+    "payment captured" webhook from Razorpay would 500**, meaning payments could get captured on
+    Razorpay's side but never marked captured in this app, and their linked invoice never marked
+    paid. Fixed to match the working pattern used by the other 5 webhook handlers in the same
+    file (`from src.models.subscription import Payment; service.db.query(Payment)...`) and to use
+    `datetime.utcnow()` for the timestamp.
+44. Fixed several more pre-existing (unrelated to this pass's own changes, found while verifying
+    them) test bugs while re-running the full subscriptions test surface: wrong JSON response key
+    names (`"items"` vs the real `"subscriptions"`/`"invoices"`/`"payments"` keys) in
+    `tests/test_api_subscriptions_integration.py`; `test_update_subscription_plan_and_billing`
+    compared `subscription.price` to `updated.price` where both names reference the *same*
+    identity-mapped ORM object post-update (always equal) -- captured the original price first;
+    `SubscriptionPlans.get_plan_price` broke when called with actual `BillingCycle`/`PlanName`
+    enum members (as several tests do) because an f-string on a `(str, Enum)` member renders as
+    `"BillingCycle.MONTHLY"`, not its `.value` -- normalized to `.value` when given an `Enum`;
+    `_generate_invoice_number` used a bare second-resolution `int(timestamp())`, which collides
+    (unique-index `IntegrityError`) whenever two invoices are generated for the same institution
+    within the same second -- added a short random suffix; two more MySQL-DATETIME-rounding test
+    assertions (same class as pass five/six) using exact `<=`/`.days` comparisons across a real
+    DB round-trip -- widened to a tolerance / calendar-date comparison.
+
+Verified individually green with `-n0` and then together with `-n auto`: **181 passed, 0 failed**
+across `test_api_subscriptions_integration.py`, `test_subscription_service.py`,
+`unit/test_subscription_service.py`, `test_api_subscriptions.py`,
+`integration/test_subscriptions_api.py`, `test_external_services_integration.py`,
+`unit/test_celery_tasks.py`. Re-verified `test_mobile_api_integration.py` still 21/21 (touches
+`homework_scanner_service.py`, also modified this pass). No dedicated test files exist yet for
+`community_service.py`, `gamification_service.py`, `wellbeing_service.py`,
+`finance_education.py`, or `study_planner_service.py` -- those fixes are verified by static
+import/syntax checks only, not by a passing test suite; worth adding coverage for in Phase 2
+given how serious the bugs found in them were.
+
+**Collection errors remaining project-wide: down to 1** (`tests/test_document_vault.py` --
+`document_vault_service.py` is dead/unwired code, see the note further down; everything else in
+`tests/` now at least collects).
+
 ## Next resume point (current, supersedes the ones above)
-1. Commit + push the sixth-pass changes above (#31-36) if not already done, and confirm the push
-   succeeded (`git log --oneline -1`, `git status`).
+1. Commit + push the seventh-pass changes above (#37-44) if not already done, and confirm the
+   push succeeded (`git log --oneline -1`, `git status`).
 2. Re-run the full uncapped backend suite for a fresh baseline (reset `test_db` and the
    schema-lock sentinels first, per the commands earlier in this file):
    `mysql -u root -ptest_password -e "DROP DATABASE IF EXISTS test_db; CREATE DATABASE test_db CHARACTER SET utf8mb4;"`
    `rm -f /tmp/eduapp_schema.lock /tmp/eduapp_schema.done`
    `cd /home/user/eduApp && python3 -m pytest --no-cov -p no:cacheprovider -q -n auto --maxfail=1000 2>&1 | tail -100`
-   Compare against the 483/260/43/1 baseline noted at the top of the fifth pass above -- this
-   batch fixed whole-file collection errors plus real bugs, so expect a meaningfully better
+   Compare against the 579/218/40/11 baseline noted at the top of the seventh pass above -- this
+   batch fixed the single highest-impact bug found so far (the whole subscriptions/billing API
+   was silently broken) plus several real webhook/metadata bugs, so expect a meaningfully better
    number. Note: `-n auto` can show flaky/unrelated failures on files not touched this session
    (e.g. test_auth.py's separate SQLite setup racing MySQL-based workers under parallel
    execution) -- always re-verify red results standalone with `-n0` before trusting them.

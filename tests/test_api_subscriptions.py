@@ -3,144 +3,115 @@ from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from src.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
+from src.models.subscription import Subscription
+from src.schemas.subscription import SubscriptionStatus
 
 
 @pytest.mark.integration
 class TestSubscriptionAPI:
-    """Integration tests for subscription and payment API."""
+    """Integration tests for subscription and payment API.
 
-    @pytest.fixture
-    def subscription_plan(self, db_session: Session) -> SubscriptionPlan:
-        """Create a test subscription plan."""
-        plan = SubscriptionPlan(
-            name="Basic Plan",
-            description="Basic features",
-            price=999.99,
+    Subscriptions use a denormalized `plan_name` string (see
+    src/models/subscription.py) rather than a separate SubscriptionPlan
+    table -- the catalog of available plans is an in-code registry
+    (SubscriptionPlans in src/services/subscription_service.py), not a DB
+    model. This file previously referenced a SubscriptionPlan model/plan_id
+    FK that never existed in the app.
+    """
+
+    def _make_subscription(self, db_session: Session, institution) -> Subscription:
+        subscription = Subscription(
+            institution_id=institution.id,
+            plan_name="Growth",
+            status=SubscriptionStatus.ACTIVE.value,
             billing_cycle="monthly",
-            max_students=100,
-            max_teachers=10,
-            features={"feature1": True, "feature2": False},
-            is_active=True,
+            price=2699.00,
+            start_date=datetime.utcnow(),
+            next_billing_date=datetime.utcnow() + timedelta(days=30),
+            auto_renew=True,
         )
-        db_session.add(plan)
+        db_session.add(subscription)
         db_session.commit()
-        db_session.refresh(plan)
-        return plan
+        db_session.refresh(subscription)
+        return subscription
 
-    def test_get_subscription_plans(
-        self,
-        client: TestClient,
-        subscription_plan: SubscriptionPlan,
-    ):
-        """Test getting subscription plans."""
+    def test_get_subscription_plans(self, client: TestClient):
+        """Test getting the in-code catalog of subscription plans."""
         response = client.get("/api/v1/subscriptions/plans")
 
-        assert response.status_code in [200, 404]
-        if response.status_code == 200:
-            data = response.json()
-            assert isinstance(data, list)
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) > 0
+        assert "name" in data[0]
+        assert "monthly_price" in data[0]
 
     def test_create_subscription(
         self,
         client: TestClient,
-        auth_headers: dict,
         institution,
-        subscription_plan: SubscriptionPlan,
     ):
         """Test creating a subscription."""
         response = client.post(
             "/api/v1/subscriptions/",
-            headers=auth_headers,
             json={
                 "institution_id": institution.id,
-                "plan_id": subscription_plan.id,
-                "start_date": datetime.now().isoformat(),
+                "plan_name": "Growth",
+                "billing_cycle": "monthly",
             },
         )
 
-        assert response.status_code in [201, 404]
+        assert response.status_code == 201
+        data = response.json()
+        assert data["institution_id"] == institution.id
+        assert data["plan_name"] == "Growth"
 
     def test_get_institution_subscription(
         self,
         client: TestClient,
-        auth_headers: dict,
         db_session: Session,
         institution,
-        subscription_plan: SubscriptionPlan,
     ):
         """Test getting institution's current subscription."""
-        subscription = Subscription(
-            institution_id=institution.id,
-            plan_id=subscription_plan.id,
-            start_date=datetime.now(),
-            end_date=datetime.now() + timedelta(days=30),
-            status=SubscriptionStatus.ACTIVE,
-            price=subscription_plan.price,
-        )
-        db_session.add(subscription)
-        db_session.commit()
+        self._make_subscription(db_session, institution)
 
-        response = client.get(
-            f"/api/v1/subscriptions/institution/{institution.id}",
-            headers=auth_headers,
-        )
+        response = client.get(f"/api/v1/subscriptions/institution/{institution.id}")
 
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
+        assert response.json()["institution_id"] == institution.id
 
     def test_update_subscription(
         self,
         client: TestClient,
-        auth_headers: dict,
         db_session: Session,
         institution,
-        subscription_plan: SubscriptionPlan,
     ):
         """Test updating a subscription."""
-        subscription = Subscription(
-            institution_id=institution.id,
-            plan_id=subscription_plan.id,
-            start_date=datetime.now(),
-            end_date=datetime.now() + timedelta(days=30),
-            status=SubscriptionStatus.ACTIVE,
-            price=subscription_plan.price,
-        )
-        db_session.add(subscription)
-        db_session.commit()
+        subscription = self._make_subscription(db_session, institution)
 
-        response = client.put(
+        response = client.patch(
             f"/api/v1/subscriptions/{subscription.id}",
-            headers=auth_headers,
             json={
-                "auto_renew": True,
+                "auto_renew": False,
             },
         )
 
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
+        assert response.json()["auto_renew"] is False
 
     def test_cancel_subscription(
         self,
         client: TestClient,
-        auth_headers: dict,
         db_session: Session,
         institution,
-        subscription_plan: SubscriptionPlan,
     ):
         """Test canceling a subscription."""
-        subscription = Subscription(
-            institution_id=institution.id,
-            plan_id=subscription_plan.id,
-            start_date=datetime.now(),
-            end_date=datetime.now() + timedelta(days=30),
-            status=SubscriptionStatus.ACTIVE,
-            price=subscription_plan.price,
-        )
-        db_session.add(subscription)
-        db_session.commit()
+        subscription = self._make_subscription(db_session, institution)
 
         response = client.post(
             f"/api/v1/subscriptions/{subscription.id}/cancel",
-            headers=auth_headers,
+            json={"immediate": True, "reason": "Testing cancellation"},
         )
 
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
+        assert response.json()["status"] == SubscriptionStatus.CANCELED.value

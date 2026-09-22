@@ -82,7 +82,7 @@ class TestSubscriptionsAPIIntegration:
         
         if response.status_code == 200:
             data = response.json()
-            assert "items" in data or isinstance(data, list)
+            assert "subscriptions" in data or isinstance(data, list)
 
     def test_update_subscription(
         self, client: TestClient, subscription, auth_headers: dict
@@ -137,10 +137,10 @@ class TestSubscriptionsAPIIntegration:
             "/api/v1/subscriptions/invoices/",
             headers=auth_headers
         )
-        
+
         if response.status_code == 200:
             data = response.json()
-            assert "items" in data or isinstance(data, list)
+            assert "invoices" in data or isinstance(data, list)
 
     def test_get_invoice(
         self, client: TestClient, subscription, auth_headers: dict, db_session: Session
@@ -186,10 +186,10 @@ class TestSubscriptionsAPIIntegration:
             "/api/v1/subscriptions/payments/",
             headers=auth_headers
         )
-        
+
         if response.status_code == 200:
             data = response.json()
-            assert "items" in data or isinstance(data, list)
+            assert "payments" in data or isinstance(data, list)
 
     def test_subscription_workflow(
         self, client: TestClient, institution, auth_headers: dict, db_session: Session

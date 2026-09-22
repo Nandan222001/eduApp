@@ -568,7 +568,8 @@ class TestSubscriptionsAPIWebhook:
             "payload": {"payment": {"entity": {"id": "pay_test"}}}
         }
 
-        with patch('src.api.v1.webhooks.verify_razorpay_webhook_signature', return_value=False):
+        with patch('src.api.v1.webhooks.settings.razorpay_webhook_secret', 'test_webhook_secret'), \
+             patch('src.api.v1.webhooks.verify_razorpay_webhook_signature', return_value=False):
             response = client.post(
                 "/api/v1/webhooks/razorpay",
                 json=webhook_payload,
@@ -745,7 +746,11 @@ class TestSubscriptionsAPIExpiration:
         assert updated_sub.grace_period_end is not None
         assert updated_sub.grace_period_end > datetime.utcnow()
         
-        grace_days = (updated_sub.grace_period_end - datetime.utcnow()).days
+        # Compare calendar dates rather than an exact elapsed duration --
+        # `.days` on a timedelta floors, so it under-reports by one the
+        # instant any time elapses between grace_period_end being computed
+        # (utcnow() + 7 days) and this re-measurement of utcnow().
+        grace_days = (updated_sub.grace_period_end.date() - datetime.utcnow().date()).days
         assert grace_days == 7
 
     def test_subscription_expiration_after_grace_period(
@@ -783,7 +788,10 @@ class TestSubscriptionsAPIExpiration:
 
         assert updated_sub.status == SubscriptionStatus.EXPIRED
         assert updated_sub.end_date is not None
-        assert updated_sub.end_date <= datetime.utcnow()
+        # MySQL's DATETIME column has only second-level precision and
+        # *rounds* (rather than truncates), so a value set to "now" can come
+        # back up to half a second later than the wall-clock time read here.
+        assert updated_sub.end_date <= datetime.utcnow() + timedelta(seconds=1)
 
 
 @pytest.mark.integration

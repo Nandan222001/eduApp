@@ -260,7 +260,7 @@ def create_transaction(
         balance_after=new_balance,
         is_recurring=transaction.is_recurring,
         recurring_frequency=transaction.recurring_frequency,
-        metadata=transaction.metadata
+        metadata_json=transaction.metadata
     )
     
     wallet.current_balance = new_balance
@@ -324,7 +324,7 @@ def simulate_investment(
         total_value=total_cost,
         gain_loss=Decimal(0),
         gain_loss_percentage=Decimal(0),
-        metadata={"simulated": True}
+        metadata_json={"simulated": True}
     )
     db.add(holding)
     
@@ -336,7 +336,7 @@ def simulate_investment(
         description=f"Investment in {request.symbol}",
         category="investment",
         balance_after=wallet.current_balance - total_cost,
-        metadata={"investment_type": request.investment_type.value, "symbol": request.symbol}
+        metadata_json={"investment_type": request.investment_type.value, "symbol": request.symbol}
     )
     db.add(transaction)
     

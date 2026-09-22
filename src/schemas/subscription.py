@@ -85,7 +85,10 @@ class SubscriptionResponse(BaseModel):
     external_subscription_id: Optional[str] = None
     razorpay_subscription_id: Optional[str] = None
     razorpay_customer_id: Optional[str] = None
-    metadata: Optional[str] = None
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # Declarative models for the MetaData object), but the API keeps `metadata`
+    # as the JSON key for backwards compatibility with existing clients.
+    metadata: Optional[str] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -124,7 +127,7 @@ class PaymentResponse(BaseModel):
     razorpay_payment_id: Optional[str] = None
     razorpay_order_id: Optional[str] = None
     failure_reason: Optional[str] = None
-    metadata: Optional[str] = None
+    metadata: Optional[str] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     paid_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -164,7 +167,7 @@ class InvoiceResponse(BaseModel):
     due_date: datetime
     paid_at: Optional[datetime] = None
     invoice_url: Optional[str] = None
-    metadata: Optional[str] = None
+    metadata: Optional[str] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -193,7 +196,7 @@ class UsageRecordResponse(BaseModel):
     recorded_at: datetime
     period_start: datetime
     period_end: datetime
-    metadata: Optional[str] = None
+    metadata: Optional[str] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
 
 

@@ -250,7 +250,7 @@ class WellbeingService:
                 'source_id': sentiment.source_id
             },
             recommended_actions=recommended_actions,
-            metadata={
+            metadata_json={
                 'sentiment_analysis_id': sentiment.id,
                 'auto_escalate': sentiment.sentiment_category == SentimentCategory.CRISIS.value
             }
@@ -673,7 +673,7 @@ class WellbeingService:
                 'current_metrics': pattern.current_metrics
             },
             recommended_actions=recommended_actions,
-            metadata={'behavioral_pattern_id': pattern.id}
+            metadata_json={'behavioral_pattern_id': pattern.id}
         )
         
         self.db.add(alert)

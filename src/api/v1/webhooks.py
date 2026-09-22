@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import hmac
 import hashlib
 import json
+from datetime import datetime
 from typing import Optional
 
 from src.database import get_db
@@ -86,16 +87,18 @@ async def handle_payment_captured(payload: dict, service: SubscriptionService) -
     razorpay_payment_id = payment_entity.get("id")
     razorpay_order_id = payment_entity.get("order_id")
     amount_in_paise = payment_entity.get("amount", 0)
-    
-    payments = service.db.query(service.db.query(service.db.models.Payment)).filter(
-        service.db.models.Payment.razorpay_order_id == razorpay_order_id
+
+    from src.models.subscription import Payment
+
+    payments = service.db.query(Payment).filter(
+        Payment.razorpay_order_id == razorpay_order_id
     ).all()
-    
+
     if payments:
         payment = payments[0]
         payment.status = PaymentStatus.CAPTURED
         payment.razorpay_payment_id = razorpay_payment_id
-        payment.paid_at = service.db.func.now()
+        payment.paid_at = datetime.utcnow()
         service.db.commit()
         
         if payment.subscription_id:

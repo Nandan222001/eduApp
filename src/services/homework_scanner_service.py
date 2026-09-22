@@ -68,7 +68,7 @@ class HomeworkScannerService:
             image_url=file_url,
             s3_key=s3_key,
             processing_status="pending",
-            metadata=metadata
+            metadata_json=metadata
         )
         
         self.db.add(scan)

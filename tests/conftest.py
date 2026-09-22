@@ -30,6 +30,12 @@ from src.models.academic import AcademicYear, Grade, Section, Subject
 from src.models.subscription import Subscription, Payment, Invoice
 from src.utils.security import get_password_hash
 from src.utils.session import SessionManager
+from tests.test_mocks import (
+    mock_sendgrid_client,
+    mock_razorpay_client,
+    mock_s3_client,
+    mock_redis_client,
+)
 
 fake = Faker()
 

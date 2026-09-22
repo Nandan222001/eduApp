@@ -252,6 +252,8 @@ pyyaml==6.0.3
     #   uvicorn
 qrcode==7.4.2
     # via fastapi-app (pyproject.toml)
+razorpay==2.0.1
+    # via fastapi-app (pyproject.toml)
 redis==5.3.1
     # via fastapi-app (pyproject.toml)
 regex==2026.2.28

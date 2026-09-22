@@ -225,16 +225,22 @@ class TestSubscriptionService:
         """Test updating subscription plan and billing cycle"""
         service = SubscriptionService(db_session, "test_key", "test_secret")
         
+        original_price = subscription.price
+
         update_data = SubscriptionUpdate(
             plan_name=PlanName.GROWTH,
             billing_cycle=BillingCycle.YEARLY
         )
-        
+
+        # `subscription` and `updated` are the same identity-mapped ORM
+        # instance within this session, so `subscription.price` would
+        # already reflect the update by the time we compare -- capture the
+        # original price first.
         updated = service.update_subscription(subscription.id, update_data)
-        
+
         assert updated.plan_name == PlanName.GROWTH
         assert updated.billing_cycle == BillingCycle.YEARLY
-        assert updated.price > subscription.price
+        assert updated.price > original_price
 
     def test_update_subscription_not_found(
         self, db_session: Session

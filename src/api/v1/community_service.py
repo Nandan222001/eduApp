@@ -403,9 +403,10 @@ async def verify_external(
     activity.verifier_signature_url = verification.signature_url
     
     if verification.comments:
-        if not activity.metadata:
-            activity.metadata = {}
-        activity.metadata['verifier_comments'] = verification.comments
+        # NOTE: the column is named `metadata_json` on the model (not
+        # `metadata`) because `metadata` is reserved by SQLAlchemy's
+        # Declarative base for the MetaData object.
+        activity.metadata_json = {**(activity.metadata_json or {}), 'verifier_comments': verification.comments}
     
     db.commit()
     
@@ -458,10 +459,11 @@ async def reject_activity(
     activity.verification_status = VerificationStatus.REJECTED
     activity.verification_date = date.today()
     
-    if not activity.metadata:
-        activity.metadata = {}
-    activity.metadata['rejection_reason'] = reason
-    activity.metadata['rejected_by'] = current_user.id
+    activity.metadata_json = {
+        **(activity.metadata_json or {}),
+        'rejection_reason': reason,
+        'rejected_by': current_user.id,
+    }
     
     db.commit()
     
