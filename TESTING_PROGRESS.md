@@ -331,10 +331,63 @@ order found/fixed:
    `src/services/subscription_service.py`'s actual plan-handling logic first to be sure
    before picking either path.
 
-Expect the next full-suite `pytest` run (in progress as this checkpoint is being written) to
-reveal further, hopefully much narrower, issues -- possibly genuine test logic bugs now that
-setup/fixtures are largely sound, rather than more setup-blocking issues. Read its actual
-output rather than assuming a number.
+## Backend fixes, third pass — commits f3d1166, and the critical one, 54433b3
+9. **CRITICAL, not just a test bug** — see the flagged section at the top of this file.
+   `create_access_token`/`create_refresh_token` encoded `sub` as a raw int; python-jose
+   requires it to be a string and silently fails to decode otherwise. This broke
+   `get_current_user` (used by nearly every protected endpoint) for ALL real tokens, not just
+   in tests. Fixed at the source (coerce to str on encode, back to int at the 4 read sites
+   that need int semantics).
+10. `mock_session_manager` fixture returned a real `SessionManager(mock_redis)` instance, not
+    a Mock -- `.assert_called_once()` etc. failed with `AttributeError` regardless of #9.
+    Switched to `create_autospec(SessionManager, instance=True)`.
+11. The `client` fixture's mocked redis was a plain `AsyncMock` with fixed return values
+    (`exists()` always `False`, `get()` always `None`) -- broke any flow needing real
+    cross-call state within one test (login stores a refresh token, a later call checks it
+    exists). Replaced with `fakeredis.FakeAsyncRedis`, a real in-memory implementation of the
+    `redis.asyncio.Redis` interface (added `fakeredis` to `requirements-dev.txt`).
+12. `auth_headers` fixture hand-crafted a JWT instead of logging in through the API, so no
+    session existed for it in the fake Redis -- `get_current_user` requires both a valid JWT
+    AND an active session by design, so this fixture 401'd on every protected endpoint
+    regardless of #9/#10/#11. Now does a real `client.post("/api/v1/auth/login")`. Used by
+    ~18 test files.
+13. `assignment_service.py`'s `grade_submission` computed a late penalty as
+    `(float_percentage / 100) * Decimal_marks`, which Python rejects outright. Fixed to
+    convert marks to float first (matching the very next line's existing round-trip back to
+    Decimal via `Decimal(str(...))`).
+
+Baseline right before this pass's fixes (full suite, first 10-ish failures only, maxfail
+cuts it short): 80 passed / 12 failed / 5 errors. Expect a MUCH better number after #9-13,
+especially #9/#11/#12 since those unblock essentially every auth-gated integration test, not
+just the ones already checked. **A full run with `--maxfail=1000` (overriding pytest.ini's
+default `--maxfail=10`) was kicked off right as this checkpoint was written — check
+`/tmp/claude-0/.../tasks/` background output or just re-run it fresh if picking this up
+later; don't trust the "80/12/5" numbers above once that lands, they're pre-fix.**
+
+## Next resume point (read this first if picking up mid-backend-Phase-1)
+1. Check whether the full, uncapped pytest run mentioned just above finished; if so, read its
+   actual pass/fail/error counts and the specific failures rather than assuming anything from
+   this file. If it didn't finish or wasn't captured, just re-run:
+   `mysql -u root -ptest_password -e "DROP DATABASE IF EXISTS test_db; CREATE DATABASE test_db CHARACTER SET utf8mb4;"`
+   `rm -f /tmp/eduapp_schema.lock /tmp/eduapp_schema.done`
+   `cd /home/user/eduApp && python3 -m pytest --no-cov -p no:cacheprovider -q -n auto --maxfail=1000`
+   (always reset test_db and the schema-lock sentinel files first -- stale state from a
+   previous run/session causes confusing unrelated-looking failures)
+2. Keep fixing what it reveals using the same approach used throughout this file: find the
+   REAL root cause (don't paper over symptoms), prefer fixes that address the actual bug over
+   ones that just make a test pass, batch related fixes into one commit, verify before
+   committing (re-run the specific failing test(s), and for schema changes verify against
+   real MySQL per the pattern used for the router model fixes), update this file's log.
+3. Once the backend suite is green (or remaining failures are individually understood/
+   triaged as out of reasonable scope), finish the remaining 9 silently-disabled routers (see
+   the router table above) -- these are real missing features, worth finishing even after
+   Phase 1 testing work is "done," since they were discovered as a side effect of this task.
+4. Only after that, move to Phase 2: writing new test coverage for backend route modules and
+   frontend pages that currently have none (see the checklists earlier in this file). Given
+   the scale (108 backend modules + ~210 frontend pages), this phase alone could run for many
+   more iterations -- pick a reasonable batch size per iteration (e.g. one feature area's
+   worth) rather than trying to do it all at once, and keep committing/pushing incrementally
+   as already established throughout this session.
 
 ## Backend route modules (113 total) — test coverage checklist
 Legend: [x] has dedicated test file & passing | [~] has test file, some failing | [ ] no test file yet
