@@ -12,10 +12,37 @@ from src.utils.security import get_password_hash, decode_token
 from src.config import settings
 
 
+@pytest.fixture
+def superuser_auth_headers(client: TestClient, db_session: Session, institution: Institution, admin_role: Role) -> dict:
+    """POST /users/ is gated by require_permissions(["users:create"]); a
+    superuser bypasses PermissionChecker entirely (see src/dependencies/
+    rbac.py), which is simpler here than wiring up real Permission rows."""
+    user = User(
+        username="registertest_superuser",
+        email="registertest_superuser@testschool.com",
+        first_name="Super",
+        last_name="User",
+        hashed_password=get_password_hash("password123"),
+        institution_id=institution.id,
+        role_id=admin_role.id,
+        is_active=True,
+        is_superuser=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": user.email, "password": "password123"},
+    )
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 @pytest.mark.integration
 class TestAuthAPIRegister:
     """Integration tests for POST /api/v1/auth/register endpoint"""
-    
+
     def test_register_with_valid_data(
         self, client: TestClient, institution: Institution, student_role: Role
     ):
@@ -64,11 +91,12 @@ class TestAuthAPIRegister:
         assert response.status_code in [400, 401, 403]
 
     def test_register_with_invalid_email(
-        self, client: TestClient, institution: Institution, student_role: Role
+        self, client: TestClient, institution: Institution, student_role: Role, superuser_auth_headers: dict
     ):
         """Test registration with invalid email format"""
         response = client.post(
             "/api/v1/users/",
+            headers=superuser_auth_headers,
             json={
                 "email": "notanemail",
                 "username": "testuser",
@@ -81,15 +109,16 @@ class TestAuthAPIRegister:
                 "is_superuser": False,
             }
         )
-        
+
         assert response.status_code == 422
 
     def test_register_with_weak_password(
-        self, client: TestClient, institution: Institution, student_role: Role
+        self, client: TestClient, institution: Institution, student_role: Role, superuser_auth_headers: dict
     ):
         """Test registration with password less than 8 characters"""
         response = client.post(
             "/api/v1/users/",
+            headers=superuser_auth_headers,
             json={
                 "email": "weak@testschool.com",
                 "username": "weakuser",
@@ -102,20 +131,21 @@ class TestAuthAPIRegister:
                 "is_superuser": False,
             }
         )
-        
+
         assert response.status_code == 422
 
     def test_register_with_missing_required_fields(
-        self, client: TestClient, institution: Institution
+        self, client: TestClient, institution: Institution, superuser_auth_headers: dict
     ):
         """Test registration with missing required fields"""
         response = client.post(
             "/api/v1/users/",
+            headers=superuser_auth_headers,
             json={
                 "email": "incomplete@testschool.com",
             }
         )
-        
+
         assert response.status_code == 422
 
 
@@ -146,7 +176,7 @@ class TestAuthAPILogin:
         access_token = data["access_token"]
         payload = decode_token(access_token)
         assert payload is not None
-        assert payload["sub"] == admin_user.id
+        assert payload["sub"] == str(admin_user.id)
         assert payload["email"] == admin_user.email
         assert payload["institution_id"] == admin_user.institution_id
         assert payload["role_id"] == admin_user.role_id
@@ -250,7 +280,7 @@ class TestAuthAPILogin:
         refresh_token = data["refresh_token"]
         payload = decode_token(refresh_token)
         assert payload is not None
-        assert payload["sub"] == admin_user.id
+        assert payload["sub"] == str(admin_user.id)
         assert payload["type"] == "refresh"
         assert "exp" in payload
 
@@ -373,12 +403,12 @@ class TestAuthAPIRefreshToken:
         
         # Verify new access token structure
         new_access_payload = decode_token(data["access_token"])
-        assert new_access_payload["sub"] == admin_user.id
+        assert new_access_payload["sub"] == str(admin_user.id)
         assert new_access_payload["type"] == "access"
         
         # Verify new refresh token structure
         new_refresh_payload = decode_token(data["refresh_token"])
-        assert new_refresh_payload["sub"] == admin_user.id
+        assert new_refresh_payload["sub"] == str(admin_user.id)
         assert new_refresh_payload["type"] == "refresh"
 
 
@@ -709,8 +739,10 @@ class TestAuthAPIGetMe:
             "/api/v1/auth/me",
             headers=headers
         )
-        
-        assert response.status_code == 403
+
+        # 401 (not 403): a present-but-invalid token is an authentication
+        # failure -- 403 is reserved for a missing Authorization header.
+        assert response.status_code == 401
 
     def test_get_me_with_expired_token(
         self, client: TestClient, admin_user: User
@@ -736,8 +768,8 @@ class TestAuthAPIGetMe:
             "/api/v1/auth/me",
             headers=headers
         )
-        
-        assert response.status_code == 403
+
+        assert response.status_code == 401
 
     def test_get_me_response_structure(
         self, client: TestClient, admin_user: User
@@ -848,8 +880,8 @@ class TestAuthAPILogout:
             "/api/v1/auth/logout",
             headers=headers
         )
-        
-        assert response.status_code == 403
+
+        assert response.status_code == 401
 
     def test_logout_token_invalidation(
         self, client: TestClient, admin_user: User

@@ -1,6 +1,21 @@
+import re
 from datetime import datetime, date
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+
+PHONE_PATTERN = re.compile(r"^[\d\s\+\-\(\)]{7,20}$")
+
+
+def validate_phone_format(value: Optional[str]) -> Optional[str]:
+    if value is not None and not PHONE_PATTERN.match(value):
+        raise ValueError("Invalid phone number format")
+    return value
+
+
+def validate_not_future_date(value: Optional[date]) -> Optional[date]:
+    if value is not None and value > date.today():
+        raise ValueError("Date of birth cannot be in the future")
+    return value
 
 
 class ParentBase(BaseModel):
@@ -77,6 +92,11 @@ class StudentBase(BaseModel):
     status: str = Field(default='active', max_length=20)
     is_active: bool = True
 
+    _validate_phone = field_validator("phone", "parent_phone", "emergency_contact_phone")(
+        validate_phone_format
+    )
+    _validate_dob = field_validator("date_of_birth")(validate_not_future_date)
+
 
 class StudentCreate(StudentBase):
     institution_id: int
@@ -113,6 +133,11 @@ class StudentUpdate(BaseModel):
     category: Optional[str] = Field(None, max_length=50)
     aadhar_number: Optional[str] = Field(None, max_length=20)
     status: Optional[str] = Field(None, max_length=20)
+
+    _validate_phone = field_validator("phone", "parent_phone", "emergency_contact_phone")(
+        validate_phone_format
+    )
+    _validate_dob = field_validator("date_of_birth")(validate_not_future_date)
     is_active: Optional[bool] = None
 
 

@@ -57,9 +57,49 @@ def event_loop():
     loop.close()
 
 
+REQUIRED_PERMISSIONS = [
+    ("users", "create"),
+    ("users", "read"),
+    ("users", "update"),
+    ("users", "delete"),
+]
+
+
+def _seed_permissions() -> None:
+    """Seed the Permission rows admin_role attaches, exactly once.
+
+    Permission.resource+action has a global unique index. Doing this
+    get-or-create per-test (as admin_role used to) raced concurrent xdist
+    worker processes' first-time inserts of the same row and deadlocked at
+    the DB (InnoDB gap-lock contention on a not-yet-existing unique key) --
+    a MySQL deadlock rolls back the whole current transaction, including
+    unrelated work already flushed earlier in that test's session, so it
+    isn't recoverable with a savepoint retry either. Seeding once here,
+    inside _create_schema_once's cross-worker lock, avoids the race
+    entirely: admin_role only ever reads these rows afterward.
+    """
+    session = TestingSessionLocal(bind=engine)
+    try:
+        for resource, action in REQUIRED_PERMISSIONS:
+            exists = session.query(Permission).filter(
+                Permission.resource == resource,
+                Permission.action == action,
+            ).first()
+            if not exists:
+                session.add(Permission(
+                    name=f"{resource.capitalize()} {action.capitalize()}",
+                    slug=f"{resource}-{action}",
+                    resource=resource,
+                    action=action,
+                ))
+        session.commit()
+    finally:
+        session.close()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema_once(tmp_path_factory, worker_id) -> None:
-    """Create all tables exactly once for the whole test run.
+    """Create all tables and seed shared reference data exactly once.
 
     Previously each test's db_session fixture called Base.metadata.create_all
     on every single test, which is redundant and -- under pytest-xdist's
@@ -67,12 +107,14 @@ def _create_schema_once(tmp_path_factory, worker_id) -> None:
     racy ("Table was skipped since its definition is being modified by
     concurrent DDL statement"). This follows pytest-xdist's documented
     pattern for a one-time shared resource: a cross-worker file lock so only
-    the first worker to reach it runs create_all, and a sentinel file so
-    later workers (and later sessions reusing the same tmp root) skip it.
+    the first worker to reach it runs create_all (and permission seeding),
+    and a sentinel file so later workers (and later sessions reusing the
+    same tmp root) skip it.
     """
     if worker_id == "master":
         # Not running under xdist -- just create directly.
         Base.metadata.create_all(bind=engine)
+        _seed_permissions()
         return
 
     root_tmp_dir = tmp_path_factory.getbasetemp().parent
@@ -82,6 +124,7 @@ def _create_schema_once(tmp_path_factory, worker_id) -> None:
     with FileLock(str(lock_path)):
         if not done_path.exists():
             Base.metadata.create_all(bind=engine)
+            _seed_permissions()
             done_path.write_text("done")
 
 
@@ -150,9 +193,41 @@ def institution(db_session: Session) -> Institution:
     return institution
 
 
+def _get_or_create_permission(db_session: Session, resource: str, action: str) -> Permission:
+    """Get-or-create a Permission row.
+
+    _seed_permissions() (see _create_schema_once) already creates the rows
+    admin_role needs exactly once before any test runs, so the normal path
+    here is a plain read. The insert is only a fallback for a
+    resource/action pair outside REQUIRED_PERMISSIONS; it isn't
+    race-protected, but nothing currently requests one concurrently.
+    """
+    permission = db_session.query(Permission).filter(
+        Permission.resource == resource,
+        Permission.action == action,
+    ).first()
+    if not permission:
+        permission = Permission(
+            name=f"{resource.capitalize()} {action.capitalize()}",
+            slug=f"{resource}-{action}",
+            resource=resource,
+            action=action,
+        )
+        db_session.add(permission)
+        db_session.flush()
+    return permission
+
+
 @pytest.fixture
 def admin_role(db_session: Session) -> Role:
-    """Create admin role."""
+    """Create admin role.
+
+    Attaches the users:create/read/update/delete permissions that
+    src/api/v1/users.py's require_permissions(...) dependencies check for,
+    so admin_user/auth_headers can actually exercise those endpoints in
+    tests -- without this, every /users/* request from the standard test
+    admin 403s before reaching the endpoint at all.
+    """
     role = Role(
         name="Admin",
         slug="admin",
@@ -160,6 +235,17 @@ def admin_role(db_session: Session) -> Role:
         is_system_role=True,
     )
     db_session.add(role)
+    db_session.flush()
+
+    for resource, action in [
+        ("users", "create"),
+        ("users", "read"),
+        ("users", "update"),
+        ("users", "delete"),
+    ]:
+        permission = _get_or_create_permission(db_session, resource, action)
+        role.permissions.append(permission)
+
     db_session.commit()
     db_session.refresh(role)
     return role
