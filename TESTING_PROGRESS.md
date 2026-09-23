@@ -3434,3 +3434,90 @@ procedure:
    **async** API (`AsyncSession`/`select()`/`await db.execute()`) against the app's synchronous
    `get_db()` dependency (found in `feedback.py` this pass) -- grep for `AsyncSession` in
    `src/api/v1/` as a quick signal before assuming a router is fine.
+
+## Backend fixes, thirty-seventh pass — commit 5ed84c3 (complete)
+
+144. **`super_admin`** (commit `5ed84c3`, written by a fresh background agent after the first
+    attempt hit the simultaneous rate limit before writing anything) — `tests/integration/
+    test_super_admin_api.py`, 98 tests covering all 29 endpoints of this 1712-line
+    platform-level admin router (`require_super_admin`-gated): cross-institution
+    dashboard/stats, institution CRUD + subscription/billing/usage/analytics, institution
+    branding (white-label), impersonation + admin-panel-access tooling, activity-log/
+    session-replay audit views, and a guarded read-only raw-SQL console. Independently re-ran
+    fresh under both `-n0` and `-n auto` (98/98 both ways) and reviewed the full diff
+    line-by-line (including confirming `SessionManager.create_session`'s and
+    `get_user_permissions`'s real signatures) before pushing. Found and fixed **6 real bugs**,
+    two of them full silent-failure of platform support tooling:
+    - `SessionReplayDetail.metadata`/the `SessionReplay` write path (bug class 1): same
+      metadata/metadata_json shadowing bug found repeatedly this session, here on both the read
+      side (`replay.metadata` resolves to SQLAlchemy's own `MetaData` registry, not the row's
+      JSON, and isn't even serializable) and the write side (silently discarded on every
+      recorded session replay). Fixed with the established alias pattern.
+    - `create_institution` never set `User.username` (`AdminUserCreate` has no username field)
+      -- `User.username` is `NOT NULL` + unique, so **every single call to
+      `POST /super-admin/institutions`, the platform's institution-onboarding operation, raised
+      an unhandled `IntegrityError`**. Fixed by deriving a username from the admin email's local
+      part.
+    - `create_institution`'s duplicate slug/domain check had the exact same
+      `Institution.domain == None` → `IS NULL` → spurious-match-on-any-other-domain-less-row bug
+      already fixed for `institutions.py` in pass thirty-three -- confirms this specific bug
+      shape is a real recurring pattern worth grep-checking (`Institution.domain ==`) across any
+      remaining routers that touch institution creation.
+    - `list_institutions?sort_by=total_users`/`?sort_by=revenue` crashed with an unhandled
+      `AttributeError` -- both are advertised as valid sort keys via the query-param regex but
+      aren't real `Institution` columns (computed in Python further down the function).
+      Fixed with a proper aggregate subquery (`COUNT`/`SUM` grouped by institution, joined and
+      sorted at the DB level) so both advertised-but-broken options actually work.
+    - **`impersonate_user` and `access_institution_admin_panel` minted completely unusable
+      access tokens** -- both call `create_access_token()` directly, but `get_current_user` also
+      requires a matching Redis-backed session record (`SessionManager.get_session`) for ANY
+      token to authenticate, which the normal login flow always registers but neither of these
+      two endpoints ever did. Every impersonation token and every "view institution admin panel"
+      token 401'd with "Session expired or invalid" on the very first request made with it, in
+      any environment with Redis actually running (the normal case) -- these two super-admin
+      debugging/support features were silently, completely non-functional end-to-end. Fixed both
+      to register a session the same way login does; verified by round-tripping a minted
+      impersonation token through a real `/api/v1/auth/me` call in the test suite.
+    - **Flagged but deliberately not fixed** (out of scope for a single router): `GET
+      /super-admin/branding/current` reads `request.state.branding`, but `BrandingMiddleware`
+      (the only thing that ever sets it) is never registered in `src/main.py` -- this endpoint
+      always returns `branding: None` regardless of `Host` header. Registering that middleware
+      is an app-wide change (opens a raw `SessionLocal()` per request for every route, not just
+      this one -- bug class 11) that deserves its own dedicated pass; tests assert the current
+      (always-None) behavior and this is flagged for follow-up.
+
+`pytest --collect-only tests/` (per the agent's own report, to be independently re-confirmed
+once the concurrent `attendance`/`grade_configurations`/`doubts` work also lands) collects
+**2050 tests, 0 errors**.
+
+## Still in progress at end of this pass
+The `attendance`/`grade_configurations`/`doubts` continuation agent is still working (now has
+all 3 test files present in the working tree, not yet committed). Do NOT start independent work
+on `attendance.py`, `doubts.py`, `grade_configurations.py`, `attendance_service.py`, or any of
+the `doubt_*_service.py` files until its hand-back is reviewed, verified, and committed.
+
+## Next resume point (current, supersedes the ones above)
+1. **Finish verifying and committing the in-progress `attendance`/`grade_configurations`/
+   `doubts` continuation agent's work** -- review the diff (including the inherited, previously
+   test-unvalidated `attendance.py`/`attendance_service.py` fixes from before the rate limit),
+   re-run tests fresh under `-n0`/`-n auto`, confirm full-suite collection, then push. Check
+   `git log --oneline -3`/`git status` immediately before the push.
+2. **Continue the Phase-2/3 backend route-module audit** with the remaining untested routers
+   (see pass thirty-three/thirty-five/thirty-six for the fuller remaining list; remove
+   `super_admin` from it now).
+3. **Fix the 5 routers that don't import cleanly** (unchanged): `branding`, `collaboration`,
+   `parent_education`, `sel`, `timetable`.
+4. **New, lower-priority follow-up from this pass**: register `BrandingMiddleware` in
+   `src/main.py` (or otherwise wire up `/super-admin/branding/current`) -- deliberately deferred
+   by the super_admin pass as an app-wide change outside a single router's scope.
+5. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
+   anything NEW in that audit without the user's confirmation landing first.
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
+   not-yet-started bodies of work.
+7. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
+   of an injected `Depends(get_db)` session, a router mixing async SQLAlchemy against the sync
+   `get_db()` dependency, and (new from this pass) any endpoint that mints a JWT via
+   `create_access_token()` directly without also registering a matching
+   `SessionManager.create_session(...)` record -- `get_current_user` requires both, so a token
+   minted without a session is unusable the moment Redis is actually reachable.
