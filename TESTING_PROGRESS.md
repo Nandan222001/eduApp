@@ -2201,3 +2201,131 @@ that's the natural next-priority work, see below).
    could connect. Check `service mysql status` first if tests fail with "Connection refused"
    before assuming a code regression. Also clear `/tmp/eduapp_schema.lock`/`.done` after any
    fresh MySQL start, since a prior container's schema-created sentinel can be stale.
+
+## Backend fixes, twenty-fourth pass — commits 433f583, 471eb98, 25484c4 (complete; the 3
+frontend-confirmed-broken routers from pass twenty-three's inventory scan are all fixed)
+119. **`dashboard_widgets`** (commit `433f583`, written directly) —
+    `tests/integration/test_dashboard_widgets_api.py`, 9 tests covering widget create/get/list/
+    update/delete, position reordering, default-widget initialization (+idempotency) and reset,
+    role presets, and the `/data` endpoint for `quick_stats`/`upcoming_deadlines`/
+    `pending_grading`/`attendance_alerts` widget types. This is the router with **11 confirmed
+    frontend consumers** flagged in pass twenty-three -- likely the single highest-impact fix of
+    the whole session by UI-surface count. Found 2 real bugs, both in
+    `src/services/dashboard_widget_service.py`, neither ever exercised until this router became
+    reachable:
+    - 5 call sites did `Student.grade_id`/`user.student_profile.grade_id`/`student.grade.name` --
+      `Student` has no `grade_id` column or `grade` relationship at all (grade is only reachable
+      via `Student.section_id -> Section.grade_id`), the exact same bug class first found in
+      `fees.py` last pass, here hitting `_get_upcoming_deadlines`, `_get_pending_grading`,
+      `_get_quick_stats`, and `_get_attendance_alerts` (twice). Fixed by going through
+      `.section.grade_id`/`.section.grade.name`, and removed one redundant `Student.grade_id`
+      filter that `section_id` alone already covered.
+    - 3 call sites compared `Assignment.status` against `AssignmentStatus.ACTIVE`, which doesn't
+      exist on that enum at all (real values: `DRAFT`/`PUBLISHED`/`CLOSED`/`ARCHIVED`) --
+      `AttributeError` on the enum class itself, on every real request to any handler touching
+      assignment status. Fixed to `AssignmentStatus.PUBLISHED`.
+120. **`transport`** (commit `471eb98`, recovered from a background agent that ran out of
+    session quota mid-task -- see note below) — `tests/integration/test_transport_api.py`,
+    11 tests covering route CRUD (+institution-scoping), route-stop create/list/update/delete,
+    and student transport assignment. **3 confirmed frontend consumers.** Found and fixed 2 real
+    bugs once reachable and checked against the actual frontend caller
+    (`frontend/src/api/transport.ts`):
+    - `TransportRoute`/`RouteStop`/`StudentTransport` were missing several fields the
+      router/frontend actually need (`start_location`, `end_location`, `stop_address`,
+      `pickup_location`/`drop_location`, `monthly_fee`, emergency-contact fields, etc.) and had
+      several fields marked `NOT NULL` that the real frontend never reliably supplies. Rewrote
+      all three models' columns to match actual usage.
+    - Route-stop endpoints were flat (`/stops`, `/stops/{stop_id}`) with `route_id` read from the
+      request body -- matching nothing the frontend ever called (its `createStop`/`updateStop`/
+      `deleteStop` all call nested `/routes/{route_id}/stops/...` paths), and there was **no
+      delete-stop endpoint at all**, so the frontend's `deleteStop()` call would 404
+      unconditionally. Restructured all stop endpoints to the real nested shape and added the
+      missing delete endpoint.
+121. **`library`** (commit `25484c4`, recovered from a background agent that ran out of session
+    quota mid-task -- see note below) — `tests/integration/test_library_api.py`, 16 tests
+    covering book CRUD (+delete), category CRUD, book issue/return workflow, issue get/list/
+    filter, and library settings. **5 confirmed frontend consumers.** Found and fixed 2 real
+    bugs:
+    - `Book`/`BookCategory`/`BookIssue`/`LibrarySettings` were missing several fields the
+      router/frontend actually need (`accession_number`, `call_number`, `total`/
+      `available_copies`, `is_reference_only`, `fine_paid`/`fine_payment_date`, `working_days`,
+      etc.), had a wrongly-named column on `BookIssue` (`returned_by` vs. the router's
+      `returned_to`), and marked several fields `NOT NULL` the frontend doesn't reliably supply.
+      Rewrote all four models' columns to match actual usage.
+    - No delete-book endpoint and no get-single-issue endpoint existed despite the
+      frontend/router design implying both should. Added both.
+
+**Process note on how #120/#121 got committed**: the background agents assigned to `transport`
+and `library` both hit this session's overall API rate limit mid-task and terminated with a
+`failed` status before they could report back or commit -- the harness surfaced this as a
+`task-notification` with `status: "failed"` and an HTTP 429 detail, not the usual
+`SubagentHandback`. Rather than discard clearly-substantial, coherent work
+(`git diff --stat` showed complete, well-commented changes, not a half-edit), each diff was
+read in full, judged coherent and complete, the DB schema was reset (both changed model column
+definitions), and their own test files were run fresh (never having been run by the agent
+itself, since it died before that step) -- both passed cleanly, 27/27 combined, under both
+`-n0` and `-n auto`, before committing. **This is a reasonable one-off recovery procedure for an
+agent that dies mid-task with real, reviewable file changes already on disk -- always read the
+full diff and independently run the tests yourself before trusting orphaned work, exactly as
+strict as verifying a completed handback, arguably more so since there's no self-report to
+cross-check against.** Given the rate limit resets at a fixed time, **avoid dispatching new
+background agents until then** -- direct work only, to not spend quota on agents likely to fail
+before finishing.
+
+**Also encountered and fixed a live infrastructure problem this pass, unrelated to any router
+bug**: a stale MySQL connection (idle 3962+ seconds) was holding a table metadata lock on a
+leftover ad-hoc debug table (`foo_case_test`, created by an earlier pass's manual `func.case`
+repro script and never cleaned up), which cascaded into a `DROP DATABASE test_db` queuing behind
+it and every subsequent test connection queuing behind that -- a full deadlock across every
+concurrent test process. Diagnosed via `SHOW FULL PROCESSLIST` (look for `Waiting for
+... metadata lock` chains), fixed by `KILL <stale-connection-id>`. Shortly after, MySQL itself
+went down entirely (`service mysql status` → stopped) under the resulting load/lock churn and
+needed a plain `service mysql start` to recover. **Future iterations: if tests hang for an
+unusually long time with low CPU usage on the pytest process, check `SHOW FULL PROCESSLIST` for
+a metadata-lock chain before assuming a code regression** -- this can happen again if any ad-hoc
+debug/repro script that creates real tables against the shared test MySQL instance doesn't clean
+up (drop its table, close its connection) before exiting.
+
+`pytest --collect-only tests/` now collects **1177 tests, 0 errors** (up from 1141 after pass
+twenty-three).
+
+## Next resume point (current, supersedes the ones above)
+1. **All 3 frontend-confirmed-broken routers from the pass-twenty-three inventory scan are now
+   fixed and tested.** The remaining 9 of the 12 newly-registered routers still need real test
+   coverage (no confirmed frontend consumer found for these, but per this session's 3-for-3
+   track record on every "never registered" router tested so far, real bugs are likely):
+   `database_maintenance`, `elections`, `events`, `family`, `live_events`,
+   `live_events_websocket`, `performance_monitoring`, `rate_limits`, `recommendations`.
+2. **Session API rate limit was hit this pass** (resets at a fixed time communicated in the
+   failure message, not tracked precisely here) -- **do not dispatch new background agents until
+   confirmed recovered** (try one small/cheap agent first as a canary, or just proceed with
+   direct work only for a while). If a background agent's task-notification shows `status:
+   "failed"` with an HTTP 429/rate_limit detail rather than the usual `SubagentHandback`, don't
+   just discard its work -- check `git status`/`git diff` first; if the diff is complete and
+   coherent (not a half-edit), read it fully, reset the DB schema if models changed, run its own
+   test file yourself fresh, and commit if it's genuinely correct, exactly as skeptically as
+   verifying a completed handback.
+3. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+4. **Continue the Phase-2/3 backend route-module audit more broadly** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage. Eight tracked bug classes (see pass twenty-three's list) plus watch for the two
+   new failure modes from this pass: (a) models missing fields the real frontend needs (check
+   the frontend API client file, not just the backend schema, when one exists for a router),
+   (b) a stale debug-script DB connection holding a metadata lock (see the MySQL incident above).
+5. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings. Do NOT start fixing these without the user's confirmation
+   landing first.
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+7. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+   guaranteed to be running at the start of a session/iteration -- both needed a manual
+   `service mysql start` / `service redis-server start` at the top of this pass before any test
+   could connect, and MySQL can also go down mid-session under lock-contention load (see above).
+   Check `service mysql status` first if tests fail with "Connection refused" or hang for an
+   unusually long time. Also clear `/tmp/eduapp_schema.lock`/`.done` after any fresh MySQL start
+   or schema reset, since a stale sentinel can cause a hang.
