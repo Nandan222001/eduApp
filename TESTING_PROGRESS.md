@@ -3336,3 +3336,101 @@ this whole batch (no rate-limit hits, no file conflicts).
 5. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
    running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
    of an injected `Depends(get_db)` session.
+
+## Backend fixes, thirty-sixth pass — commit fb8a6a3 (complete)
+
+140-143. **`messages`, `announcements`, `notification_templates`, `feedback`** (commit
+    `fb8a6a3`) — `tests/integration/test_messages_api.py`, `test_announcements_api.py`,
+    `test_notification_templates_api.py`, `test_feedback_api.py`, 124 tests total. This batch
+    was dispatched to a background agent that hit a session-wide rate limit (all 3 agents
+    dispatched in this round hit it simultaneously -- see below) before it could commit, but it
+    had already fully written all 4 test files and fixed `messages.py`/`feedback.py`. Recovered
+    per the established procedure: reviewed the diff for coherence, then independently re-ran
+    the inherited test file myself -- which surfaced 3 failures the original agent never got to
+    see before being cut off, fixed those too, then re-verified clean under both `-n0`/`-n auto`
+    before committing. `announcements.py` and `notification_templates.py` needed no fixes. Found
+    and fixed **6 real bugs**:
+    - `messages.py::send_message` called `websocket_manager.send_message_notification(...)`
+      without the required `sender_id` argument, raising an unconditional `TypeError` on every
+      message send.
+    - **`feedback.py` was 100% non-functional on every single endpoint.** The entire router was
+      written against SQLAlchemy's *async* API (`AsyncSession`, `select(...)`,
+      `await db.execute(...)`, `.scalars()`/`.scalar_one_or_none()`), but `src.database.get_db`
+      (what every other router in this codebase uses via `Depends(get_db)`) yields a
+      *synchronous* `Session` bound to a sync engine -- `await`ing a sync session's `.execute()`
+      return value (already a plain `Result`, never a coroutine) raises
+      `TypeError: object Result can't be used in 'await' expression`. All 4 endpoints crashed
+      immediately, always. This is the single most severe "entire router non-functional" finding
+      of the whole session, on par with (though structurally different from) `family`'s
+      comprehensive model/schema drift back in pass twenty-nine. Rewrote the whole file to the
+      synchronous `Session`/`db.query(...)` API every other router already uses.
+    - Same file, metadata/metadata_json bug (bug class 1): `submit_feedback` passed
+      `metadata=feedback.metadata or {}` into the constructor instead of `metadata_json=...`
+      (the ORM column is `metadata_json = Column('metadata', JSON, ...)`, mapped that way
+      specifically to dodge SQLAlchemy's reserved `metadata` attribute) -- silently discarded on
+      every submission.
+    - `get_feedback` compared `Feedback.id == feedback_id` where `feedback_id` is a `UUID`
+      object but the column is `CHAR(36)` (a string) -- would never match a real row. Fixed with
+      `str(feedback_id)`.
+    - `get_feedback_stats` used `func.count(...).filter(FeedbackModel.status == ...)`, which
+      compiles to SQL's `FILTER (WHERE ...)` clause -- a Postgres/SQLite-only aggregate
+      extension MySQL doesn't support at all, raising `ProgrammingError` 1064 on every call.
+      Fixed with MySQL-compatible conditional aggregation via
+      `func.sum(case((cond, 1), else_=0))`.
+    - Same endpoint: the resulting `func.sum(...)` comes back through pymysql as a `Decimal`;
+      with `response_model=dict` (`Dict[str, Any]`), Pydantic v2's JSON-mode serializer falls
+      back to `str()` for a type it doesn't otherwise recognize under `Any` -- an un-cast
+      Decimal silently turned every count into a JSON *string* instead of a number, the same
+      bug shape as `live_events.py`'s revenue analytics from pass thirty-one. Fixed with
+      explicit `int(...)` casts.
+
+Verified 124/124 under both `-n0`/`-n auto`. Full-suite collection deferred to the next pass's
+write-up since two more background agents (`attendance`/`grade_configurations`/`doubts`
+continuation, and `super_admin`) were concurrently landing work on this branch as this pass
+completed.
+
+## Process note: three simultaneous rate-limited agents, recovered
+All 3 agents dispatched in this round (`messages`/`announcements`/`notification_templates`/
+`feedback`, `attendance`/`grade_configurations`/`doubts`, and `super_admin`) hit the session's
+rate limit at the same moment (a shared session-wide limit, not per-agent). Recovery approach
+per agent, following the established "read diff, judge coherence, re-verify, don't discard"
+procedure:
+- **messages/feedback batch**: had gotten the furthest (all 4 test files written, 2 source
+  files fixed) -- recovered directly as described above.
+- **attendance/grade_configurations/doubts batch**: had a coherent, complete, but
+  *never-test-validated* diff to `attendance.py`/`attendance_service.py` (5 real fixes,
+  including a genuine check-after-act authorization-ordering bug in `review_correction` -- the
+  institution check happened in the router AFTER the service had already committed the status
+  change). No test files existed yet for any of the 3 routers. Rather than trust an
+  never-executed diff or discard real work, dispatched a **continuation agent** with explicit
+  instructions to validate (and if needed, further fix) the inherited diff via tests, then
+  continue fresh with the two untouched routers -- still in progress as of this write-up.
+- **super_admin batch**: the agent had made zero source or test changes yet (still in the
+  read-only exploration phase when cut off) -- nothing to recover; redispatched as a fresh agent
+  with the same brief.
+
+## Next resume point (current, supersedes the ones above)
+1. **Finish verifying and committing the two in-progress agents' work**:
+   `attendance`/`grade_configurations`/`doubts` (continuation agent, validating an inherited
+   diff plus two fresh routers) and `super_admin` (fresh agent, large 1712-line/29-endpoint
+   router). Review diffs, re-run tests fresh under `-n0`/`-n auto`, confirm full-suite
+   collection (now including this pass's 124 tests too), then push. **Always check
+   `git log --oneline -3`/`git status` immediately before every push** -- multiple concurrent
+   background agents are landing commits to the same shared working directory.
+2. **Continue the Phase-2/3 backend route-module audit** with the remaining untested routers
+   (see pass thirty-three/thirty-five for the fuller remaining list; remove
+   `messages`/`announcements`/`notification_templates`/`feedback` from it now). Same method as
+   every router above: check all eleven numbered bug classes plus the cross-tenant/cross-owner
+   authorization-gap pattern (bug class 12).
+3. **Fix the 5 routers that don't import cleanly** (unchanged): `branding`, `collaboration`,
+   `parent_education`, `sel`, `timetable`.
+4. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
+   anything NEW in that audit without the user's confirmation landing first.
+5. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
+   not-yet-started bodies of work.
+6. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
+   of an injected `Depends(get_db)` session, and now also watch for a router mixing SQLAlchemy's
+   **async** API (`AsyncSession`/`select()`/`await db.execute()`) against the app's synchronous
+   `get_db()` dependency (found in `feedback.py` this pass) -- grep for `AsyncSession` in
+   `src/api/v1/` as a quick signal before assuming a router is fine.
