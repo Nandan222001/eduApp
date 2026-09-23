@@ -2779,3 +2779,99 @@ test files, only the 3 middleware source files).
    rate-limit issues since pass twenty-four) -- keep independently re-verifying (fresh test run
    under both `-n0`/`-n auto`, full-suite collection check, diff review) before pushing, per
    established discipline.
+
+## Backend fixes, thirtieth pass — commit 566992a (complete)
+
+128. **`recommendations`** (commit `566992a`, written by a background agent, independently
+    re-verified this pass) — `tests/integration/test_recommendations_api.py`, 43 tests covering
+    every endpoint of `src/api/v1/recommendations.py` (`IntelligentRecommendationService`:
+    comprehensive/topic-scoped study material recommendations blending VARK learning-style
+    detection, mastery-based difficulty detection, peer collaborative filtering, content
+    effectiveness scoring, and chapter/topic study-path sequencing; external-content endpoint
+    returns hardcoded template strings, no real network calls). Confirmed internal
+    `APIRouter(prefix="/recommendations")` + empty external prefix is correctly non-doubled.
+    Independently re-ran fresh under both `-n0` and `-n auto` (43/43 both ways) and reviewed the
+    full diff line-by-line (including verifying `Topic.institution_id`, `Chapter.institution_id`,
+    and `display_order` actually exist on their models) before pushing. Found and fixed **6 real
+    bugs**:
+    - `StudyPathSequencer` ordered/read `Chapter.sequence_number`/`Topic.sequence_number` --
+      columns that don't exist on either model (only `display_order` does). Crashed
+      `GET /study-path/{id}/{subject_id}` and the study-path section of comprehensive/filtered
+      outright. Fixed to use `display_order` throughout.
+    - **A new bug shape for this session — an ambiguous-join silent wrong-answer bug**:
+      `detect_learning_style()`'s query chain `MaterialAccessLog → StudyMaterial → User →
+      Student` has `User` reachable via TWO foreign keys once `StudyMaterial` is joined
+      (`MaterialAccessLog.user_id` AND `StudyMaterial.uploaded_by`). An unqualified `.join(User)`
+      let SQLAlchemy silently pick `uploaded_by` instead of the intended `user_id` -- since
+      students essentially never upload their own materials, `uploaded_by` was NULL for nearly
+      every material, so the query always returned zero rows and learning-style detection always
+      fell back to the flat 0.25/0.25/0.25/0.25 default regardless of real access history, with
+      no error at all. Fixed with an explicit join condition
+      (`User, MaterialAccessLog.user_id == User.id`). Worth watching for elsewhere: any
+      unqualified `.join(Model)` where `Model` is reachable via more than one FK in the query's
+      join chain.
+    - Response schema mismatch (variant of bug class 3): the raw `{'visual':...,'auditory':...}`
+      dict from `detect_learning_style()` was passed straight through as `learning_style_profile`,
+      but the schema requires `visual_score`/`auditory_score`/etc. + `dominant_style` --
+      `GET /comprehensive/{id}` failed response validation on every call. Fixed by remapping to
+      the schema's field names.
+    - Raw ORM leak + missing required fields (bug class 3), 2 sites: `_merge_all_recommendations`
+      and `get_recommendations_for_topic`'s `internal_materials` both embedded a raw
+      `StudyMaterial` ORM instance under `'material'` with no `title`/`material_type` (required,
+      no defaults) -- 500s on response validation / non-serializable via `jsonable_encoder` for
+      the `response_model=dict` endpoints. Fixed both to extract plain fields; also populated
+      `effectiveness_score`/`style_match_score`/`difficulty_match_score`, which the schema
+      supports but was never filled in.
+    - **6 cross-tenant authorization gaps** (bug class 12, the pattern first flagged in `family`
+      last pass): `Student` lookups in 6 endpoints, the `Topic` lookup in 2 more places, and the
+      `Chapter` query inside `generate_study_path` all filtered only by id with no
+      `institution_id` check. Also the peer-material fallback query inside
+      `_merge_all_recommendations`. Fixed all with institution scoping, matching the one
+      endpoint (`/material-effectiveness`) that already did this correctly.
+    - `get_recommendations_for_topic()` returned `{'error': 'Topic not found'}` as a 200 body
+      instead of 404, for both `POST /topic` and `POST /filtered`. Fixed both router call sites
+      to raise `HTTPException(404)`.
+
+`pytest --collect-only tests/` should now collect **1311 tests** (1268 + 43), pending a final
+combined check once the concurrently-running `live_events` background agent's work is also
+verified (see below) -- not re-run standalone this pass to avoid racing that agent's in-progress
+file edits in the same working tree.
+
+## In progress at end of this pass
+A second background agent is concurrently working on **`live_events`** (`src/api/v1/live_events.py`,
+1174 lines) + a new `tests/integration/test_live_events_api.py`, using the same tracked bug
+classes and working method as `recommendations` above. Not yet complete as of this pass's
+write-up -- do NOT start independent work on `live_events` until that agent's hand-back is
+reviewed, verified, and committed (or explicitly abandoned).
+
+## Next resume point (current, supersedes the ones above)
+1. **Finish verifying and committing the in-progress `live_events` agent's work** (see above) --
+   review its diff, re-run its tests fresh under `-n0`/`-n auto`, confirm full-suite collection
+   (now including both `recommendations` and `live_events`), then push.
+2. **Continue testing the remaining newly-registered routers**: `live_events_websocket`
+   (websocket-only, 317 lines) is the last one from the original pass-twenty-three list. Eleven
+   tracked bug classes plus the cross-tenant-authorization-gap pattern (bug class 12,
+   unnumbered-but-tracked) -- both `family` and `recommendations` had several of these; keep
+   checking for it explicitly on every new router.
+3. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+4. **Continue the Phase-2/3 backend route-module audit more broadly** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage.
+5. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings (now also including `recommendations`'s 6 cross-tenant gaps, all
+   already fixed this pass). Do NOT start fixing anything NEW in that audit without the user's
+   confirmation landing first.
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+7. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start (Redis is confirmed down as of pass twenty-seven/twenty-eight);
+   `DATABASE_USER`/`DATABASE_PASSWORD`/`DATABASE_NAME` default to placeholders that don't match
+   the test DB. Clear `/tmp/eduapp_schema.lock`/`.done` after any fresh MySQL start or schema
+   reset. Running two background agents concurrently on genuinely disjoint files (different
+   routers, different test files) worked cleanly this pass with no conflicts -- each agent was
+   told explicitly which files were off-limits and to `git pull` before committing.
