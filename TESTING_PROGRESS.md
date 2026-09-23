@@ -2329,3 +2329,68 @@ twenty-three).
    Check `service mysql status` first if tests fail with "Connection refused" or hang for an
    unusually long time. Also clear `/tmp/eduapp_schema.lock`/`.done` after any fresh MySQL start
    or schema reset, since a stale sentinel can cause a hang.
+
+## Backend fixes, twenty-fifth pass — commits adc603b, 4b7dcc8 (complete)
+122. **`rate_limits`** (commit `adc603b`, written directly) — `tests/integration/test_rate_limits_api.py`,
+    6 tests covering the `require_super_admin` gate (403 for a regular admin), the violations
+    dashboard, filtered violation listing, violations-by-role/by-endpoint/top-violators
+    breakdowns, old-violation cleanup, and the per-user rate-limit config/usage endpoints.
+    **Came back clean — no bugs found.**
+123. **`events`** (commit `4b7dcc8`, written directly) — `tests/integration/test_events_api.py`,
+    8 tests covering event create/get/list/filter (+cross-institution 403), the calendar
+    endpoint, update/delete, the RSVP workflow (+duplicate rejection, response_date stamping,
+    accepted/declined counts), and the event-photo lifecycle. Found **the most comprehensive
+    model/schema mismatch of this whole session** -- `Event`/`EventRSVP`/`EventPhoto` had almost
+    no field overlap with what the router and schema actually construct/expect (e.g. the model
+    had `event_date`/`start_time`/`end_time` while the router/schema use a `start_date`/
+    `end_date` datetime range; `EventPhoto.s3_key` was `NOT NULL` but never supplied by the
+    schema at all). Every single event create/update had always raised `TypeError` immediately.
+    Rewrote all three models to match the router+schema's actual field usage (same precedent as
+    `document_vault` from pass sixteen). Also fixed an independent bug in `create_rsvp`, which
+    passed `event_id`/`user_id` both explicitly and via `**rsvp_data.model_dump()` (the schema
+    also declares those two fields) -- a `TypeError` on every RSVP creation, fixed by excluding
+    both from the dumped dict.
+
+`pytest --collect-only tests/` now collects **1191 tests, 0 errors** (up from 1177 after pass
+twenty-four). 2 of the remaining 7 newly-registered-but-untested routers from pass twenty-three
+now done; 5 left: `database_maintenance`, `elections`, `family`, `live_events`,
+`live_events_websocket`, `performance_monitoring`, `recommendations` (7, corrected count).
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue testing the remaining newly-registered routers**: `database_maintenance`,
+   `elections` (950 lines), `family` (793 lines), `live_events` (1174 lines),
+   `live_events_websocket` (websocket-only, 317 lines), `performance_monitoring`,
+   `recommendations`. Same method as every router above. Nine tracked bug classes now (the
+   eight from pass twenty-three plus: models with near-zero field overlap with their own
+   router/schema, found in `events` this pass -- when a constructor raises `TypeError: 'X' is an
+   invalid keyword argument`, don't just fix the one field; check whether the whole model has
+   drifted from the router/schema and needs a full rewrite, per the `document_vault`/`events`
+   precedent).
+2. **Retry background-agent delegation cautiously** — this pass avoided dispatching new agents
+   after two hit the session's rate limit mid-task in pass twenty-four (recovered by reading
+   their complete diffs and independently testing before committing, see that pass's notes). All
+   direct-work API calls continued to succeed throughout this pass with no rate-limit errors, so
+   the limit may have been transient or agent-dispatch-specific -- try one small canary agent
+   before resuming heavier parallel delegation, and always independently verify+test regardless.
+3. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+4. **Continue the Phase-2/3 backend route-module audit more broadly** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage.
+5. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings. Do NOT start fixing these without the user's confirmation
+   landing first.
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+7. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+   guaranteed to be running at the start of a session/iteration, and MySQL can also go down
+   mid-session under lock-contention load (a stale connection holding a metadata lock on a
+   leftover ad-hoc debug table cascaded into a full deadlock once this pass -- see pass
+   twenty-four's notes). Check `service mysql status` first if tests fail with "Connection
+   refused" or hang for an unusually long time; check `SHOW FULL PROCESSLIST` for a metadata
+   -lock chain before assuming a code regression. Clear `/tmp/eduapp_schema.lock`/`.done` after
+   any fresh MySQL start or schema reset.
