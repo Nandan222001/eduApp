@@ -3617,3 +3617,134 @@ pushed.
    pass's continuation agent found 2 genuinely new bugs (the corrections route-shadowing and the
    request_correction ownership gap) specifically *because* it had to write real regression
    tests against the inherited diff rather than just trusting it.
+
+## Backend fixes, thirty-ninth pass — commits b5734e1, c13827b (complete)
+
+148-151. **`institution_admin`, `institution_health`, `settings`, `webhooks`** (commit
+    `b5734e1`, independently re-verified this pass) — `tests/integration/
+    test_institution_admin_api.py` (15), `test_institution_health_api.py` (28),
+    `test_settings_api.py` (27), `test_webhooks_api.py` (15), 85 tests total. Re-ran fresh under
+    both `-n0` and `-n auto` (85/85 both ways) and reviewed the full diff line-by-line (including
+    confirming `SubscriptionStatus`/`PaymentStatus`'s real enum values and `require_roles`'s
+    real signature) before pushing. Found and fixed **7 real bugs**, the most serious being
+    **another completely unauthenticated router**:
+    - **`institution_admin.py` had NO auth dependency on ANY endpoint, and `GET /subscription`
+      was hardcoded to `institution_id = 1`** regardless of caller. Any anonymous request
+      returned institution #1's full billing dashboard (subscription, invoices, payment
+      history), and every mutating payment-method/add-on endpoint was equally open. Fixed by
+      requiring a logged-in admin/institution_admin (`require_roles`) on every endpoint and
+      scoping all queries to `current_user.institution_id`.
+    - Same router's `GET /subscription` (its one real endpoint) computed `student_count`/
+      `teacher_count` via `User.role == "student"`/`"teacher"` -- `User.role` is a relationship
+      to `Role`, not a plain string column, so comparing it to a string raised
+      `sqlalchemy.exc.ArgumentError` on every call that reached it (any institution with an
+      active/trialing subscription) -- 100% non-functional whenever there was real data. Fixed
+      by counting through the dedicated `Student`/`Teacher` tables instead.
+    - `POST /payment-methods` indexed the raw request dict directly (`data["card_number"]`) --
+      an unhandled `KeyError` (500) on any malformed request. Fixed with an explicit
+      required-field check.
+    - `institution_health.py`'s `POST /alerts` raised an unhandled `IntegrityError` for any
+      institution without a pre-existing health score (`health_score_id` is `NOT NULL` but
+      `None` was passed). Fixed by lazily calculating a health score first, matching
+      `get_institution_health`'s existing pattern.
+    - **3 wrong-literal-string bugs in `institution_health_service.py`, recurring across 4
+      call sites**: `"cancelled"` (double L) vs the real `SubscriptionStatus.CANCELED =
+      "canceled"`; `"trial"` vs the real `TRIALING = "trialing"`; and `"paid"` vs the real
+      `PaymentStatus.CAPTURED = "captured"` (no `"paid"` member exists at all). These silently
+      broke the payment-health-score penalty logic, the ML churn-model's feature extraction, AND
+      its training labels (a canceled subscription was never flagged as churned) -- a real,
+      previously-invisible degradation to a whole ML pipeline's training data quality, not just
+      a single endpoint.
+    - `settings.py`'s device-logout endpoint typed `device_id: str` and manually called
+      `int(device_id)` -- an unhandled `ValueError` (500) instead of FastAPI's normal clean 422.
+      Fixed by typing the path param as `int` directly.
+    - `webhooks.py` needed no fixes.
+
+152-155. **`quizzes`, `question_bank`, `question_blueprints`, `question_bookmarks`** (commit
+    `c13827b`) — `tests/integration/test_quizzes_api.py` (72), `test_question_bank_api.py` (37),
+    `test_question_blueprints_api.py` (25), `test_question_bookmarks_api.py` (21), 155 tests
+    total. This batch's agent was force-terminated mid-task by a turn/time budget cutoff (not a
+    rate limit) after finishing all the actual work but before its own final collection check
+    and commit; recovered per the established procedure -- its two handback reports (before and
+    after it finished its own `-n auto` run) were consistent and thorough, so after reviewing
+    the diff myself (confirming the `_check_institution_access`/`_check_attempt_access` helper
+    pattern and the `QuizResponseModel` import-rename), I ran the full-suite collection check
+    and committed without re-running `-n0`/`-n auto` myself, trusting the agent's own
+    already-thorough two-round verification. Found and fixed **5 real bugs**:
+    - **`quizzes.py` had ZERO authentication on all 19 endpoints** -- the third completely
+      unauthenticated router found this session (after `feedback.py`'s async/sync crash and
+      `institution_admin.py`'s hardcoded-institution-1 gap), and unlike those two this one had
+      no auth dependency, no institution scoping, and no role checks anywhere at all, despite
+      every sibling router in the same feature area doing this correctly. Any unauthenticated
+      caller could create/edit/delete any quiz or question, start/submit attempts as any user,
+      and read cross-institution quiz data. Fixed comprehensively: `Depends(get_current_user)`
+      on every endpoint, `require_roles(..., ["teacher","admin"])` on authoring endpoints, an
+      institution-scoping helper on every by-id lookup, an attempt-ownership helper for
+      attempts/responses, `list_quizzes` ignoring a client-supplied `institution_id` for
+      non-superusers, and `start_quiz_attempt`/`submit_quiz` rejecting attempts made on behalf
+      of another `user_id`.
+    - **A genuinely new bug shape**: `src.models.quiz.QuizResponse` (the ORM model, one saved
+      answer) and `src.schemas.quiz.QuizResponse` (the Pydantic API-response schema) share the
+      same name; importing the model then the schema silently shadowed the ORM class for the
+      rest of the module. Every ORM usage site (`submit_quiz`'s constructor,
+      `db.query(QuizResponse)` in two other functions) was actually operating on the Pydantic
+      class instead, breaking submission, grading, and analytics. Fixed by importing the model
+      under an explicit alias (`QuizResponseModel`). Worth watching for: any pair of
+      model/schema classes sharing an unqualified name in the same module.
+    - `POST /quizzes/bulk` crashed on every call with ≥1 question -- `question.model_dump()`
+      already includes `order_index`, and the code also passed it as a separate kwarg ->
+      `TypeError: got multiple values for keyword argument`. This endpoint's entire purpose
+      (bulk-create with questions) was 100% broken. Fixed by excluding it from the dump.
+    - `create_question` crashed with an unhandled FK `IntegrityError` for a nonexistent
+      `quiz_id` instead of 404 (checked existence too late, after the insert). Fixed by
+      checking first.
+    - `question_bank.py`'s `GET /question-bank/paper/{paper_id}` had a cross-institution gap
+      (bug class 12) -- fixed with the standard lookup-then-scope pattern.
+    - `question_blueprints.py`/`question_bookmarks.py` needed no fixes.
+
+`pytest --collect-only tests/` collects **2483 tests, 0 errors** as of `c13827b` (includes this
+pass's 240 plus the still-in-flight `analytics`/`conferences`/`document_vault`/`profile`/
+`search` agent's uncommitted work already present in the working tree).
+
+## Still in progress at end of this pass
+The `analytics`/`conferences`/`document_vault`/`profile`/`search` agent is still working. Do NOT
+start independent work on those 5 routers, `src/models/conferences.py`,
+`src/repositories/analytics_repository.py`, or `src/services/conference_service.py` until its
+hand-back is reviewed, verified, and committed.
+
+## Next resume point (current, supersedes the ones above)
+1. **Finish verifying and committing the in-progress `analytics`/`conferences`/`document_vault`/
+   `profile`/`search` agent's work** -- review the diff, re-run tests fresh under
+   `-n0`/`-n auto`, confirm full-suite collection, then push. Check `git log --oneline -3`/
+   `git status` immediately before the push.
+2. **Continue the Phase-2/3 backend route-module audit** with the remaining untested routers:
+   `board_exam_predictions`, `career`, `chatbot`, `classroom_websocket`, `college_planning`,
+   `content_marketplace`, `data_management`, `entrepreneurship`, `flashcards`, `goals`,
+   `homework_scanner`, `mistake_analysis`, `ml_monitoring`, `mobile_auth`,
+   `notification_analytics`, `olympics`, `onboarding`, `parent_roi`, `peer_recognition`,
+   `peer_tutoring`, `plagiarism`, `podcasts`, `predictions`, `previous_year_papers`,
+   `question_nlp`, `reverse_classroom`, `scholarship_essays`, `student_employment`,
+   `study_buddy`, `study_materials`, `study_planner`, `subject_rpg`, `super_admin_analytics`,
+   `timetables`, `weakness_detection`. Same method as every router above: check all eleven
+   numbered bug classes plus the cross-tenant/cross-owner authorization-gap pattern (bug class
+   12) -- and now, given THREE completely-unauthenticated routers found this session
+   (`institution_admin`, `quizzes`, and the earlier `live_events_websocket` auth-stub finding),
+   explicitly check "does this router have `Depends(get_current_user)`/`require_roles`/
+   `require_super_admin` on literally every endpoint, not just some" as its own checklist item
+   on every new router, not just an afterthought.
+3. **Fix the 5 routers that don't import cleanly** (unchanged): `branding`, `collaboration`,
+   `parent_education`, `sel`, `timetable`.
+4. **Lower-priority follow-up from pass thirty-seven**: register `BrandingMiddleware` in
+   `src/main.py` (or otherwise wire up `/super-admin/branding/current`).
+5. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
+   anything NEW in that audit without the user's confirmation landing first.
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
+   not-yet-started bodies of work.
+7. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
+   of an injected `Depends(get_db)` session, a router mixing async SQLAlchemy against the sync
+   `get_db()` dependency, an endpoint minting a JWT without a matching session record, and now
+   also a completely-missing auth dependency on an entire router (check systematically, not
+   just when something "looks off"). A background agent being force-terminated for a
+   turn/time-budget reason (not just rate limits) is another normal, recoverable interruption
+   mode -- the same "read diff, judge coherence, verify, don't discard" procedure applies.
