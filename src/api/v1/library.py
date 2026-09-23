@@ -164,16 +164,34 @@ async def update_book(
         Book.id == book_id,
         Book.institution_id == current_user.institution_id
     ).first()
-    
+
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
-    
+
     for field, value in update_data.model_dump(exclude_unset=True).items():
         setattr(book, field, value)
-    
+
     db.commit()
     db.refresh(book)
     return book
+
+
+@router.delete("/books/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_book(
+    book_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    book = db.query(Book).filter(
+        Book.id == book_id,
+        Book.institution_id == current_user.institution_id
+    ).first()
+
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    db.delete(book)
+    db.commit()
 
 
 # Book Issues
@@ -280,6 +298,23 @@ async def return_book(
     
     db.commit()
     db.refresh(issue)
+    return issue
+
+
+@router.get("/issues/{issue_id}", response_model=BookIssueResponse)
+async def get_issue(
+    issue_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    issue = db.query(BookIssue).filter(
+        BookIssue.id == issue_id,
+        BookIssue.institution_id == current_user.institution_id
+    ).first()
+
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue record not found")
+
     return issue
 
 
