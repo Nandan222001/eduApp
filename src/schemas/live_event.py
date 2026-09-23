@@ -230,6 +230,8 @@ class ViewerAnalytics(BaseModel):
 
 
 class StreamAnalyticsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     timestamp: datetime
     viewer_count: int
     chat_messages_count: int

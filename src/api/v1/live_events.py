@@ -5,6 +5,7 @@ from sqlalchemy import and_, or_, func, desc
 from datetime import datetime, timedelta
 import secrets
 import hashlib
+import logging
 
 from src.database import get_db
 from src.models.user import User
@@ -53,6 +54,7 @@ from src.services.chat_moderation_service import ChatModerationService
 from src.services.event_ticket_service import EventTicketService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # Live Events Management
@@ -130,7 +132,7 @@ async def list_live_events(
     }
 
 
-@router.get("/{event_id}", response_model=LiveEventWithDetails)
+@router.get("/{event_id:int}", response_model=LiveEventWithDetails)
 async def get_live_event(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -180,7 +182,7 @@ async def get_live_event(
     return LiveEventWithDetails(**event_dict)
 
 
-@router.put("/{event_id}", response_model=LiveEventResponse)
+@router.put("/{event_id:int}", response_model=LiveEventResponse)
 async def update_live_event(
     event_id: int,
     update_data: LiveEventUpdate,
@@ -204,7 +206,7 @@ async def update_live_event(
     return event
 
 
-@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{event_id:int}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_live_event(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -226,7 +228,7 @@ async def delete_live_event(
 
 # Stream Management
 
-@router.post("/{event_id}/stream/generate-key", response_model=StreamKeyResponse)
+@router.post("/{event_id:int}/stream/generate-key", response_model=StreamKeyResponse)
 async def generate_stream_key(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -289,7 +291,7 @@ async def generate_stream_key(
     )
 
 
-@router.post("/{event_id}/stream/start")
+@router.post("/{event_id:int}/stream/start")
 async def start_stream(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -325,7 +327,7 @@ async def start_stream(
     return {"message": "Stream started successfully", "status": event.status}
 
 
-@router.post("/{event_id}/stream/end")
+@router.post("/{event_id:int}/stream/end")
 async def end_stream(
     event_id: int,
     background_tasks: BackgroundTasks,
@@ -373,7 +375,7 @@ async def end_stream(
 
 # Access Control
 
-@router.get("/{event_id}/access-check", response_model=AccessPermissionCheck)
+@router.get("/{event_id:int}/access-check", response_model=AccessPermissionCheck)
 async def check_event_access(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -461,7 +463,7 @@ async def check_event_access(
 
 # Viewer Management
 
-@router.post("/{event_id}/viewers", response_model=EventViewerResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{event_id:int}/viewers", response_model=EventViewerResponse, status_code=status.HTTP_201_CREATED)
 async def join_event(
     event_id: int,
     viewer_data: EventViewerCreate,
@@ -490,7 +492,7 @@ async def join_event(
     viewer = EventViewer(
         live_event_id=event_id,
         user_id=current_user.id,
-        **viewer_data.model_dump()
+        **viewer_data.model_dump(exclude={"live_event_id"})
     )
     
     db.add(viewer)
@@ -512,7 +514,7 @@ async def join_event(
     return viewer
 
 
-@router.put("/{event_id}/viewers/{viewer_id}", response_model=EventViewerResponse)
+@router.put("/{event_id:int}/viewers/{viewer_id:int}", response_model=EventViewerResponse)
 async def update_viewer_session(
     event_id: int,
     viewer_id: int,
@@ -548,7 +550,7 @@ async def update_viewer_session(
     return viewer
 
 
-@router.get("/{event_id}/viewers", response_model=List[EventViewerWithUser])
+@router.get("/{event_id:int}/viewers", response_model=List[EventViewerWithUser])
 async def list_event_viewers(
     event_id: int,
     currently_watching: Optional[bool] = Query(None),
@@ -589,7 +591,7 @@ async def list_event_viewers(
 
 # Chat Management
 
-@router.post("/{event_id}/chat", response_model=EventChatMessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{event_id:int}/chat", response_model=EventChatMessageResponse, status_code=status.HTTP_201_CREATED)
 async def send_chat_message(
     event_id: int,
     message_data: EventChatMessageCreate,
@@ -628,7 +630,7 @@ async def send_chat_message(
     message = EventChatMessage(
         live_event_id=event_id,
         user_id=current_user.id,
-        **message_data.model_dump()
+        **message_data.model_dump(exclude={"live_event_id"})
     )
     
     # Flag if needed
@@ -654,7 +656,7 @@ async def send_chat_message(
     return message
 
 
-@router.get("/{event_id}/chat", response_model=List[EventChatMessageWithUser])
+@router.get("/{event_id:int}/chat", response_model=List[EventChatMessageWithUser])
 async def get_chat_messages(
     event_id: int,
     skip: int = Query(0, ge=0),
@@ -672,7 +674,13 @@ async def get_chat_messages(
     if not event:
         raise HTTPException(status_code=404, detail="Live event not found")
     
-    query = db.query(EventChatMessage, User).join(User).filter(
+    # EventChatMessage has two FKs into users (user_id, moderated_by), so a
+    # plain .join(User) is ambiguous (SQLAlchemy can't pick one) and raises
+    # AmbiguousForeignKeysError -- explicit onclause needed, unlike
+    # EventViewer's single-FK join just above this function.
+    query = db.query(EventChatMessage, User).join(
+        User, EventChatMessage.user_id == User.id
+    ).filter(
         EventChatMessage.live_event_id == event_id
     )
     
@@ -693,7 +701,7 @@ async def get_chat_messages(
     return messages
 
 
-@router.put("/chat/{message_id}/moderate", response_model=EventChatMessageResponse)
+@router.put("/chat/{message_id:int}/moderate", response_model=EventChatMessageResponse)
 async def moderate_chat_message(
     message_id: int,
     update_data: EventChatMessageUpdate,
@@ -761,7 +769,7 @@ async def list_moderation_rules(
     return rules
 
 
-@router.put("/moderation-rules/{rule_id}", response_model=ChatModerationRuleResponse)
+@router.put("/moderation-rules/{rule_id:int}", response_model=ChatModerationRuleResponse)
 async def update_moderation_rule(
     rule_id: int,
     update_data: ChatModerationRuleUpdate,
@@ -786,7 +794,7 @@ async def update_moderation_rule(
     return rule
 
 
-@router.delete("/moderation-rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/moderation-rules/{rule_id:int}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_moderation_rule(
     rule_id: int,
     current_user: User = Depends(get_current_user),
@@ -808,7 +816,7 @@ async def delete_moderation_rule(
 
 # Analytics
 
-@router.get("/{event_id}/analytics", response_model=EventAnalytics)
+@router.get("/{event_id:int}/analytics", response_model=EventAnalytics)
 async def get_event_analytics(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -867,7 +875,16 @@ async def get_event_analytics(
         
         revenue_analytics = {
             "tickets_sold": tickets_sold,
-            "total_revenue": total_revenue,
+            # MySQL's SUM() over an Integer column comes back through pymysql
+            # as a Decimal. EventAnalytics.revenue_analytics is typed
+            # Dict[str, Any], and Pydantic v2's JSON-mode serializer for an
+            # Any-typed field falls back to str() for a type it doesn't
+            # otherwise recognize -- so an un-cast Decimal here silently
+            # turned "total_revenue" into a JSON *string* (e.g. "200"
+            # instead of the number 200) for any event with real ticket
+            # revenue, breaking any client expecting a number. Cast to int
+            # (amounts are always whole smallest-currency-unit integers).
+            "total_revenue": int(total_revenue),
             "currency": event.ticket_currency
         }
     
@@ -900,7 +917,7 @@ async def get_event_analytics(
 
 # Recording Management
 
-@router.post("/{event_id}/recording/upload")
+@router.post("/{event_id:int}/recording/upload")
 async def upload_recording(
     event_id: int,
     recording_data: RecordingUploadRequest,
@@ -925,7 +942,7 @@ async def upload_recording(
     return {"message": "Recording uploaded successfully", "recording_url": event.recording_url}
 
 
-@router.post("/{event_id}/recording/archive")
+@router.post("/{event_id:int}/recording/archive")
 async def archive_recording(
     event_id: int,
     archive_data: RecordingArchiveRequest,
@@ -952,7 +969,7 @@ async def archive_recording(
 
 # Ticket Management
 
-@router.post("/{event_id}/tickets", response_model=EventTicketResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{event_id:int}/tickets", response_model=EventTicketResponse, status_code=status.HTTP_201_CREATED)
 async def purchase_ticket(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -987,7 +1004,7 @@ async def purchase_ticket(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{event_id}/tickets/my-ticket", response_model=EventTicketResponse)
+@router.get("/{event_id:int}/tickets/my-ticket", response_model=EventTicketResponse)
 async def get_my_ticket(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -1006,7 +1023,7 @@ async def get_my_ticket(
     return ticket
 
 
-@router.get("/{event_id}/tickets", response_model=List[EventTicketResponse])
+@router.get("/{event_id:int}/tickets", response_model=List[EventTicketResponse])
 async def list_event_tickets(
     event_id: int,
     payment_status: Optional[str] = Query(None),
@@ -1028,7 +1045,7 @@ async def list_event_tickets(
     return tickets
 
 
-@router.post("/{event_id}/tickets/{ticket_id}/redeem")
+@router.post("/{event_id:int}/tickets/{ticket_id:int}/redeem")
 async def redeem_ticket(
     event_id: int,
     ticket_id: int,
@@ -1055,7 +1072,7 @@ async def redeem_ticket(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{event_id}/tickets/{ticket_id}/refund")
+@router.post("/{event_id:int}/tickets/{ticket_id:int}/refund")
 async def refund_ticket(
     event_id: int,
     ticket_id: int,
@@ -1083,7 +1100,7 @@ async def refund_ticket(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{event_id}/revenue")
+@router.get("/{event_id:int}/revenue")
 async def get_event_revenue(
     event_id: int,
     current_user: User = Depends(get_current_user),
@@ -1116,15 +1133,25 @@ async def setup_stream_platform(
     description: str,
     scheduled_start_time: datetime
 ):
-    """Background task to set up streaming platform."""
+    """Background task to set up streaming platform.
+
+    Runs via BackgroundTasks *after* the response has already been sent to
+    the client, so it must never let an exception escape: Starlette's
+    BackgroundTask.__call__ has no try/except of its own, and an exception
+    raised here propagates straight through the ASGI response-sending
+    machinery (confirmed: it surfaces as a raised exception on the
+    TestClient call itself, not a 500 response) even though the client
+    already has its 201. That would happen for a real, non-test failure too
+    (external platform API down/erroring), not just here.
+    """
     from src.database import SessionLocal
-    
+
     db = SessionLocal()
     try:
         event = db.query(LiveEvent).filter(LiveEvent.id == event_id).first()
         if not event:
             return
-        
+
         if platform == StreamPlatform.YOUTUBE.value:
             youtube = YouTubeLiveService()
             result = await youtube.create_live_broadcast(title, description, scheduled_start_time)
@@ -1132,7 +1159,7 @@ async def setup_stream_platform(
             event.stream_url = result["stream_url"]
             event.stream_embed_url = result["embed_url"]
             event.external_stream_id = result["broadcast_id"]
-        
+
         elif platform == StreamPlatform.VIMEO.value:
             vimeo = VimeoLiveService()
             result = await vimeo.create_live_event(title, description, scheduled_start_time)
@@ -1140,35 +1167,43 @@ async def setup_stream_platform(
             event.stream_url = result["stream_url"]
             event.stream_embed_url = result["player_embed_url"]
             event.external_stream_id = result["event_id"]
-        
+
         db.commit()
+    except Exception:
+        logger.exception("setup_stream_platform background task failed for event_id=%s", event_id)
     finally:
         db.close()
 
 
 async def process_recording(event_id: int):
-    """Background task to process recording after stream ends."""
+    """Background task to process recording after stream ends.
+
+    See setup_stream_platform's docstring for why this must swallow its own
+    exceptions rather than let them escape after the response is sent.
+    """
     from src.database import SessionLocal
-    
+
     db = SessionLocal()
     try:
         event = db.query(LiveEvent).filter(LiveEvent.id == event_id).first()
         if not event or not event.external_stream_id:
             return
-        
+
         # Get recording URL from platform
         if event.stream_platform == StreamPlatform.YOUTUBE.value:
             youtube = YouTubeLiveService()
             stats = await youtube.get_broadcast_statistics(event.external_stream_id)
             # YouTube automatically saves recordings
             event.recording_url = event.stream_url
-        
+
         elif event.stream_platform == StreamPlatform.VIMEO.value:
             vimeo = VimeoLiveService()
             event_data = await vimeo.get_event_statistics(event.external_stream_id)
             # Vimeo automatically saves recordings
             event.recording_url = event.stream_url
-        
+
         db.commit()
+    except Exception:
+        logger.exception("process_recording background task failed for event_id=%s", event_id)
     finally:
         db.close()
