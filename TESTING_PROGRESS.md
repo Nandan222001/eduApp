@@ -3168,3 +3168,84 @@ background-agent pass so far this session.
    column" after a model change, check whether the already-provisioned test-DB table needs a
    matching manual `ALTER TABLE` (or just clear `/tmp/eduapp_schema.lock`/`.done` and let the
    schema get recreated from scratch, which is usually simpler).
+
+## Backend fixes, thirty-fourth pass — commit 7358a8e (complete)
+
+133-137. **`academic_years`, `terms`, `subjects`, `sections`, `grades`** (commit `7358a8e`,
+    written by a background agent, independently re-verified this pass) — one test file per
+    router (`test_academic_years_api.py` 23 tests, `test_terms_api.py` 21, `test_subjects_api.py`
+    31, `test_sections_api.py` 19, `test_grades_api.py` 21 -- 115 total), covering these five
+    small, closely-related "academic structure" routers used as fixtures by nearly every other
+    tested router in this codebase. Independently re-ran fresh under both `-n0` and `-n auto`
+    (115/115 both ways) and reviewed the full diff line-by-line (including confirming
+    `Term`'s real `uq_academic_year_term_name` unique constraint) before this write-up. Found
+    and fixed **7 real bugs**; `academic_years.py` itself needed no fixes (its service layer
+    already validates start/end dates, duplicate names, and the one-`is_current`-per-institution
+    invariant correctly):
+    - **Unreachable route (bug class 7)**: `PUT /grades/bulk-order` was declared after
+      `PUT /grades/{grade_id}` with no type converter, so any request to `/grades/bulk-order`
+      was captured by the wildcard `{grade_id}` route first and always 422'd -- `update_grade_
+      order` was permanently dead code. Fixed with the now-established `{grade_id:int}` type-
+      converter technique (confirmed working across several passes now) rather than reordering.
+    - **3 cross-tenant FK-reference gaps on create (bug class 12 variant)**:
+      `create_grade`/`create_section`/`create_term` each checked the caller's own
+      `institution_id` against the payload, but never that the payload's *parent*-FK id
+      (`academic_year_id` for grades/terms, `grade_id` for sections) actually belonged to that
+      institution -- letting a caller create e.g. a Section under their own institution that
+      points at another school's Grade, corrupting that Grade's relationship graph and leaking
+      its existence via 201 vs 404. Fixed all three by looking the parent row up scoped to the
+      caller's institution first.
+    - **2 endpoints in `subjects.py` with literally zero institution check**:
+      `remove_subject_from_grade` and `get_grade_subjects` let any authenticated user of *any*
+      institution delete/list another institution's grade-subject data purely by
+      guessing/incrementing ids. Fixed by scoping the Grade lookup first, matching every sibling
+      endpoint in the same file.
+    - **Another cross-tenant FK gap on assign**: `assign_subject_to_grade` checked
+      `institution_id` equality but never that `grade_id`/`subject_id` actually belonged to that
+      institution, letting a caller link two different institutions' rows together. Fixed by
+      validating both before creating the `GradeSubject` row.
+    - **Raw ORM objects through `response_model=list` (bug class 3)**: `get_grade_subjects`
+      declared `response_model=list` and returned raw `Subject` ORM instances -- FastAPI's
+      `jsonable_encoder` falls back to `vars(obj)` with no schema, which includes the
+      non-serializable `_sa_instance_state` and crashes. Fixed by changing to
+      `response_model=List[SubjectResponse]` (already imported/used elsewhere in the file).
+    - **2 unhandled duplicate-name `IntegrityError`s in `terms.py`** (`create_term`/
+      `update_term`): unlike its sibling routers, this one talks to the `Term` model directly
+      with no service layer, so it had no pre-insert duplicate-name check for the model's real
+      `uq_academic_year_term_name` unique constraint -- a duplicate `(academic_year_id, name)`
+      pair raised an unhandled 500 instead of a clean 400. Fixed both with an explicit check,
+      mirroring the pattern every other router's service layer already follows.
+
+**Process note**: this commit landed on origin as part of the SAME push as the previous pass's
+TESTING_PROGRESS.md update, before its diff/tests had actually been independently re-verified --
+the background agent had already committed it to the shared working directory before that push
+ran, and `git log` wasn't checked carefully enough beforehand to notice. The verification
+(diff review + fresh `-n0`/`-n auto` run, all passing, documented above) happened correctly, just
+after the push rather than before. No harm resulted since the work turned out to be fully
+correct, but the fix going forward is procedural: **always run `git log --oneline -3` /
+`git status` immediately before any push to confirm exactly what's about to go out**, especially
+when multiple background agents are landing commits to the same shared working directory
+concurrently.
+
+## In progress at end of this pass
+One more background agent is concurrently working on **`assignments`/`submissions`**, not yet
+complete as of this write-up. Do NOT start independent work on either file until its hand-back
+is reviewed, verified (per the process note above -- check `git log`/`git status` before any
+push), and committed.
+
+## Next resume point (current, supersedes the ones above)
+1. **Finish verifying and committing the in-progress `assignments`/`submissions` agent's work**
+   (see above).
+2. **Continue the Phase-2/3 backend route-module audit** — see pass thirty-three's resume point
+   for the current list of ~60 remaining untested routers (unchanged, minus
+   `academic_years`/`terms`/`subjects`/`sections`/`grades`/`institutions`/`users`/`assignments`/
+   `submissions` now done or in progress). Same method as every router above.
+3. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding`, `collaboration`, `parent_education`, `sel`, `timetable`.
+4. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
+   anything NEW in that audit without the user's confirmation landing first.
+5. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
+   not-yet-started bodies of work.
+6. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
+   of an injected `Depends(get_db)` session.
