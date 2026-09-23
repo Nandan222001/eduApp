@@ -185,10 +185,10 @@ class DashboardWidgetService:
         
         if user.role.slug == 'student':
             assignments = db.query(Assignment).filter(
-                Assignment.grade_id == user.student_profile.grade_id,
+                Assignment.grade_id == user.student_profile.section.grade_id,
                 Assignment.section_id == user.student_profile.section_id,
                 Assignment.due_date > now,
-                Assignment.status == AssignmentStatus.ACTIVE
+                Assignment.status == AssignmentStatus.PUBLISHED
             ).order_by(Assignment.due_date).limit(max_items).all()
             
             for assignment in assignments:
@@ -208,7 +208,7 @@ class DashboardWidgetService:
                 ))
             
             exams = db.query(Exam).filter(
-                Exam.grade_id == user.student_profile.grade_id,
+                Exam.grade_id == user.student_profile.section.grade_id,
                 Exam.start_date > now,
                 Exam.status == ExamStatus.SCHEDULED
             ).order_by(Exam.start_date).limit(max_items - len(deadlines)).all()
@@ -236,7 +236,7 @@ class DashboardWidgetService:
         if user.role.slug == 'teacher':
             assignments = db.query(Assignment).filter(
                 Assignment.teacher_id == user.teacher_profile.id,
-                Assignment.status == AssignmentStatus.ACTIVE
+                Assignment.status == AssignmentStatus.PUBLISHED
             ).limit(max_items).all()
             
             for assignment in assignments:
@@ -257,8 +257,9 @@ class DashboardWidgetService:
                         title=assignment.title,
                         type='assignment',
                         submitted_count=total_submissions,
+                        # Student has no grade_id column -- section_id alone
+                        # already fully determines the class roster here.
                         total_count=db.query(func.count(Student.id)).filter(
-                            Student.grade_id == assignment.grade_id,
                             Student.section_id == assignment.section_id
                         ).scalar(),
                         subject=assignment.subject.name if assignment.subject else 'General',
@@ -305,7 +306,7 @@ class DashboardWidgetService:
                             attendance_percentage=round(attendance_percentage, 2),
                             absent_days=absent_days,
                             alert_type=alert_type,
-                            grade=student.grade.name if student.grade else None,
+                            grade=student.section.grade.name if student.section and student.section.grade else None,
                             section=student.section.name if student.section else None
                         ))
                         
@@ -339,7 +340,7 @@ class DashboardWidgetService:
                                 attendance_percentage=round(attendance_percentage, 2),
                                 absent_days=absent_days,
                                 alert_type=alert_type,
-                                grade=student.grade.name if student.grade else None,
+                                grade=student.section.grade.name if student.section and student.section.grade else None,
                                 section=student.section.name if student.section else None
                             ))
         
@@ -409,9 +410,9 @@ class DashboardWidgetService:
                 (Submission.student_id == user.student_profile.id),
                 isouter=True
             ).filter(
-                Assignment.grade_id == user.student_profile.grade_id,
+                Assignment.grade_id == user.student_profile.section.grade_id,
                 Assignment.section_id == user.student_profile.section_id,
-                Assignment.status == AssignmentStatus.ACTIVE,
+                Assignment.status == AssignmentStatus.PUBLISHED,
                 Submission.id.is_(None)
             ).count()
             
