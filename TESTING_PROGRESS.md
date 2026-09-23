@@ -2606,3 +2606,86 @@ resume point.**
    router's injected `db: Session = Depends(get_db)` will fail with "Access denied for user
    'mysql'" in this test environment (found and fixed 3 instances of this in
    `database_maintenance_service.py` this pass; worth checking for elsewhere too).
+
+## Backend fixes, twenty-eighth pass — commit 9bce375 (complete)
+
+Fixed the 11th-bug-class instances flagged at the end of pass twenty-seven as the top resume
+item: **`src/middleware/rate_limit.py`, `src/middleware/tenant_context.py`,
+`src/middleware/performance_tracking.py`** all imported the Redis client via
+`from src.redis_client import redis_client` (frozen at import time to `None`), silently and
+permanently disabling rate-limit violation logging/stats, tenant-context session lookups for
+per-request RLS context, and realtime API/resource-utilization performance metrics -- in every
+environment, not just this one. Fixed the same way as pass twenty-seven: import and call the
+`get_redis()` accessor at each use site instead of the frozen name.
+
+Since this is middleware wrapping every request (by far the widest blast radius of anything
+touched this session), verified with the **full suite** (1230 tests, `-n auto`) both with and
+without the fix (via `git stash`/`git stash pop`) rather than just the usual single-router
+regression check: **identical 46 failed / 1150 passed / 11 skipped / 23 errors either way**.
+Spot-checked 6 of the failing tests individually under both states to confirm byte-for-byte
+identical failure modes -- all pre-existing and unrelated to this fix:
+- Real Redis is not running in this container (`redis-cli ping` → connection refused), so
+  `get_redis()` returns `None` here exactly as the old frozen-`None` import did -- this fix is
+  observably a no-op in this test environment specifically (it only changes behavior once Redis
+  is actually reachable, e.g. in a real deployment). `test_virtual_classrooms_api.py`'s failures
+  are this same "no real Redis" limitation hitting a file this pass didn't touch
+  (`virtual_classroom_service.py` already correctly used `get_redis()`).
+- `test_aggregate_analytics_daily` (expects 1 institution, gets 5) and the intermittent
+  `RuntimeError: There is no current event loop in thread 'MainThread'` failures across several
+  `test_auth_service.py` tests are cross-test DB-state leakage / pytest-asyncio event-loop-reuse
+  flakiness that only surfaces when running the ENTIRE suite at once under `-n auto` -- this
+  session had never previously run the full 1230-test suite in one shot (always targeted
+  per-router subsets), so this is the first time this pre-existing full-suite-scale flakiness was
+  even observed, not something introduced now.
+- `test_student_cannot_access_subscription_endpoints` (a student role can hit a subscription
+  endpoint that should 403) and `test_xss_in_student_name_fields` (a raw `<script>` tag survives
+  round-trip through a student's `first_name` field unescaped -- a real stored-XSS-shaped gap)
+  are both genuine, pre-existing findings that fall under this session's standing
+  security-posture-audit hold: the user has not yet confirmed they want those fixes, so neither
+  was touched.
+
+The rest of the full-suite failure list (`tests/migration/*`, `tests/benchmark/*`,
+`tests/test_performance_benchmarks.py`) are pre-existing infrastructure limitations already
+implied by this session's known constraints (benchmarks are incompatible with `-n auto`/xdist per
+pytest-benchmark's own warning; the migration test suite needs a from-scratch schema rather than
+this session's persistent shared test schema) and were not individually re-verified against the
+stash, since none of them touch Redis or middleware at all.
+
+`pytest --collect-only tests/` still collects **1230 tests, 0 errors** (this pass changed no
+test files, only the 3 middleware source files).
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue testing the remaining newly-registered routers**: `family` (793 lines),
+   `live_events` (1174 lines), `live_events_websocket` (websocket-only, 317 lines),
+   `recommendations`. Eleven tracked bug classes now (see pass twenty-seven for the newest one,
+   frozen module-global imports via `from module import mutable_name`).
+2. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+3. **Continue the Phase-2/3 backend route-module audit more broadly** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage.
+4. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings, now joined by the two concrete instances surfaced this pass
+   (student can access subscription endpoints; unescaped `<script>` survives round-trip in a
+   student's `first_name`). Do NOT start fixing any of these without the user's confirmation
+   landing first.
+5. **New, lower-priority note**: this pass surfaced that a full, whole-suite `-n auto` run (not
+   done previously this session -- only per-router subsets) has its own pre-existing flakiness
+   independent of anything fixed so far: cross-test DB-state leakage (e.g.
+   `test_aggregate_analytics_daily` count assertions) and intermittent pytest-asyncio
+   event-loop-reuse errors under xdist. Worth a dedicated investigation pass eventually, but
+   it's a pre-existing test-infrastructure issue, not a regression from anything fixed this
+   session -- do not let it block or get conflated with per-router work.
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+7. **Environment note for future iterations** (unchanged from pass twenty-seven): MySQL/Redis
+   are not guaranteed to be running at iteration start (Redis is confirmed down as of this pass);
+   `DATABASE_USER`/`DATABASE_PASSWORD`/`DATABASE_NAME` default to placeholders that don't match
+   the test DB, so any service code opening its own `SessionLocal()`/using `src.database.engine`
+   directly instead of the router's injected `db: Session = Depends(get_db)` will fail with
+   "Access denied for user 'mysql'" here. Clear `/tmp/eduapp_schema.lock`/`.done` after any fresh
+   MySQL start or schema reset.
