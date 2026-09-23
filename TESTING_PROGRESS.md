@@ -2875,3 +2875,91 @@ reviewed, verified, and committed (or explicitly abandoned).
    reset. Running two background agents concurrently on genuinely disjoint files (different
    routers, different test files) worked cleanly this pass with no conflicts -- each agent was
    told explicitly which files were off-limits and to `git pull` before committing.
+
+## Backend fixes, thirty-first pass — commit 5f8ca7f (complete)
+
+129. **`live_events`** (commit `5f8ca7f`) — `tests/integration/test_live_events_api.py`, 76
+    tests covering `src/api/v1/live_events.py`: live event CRUD, stream key/start/end management,
+    access control (public/parents-only/specific-grades + ticketed), viewer join/leave tracking,
+    chat + moderation rules, analytics, recording upload/archive, and the ticket/revenue flow.
+    This one was started by a background agent that **hit the session rate limit mid-task**
+    before it could self-report or commit (same failure mode as pass twenty-four's `transport`/
+    `library`) -- recovered per that established procedure: read the complete diff (75
+    insertions/38 deletions across the 2 source files + a 1231-line untracked test file), judged
+    it coherent and complete (not a half-edit, every referenced fix was fully applied with no
+    dangling references), then independently re-ran the test file fresh myself (76/76 under both
+    `-n0` and `-n auto`, plus a clean full-suite collection check) before committing -- exactly
+    as skeptically as verifying a completed handback, since there was no self-report to
+    cross-check against. Found and fixed **7 real bugs**:
+    - **Route-registration-order shadowing (bug class 7), a new instance**: `GET /{event_id}`
+      (a bare, untyped path param) was registered before the literal `GET /moderation-rules` --
+      any request to `/moderation-rules` matched the wildcard route first and failed int
+      coercion with a 422 instead of reaching the real handler. Fixed with a different technique
+      than previous passes' "just reorder the routes": added explicit `:int` path converters
+      (`{event_id:int}`, `{viewer_id:int}`, etc.) to every numeric path param in the router,
+      which makes Starlette's wildcard routes correctly skip non-numeric segments **regardless
+      of declaration order** -- a more robust fix than reordering, worth considering as the
+      preferred fix for this bug class going forward.
+    - `join_event`/`send_chat_message` both built their ORM object as
+      `Model(live_event_id=event_id, user_id=..., **data.model_dump())` where the Create schema
+      *also* has a required `live_event_id` field -- `TypeError: got multiple values for keyword
+      argument` on literally every call to either endpoint (the same shape of bug this session's
+      `events.py`/`create_rsvp` had in an earlier pass). Fixed by excluding `live_event_id` from
+      both dumps.
+    - `get_chat_messages`'s `.join(User)` was ambiguous -- `EventChatMessage` has two FKs into
+      `users` (`user_id`, `moderated_by`), and SQLAlchemy can't silently guess here (unlike the
+      `recommendations` pass's ambiguous-join bug, this one actually raises
+      `AmbiguousForeignKeysError` rather than silently picking the wrong FK, since here both FKs
+      point at the *same* join target `User`, not a case where the target table also has its own
+      distinct incoming FKs to choose between). Fixed with an explicit join condition.
+    - `StreamAnalyticsResponse` was missing `model_config = ConfigDict(from_attributes=True)`,
+      so `GET /{event_id}/analytics` raised a validation error for any event with real
+      stream-quality rows (empty list happened to slip through silently, which is why this was
+      latent). Fixed to match every other ORM-backed schema in the file.
+    - MySQL's `SUM()` over an integer ticket-price column comes back through pymysql as a
+      `Decimal`; since `revenue_analytics` is typed `Dict[str, Any]`, Pydantic v2's JSON-mode
+      serializer silently `str()`-ed the un-cast Decimal, turning `total_revenue` into a JSON
+      *string* instead of a number for any event with real ticket revenue. Fixed with an
+      explicit `int(...)` cast.
+    - The two FastAPI `BackgroundTasks` helpers (`setup_stream_platform`, `process_recording` --
+      not Celery) had no `try/except` at all; Starlette's `BackgroundTask.__call__` doesn't
+      catch for them, so any exception raised inside propagates through the ASGI pipeline
+      *after* the response has already been sent to the client -- confirmed this makes
+      `TestClient.post(...)` itself raise rather than return a response. Wrapped both in
+      `try/except Exception` with `logger.exception(...)`.
+
+`pytest --collect-only tests/` now collects **1387 tests, 0 errors** (1311 after
+`recommendations` + 76 for `live_events`). This completes every router from the original
+pass-twenty-three resume list except `live_events_websocket` (websocket-only, out of scope for
+this pass by design -- the `live_events` agent was told explicitly not to touch it).
+
+## Next resume point (current, supersedes the ones above)
+1. **`live_events_websocket`** (317 lines, websocket-only) is the last router from the original
+   pass-twenty-three "+12 newly registered" list. Needs `TestClient.websocket_connect(...)`
+   rather than the usual `client.get/post(...)` pattern -- check `tests/` for any existing
+   websocket test precedent (e.g. classroom/virtual-classroom websocket tests, if any) before
+   writing from scratch.
+2. **Continue the Phase-2/3 backend route-module audit more broadly** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage. This is now the largest remaining body of backend work.
+3. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+4. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings. Do NOT start fixing anything NEW in that audit without the
+   user's confirmation landing first.
+5. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+6. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start -- MySQL was confirmed stopped once this pass (`service mysql
+   status` → "MySQL is stopped"; `service mysql start` recovered it in a few seconds) and Redis
+   remains down as of pass twenty-seven/twenty-eight. `DATABASE_USER`/`DATABASE_PASSWORD`/
+   `DATABASE_NAME` default to placeholders that don't match the test DB. Clear
+   `/tmp/eduapp_schema.lock`/`.done` after any fresh MySQL start or schema reset. The
+   rate-limited-background-agent recovery procedure (read diff, judge coherence, re-run fresh,
+   full-suite collection check, then commit) worked cleanly again this pass -- continue using it
+   without hesitation when it happens again; it is a normal, well-understood recoverable event,
+   not a reason to discard the agent's work.
