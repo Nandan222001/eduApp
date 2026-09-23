@@ -2689,3 +2689,93 @@ test files, only the 3 middleware source files).
    directly instead of the router's injected `db: Session = Depends(get_db)` will fail with
    "Access denied for user 'mysql'" here. Clear `/tmp/eduapp_schema.lock`/`.done` after any fresh
    MySQL start or schema reset.
+
+## Backend fixes, twenty-ninth pass — commit e572d3f (complete)
+
+127. **`family`** (commit `e572d3f`, written by a background agent, independently re-verified
+    this pass) — `tests/integration/test_family_api.py`, 38 tests covering every endpoint of
+    `src/api/v1/family.py`: dashboard auto-creation, family groups/members, calendar events,
+    sibling performance/attendance/behavior comparisons, notification batches, shared expenses
+    with splits, and the four bulk actions (pay-fees, download-report-cards, rsvp-events,
+    toggle-children). Independently re-ran fresh under both `-n0` and `-n auto` (38/38 both ways)
+    and confirmed clean full-suite collection before pushing, per this session's established
+    recovery/verification discipline for background-agent work. Found and fixed **9 real bugs**:
+    - `NameError` crash on 2 endpoints (`get_family_notifications`, `get_shared_expenses`):
+      `FamilyNotificationItemResponse`/`ExpenseSplitResponse` were referenced but never imported
+      from `src.schemas.family`.
+    - metadata/metadata_json alias bug (bug class 1), 2 read-side schema fields
+      (`FamilyCalendarEventResponse.metadata`, `FamilyNotificationItemResponse.metadata`) fixed
+      with the established `Field(None, validation_alias='metadata_json',
+      serialization_alias='metadata')` pattern.
+    - The write-side sibling of the same bug, and arguably worse since it's silent: is
+      `create_calendar_event` did `FamilyCalendarEvent(**event_data.model_dump())`, and since
+      every Declarative model has a class-level `metadata` attribute (SQLAlchemy's MetaData
+      registry), the constructor silently absorbed the submitted `metadata` into a throwaway
+      instance attribute instead of the real `metadata_json` column -- client data discarded on
+      every create with zero error. Fixed by popping `'metadata'` and passing
+      `metadata_json=...` explicitly.
+    - Raw lowercase strings compared against SQLEnum columns instead of real enum members, 3
+      occurrences (`Attendance.status == 'present'`, 2x `Submission.status.in_([...])`) --
+      SQLAlchemy's default `Enum` stores a Python enum's `.name` (e.g. `"PRESENT"`), not its
+      `.value`; every other call site in the codebase already used the real enum members. A
+      non-matching string raises `LookupError`, so `/comparisons/attendance`, `/dashboard`'s
+      assignment count, and `/toggle-children` all 500'd. Fixed to use
+      `AttendanceStatus.PRESENT`/`SubmissionStatus.NOT_SUBMITTED`/`SubmissionStatus.SUBMITTED`.
+    - MySQL syntax error 1064 on every call to `GET /expenses`: `.desc().nullslast()` compiles to
+      Postgres/Oracle-only `NULLS LAST` syntax that MySQL rejects outright. Fixed by dropping
+      `.nullslast()` (MySQL already sorts NULL as smallest, so plain `.desc()` already achieves
+      the same ordering).
+    - **2 cross-tenant authorization gaps** (new pattern for this session, distinct from the 11
+      tracked bug classes but the same shape as one flagged in an earlier pass's
+      `parent_service.py`): `mark_notification_read` had zero institution/family scoping at all
+      -- any authenticated user of any institution could mark any other family's notification
+      batch read by guessing/incrementing `batch_id`. `create_calendar_event` had no check that
+      the submitted `family_group_id` belonged to the caller's institution, letting a
+      cross-institution user create events under an arbitrary family's group. Both fixed by
+      adding the same institution-scoped ownership check `add_family_member` already used
+      elsewhere in the same file.
+    - `add_family_member` had no `response_model` at all (returned a raw ORM object) despite a
+      matching `FamilyGroupMemberResponse` schema already existing unused. Wired it in.
+    - `SharedExpenseCreate.student_ids` had no minimum length, so an empty list on an
+      "equal"-split request divided by zero (unhandled 500). Added `Field(..., min_length=1)`.
+    - **Flagged but deliberately not fixed** (to keep the diff reviewable, matching this
+      session's established precedent): `bulk_rsvp_events` looks up `FamilyCalendarEvent` by id
+      with no institution scoping either, but since it doesn't persist anything (RSVP
+      "confirmations" are ephemeral), the blast radius is limited to leaking whether an event ID
+      exists cross-institution. Worth revisiting alongside a broader authorization sweep.
+
+`pytest --collect-only tests/` now collects **1268 tests, 0 errors**.
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue testing the remaining newly-registered routers**: `live_events` (1174 lines),
+   `live_events_websocket` (websocket-only, 317 lines), `recommendations`. Eleven tracked bug
+   classes, plus watch for the cross-tenant-authorization-gap pattern found in `family` this pass
+   (a route that queries/mutates a resource by id with no join/filter back to
+   `current_user.institution_id` or equivalent ownership check) -- this has now shown up in at
+   least two different routers across the session and is worth checking explicitly on every new
+   router, not just the 11 numbered bug classes.
+2. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+3. **Continue the Phase-2/3 backend route-module audit more broadly** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage.
+4. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings (now also including `family`'s two cross-tenant gaps, both
+   already fixed this pass, and the student-RBAC/stored-XSS findings from pass twenty-eight). Do
+   NOT start fixing anything NEW in that audit without the user's confirmation landing first.
+5. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+6. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start (Redis is confirmed down as of pass twenty-seven/twenty-eight);
+   `DATABASE_USER`/`DATABASE_PASSWORD`/`DATABASE_NAME` default to placeholders that don't match
+   the test DB, so any service code opening its own `SessionLocal()`/using `src.database.engine`
+   directly instead of the router's injected `db: Session = Depends(get_db)` will fail with
+   "Access denied for user 'mysql'" here. Clear `/tmp/eduapp_schema.lock`/`.done` after any fresh
+   MySQL start or schema reset. Background-agent dispatch continues to work reliably (no
+   rate-limit issues since pass twenty-four) -- keep independently re-verifying (fresh test run
+   under both `-n0`/`-n auto`, full-suite collection check, diff review) before pushing, per
+   established discipline.
