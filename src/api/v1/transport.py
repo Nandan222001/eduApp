@@ -12,6 +12,7 @@ from src.schemas.transport import (
     TransportRouteUpdate,
     TransportRouteResponse,
     TransportRouteWithStops,
+    RouteStopBase,
     RouteStopCreate,
     RouteStopUpdate,
     RouteStopResponse,
@@ -136,21 +137,32 @@ async def delete_route(
 
 
 # Route Stops
-@router.post("/stops", response_model=RouteStopResponse, status_code=status.HTTP_201_CREATED)
+#
+# These are nested under /routes/{route_id}/stops/... to match the real
+# frontend (frontend/src/api/transport.ts's createStop/updateStop/deleteStop
+# all call this shape). The original flat /stops and /stops/{stop_id} paths
+# (with route_id read from the request body) didn't match anything the
+# frontend ever called, and there was no delete-stop endpoint at all --
+# frontend's deleteStop() would 404 unconditionally. Body payload is
+# RouteStopBase (no route_id field) since route_id now comes from the path,
+# exactly matching the fields RouteConfiguration.tsx's handleStopSubmit
+# actually sends.
+@router.post("/routes/{route_id}/stops", response_model=RouteStopResponse, status_code=status.HTTP_201_CREATED)
 async def create_stop(
-    stop_data: RouteStopCreate,
+    route_id: int,
+    stop_data: RouteStopBase,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     route = db.query(TransportRoute).filter(
-        TransportRoute.id == stop_data.route_id,
+        TransportRoute.id == route_id,
         TransportRoute.institution_id == current_user.institution_id
     ).first()
-    
+
     if not route:
         raise HTTPException(status_code=404, detail="Route not found")
 
-    stop = RouteStop(**stop_data.model_dump())
+    stop = RouteStop(route_id=route_id, **stop_data.model_dump())
     db.add(stop)
     db.commit()
     db.refresh(stop)
@@ -167,20 +179,21 @@ async def list_route_stops(
         TransportRoute.id == route_id,
         TransportRoute.institution_id == current_user.institution_id
     ).first()
-    
+
     if not route:
         raise HTTPException(status_code=404, detail="Route not found")
-    
+
     stops = db.query(RouteStop).filter(
         RouteStop.route_id == route_id,
         RouteStop.is_active == True
     ).order_by(RouteStop.stop_order).all()
-    
+
     return stops
 
 
-@router.put("/stops/{stop_id}", response_model=RouteStopResponse)
+@router.put("/routes/{route_id}/stops/{stop_id}", response_model=RouteStopResponse)
 async def update_stop(
+    route_id: int,
     stop_id: int,
     update_data: RouteStopUpdate,
     current_user: User = Depends(get_current_user),
@@ -188,18 +201,40 @@ async def update_stop(
 ):
     stop = db.query(RouteStop).join(TransportRoute).filter(
         RouteStop.id == stop_id,
+        RouteStop.route_id == route_id,
         TransportRoute.institution_id == current_user.institution_id
     ).first()
-    
+
     if not stop:
         raise HTTPException(status_code=404, detail="Stop not found")
-    
+
     for field, value in update_data.model_dump(exclude_unset=True).items():
         setattr(stop, field, value)
-    
+
     db.commit()
     db.refresh(stop)
     return stop
+
+
+@router.delete("/routes/{route_id}/stops/{stop_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_stop(
+    route_id: int,
+    stop_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    stop = db.query(RouteStop).join(TransportRoute).filter(
+        RouteStop.id == stop_id,
+        RouteStop.route_id == route_id,
+        TransportRoute.institution_id == current_user.institution_id
+    ).first()
+
+    if not stop:
+        raise HTTPException(status_code=404, detail="Stop not found")
+
+    db.delete(stop)
+    db.commit()
+    return None
 
 
 # Student Transport Assignment
