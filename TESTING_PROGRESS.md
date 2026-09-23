@@ -3748,3 +3748,107 @@ hand-back is reviewed, verified, and committed.
    just when something "looks off"). A background agent being force-terminated for a
    turn/time-budget reason (not just rate limits) is another normal, recoverable interruption
    mode -- the same "read diff, judge coherence, verify, don't discard" procedure applies.
+
+## Backend fixes, fortieth pass — commit 7b5edb7 (complete)
+
+156-160. **`analytics`, `conferences`, `document_vault`, `profile`, `search`** (commit
+    `7b5edb7`) — `tests/integration/test_analytics_api.py` (28), `test_conferences_api.py`
+    (73), `test_document_vault_api.py` (43), `test_profile_api.py` (22), `test_search_api.py`
+    (27), 193 tests total. Independently re-ran fresh under both `-n0` and `-n auto` (193/193
+    both ways), confirmed clean full-suite collection (2483 tests, 0 errors), and reviewed the
+    highest-impact diffs line-by-line (profile.py's privilege-escalation fix, search.py,
+    document_vault.py, the UUID/analytics fix, the conferences model columns) before pushing.
+    Found and fixed **15 real bugs** across 5 routers, several of them severe:
+    - **`analytics.py`/`analytics_repository.py` was 100% non-functional** (bug class 11,
+      fourth occurrence this session after `feedback.py`): written against async SQLAlchemy
+      (`AsyncSession`, `await db.execute(...)`) against the sync `get_db()` dependency. Also:
+      metadata/metadata_json shadowing (bug class 1); `POST /performance` registered twice at
+      the identical path, permanently shadowing the mobile-batch variant; the mobile batch
+      endpoints built Pydantic objects with field names that don't exist on the schemas
+      (silently swallowed every item, `processed_count` always 0); and `PATCH
+      /analytics/sessions/{id}` 500'd instead of 404ing for an unknown id.
+    - **A new bug class discovered this pass, worth watching for going forward**: comparing a
+      raw `UUID` object against a plain `CHAR(36)` string column silently never matches in a
+      pymysql WHERE clause (even though the same UUID matches fine on INSERT) -- broke a
+      feature-usage dedup lookup (always inserted a duplicate instead of incrementing) and every
+      institution-scoped aggregate query in the file. Fixed by normalizing to `str(...)` before
+      comparison at every site.
+    - **`conferences.py`: comprehensive model/schema drift (bug class 9)** -- `ConferenceBooking`/
+      `ConferenceSurvey` were missing 9 columns the schemas required (`parent_topics`,
+      `follow_up_required`/`_notes`, `reminder_24h_sent`/`_1h_sent`, `communication_rating`,
+      `helpfulness_rating`, `suggestions`, `updated_at`), so every single booking creation and
+      every survey submission raised `TypeError`. Confirmed the model (not the schema) was wrong
+      via the repository's `get_pending_reminders` already assuming the reminder columns exist.
+      Plus: `create_booking` never validated the target slot's actual institution (bug class
+      12); `GET /statistics/teacher/{id}` had zero institution scoping; the "PTM speed dating"
+      auto-scheduler had no student-institution check AND was separately broken by a missing
+      `and_` import (`NameError` on every call) and by routing generated 5-minute slots through
+      a schema whose duration validator rejects anything outside
+      `[15,30,45,60,90,120]` minutes; and `GET /bookings/my` 403'd unconditionally for every
+      real parent caller due to a dead `hasattr(current_user, 'parent_profile')` check (`User`
+      has no such relationship at all).
+    - `document_vault.py`: 5 endpoints crashed with an unhandled `AttributeError` (500) instead
+      of a clean 403 whenever the caller had no `Parent` row at all (missing `None`-check before
+      `.id` access). The model itself (already rewritten in an earlier pass) was re-verified
+      field-by-field with no remaining drift found.
+    - **`profile.py`: a genuine self-service privilege-escalation vulnerability.** `UserUpdate`
+      (the same schema admin-facing user management uses) carries `role_id`/`is_active`, and
+      both `PUT /me` and the self-edit path of `PUT /{user_id}` forwarded it unfiltered to the
+      profile service, which unconditionally `setattr`'d every field present -- **any
+      authenticated user could PUT their own `role_id` to an admin role's id and self-promote**,
+      or flip their own `is_active`. Fixed by stripping `role_id`/`is_active` from self-edits by
+      non-superusers (a superuser retains full field access, including editing themselves).
+    - `search.py`: `current_user.role` (the `Role` ORM relationship) was passed where a plain
+      role-slug string was expected in the comparison `PopularSearch.role == user_role` -- an
+      unconditional `sqlalchemy.exc.ArgumentError` on **every single `POST /search` request,
+      the router's main global-search feature**. Fixed with `current_user.role.slug`.
+    - **Flagged but deliberately not fixed**: `analytics.py` has no authentication on any
+      endpoint at all, including aggregate cross-institution dashboards -- but unlike
+      `institution_admin`/`quizzes` this looked plausibly intentional (a generic, decoupled
+      client-telemetry ingest API using free-form UUIDs rather than this app's real User/
+      Institution PKs), so it was left as-is pending a deliberate design decision rather than
+      guessed at. Worth a dedicated look in a future pass.
+
+## This session's 5th and largest parallel-agent round is now fully resolved
+The three agents dispatched together this round (`institution_admin`/`institution_health`/
+`settings`/`webhooks`, `quizzes`/`question_bank`/`question_blueprints`/`question_bookmarks`, and
+`analytics`/`conferences`/`document_vault`/`profile`/`search`) are all complete, independently
+verified, and pushed -- 13 routers, 433 new tests, 27 real bugs found and fixed in this single
+round alone.
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue the Phase-2/3 backend route-module audit** with the remaining untested routers:
+   `board_exam_predictions`, `career`, `chatbot`, `classroom_websocket`, `college_planning`,
+   `content_marketplace`, `data_management`, `entrepreneurship`, `flashcards`, `goals`,
+   `homework_scanner`, `mistake_analysis`, `ml_monitoring`, `mobile_auth`,
+   `notification_analytics`, `olympics`, `onboarding`, `parent_roi`, `peer_recognition`,
+   `peer_tutoring`, `plagiarism`, `podcasts`, `predictions`, `previous_year_papers`,
+   `question_nlp`, `reverse_classroom`, `scholarship_essays`, `student_employment`,
+   `study_buddy`, `study_materials`, `study_planner`, `subject_rpg`, `super_admin_analytics`,
+   `timetables`, `weakness_detection`. Same method as every router above -- check all eleven
+   numbered bug classes plus bug class 12 (cross-tenant/cross-owner gaps), PLUS explicitly
+   check for a completely missing auth dependency on the whole router (4 found this session:
+   `feedback.py`'s async/sync crash, `institution_admin.py`, `quizzes.py`,
+   `live_events_websocket.py`'s auth stub), PLUS the newly-found UUID-vs-CHAR(36) comparison
+   bug and the "shared admin schema forwarded unfiltered to a self-service endpoint" privilege-
+   escalation shape.
+2. **`analytics.py`'s missing authentication is flagged, not fixed** -- needs a deliberate
+   decision (is unauthenticated cross-institution telemetry/dashboard access intentional for
+   this generic ingest API, or should it require auth like its sibling
+   `notification_analytics.py` does?) before touching it.
+3. **Fix the 5 routers that don't import cleanly** (unchanged): `branding`, `collaboration`,
+   `parent_education`, `sel`, `timetable`.
+4. **Lower-priority follow-up from pass thirty-seven**: register `BrandingMiddleware` in
+   `src/main.py` (or otherwise wire up `/super-admin/branding/current`).
+5. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
+   anything NEW in that audit without the user's confirmation landing first. (Note: this pass's
+   `profile.py` privilege-escalation fix and the prior unauthenticated-router fixes were treated
+   as ordinary bugs found via testing, consistent with this session's established practice of
+   NOT routing individually-discovered bugs through that separate, still-pending audit hold.)
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
+   not-yet-started bodies of work.
+7. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; a model column addition requires either a manual `ALTER TABLE`
+   against an already-provisioned test-DB table or clearing `/tmp/eduapp_schema.lock`/`.done`
+   for a fresh `create_all` (found again this pass for `conferences.py`, same as `institutions.py`
+   in pass thirty-three).
