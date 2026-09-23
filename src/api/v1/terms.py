@@ -9,7 +9,7 @@ from src.schemas.academic import (
     TermUpdate,
     TermResponse,
 )
-from src.models.academic import Term
+from src.models.academic import Term, AcademicYear
 
 router = APIRouter()
 
@@ -25,7 +25,27 @@ async def create_term(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create term for this institution"
         )
-    
+
+    academic_year = db.query(AcademicYear).filter(
+        AcademicYear.id == term_data.academic_year_id,
+        AcademicYear.institution_id == current_user.institution_id,
+    ).first()
+    if not academic_year:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Academic year not found"
+        )
+
+    existing = db.query(Term).filter(
+        Term.academic_year_id == term_data.academic_year_id,
+        Term.name == term_data.name,
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Term with this name already exists in this academic year"
+        )
+
     term = Term(**term_data.model_dump())
     db.add(term)
     db.commit()
@@ -100,8 +120,22 @@ async def update_term(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this term"
         )
-    
-    for key, value in term_data.model_dump(exclude_unset=True).items():
+
+    update_data = term_data.model_dump(exclude_unset=True)
+
+    if 'name' in update_data and update_data['name'] != term.name:
+        existing = db.query(Term).filter(
+            Term.academic_year_id == term.academic_year_id,
+            Term.name == update_data['name'],
+            Term.id != term_id,
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Term with this name already exists in this academic year"
+            )
+
+    for key, value in update_data.items():
         setattr(term, key, value)
     
     db.commit()

@@ -10,6 +10,7 @@ from src.schemas.academic import (
     SectionResponse,
 )
 from src.services.academic_service import SectionService
+from src.models.academic import Grade
 
 router = APIRouter()
 
@@ -25,7 +26,17 @@ async def create_section(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create section for this institution"
         )
-    
+
+    grade = db.query(Grade).filter(
+        Grade.id == section_data.grade_id,
+        Grade.institution_id == current_user.institution_id,
+    ).first()
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grade not found"
+        )
+
     service = SectionService(db)
     section = service.create_section(section_data)
     return section
