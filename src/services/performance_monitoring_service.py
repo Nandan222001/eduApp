@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-from sqlalchemy import func, and_, desc, distinct
+from sqlalchemy import func, and_, desc, distinct, Integer, case
 from sqlalchemy.orm import Session
 from src.models.performance_monitoring import (
     APIPerformanceMetric,
@@ -616,9 +616,9 @@ class PerformanceMonitoringService:
         query = self.db.query(
             TaskQueueMetric.task_name,
             func.count(TaskQueueMetric.id).label('total_tasks'),
-            func.sum(func.case((TaskQueueMetric.status == 'SUCCESS', 1), else_=0)).label('successful'),
-            func.sum(func.case((TaskQueueMetric.status == 'FAILURE', 1), else_=0)).label('failed'),
-            func.sum(func.case((TaskQueueMetric.status.in_(['PENDING', 'STARTED', 'RETRY']), 1), else_=0)).label('pending'),
+            func.sum(case((TaskQueueMetric.status == 'SUCCESS', 1), else_=0)).label('successful'),
+            func.sum(case((TaskQueueMetric.status == 'FAILURE', 1), else_=0)).label('failed'),
+            func.sum(case((TaskQueueMetric.status.in_(['PENDING', 'STARTED', 'RETRY']), 1), else_=0)).label('pending'),
             func.avg(TaskQueueMetric.execution_time_ms).label('avg_execution_time'),
             func.avg(TaskQueueMetric.queue_wait_time_ms).label('avg_wait_time'),
             func.avg(TaskQueueMetric.retries).label('avg_retries'),
@@ -663,8 +663,8 @@ class PerformanceMonitoringService:
         query = self.db.query(
             trunc_expr.label('time_bucket'),
             func.count(TaskQueueMetric.id).label('tasks'),
-            func.sum(func.case((TaskQueueMetric.status == 'SUCCESS', 1), else_=0)).label('successful'),
-            func.sum(func.case((TaskQueueMetric.status == 'FAILURE', 1), else_=0)).label('failed'),
+            func.sum(case((TaskQueueMetric.status == 'SUCCESS', 1), else_=0)).label('successful'),
+            func.sum(case((TaskQueueMetric.status == 'FAILURE', 1), else_=0)).label('failed'),
         ).filter(
             TaskQueueMetric.timestamp.between(start_time, end_time)
         )
@@ -874,13 +874,13 @@ class PerformanceMonitoringService:
             recent_alerts=[PerformanceAlertResponse.from_orm(alert) for alert in recent_alerts],
         )
     
-    def get_dashboard_data(
+    async def get_dashboard_data(
         self, time_range: TimeRange, start_time: datetime = None, end_time: datetime = None, institution_id: int = None
     ) -> PerformanceDashboardData:
         """Get complete performance dashboard data"""
-        
+
         start, end = self._get_time_range(time_range, start_time, end_time)
-        
+
         return PerformanceDashboardData(
             time_range=time_range,
             start_time=start,
@@ -890,7 +890,7 @@ class PerformanceMonitoringService:
             cache_performance=self.get_cache_performance(start, end, institution_id),
             task_queue_performance=self.get_task_queue_performance(start, end, institution_id),
             resource_utilization=self.get_resource_utilization(start, end),
-            active_users=asyncio.run(self.get_active_users(start, end, institution_id)),
+            active_users=await self.get_active_users(start, end, institution_id),
             alerts=self.get_performance_alerts(start, end, institution_id),
         )
     
@@ -937,7 +937,7 @@ class PerformanceMonitoringService:
             threshold_value=threshold_value,
             affected_resource=affected_resource,
             institution_id=institution_id,
-            metadata=metadata,
+            metadata_json=metadata,
         )
         self.db.add(alert)
         self.db.commit()

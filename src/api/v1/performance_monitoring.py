@@ -51,7 +51,7 @@ async def get_performance_dashboard(
     service = PerformanceMonitoringService(db)
     
     try:
-        dashboard_data = service.get_dashboard_data(
+        dashboard_data = await service.get_dashboard_data(
             time_range=time_range,
             start_time=start_time,
             end_time=end_time,
