@@ -7,6 +7,9 @@ from src.database import get_db
 from src.models.subscription import Subscription, Invoice, Payment, UsageRecord
 from src.models.institution import Institution
 from src.models.user import User
+from src.models.student import Student
+from src.models.teacher import Teacher
+from src.dependencies.auth import get_current_user, require_roles
 from src.schemas.subscription import (
     SubscriptionResponse,
     InvoiceResponse,
@@ -18,6 +21,16 @@ from src.config import settings
 
 router = APIRouter()
 
+# Every endpoint in this router previously had NO auth dependency at all
+# (bug class 12): `GET /institution-admin/subscription` returned institution
+# #1's full billing dashboard -- subscription, invoices, payment history --
+# to any anonymous caller, and the mutating payment-method/add-on endpoints
+# were equally open. It was also hardcoded to `institution_id = 1`
+# regardless of caller, so it never actually worked for any other
+# institution. Fixed by requiring a logged-in admin/institution_admin and
+# scoping every query to `current_user.institution_id`.
+ADMIN_ROLES = ["admin", "institution_admin"]
+
 
 def get_subscription_service(db: Session = Depends(get_db)) -> SubscriptionService:
     razorpay_key_id = getattr(settings, "razorpay_key_id", "rzp_test_key")
@@ -27,11 +40,13 @@ def get_subscription_service(db: Session = Depends(get_db)) -> SubscriptionServi
 
 @router.get("/subscription")
 async def get_institution_subscription_data(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: SubscriptionService = Depends(get_subscription_service),
 ):
-    institution_id = 1
-    
+    require_roles(current_user, ADMIN_ROLES)
+    institution_id = current_user.institution_id
+
     subscription = (
         db.query(Subscription)
         .filter(Subscription.institution_id == institution_id)
@@ -68,16 +83,22 @@ async def get_institution_subscription_data(
         .all()
     )
     
-    student_count = db.query(User).filter(
-        User.institution_id == institution_id,
-        User.role == "student",
-        User.is_active == True
+    # `User.role` is a relationship (to `Role`), not a plain string column --
+    # `User.role == "student"` raised `sqlalchemy.exc.ArgumentError` on
+    # every single call that reached this point (any institution with an
+    # active/trialing subscription), a 500 on this router's one real
+    # endpoint. Count through the dedicated `Student`/`Teacher` tables
+    # instead, matching the established convention used elsewhere in this
+    # codebase (see institution_health_service.py's feature-adoption/data-
+    # quality scoring) rather than trying to join through `Role.slug`.
+    student_count = db.query(Student).filter(
+        Student.institution_id == institution_id,
+        Student.is_active == True
     ).count()
-    
-    teacher_count = db.query(User).filter(
-        User.institution_id == institution_id,
-        User.role == "teacher",
-        User.is_active == True
+
+    teacher_count = db.query(Teacher).filter(
+        Teacher.institution_id == institution_id,
+        Teacher.is_active == True
     ).count()
     
     payments = (
@@ -179,8 +200,20 @@ async def get_institution_subscription_data(
 @router.post("/payment-methods")
 async def add_payment_method(
     data: dict,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_roles(current_user, ADMIN_ROLES)
+    # Previously indexed `data[...]` directly -- a request missing any of
+    # these keys raised an unhandled `KeyError`, surfacing as a raw 500
+    # instead of a clean validation error.
+    required_fields = ["card_number", "card_holder", "expiry_month", "expiry_year"]
+    missing = [field for field in required_fields if field not in data]
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Missing required field(s): {', '.join(missing)}",
+        )
     return {
         "id": 2,
         "card_number": data["card_number"],
@@ -194,30 +227,38 @@ async def add_payment_method(
 @router.delete("/payment-methods/{method_id}")
 async def delete_payment_method(
     method_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_roles(current_user, ADMIN_ROLES)
     return {"message": "Payment method deleted"}
 
 
 @router.post("/payment-methods/{method_id}/set-default")
 async def set_default_payment_method(
     method_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_roles(current_user, ADMIN_ROLES)
     return {"message": "Default payment method updated"}
 
 
 @router.post("/add-ons/{addon_id}/enable")
 async def enable_addon(
     addon_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_roles(current_user, ADMIN_ROLES)
     return {"message": "Add-on enabled"}
 
 
 @router.post("/add-ons/{addon_id}/disable")
 async def disable_addon(
     addon_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_roles(current_user, ADMIN_ROLES)
     return {"message": "Add-on disabled"}

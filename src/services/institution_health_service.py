@@ -57,11 +57,16 @@ class InstitutionHealthService:
         metrics["subscription_status"] = subscription.status
         metrics["billing_cycle"] = subscription.billing_cycle
         
-        if subscription.status == "cancelled":
+        # `SubscriptionStatus.CANCELED` is spelled "canceled" (one L) and
+        # `SubscriptionStatus.TRIALING` is "trialing", not "trial" -- these
+        # branches compared against the wrong literal strings and were
+        # therefore always dead code, silently never penalizing a canceled
+        # subscription's payment score or an expired trial.
+        if subscription.status == "canceled":
             score -= 80
         elif subscription.status == "expired":
             score -= 70
-        elif subscription.status == "trial":
+        elif subscription.status == "trialing":
             if subscription.trial_end_date and subscription.trial_end_date < today:
                 score -= 50
         
@@ -76,14 +81,19 @@ class InstitutionHealthService:
         metrics["failed_payments_90d"] = failed_payments
         score -= min(failed_payments * 15, 60)
         
+        # `PaymentStatus` has no "paid" member -- a successful payment's
+        # real status value is "captured" (`PaymentStatus.CAPTURED`, set by
+        # the Razorpay webhook handler). This filter never matched a single
+        # row, so `successful_payments_90d` always reported 0 regardless of
+        # actual payment history.
         successful_payments = self.db.query(func.count(Payment.id)).filter(
             and_(
                 Payment.institution_id == institution_id,
-                Payment.status == "paid",
+                Payment.status == "captured",
                 Payment.paid_at >= ninety_days_ago
             )
         ).scalar() or 0
-        
+
         metrics["successful_payments_90d"] = successful_payments
         
         if subscription.grace_period_end:
@@ -607,7 +617,7 @@ class InstitutionHealthService:
         ).order_by(desc(Subscription.created_at)).first()
         
         features.append(1 if subscription and subscription.status == "active" else 0)
-        features.append(1 if subscription and subscription.status == "trial" else 0)
+        features.append(1 if subscription and subscription.status == "trialing" else 0)
         features.append(subscription.price if subscription else 0)
         
         failed_payments = self.db.query(func.count(Payment.id)).filter(
@@ -622,7 +632,7 @@ class InstitutionHealthService:
         successful_payments = self.db.query(func.count(Payment.id)).filter(
             and_(
                 Payment.institution_id == institution_id,
-                Payment.status == "paid",
+                Payment.status == "captured",
                 Payment.paid_at >= ninety_days_ago
             )
         ).scalar() or 0
@@ -878,7 +888,7 @@ class InstitutionHealthService:
                 Subscription.institution_id == inst.id
             ).order_by(desc(Subscription.created_at)).first()
             
-            churned = 1 if subscription and subscription.status in ["cancelled", "expired"] else 0
+            churned = 1 if subscription and subscription.status in ["canceled", "expired"] else 0
             
             X.append(features)
             y.append(churned)

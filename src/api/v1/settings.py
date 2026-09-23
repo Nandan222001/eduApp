@@ -282,12 +282,16 @@ async def get_connected_devices(
 
 @router.post("/settings/devices/{device_id}/logout")
 async def logout_device(
-    device_id: str,
+    device_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Previously typed `device_id: str` and did `int(device_id)` below --
+    # any non-numeric device_id raised an unhandled `ValueError` (500)
+    # instead of FastAPI's normal clean 422 for a bad path param. Typing
+    # the path param itself as `int` gets that validation for free.
     device = db.query(UserDevice).filter(
-        UserDevice.id == int(device_id),
+        UserDevice.id == device_id,
         UserDevice.user_id == current_user.id
     ).first()
     
