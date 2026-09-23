@@ -2394,3 +2394,85 @@ now done; 5 left: `database_maintenance`, `elections`, `family`, `live_events`,
    refused" or hang for an unusually long time; check `SHOW FULL PROCESSLIST` for a metadata
    -lock chain before assuming a code regression. Clear `/tmp/eduapp_schema.lock`/`.done` after
    any fresh MySQL start or schema reset.
+
+## Backend fixes, twenty-sixth pass — commits 92cdbc6, 89f846a (complete)
+
+124. **`elections`** (commit `92cdbc6`, written by a background agent, independently
+    re-verified this pass) — `tests/integration/test_elections_api.py`, 13 tests covering the
+    full election lifecycle: create/get/list/filter/update/delete (+cross-institution 403),
+    candidate nomination/duplicate-rejection/list/get, candidate approval + withdrawal-date
+    stamping, the voter-registry + ballot-casting workflow (double-vote rejection,
+    unregistered-voter 403), ranked-choice voting with a two-candidate ballot, results
+    calculation/tallying (+premature-results 400) for both the plain and ranked-choice paths,
+    election analytics, and campaign-activity CRUD. Independently re-ran fresh under both
+    `-n0` and `-n auto` per this session's recovery-verification discipline (13/13 passed both
+    ways) rather than trusting the agent's self-report alone. **Came back clean — no bugs
+    found**, joining `notifications`/`rate_limits` as the third router this session with no
+    real bugs.
+125. **`performance_monitoring`** (commit `89f846a`, written directly) —
+    `tests/integration/test_performance_monitoring_api.py`, 10 tests covering the dashboard,
+    API/database/cache/task-queue/resource-utilization/active-users performance endpoints,
+    alert list/acknowledge/resolve, and threshold get/update, all gated on `require_super_admin`
+    (+ a 403-for-non-super-admin check). Found and fixed **4 real bugs**:
+    - `create_alert()` accepted `metadata=` into the constructor, silently shadowing the
+      reserved `metadata` attribute on Declarative Base instead of writing the real
+      `metadata_json` column (bug class 1) -- discarding the metadata dict on every one of the
+      15 automated-alert call sites in `src/tasks/performance_monitoring_tasks.py`. Fixed to
+      `metadata_json=metadata`.
+    - `_get_task_stats` used `func.case([(cond, val)], else_=...)` (bug class 4, 5 occurrences)
+      -- fixed to the real `sqlalchemy.case((cond, val), else_=...)` construct, importing
+      `Integer` and `case` from `sqlalchemy` (both previously unimported `NameError`s).
+    - **A tenth bug class, newly found this pass**: `get_dashboard_data` called
+      `asyncio.run(self.get_active_users(...))` but is itself invoked from the already-async
+      `get_performance_dashboard` route handler -- `asyncio.run()` cannot be called from within
+      a running event loop and raised `RuntimeError`. Fixed by making `get_dashboard_data`
+      itself `async` and `await`ing `get_active_users` directly (matching the pattern the
+      router already uses in its own dedicated `/performance/active-users` endpoint), and
+      updating the route handler to `await service.get_dashboard_data(...)`.
+    - Confirmed `func.cast(col, Integer)` (3 occurrences, in the slow-query and cache-hit
+      aggregations) is **NOT** a bug like `func.case` is: SQLAlchemy specifically special-cases
+      `"cast"` inside `func`, so `func.cast(col, Integer)` renders an identical real
+      `CAST(col AS INTEGER)` construct to `sqlalchemy.cast()`. Verified directly in a Python
+      REPL and then end-to-end with real `DatabaseQueryMetric`/`CacheMetric` fixture rows
+      exercising the actual aggregation queries (not just empty-table paths).
+
+`pytest --collect-only tests/` now collects **1214 tests, 0 errors**. All 7 of the newly
+-registered-but-untested routers from pass twenty-three are now done except `database_maintenance`,
+`family`, `live_events`, `live_events_websocket`, `recommendations` (5 remaining).
+
+### Tenth tracked bug class (new this pass)
+10. Calling `asyncio.run(some_coroutine())` from code already executing inside a running async
+    event loop (e.g. a synchronous service method invoked from an `async def` FastAPI route
+    handler) raises `RuntimeError: asyncio.run() cannot be called from a running event loop`.
+    Different from a missing `import asyncio` (a `NameError`) -- requires a structural fix
+    (make the calling method itself `async`/`await` the coroutine directly, and update its
+    caller to `await` it too), not just adding the import.
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue testing the remaining newly-registered routers**: `database_maintenance`,
+   `family` (793 lines), `live_events` (1174 lines), `live_events_websocket` (websocket-only,
+   317 lines), `recommendations`. Same method as every router above. Ten tracked bug classes
+   now -- see this pass's section for the newest one (`asyncio.run()` inside a running event
+   loop).
+2. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+3. **Continue the Phase-2/3 backend route-module audit more broadly** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage.
+4. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings. Do NOT start fixing these without the user's confirmation
+   landing first.
+5. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+6. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+   guaranteed to be running at the start of a session/iteration, and MySQL can also go down
+   mid-session under lock-contention load (a stale connection holding a metadata lock on a
+   leftover ad-hoc debug table cascaded into a full deadlock once this pass -- see pass
+   twenty-four's notes). Check `service mysql status` first if tests fail with "Connection
+   refused" or hang for an unusually long time; check `SHOW FULL PROCESSLIST` for a metadata
+   -lock chain before assuming a code regression. Clear `/tmp/eduapp_schema.lock`/`.done` after
+   any fresh MySQL start or schema reset.
