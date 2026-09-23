@@ -39,6 +39,12 @@ async def create_or_update_submission(
             detail="Not authorized to submit to this assignment"
         )
 
+    if current_user.student_profile and current_user.student_profile.id != submission_data.student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Students can only submit their own work"
+        )
+
     service = SubmissionService(db)
     submission = service.create_or_update_submission(submission_data)
     return submission
@@ -68,6 +74,12 @@ async def get_submission(
             detail="Not authorized to access this submission"
         )
 
+    if current_user.student_profile and submission.student_id != current_user.student_profile.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this submission"
+        )
+
     return submission
 
 
@@ -88,6 +100,12 @@ async def get_student_submission(
         )
 
     if assignment.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this submission"
+        )
+
+    if current_user.student_profile and current_user.student_profile.id != student_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this submission"
@@ -182,6 +200,12 @@ async def upload_submission_file(
             detail="Not authorized to upload files for this submission"
         )
 
+    if current_user.student_profile and submission.student_id != current_user.student_profile.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to upload files for this submission"
+        )
+
     result = await service.upload_submission_file(submission_id, file)
     return result
 
@@ -206,6 +230,12 @@ async def delete_submission_file(
     assignment = assignment_service.get_assignment(submission.assignment_id)
 
     if not assignment or assignment.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete files from this submission"
+        )
+
+    if current_user.student_profile and submission.student_id != current_user.student_profile.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete files from this submission"
