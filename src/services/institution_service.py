@@ -11,25 +11,47 @@ class InstitutionService:
         self.db = db
 
     def create_institution(self, institution_data: InstitutionCreate) -> Institution:
-        existing = self.db.query(Institution).filter(
-            or_(
-                Institution.slug == institution_data.slug,
-                Institution.domain == institution_data.domain
-            )
-        ).first()
-        
+        # Only OR in a `domain ==` clause when a domain was actually
+        # supplied. `Institution.domain == None` is translated by
+        # SQLAlchemy to `domain IS NULL`, so leaving it in unconditionally
+        # meant creating a second institution with no domain (a common,
+        # legitimate case -- domain is optional) would match *any* other
+        # existing domain-less institution via the `or_`, and then
+        # `existing.domain == institution_data.domain` (`None == None`)
+        # would spuriously report a "domain already exists" conflict even
+        # though neither institution actually has a domain. Confirmed this
+        # broke institution creation as soon as one other domain-less
+        # institution existed.
+        conditions = [Institution.slug == institution_data.slug]
+        if institution_data.domain:
+            conditions.append(Institution.domain == institution_data.domain)
+        existing = self.db.query(Institution).filter(or_(*conditions)).first()
+
         if existing:
             if existing.slug == institution_data.slug:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Institution with this slug already exists"
                 )
-            if existing.domain == institution_data.domain:
+            if institution_data.domain and existing.domain == institution_data.domain:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Institution with this domain already exists"
                 )
-        
+
+        # `name` is also unique at the DB level (Institution.name,
+        # unique=True) but was never checked here, so a duplicate name
+        # surfaced as an unhandled IntegrityError -> 500 instead of a clean
+        # 400. Checked explicitly, same as slug/domain.
+        existing_name = self.db.query(Institution).filter(
+            Institution.name == institution_data.name
+        ).first()
+        if existing_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Institution with this name already exists"
+            )
+
         institution = Institution(**institution_data.model_dump())
         self.db.add(institution)
         self.db.commit()
@@ -80,7 +102,7 @@ class InstitutionService:
             return None
         
         update_data = institution_data.model_dump(exclude_unset=True)
-        
+
         if 'domain' in update_data and update_data['domain']:
             existing = self.db.query(Institution).filter(
                 Institution.domain == update_data['domain'],
@@ -91,7 +113,21 @@ class InstitutionService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Institution with this domain already exists"
                 )
-        
+
+        # Same gap as create_institution: `name` is unique at the DB level
+        # but was never checked here, so renaming an institution to a name
+        # already in use surfaced as an unhandled IntegrityError -> 500.
+        if 'name' in update_data and update_data['name']:
+            existing_name = self.db.query(Institution).filter(
+                Institution.name == update_data['name'],
+                Institution.id != institution_id
+            ).first()
+            if existing_name:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Institution with this name already exists"
+                )
+
         for key, value in update_data.items():
             setattr(institution, key, value)
         
