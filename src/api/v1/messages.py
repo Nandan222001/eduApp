@@ -33,6 +33,7 @@ async def send_message(
         await websocket_manager.send_message_notification(
             user_id=message.recipient_id,
             message_id=message.id,
+            sender_id=current_user.id,
             sender_name=f"{current_user.first_name} {current_user.last_name}",
             subject=message.subject or "No subject",
             preview=message.content[:100]
