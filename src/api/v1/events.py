@@ -228,7 +228,7 @@ async def create_rsvp(
     rsvp = EventRSVP(
         event_id=event_id,
         user_id=current_user.id,
-        **rsvp_data.model_dump()
+        **rsvp_data.model_dump(exclude={"event_id", "user_id"})
     )
     db.add(rsvp)
     db.commit()
