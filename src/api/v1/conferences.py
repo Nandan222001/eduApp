@@ -257,12 +257,13 @@ async def get_my_bookings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not hasattr(current_user, 'parent_profile') or not current_user.parent_profile:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only parents can access this endpoint"
-        )
-
+    # `User` has no `parent_profile` relationship at all (only
+    # `teacher_profile`/`student_profile` -- see src/models/user.py), so
+    # `hasattr(current_user, 'parent_profile')` was always False: this
+    # endpoint 403'd unconditionally for every caller, including real
+    # parents with a linked Parent row. The ParentRepository lookup right
+    # below already correctly handles "caller isn't a parent" (404), so
+    # this dead check is simply removed rather than fixed in place.
     from src.repositories.parent_repository import ParentRepository
     parent_repo = ParentRepository(db)
     parent = parent_repo.get_by_user_id(current_user.id, current_user.institution_id)
@@ -529,6 +530,18 @@ async def get_teacher_conference_statistics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # This endpoint had no institution scoping at all: any authenticated
+    # user from any institution could pull any other institution's teacher
+    # conference stats just by guessing a teacher_id.
+    from src.models.teacher import Teacher
+
+    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if not teacher or teacher.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher not found"
+        )
+
     service = ConferenceAnalyticsService(db)
     statistics = service.get_teacher_statistics(teacher_id=teacher_id)
     return statistics

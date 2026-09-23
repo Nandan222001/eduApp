@@ -1,5 +1,6 @@
 from typing import Optional, List, Tuple, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from fastapi import HTTPException, status
 from datetime import datetime, date, time, timedelta
 import hashlib
@@ -319,6 +320,19 @@ class ConferenceBookingService:
                 detail="Conference slot not found"
             )
 
+        # The router only checks the caller's *claimed* institution_id
+        # (current_user.institution_id == booking_data.institution_id)
+        # against the request body -- it never cross-checks that against the
+        # slot actually being booked. Without this, a caller could pass
+        # their own institution_id (satisfying the router's check) while
+        # pointing slot_id at a different institution's conference slot,
+        # creating a cross-institution booking on another school's teacher.
+        if slot.institution_id != data.institution_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Conference slot does not belong to this institution"
+            )
+
         if slot.current_bookings >= slot.max_bookings:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -571,7 +585,17 @@ class PTMSpeedDatingService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Student not found"
             )
-        
+
+        # Cross-tenant gap: without this, a caller from institution A could
+        # pass a student_id belonging to institution B and this would
+        # happily schedule PTM speed-dating bookings across institution A's
+        # teachers for institution B's student.
+        if student.institution_id != institution_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student not found"
+            )
+
         if not student.section_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -679,9 +703,23 @@ class PTMSpeedDatingService:
         
         if existing_slot:
             return existing_slot
-        
-        # Create new slot
-        slot_data = ConferenceSlotCreate(
+
+        # Create new slot. This deliberately bypasses ConferenceSlotCreate
+        # (unlike every other slot-creation path in this file) and builds
+        # the ORM row directly: that schema's `duration_minutes` field
+        # requires one of [15, 30, 45, 60, 90, 120] (`ge=15` plus a
+        # `field_validator`), matching the durations offered on the normal
+        # "create a conference slot" endpoints -- but PTM speed dating is
+        # explicitly a 5-minute-slot feature (`generate_ptm_speed_schedule`'s
+        # own docstring: "auto-creates 5-minute sequential slots"), so
+        # routing through that schema made this call raise a
+        # ValidationError (`duration_minutes` must be >= 15) on every single
+        # invocation -- the entire PTM speed dating feature was unusable.
+        # Constructing the model directly (exactly what
+        # `ConferenceSlotRepository.create(**kwargs)` does internally
+        # anyway) sidesteps that schema's constraints, which were never
+        # meant to apply to this internally-generated slot shape.
+        slot = self.slot_repo.create(
             institution_id=institution_id,
             teacher_id=teacher_id,
             date=slot_date,
@@ -689,10 +727,8 @@ class PTMSpeedDatingService:
             duration_minutes=duration,
             location=LocationType.IN_PERSON.value,
             max_bookings=1,
-            notes="PTM Speed Dating Session"
+            notes="PTM Speed Dating Session",
         )
-        
-        slot = self.slot_repo.create(**slot_data.model_dump())
         self.db.flush()
         return slot
     

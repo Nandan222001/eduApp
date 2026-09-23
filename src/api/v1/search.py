@@ -39,7 +39,15 @@ async def global_search(
     return service.global_search(
         institution_id=institution_id,
         user_id=current_user.id,
-        user_role=current_user.role,
+        # `current_user.role` is the `Role` relationship (an ORM object),
+        # not a string -- SearchService.global_search always threads it
+        # into `PopularSearch.role == user_role` (a plain String column),
+        # which raised an unconditional `sqlalchemy.exc.ArgumentError: SQL
+        # expression element or literal value expected, got <Role ...>` on
+        # every single global search request. `.slug` is the plain string
+        # identifier (e.g. "admin"/"teacher") every other role-comparison
+        # in this codebase uses.
+        user_role=current_user.role.slug if current_user.role else None,
         search_query=search_query,
     )
 
@@ -110,7 +118,9 @@ async def get_search_suggestions(
     service = SearchService(db)
     return service.get_search_suggestions(
         institution_id=institution_id,
-        user_role=current_user.role,
+        # Same fix as global_search above: PopularSearch.role is a String
+        # column, not a Role relationship.
+        user_role=current_user.role.slug if current_user.role else None,
         query=q,
         limit=limit,
     )

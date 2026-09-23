@@ -269,14 +269,14 @@ async def get_document(
     
     # Check access permissions
     parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
-    if document.parent_id != parent_profile.id:
+    if not parent_profile or document.parent_id != parent_profile.id:
         # Check if shared
         share = db.query(DocumentShare).filter(
             DocumentShare.document_id == document_id,
             DocumentShare.shared_with_user_id == current_user.id,
             DocumentShare.is_active == True
         ).first()
-        
+
         if not share:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
@@ -300,7 +300,7 @@ async def update_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
     parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
-    if document.parent_id != parent_profile.id:
+    if not parent_profile or document.parent_id != parent_profile.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     for field, value in document_data.model_dump(exclude_unset=True).items():
@@ -327,7 +327,7 @@ async def delete_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
     parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
-    if document.parent_id != parent_profile.id:
+    if not parent_profile or document.parent_id != parent_profile.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     document.is_active = False
@@ -350,7 +350,7 @@ async def share_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
     parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
-    if document.parent_id != parent_profile.id:
+    if not parent_profile or document.parent_id != parent_profile.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     share = DocumentShare(
@@ -383,7 +383,7 @@ async def get_access_logs(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     
     parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
-    if document.parent_id != parent_profile.id:
+    if not parent_profile or document.parent_id != parent_profile.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     logs = db.query(DocumentAccessLog).filter(
