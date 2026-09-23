@@ -79,13 +79,18 @@ class FamilyCalendarEventCreate(FamilyCalendarEventBase):
 
 class FamilyCalendarEventResponse(FamilyCalendarEventBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     family_group_id: int
     student_id: int
     student_name: Optional[str] = None
     student_color: Optional[str] = None
     event_id: Optional[int]
+    # Overrides FamilyCalendarEventBase.metadata: the ORM attribute is
+    # `metadata_json` (SQLAlchemy reserves `metadata` on Declarative models
+    # for its MetaData registry), matching the pattern already established
+    # in src/schemas/credential.py and src/schemas/merchandise.py.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -151,7 +156,11 @@ class FamilyNotificationItemResponse(BaseModel):
     title: str
     message: str
     priority: str
-    metadata: Optional[Dict[str, Any]]
+    # See FamilyCalendarEventResponse.metadata for why the alias + default
+    # are needed: the ORM attribute is `metadata_json`, and this field must
+    # have a default since the manually-built dict passed in by the router
+    # never contains a literal `metadata` key.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
 
 
@@ -181,7 +190,10 @@ class SharedExpenseBase(BaseModel):
 class SharedExpenseCreate(SharedExpenseBase):
     institution_id: int
     family_group_id: int
-    student_ids: List[int]
+    # min_length=1: the router divides total_amount by len(student_ids) for
+    # an "equal" split, which raises an unhandled ZeroDivisionError (500)
+    # for an empty list instead of a clean 422.
+    student_ids: List[int] = Field(..., min_length=1)
     custom_splits: Optional[Dict[int, Decimal]] = None
 
 

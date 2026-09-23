@@ -11,19 +11,20 @@ from src.models.family import (
     FamilyNotificationBatch, FamilyNotificationItem, SharedExpense, ExpenseSplit
 )
 from src.models.student import Student, Parent, StudentParent
-from src.models.assignment import Assignment, Submission
+from src.models.assignment import Assignment, Submission, SubmissionStatus
 from src.models.examination import Exam, ExamResult, ExamSchedule
-from src.models.attendance import Attendance, AttendanceSummary
+from src.models.attendance import Attendance, AttendanceSummary, AttendanceStatus
 from src.models.conferences import ConferenceBooking
 from src.models.academic import Section, Grade
 from src.dependencies.auth import get_current_user
 from src.schemas.family import (
     FamilyGroupCreate, FamilyGroupResponse, FamilyGroupMemberCreate,
-    FamilyDashboardResponse, ChildOverview, FamilyCalendarEventCreate,
-    FamilyCalendarEventResponse, FamilyCalendarResponse,
+    FamilyGroupMemberResponse, FamilyDashboardResponse, ChildOverview,
+    FamilyCalendarEventCreate, FamilyCalendarEventResponse, FamilyCalendarResponse,
     PerformanceComparisonResponse, AttendanceComparisonResponse,
     BehaviorComparisonResponse, FamilyNotificationBatchResponse,
-    SharedExpenseCreate, SharedExpenseResponse, BulkPaymentRequest,
+    FamilyNotificationItemResponse, SharedExpenseCreate, SharedExpenseResponse,
+    ExpenseSplitResponse, BulkPaymentRequest,
     BulkPaymentResponse, BulkDownloadRequest, BulkDownloadResponse,
     BulkRSVPRequest, BulkRSVPResponse, ChildDataToggleRequest,
     ChildDataToggleResponse, SiblingComparisonMetric
@@ -117,9 +118,9 @@ async def get_family_dashboard(
         pending_assignments = db.query(func.count(Assignment.id)).join(Submission).filter(
             Submission.student_id == student.id,
             Assignment.due_date >= datetime.utcnow(),
-            Submission.status.in_(['not_submitted', 'submitted'])
+            Submission.status.in_([SubmissionStatus.NOT_SUBMITTED, SubmissionStatus.SUBMITTED])
         ).scalar() or 0
-        
+
         upcoming_exams = db.query(func.count(distinct(Exam.id))).join(ExamSchedule).filter(
             ExamSchedule.section_id == student.section_id,
             ExamSchedule.exam_date >= date.today(),
@@ -199,7 +200,7 @@ async def create_family_group(
     return family_group
 
 
-@router.post("/groups/{group_id}/members", status_code=status.HTTP_201_CREATED)
+@router.post("/groups/{group_id}/members", response_model=FamilyGroupMemberResponse, status_code=status.HTTP_201_CREATED)
 async def add_family_member(
     group_id: int,
     member_data: FamilyGroupMemberCreate,
@@ -285,7 +286,25 @@ async def create_calendar_event(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    event = FamilyCalendarEvent(**event_data.model_dump())
+    # Ownership check, matching the pattern used by add_family_member: without
+    # this, any authenticated user could create events under an arbitrary
+    # family_group_id belonging to a different institution/family.
+    family_group = db.query(FamilyGroup).filter(
+        FamilyGroup.id == event_data.family_group_id,
+        FamilyGroup.institution_id == current_user.institution_id
+    ).first()
+    if not family_group:
+        raise HTTPException(status_code=404, detail="Family group not found")
+
+    event_dict = event_data.model_dump()
+    # 'metadata' must be renamed to 'metadata_json' before construction:
+    # FamilyCalendarEvent (like every Declarative model) has a class-level
+    # `metadata` attribute (SQLAlchemy's MetaData registry), so passing
+    # metadata=... straight into the constructor silently sets a shadow
+    # instance attribute instead of the real `metadata_json`-mapped column,
+    # and the value is never persisted to the database.
+    metadata_value = event_dict.pop('metadata', None)
+    event = FamilyCalendarEvent(**event_dict, metadata_json=metadata_value)
     db.add(event)
     db.commit()
     db.refresh(event)
@@ -386,7 +405,7 @@ async def get_attendance_comparison(
             Attendance.student_id == student.id,
             Attendance.date >= start_date,
             Attendance.date <= end_date,
-            Attendance.status == 'present'
+            Attendance.status == AttendanceStatus.PRESENT
         ).scalar() or 0
         
         percentage = (present_days / total_days * 100) if total_days > 0 else 0
@@ -517,10 +536,15 @@ async def mark_notification_read(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    batch = db.query(FamilyNotificationBatch).filter(
-        FamilyNotificationBatch.id == batch_id
+    # Scope to the caller's own institution via the owning family group --
+    # previously this had no ownership check at all, so any authenticated
+    # user (of any institution) could mark any other family's notification
+    # batch as read just by guessing/incrementing batch_id.
+    batch = db.query(FamilyNotificationBatch).join(FamilyGroup).filter(
+        FamilyNotificationBatch.id == batch_id,
+        FamilyGroup.institution_id == current_user.institution_id
     ).first()
-    
+
     if not batch:
         raise HTTPException(status_code=404, detail="Notification batch not found")
     
@@ -552,7 +576,12 @@ async def get_shared_expenses(
     if unpaid_only:
         query = query.filter(SharedExpense.is_paid == False)
     
-    expenses = query.order_by(SharedExpense.due_date.desc().nullslast()).offset(skip).limit(limit).all()
+    # Plain .desc() (no .nullslast()): MySQL doesn't support the `NULLS LAST`
+    # SQL syntax .nullslast() compiles to (it's Postgres/Oracle-specific) --
+    # every query against this endpoint raised ProgrammingError 1064.
+    # MySQL already sorts NULL as the smallest value, so a plain DESC order
+    # naturally puts NULLs last, matching the intended behavior anyway.
+    expenses = query.order_by(SharedExpense.due_date.desc()).offset(skip).limit(limit).all()
     
     responses = []
     for expense in expenses:
@@ -773,7 +802,7 @@ async def toggle_child_data(
         pending_assignments = db.query(func.count(Assignment.id)).join(Submission).filter(
             Submission.student_id == student_id,
             Assignment.due_date >= datetime.utcnow(),
-            Submission.status.in_(['not_submitted', 'submitted'])
+            Submission.status.in_([SubmissionStatus.NOT_SUBMITTED, SubmissionStatus.SUBMITTED])
         ).scalar() or 0
         
         upcoming_exams = db.query(func.count(distinct(Exam.id))).join(ExamSchedule).filter(
