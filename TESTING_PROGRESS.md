@@ -2476,3 +2476,133 @@ now done; 5 left: `database_maintenance`, `elections`, `family`, `live_events`,
    refused" or hang for an unusually long time; check `SHOW FULL PROCESSLIST` for a metadata
    -lock chain before assuming a code regression. Clear `/tmp/eduapp_schema.lock`/`.done` after
    any fresh MySQL start or schema reset.
+
+## Backend fixes, twenty-seventh pass — commit 4be66fa (complete)
+
+126. **`database_maintenance`** (commit `4be66fa`, written directly) —
+    `tests/integration/test_database_maintenance_api.py`, 16 tests covering every read-only
+    endpoint (`/stats`, `/partitions`, `/schedule`, `/table-stats/{name}` +404, `/index-stats`
+    filtered+unfiltered, `/table-sizes`, `/long-running-queries`, `/duplicate-indexes`,
+    `/missing-indexes`, `/bloat-estimate`, `/maintenance-progress`, `/reset-query-stats`), the
+    `/indexes/{index_name}` DELETE (not-found + unsafe-name-rejected cases), the 403-for-
+    non-super-admin check, and a direct-to-service async test covering the cache-*hit* branch of
+    all three cache-backed endpoints with a fake Redis client. Endpoints that dispatch real
+    Celery tasks via `.delay()` (vacuum-analyze, cleanup-dead-tuples, create-partitions,
+    cleanup-old-partitions, reindex, update-statistics, plus the cache-*miss* branch of
+    index-recommendations/slow-queries/table-bloat) aren't exercised end-to-end, per the
+    established Celery-skip pattern. Found and fixed **5 real bugs**:
+    - `drop_unused_index` derived the target table via `index_name.split('_')[0]`, which for
+      this codebase's own `idx_*`/`ix_*` naming convention always yields `"idx"`/`"ix"` --
+      never a real table -- so the endpoint failed for every index name the API itself surfaces.
+      Also interpolated the raw path-parameter `index_name` directly into a `DROP INDEX`
+      statement. Fixed with an identifier allow-list regex, a parameterized
+      `information_schema.STATISTICS` lookup for the real table, and quoted identifiers.
+    - `get_index_recommendations`/`get_slow_queries`/`get_table_bloat_report` cached results
+      with `eval()`/`str()` instead of JSON -- arbitrary code execution if that Redis key is
+      ever attacker-writable. Fixed to real `json.dumps()`/`json.loads()` on both the write side
+      (the Celery tasks) and the read side (this service).
+    - **An 11th tracked bug class, newly found this pass and confirmed codebase-wide**: this
+      module (plus `database_maintenance_tasks.py`, `rate_limit_tasks.py`, and
+      `performance_monitoring_service.py`'s `get_active_users`) imported the Redis client via
+      `from src.redis_client import redis_client`. Python's `from module import name` copies
+      whatever the name equals *at import time* into a local binding and never observes the
+      source module reassigning it later -- since `src.redis_client.redis_client` starts as
+      `None` and is only reassigned by `init_redis()` on app startup (well after every other
+      module has already imported it), every one of these call sites was permanently bound to a
+      `None` captured at import, in every environment (not just this test one, and not
+      dependent on whether Redis was actually configured/running). All were also calling the
+      (async) `redis.asyncio.Redis` client's methods without `await`, silently producing unused
+      coroutine objects. Fixed by importing/calling the `get_redis()` accessor instead (reads
+      the module attribute fresh every call) and properly awaiting it -- making the calling
+      service methods `async` (with routers now `await`ing them), and for the synchronous
+      Celery task bodies, adding small async helpers run via `asyncio.run()` (safe there, since
+      a Celery worker task has no already-running event loop, unlike the async-route-handler
+      case from pass twenty-six's `performance_monitoring` fix).
+    - `get_database_stats`/`get_partition_info`/`drop_unused_index` opened their own ad hoc
+      `SessionLocal()` instead of taking the router's injected `db` session like every other
+      endpoint in this same router -- harmless with a correctly configured `DATABASE_*`
+      environment, but silently used a different, unconfigured connection (this repo's own
+      placeholder defaults, `mysql`/`mysql_password`/`mysql_db`) instead of the app's real one,
+      which is exactly why these three couldn't be tested until fixed. Fixed to accept/use the
+      injected `Session`, matching the router's own established pattern.
+    - `get_index_stats` (repository) selected `s.INDEX_LENGTH` from
+      `information_schema.STATISTICS`, a column that table doesn't have (index byte sizes are
+      only available per-table on `information_schema.TABLES`) -- every call raised
+      `Unknown column 's.INDEX_LENGTH' in 'field list'`. Fixed by joining `TABLES` (already
+      joined in the unfiltered branch; added to the filtered one) and referencing
+      `t.INDEX_LENGTH`.
+    - Noted, not fixed: `get_maintenance_schedule` always returns an empty task list, since none
+      of this module's Celery tasks are registered under a `"db-maintenance-"` prefixed key in
+      `celery_app.conf.beat_schedule` (the prefix this method filters on). No way to infer the
+      intended schedule without guessing, so documented as a known gap in the test instead.
+
+`pytest --collect-only tests/` now collects **1230 tests, 0 errors**.
+
+### Eleventh tracked bug class (new this pass)
+11. `from src.redis_client import redis_client` (or any similar `from module import
+    mutable_global_name` for a name a module reassigns later, e.g. via a lazy/startup
+    initializer) freezes the imported name to whatever value it held **at import time** --
+    Python copies the value once into the importing module's namespace and never re-reads the
+    source module's current attribute. Since `src.redis_client.redis_client` starts as `None`
+    and is only assigned a real client later by `init_redis()` on app startup (well after nearly
+    every other module has already been imported), any module using this import pattern is
+    permanently stuck seeing `None`, regardless of environment or whether Redis is actually
+    configured. The fix is to import and call the module's live accessor function instead (here,
+    `get_redis()`), which reads the current attribute value fresh on every call. A guarded
+    `if redis_client:` check does NOT protect against this -- it just makes the affected feature
+    silently, permanently inert instead of crashing.
+
+### New finding, NOT yet fixed -- needs a dedicated pass with full-suite regression testing
+The same 11th-bug-class import pattern (`from src.redis_client import redis_client`) also
+appears in **3 middleware files that run on every request**: `src/middleware/rate_limit.py`,
+`src/middleware/tenant_context.py`, `src/middleware/performance_tracking.py`. All three guard
+their usage with `if redis_client:`/`if not redis_client:`, so (like the guarded call sites
+above) they don't crash -- they just silently, permanently disable the Redis-backed feature
+(rate-limit violation logging, tenant session lookups via `SessionManager`, and
+performance-tracking history/session-count features) in every environment, not just this test
+one. Deliberately NOT fixed in this pass: middleware touches literally every request, so a fix
+here needs its own dedicated pass with careful full-suite regression testing (not something to
+rush in alongside an unrelated router's test coverage). **This is the top item for the next
+resume point.**
+
+## Next resume point (current, supersedes the ones above)
+1. **Fix the newly-found 11th-bug-class instances in the 3 middleware files** (see above) --
+   `src/middleware/rate_limit.py`, `src/middleware/tenant_context.py`,
+   `src/middleware/performance_tracking.py`. Same fix pattern as this pass (import/call
+   `get_redis()` instead of the frozen `redis_client` name), but run the FULL test suite (not
+   just one router's tests) afterward, since middleware wraps every request and a mistake here
+   has the widest possible blast radius of anything touched this session.
+2. **Continue testing the remaining newly-registered routers**: `family` (793 lines),
+   `live_events` (1174 lines), `live_events_websocket` (websocket-only, 317 lines),
+   `recommendations`. Same method as every router above. Eleven tracked bug classes now -- see
+   this pass's section for the newest one (frozen module-global imports).
+3. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+4. **Continue the Phase-2/3 backend route-module audit more broadly** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage.
+5. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings. Do NOT start fixing these without the user's confirmation
+   landing first.
+6. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work.
+7. **Environment note for future iterations**: this container's MySQL and Redis are NOT
+   guaranteed to be running at the start of a session/iteration (Redis in particular is NOT
+   running as of this pass -- `redis-cli ping` fails with connection refused -- which is exactly
+   how the 11th bug class's guarded call sites were confirmed to silently no-op rather than
+   crash). MySQL can also go down mid-session under lock-contention load (a stale connection
+   holding a metadata lock on a leftover ad-hoc debug table cascaded into a full deadlock once,
+   pass twenty-four). Check `service mysql status`/`redis-cli ping` first if tests fail
+   unexpectedly; check `SHOW FULL PROCESSLIST` for a metadata-lock chain before assuming a code
+   regression. Clear `/tmp/eduapp_schema.lock`/`.done` after any fresh MySQL start or schema
+   reset. Also note: `src/config.py`'s `DATABASE_USER`/`DATABASE_PASSWORD`/`DATABASE_NAME`
+   default to placeholder values (`mysql`/`mysql_password`/`mysql_db`) that don't match the
+   test database (`root`/`test_password`/`test_db` per `tests/conftest.py`) -- any service code
+   that opens its own `SessionLocal()`/uses `src.database.engine` directly instead of taking the
+   router's injected `db: Session = Depends(get_db)` will fail with "Access denied for user
+   'mysql'" in this test environment (found and fixed 3 instances of this in
+   `database_maintenance_service.py` this pass; worth checking for elsewhere too).
