@@ -9,8 +9,13 @@ import math
 import time
 import re
 
+from redis.asyncio import Redis
+
 from src.database import get_db
 from src.dependencies.auth import get_current_user, require_super_admin
+from src.redis_client import get_redis
+from src.utils.session import SessionManager
+from src.utils.rbac import get_user_permissions
 from src.models.user import User
 from src.models.institution import Institution
 from src.models.subscription import Subscription, Payment, Invoice, UsageRecord
@@ -545,12 +550,42 @@ async def list_institutions(
             query = query.filter(Institution.is_active == False)
     
     total = query.count()
-    
-    if sort_order == "desc":
+
+    # `sort_by`'s validation regex allows "total_users"/"revenue", but neither is a real
+    # column on Institution (they're computed per-institution below from User/Payment) --
+    # `getattr(Institution, sort_by)` raised an unhandled AttributeError (500) for either
+    # value. Compute them as aggregate subqueries and sort/paginate on those instead, so the
+    # advertised sort options actually work and pagination stays correct at the DB level
+    # rather than only after the fact.
+    if sort_by in ("total_users", "revenue"):
+        if sort_by == "total_users":
+            agg_subq = (
+                db.query(
+                    User.institution_id.label("institution_id"),
+                    func.count(User.id).label("agg_value"),
+                )
+                .group_by(User.institution_id)
+                .subquery()
+            )
+        else:
+            agg_subq = (
+                db.query(
+                    Payment.institution_id.label("institution_id"),
+                    func.sum(Payment.amount).label("agg_value"),
+                )
+                .filter(Payment.status == "paid")
+                .group_by(Payment.institution_id)
+                .subquery()
+            )
+        query = query.outerjoin(agg_subq, agg_subq.c.institution_id == Institution.id)
+        order_col = func.coalesce(agg_subq.c.agg_value, 0)
+        if sort_order == "desc":
+            order_col = desc(order_col)
+    elif sort_order == "desc":
         order_col = desc(getattr(Institution, sort_by))
     else:
         order_col = getattr(Institution, sort_by)
-    
+
     institutions = query.order_by(order_col).offset((page - 1) * page_size).limit(page_size).all()
     
     items = []
@@ -613,12 +648,17 @@ async def create_institution(
     db: Session = Depends(get_db),
 ):
     """Create a new institution with admin user and optional subscription."""
-    existing = db.query(Institution).filter(
-        or_(
-            Institution.slug == institution_data.slug,
-            Institution.domain == institution_data.domain
-        )
-    ).first()
+    # `domain` is optional (InstitutionCreate.domain: Optional[str]). SQLAlchemy translates
+    # `Institution.domain == None` into `domain IS NULL`, so including that clause
+    # unconditionally would make the `or_` match ANY other domain-less institution as soon as
+    # one exists, spuriously rejecting every subsequent domain-less institution with "already
+    # exists" (same bug class fixed for institutions.py's create_institution in an earlier
+    # pass -- see TESTING_PROGRESS.md pass thirty-three). Only add the domain clause when a
+    # domain was actually supplied.
+    dedupe_filters = [Institution.slug == institution_data.slug]
+    if institution_data.domain:
+        dedupe_filters.append(Institution.domain == institution_data.domain)
+    existing = db.query(Institution).filter(or_(*dedupe_filters)).first()
     
     if existing:
         raise HTTPException(
@@ -651,7 +691,15 @@ async def create_institution(
             detail="Admin role not found"
         )
     
+    # `User.username` is NOT NULL and unique per (institution_id, username) (src/models/
+    # user.py), but `AdminUserCreate` (src/schemas/super_admin.py) never collects a username
+    # and this constructor never set one -- every single call to this endpoint (the platform's
+    # institution-onboarding operation) raised an unhandled IntegrityError on `db.commit()`.
+    # Derive one from the email's local part; the institution row was just created above so
+    # there is no existing user in it to collide with.
+    admin_username = institution_data.admin_user.email.split("@")[0]
     admin_user = User(
+        username=admin_username,
         email=institution_data.admin_user.email,
         first_name=institution_data.admin_user.first_name,
         last_name=institution_data.admin_user.last_name,
@@ -1190,6 +1238,7 @@ async def impersonate_user(
     impersonation_request: ImpersonateUserRequest,
     current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
+    redis: Optional[Redis] = Depends(get_redis),
 ):
     """Impersonate a user with audit logging."""
     user_to_impersonate = db.query(User).filter(User.id == impersonation_request.user_id).first()
@@ -1246,11 +1295,32 @@ async def impersonate_user(
     }
     
     access_token = create_access_token(data=token_data, expires_delta=expires_delta)
-    
+
+    # `get_current_user` (src/dependencies/auth.py) requires a matching Redis-backed session
+    # record for any access token to be accepted -- it isn't enough for the JWT itself to be
+    # valid. The normal login flow (AuthService.login) always registers one, but this endpoint
+    # minted the impersonation token directly via create_access_token() without ever doing so,
+    # so the returned access_token could never actually authenticate a single request: every
+    # use of it 401'd with "Session expired or invalid". Register the session the same way
+    # login does so the impersonation token is actually usable.
+    session_manager = SessionManager(redis)
+    session_data = {
+        "user_id": user_to_impersonate.id,
+        "institution_id": user_to_impersonate.institution_id,
+        "role_id": user_to_impersonate.role_id,
+        "email": user_to_impersonate.email,
+        "is_superuser": user_to_impersonate.is_superuser,
+        "permissions": get_user_permissions(user_to_impersonate),
+        "is_impersonated": True,
+        "impersonation_log_id": impersonation_log.id,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    await session_manager.create_session(user_to_impersonate.id, session_data, access_token)
+
     user_name = f"{user_to_impersonate.first_name or ''} {user_to_impersonate.last_name or ''}".strip()
     if not user_name:
         user_name = user_to_impersonate.email
-    
+
     return ImpersonateUserResponse(
         access_token=access_token,
         user_id=user_to_impersonate.id,
@@ -1370,6 +1440,7 @@ async def access_institution_admin_panel(
     institution_id: int,
     current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
+    redis: Optional[Redis] = Depends(get_redis),
 ):
     """Get access token to view institution's admin panel."""
     institution = db.query(Institution).filter(Institution.id == institution_id).first()
@@ -1413,7 +1484,25 @@ async def access_institution_admin_panel(
     }
     
     access_token = create_access_token(data=token_data, expires_delta=expires_delta)
-    
+
+    # Same gap as impersonate_user (see its comment): get_current_user requires a matching
+    # Redis-backed session for the token to authenticate any request at all, which this
+    # endpoint never registered -- the returned access_token could never actually be used to
+    # view the institution's admin panel.
+    session_manager = SessionManager(redis)
+    session_data = {
+        "user_id": admin_user.id,
+        "institution_id": institution_id,
+        "role_id": admin_role.id,
+        "email": admin_user.email,
+        "is_superuser": admin_user.is_superuser,
+        "permissions": get_user_permissions(admin_user),
+        "is_super_admin_view": True,
+        "super_admin_id": current_user.id,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    await session_manager.create_session(admin_user.id, session_data, access_token)
+
     return {
         "access_token": access_token,
         "institution_id": institution_id,
@@ -1601,7 +1690,10 @@ async def get_session_replay_detail(
         error_count=replay.error_count,
         ip_address=replay.ip_address,
         events=replay.events,
-        metadata=replay.metadata,
+        # `SessionReplay.metadata_json` is the real mapped attribute (see model comment) --
+        # `replay.metadata` resolves to the SQLAlchemy declarative Base's MetaData registry,
+        # not the row's actual JSON data, and isn't even serializable by the response schema.
+        metadata_json=replay.metadata_json,
     )
 
 
@@ -1629,7 +1721,11 @@ async def record_session_replay(
         user_id=current_user.id,
         institution_id=current_user.institution_id,
         events=replay_data.events,
-        metadata=replay_data.metadata,
+        # See SessionReplayDetail comment: the ORM attribute is `metadata_json`, not
+        # `metadata`. Passing `metadata=...` here would silently set a plain instance
+        # attribute shadowing SQLAlchemy's own `metadata`, never touching the real column --
+        # every recorded session replay's metadata would be dropped on the floor.
+        metadata_json=replay_data.metadata,
         started_at=replay_data.started_at,
         ended_at=replay_data.ended_at,
         duration_seconds=duration_seconds,
