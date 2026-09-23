@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, date as date_type
 from typing import Optional, List, Dict, Any
 from decimal import Decimal
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
@@ -31,7 +31,13 @@ class ServiceActivityUpdate(BaseModel):
     contact_email: Optional[EmailStr] = None
     contact_phone: Optional[str] = Field(None, max_length=20)
     activity_type: Optional[ServiceActivityType] = None
-    date: Optional[date] = None
+    # Aliased import: a field literally named `date` with `Optional[date] =
+    # None` hits a pydantic v2 annotation-resolution quirk where the class's
+    # own `date` attribute (the default None) shadows the imported `date`
+    # type during type-hint resolution, resolving to NoneType and rejecting
+    # any real date value with a 422 ("Input should be None"). Verified via
+    # typing.get_type_hints(ServiceActivityUpdate) before this fix.
+    date: Optional[date_type] = None
     hours_logged: Optional[Decimal] = Field(None, ge=0, le=999.99)
     description: Optional[str] = None
     impact_statement: Optional[str] = None
@@ -48,7 +54,13 @@ class ServiceActivityResponse(ServiceActivityBase):
     verification_status: VerificationStatus
     verifier_signature_url: Optional[str]
     verification_date: Optional[date]
-    metadata: Optional[Dict[str, Any]]
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # the declarative base for its MetaData registry, so the model maps the
+    # `metadata` DB column to `metadata_json`). Without this alias,
+    # from_attributes lookup of `metadata` on the ORM instance resolves to
+    # that reserved MetaData object instead of the JSON column, and Pydantic
+    # v2 fails to serialize it as Dict[str, Any].
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     student_name: Optional[str] = None
@@ -105,7 +117,8 @@ class OrganizationContactResponse(OrganizationContactBase):
     institution_id: int
     is_verified: bool
     is_active: bool
-    metadata: Optional[Dict[str, Any]]
+    # See ServiceActivityResponse.metadata for why the alias is needed.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -187,7 +200,8 @@ class GraduationRequirementResponse(GraduationRequirementBase):
     id: int
     institution_id: int
     is_active: bool
-    metadata: Optional[Dict[str, Any]]
+    # See ServiceActivityResponse.metadata for why the alias is needed.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -246,7 +260,8 @@ class ServiceCertificateResponse(ServiceCertificateBase):
     certificate_url: Optional[str]
     pdf_path: Optional[str]
     signed_by: Optional[int]
-    metadata: Optional[Dict[str, Any]]
+    # See ServiceActivityResponse.metadata for why the alias is needed.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     student_name: Optional[str] = None

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderWithProviders, screen, userEvent, waitFor } from '../../../tests/test-utils';
+import { renderWithProviders, screen, userEvent, waitFor, within } from '../../../tests/test-utils';
 import { setupDemoAdmin } from '../../../tests/setup';
 import AdminLayout from './AdminLayout';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -52,25 +52,25 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
   describe('Hamburger Menu Button', () => {
     it('should render hamburger menu button in mobile viewport', () => {
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       expect(hamburgerButton).toBeInTheDocument();
       expect(hamburgerButton).toBeVisible();
     });
 
     it('should have proper aria-label for accessibility', () => {
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       expect(hamburgerButton).toHaveAttribute('aria-label');
     });
 
     it('should open mobile drawer when hamburger is clicked', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
 
       await user.click(hamburgerButton);
 
@@ -84,9 +84,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should close mobile drawer when hamburger is clicked again', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
 
       await user.click(hamburgerButton);
 
@@ -112,9 +112,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should toggle drawer state multiple times', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
 
       for (let i = 0; i < 3; i++) {
         await user.click(hamburgerButton);
@@ -140,9 +140,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
   describe('Mobile Drawer Rendering', () => {
     it('should render drawer with correct width when opened', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -154,7 +154,7 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
     });
 
     it('should not render drawer initially (closed by default)', () => {
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
       const drawer = screen.queryByRole('navigation', { name: /mobile navigation/i });
       expect(drawer).not.toBeInTheDocument();
@@ -162,9 +162,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should render with temporary variant for mobile', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -179,9 +179,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
   describe('Navigation Items', () => {
     it('should render all navigation items with text labels visible', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -196,33 +196,35 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should display EduPortal branding in mobile drawer', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
-        expect(screen.getByText('EduPortal')).toBeInTheDocument();
+        const drawer = screen.getByRole('navigation', { name: /main navigation|mobile navigation/i });
+        expect(within(drawer).getByText('EduPortal')).toBeInTheDocument();
       });
     });
 
     it('should display Admin Panel subtitle', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Admin Panel')).toBeInTheDocument();
+        const drawer = screen.getByRole('navigation', { name: /main navigation|mobile navigation/i });
+        expect(within(drawer).getByText('Admin Panel')).toBeInTheDocument();
       });
     });
 
     it('should render navigation items with icons', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -236,9 +238,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should have visible text labels for all navigation items', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -257,9 +259,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should render badge indicators if present', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -273,9 +275,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
   describe('Navigation Item Interaction', () => {
     it('should close drawer when navigation item is clicked', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -304,9 +306,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should navigate to correct route when item clicked', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -320,9 +322,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should highlight active navigation item', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -335,9 +337,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should support keyboard navigation', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -356,9 +358,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
   describe('Drawer Close Interactions', () => {
     it('should close drawer when backdrop is clicked', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -384,9 +386,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should close drawer on Escape key press', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -411,9 +413,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
   describe('Animations and Transitions', () => {
     it('should apply smooth animation when opening drawer', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -426,9 +428,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should apply smooth animation when closing drawer', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -453,12 +455,12 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
   describe('Layout Stability', () => {
     it('should not cause layout shift when opening drawer', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
       const mainContent = screen.getByRole('main');
       const initialRect = mainContent.getBoundingClientRect();
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -473,9 +475,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should not cause layout shift when closing drawer', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -484,7 +486,7 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
         ).toBeInTheDocument();
       });
 
-      const mainContent = screen.getByRole('main');
+      const mainContent = screen.getByRole('main', { hidden: true });
       const beforeCloseRect = mainContent.getBoundingClientRect();
 
       await user.click(hamburgerButton);
@@ -504,12 +506,12 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should maintain content scroll position when toggling drawer', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
       const mainContent = screen.getByRole('main');
       mainContent.scrollTop = 100;
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -538,9 +540,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
   describe('Accessibility', () => {
     it('should have proper ARIA attributes on drawer', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -553,9 +555,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should trap focus within drawer when open', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -573,9 +575,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should restore focus to hamburger button when drawer closes', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -598,9 +600,9 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
 
     it('should have accessible navigation item labels', async () => {
       const user = userEvent.setup();
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       await user.click(hamburgerButton);
 
       await waitFor(() => {
@@ -619,25 +621,25 @@ describe('Admin Layout - Mobile Sidebar Tests (<600px viewport)', () => {
   describe('Viewport Validation', () => {
     it('should show mobile drawer in 375px viewport', () => {
       setViewportWidth(375);
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       expect(hamburgerButton).toBeInTheDocument();
     });
 
     it('should show mobile drawer in 480px viewport', () => {
       setViewportWidth(480);
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       expect(hamburgerButton).toBeInTheDocument();
     });
 
     it('should show mobile drawer in 599px viewport (edge case)', () => {
       setViewportWidth(599);
-      renderWithProviders(<AdminLayoutWithRoutes />);
+      renderWithProviders(<AdminLayoutWithRoutes />, { withRouter: false });
 
-      const hamburgerButton = screen.getByRole('button', { name: /toggle drawer|menu/i });
+      const hamburgerButton = screen.getByRole('button', { name: /^toggle drawer$/i });
       expect(hamburgerButton).toBeInTheDocument();
     });
   });

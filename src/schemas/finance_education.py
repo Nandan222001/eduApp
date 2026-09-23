@@ -142,6 +142,13 @@ class WalletTransactionResponse(WalletTransactionBase):
     wallet_id: int
     balance_after: Decimal
     created_at: datetime
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # the declarative base for its MetaData registry, so the model maps the
+    # `metadata` DB column to `metadata_json`). Without this alias,
+    # from_attributes lookup of `metadata` on the ORM instance resolves to
+    # that reserved MetaData object instead of the JSON column, and Pydantic
+    # v2 fails to serialize it as Dict[str, Any].
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -163,6 +170,10 @@ class InvestmentHoldingUpdate(BaseModel):
     current_price: Optional[Decimal] = None
 
 
+class InvestmentPriceUpdate(BaseModel):
+    new_price: Decimal
+
+
 class InvestmentHoldingResponse(InvestmentHoldingBase):
     id: int
     institution_id: int
@@ -172,7 +183,13 @@ class InvestmentHoldingResponse(InvestmentHoldingBase):
     gain_loss: Decimal
     gain_loss_percentage: Decimal
     purchase_date: datetime
-    metadata: Optional[Dict[str, Any]] = None
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # the declarative base for its MetaData registry, so the model maps the
+    # `metadata` DB column to `metadata_json`). Without this alias,
+    # from_attributes lookup of `metadata` on the ORM instance resolves to
+    # that reserved MetaData object instead of the JSON column, and Pydantic
+    # v2 fails to serialize it as Dict[str, Any].
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -247,7 +264,13 @@ class ChallengeParticipationResponse(ChallengeParticipationBase):
     completed_at: Optional[datetime] = None
     points_earned: int
     rank: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # the declarative base for its MetaData registry, so the model maps the
+    # `metadata` DB column to `metadata_json`). Without this alias,
+    # from_attributes lookup of `metadata` on the ORM instance resolves to
+    # that reserved MetaData object instead of the JSON column, and Pydantic
+    # v2 fails to serialize it as Dict[str, Any].
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 

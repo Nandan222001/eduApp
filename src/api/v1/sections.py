@@ -49,7 +49,7 @@ async def list_sections(
         is_active=is_active
     )
     return {
-        "items": sections,
+        "items": [SectionResponse.model_validate(s) for s in sections],
         "total": total,
         "skip": skip,
         "limit": limit,

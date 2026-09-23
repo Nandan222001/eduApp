@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, date as date_type
 from typing import Optional, List, Dict, Any
 from decimal import Decimal
 from pydantic import BaseModel, Field, ConfigDict, validator
@@ -23,7 +23,11 @@ class VolunteerHourLogCreate(VolunteerHourLogBase):
 class VolunteerHourLogUpdate(BaseModel):
     activity_name: Optional[str] = Field(None, max_length=255)
     activity_type: Optional[ActivityType] = None
-    date: Optional[date] = None
+    # Aliased import: see the identical comment in
+    # src/schemas/community_service.py's ServiceActivityUpdate for why a
+    # field literally named `date` needs Optional[date_type] here, not
+    # Optional[date] -- the latter resolves to NoneType under pydantic v2.
+    date: Optional[date_type] = None
     hours_logged: Optional[Decimal] = Field(None, ge=0, le=24)
     description: Optional[str] = None
     location: Optional[str] = Field(None, max_length=255)
@@ -42,7 +46,11 @@ class VolunteerHourLogResponse(VolunteerHourLogBase):
     verification_notes: Optional[str]
     verified_at: Optional[datetime]
     verified_by: Optional[int]
-    metadata: Optional[Dict[str, Any]]
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # declarative model instances for its own MetaData object), so reading
+    # this field via from_attributes must pull from `metadata_json` while
+    # still round-tripping over the wire as `metadata`.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     parent_name: Optional[str] = None
@@ -187,7 +195,8 @@ class ParentVolunteerBadgeResponse(BaseModel):
     academic_year_id: int
     earned_at: datetime
     hours_at_earning: Decimal
-    metadata: Optional[Dict[str, Any]]
+    # See VolunteerHourLogResponse.metadata for why this needs an alias.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     badge_name: Optional[str] = None
     badge_tier: Optional[str] = None
@@ -242,7 +251,8 @@ class VolunteerCertificateResponse(VolunteerCertificateBase):
     certificate_url: Optional[str]
     pdf_path: Optional[str]
     signed_by: Optional[int]
-    metadata: Optional[Dict[str, Any]]
+    # See VolunteerHourLogResponse.metadata for why this needs an alias.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
     parent_name: Optional[str] = None

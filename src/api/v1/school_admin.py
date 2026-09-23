@@ -14,6 +14,7 @@ from src.schemas.school_admin import (
     EnquiryRecordCreate,
     EnquiryRecordResponse,
     EnquiryRecordUpdate,
+    EnquiryStatusUpdate,
     EnquiryStatistics,
     GenerateBulkIDCardsRequest,
     IssueCertificateRequest,
@@ -68,7 +69,7 @@ async def list_certificate_templates(
         institution_id=current_user.institution_id,
         certificate_type=certificate_type
     )
-    return templates
+    return [CertificateTemplateResponse.model_validate(t) for t in templates]
 
 
 @router.post("/certificates/templates", response_model=CertificateTemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -131,7 +132,7 @@ async def list_student_certificates(
         institution_id=current_user.institution_id,
         student_id=student_id
     )
-    return certificates
+    return [IssuedCertificateResponse.model_validate(c) for c in certificates]
 
 
 @router.post("/certificates/bulk-id-cards", response_model=dict)
@@ -174,7 +175,7 @@ async def list_staff(
         search=search
     )
     return {
-        "items": staff,
+        "items": [StaffMemberResponse.model_validate(s) for s in staff],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -188,6 +189,37 @@ async def get_staff_statistics(
 ):
     service = SchoolAdminService(db)
     return service.get_staff_statistics(current_user.institution_id)
+
+
+# NOTE: list_payroll ("/staff/payroll") must be registered before
+# "/staff/{id}" below -- both are GET with two path segments, and
+# Starlette/FastAPI match routes in registration order, so if "/staff/{id}"
+# came first it would swallow "/staff/payroll" (parsing "payroll" as the
+# {id} int and always 422'ing) making the payroll list endpoint completely
+# unreachable. Same class of bug as the "/staff/statistics" route above it.
+@router.get("/staff/payroll", response_model=dict)
+async def list_payroll(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    year: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = SchoolAdminService(db)
+    payrolls, total = service.list_payroll(
+        institution_id=current_user.institution_id,
+        skip=skip,
+        limit=limit,
+        month=month,
+        year=year
+    )
+    return {
+        "items": [StaffPayrollResponse.model_validate(p) for p in payrolls],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.get("/staff/{id}", response_model=StaffMemberResponse)
@@ -294,31 +326,8 @@ async def bulk_import_staff(
 
 
 # Payroll Endpoints
-@router.get("/staff/payroll", response_model=dict)
-async def list_payroll(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    month: Optional[int] = Query(None, ge=1, le=12),
-    year: Optional[int] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = SchoolAdminService(db)
-    payrolls, total = service.list_payroll(
-        institution_id=current_user.institution_id,
-        skip=skip,
-        limit=limit,
-        month=month,
-        year=year
-    )
-    return {
-        "items": payrolls,
-        "total": total,
-        "skip": skip,
-        "limit": limit,
-    }
-
-
+# (list_payroll / "GET /staff/payroll" lives above, before "/staff/{id}" --
+# see the note there.)
 @router.post("/staff/payroll/generate", response_model=dict)
 async def generate_monthly_payroll(
     data: PayrollGenerateRequest,
@@ -407,7 +416,7 @@ async def list_sms_templates(
         institution_id=current_user.institution_id,
         template_type=template_type
     )
-    return templates
+    return [SMSTemplateResponse.model_validate(t) for t in templates]
 
 
 @router.post("/sms/templates", response_model=SMSTemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -566,7 +575,7 @@ async def list_enquiries(
         search=search
     )
     return {
-        "items": enquiries,
+        "items": [EnquiryRecordResponse.model_validate(e) for e in enquiries],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -677,7 +686,7 @@ async def delete_enquiry(
 @router.put("/enquiries/{id}/status", response_model=EnquiryRecordResponse)
 async def update_enquiry_status(
     id: int,
-    new_status: str,
+    payload: EnquiryStatusUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -696,7 +705,7 @@ async def update_enquiry_status(
             detail="Not authorized to update this enquiry"
         )
 
-    updated_enquiry = service.update_enquiry_status(id, new_status)
+    updated_enquiry = service.update_enquiry_status(id, payload.new_status)
     return updated_enquiry
 
 

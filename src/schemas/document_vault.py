@@ -127,7 +127,9 @@ class DocumentAccessLogResponse(BaseModel):
     action: str
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # Declarative models), matching src/schemas/merchandise.py's pattern.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
 
 

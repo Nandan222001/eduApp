@@ -49,7 +49,7 @@ async def list_academic_years(
         is_current=is_current
     )
     return {
-        "items": academic_years,
+        "items": [AcademicYearResponse.model_validate(a) for a in academic_years],
         "total": total,
         "skip": skip,
         "limit": limit,

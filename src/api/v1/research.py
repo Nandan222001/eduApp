@@ -71,7 +71,7 @@ async def list_research_projects(
         is_active=is_active
     )
     return {
-        "items": projects,
+        "items": [ResearchProjectResponse.model_validate(p) for p in projects],
         "total": total,
         "skip": skip,
         "limit": limit,

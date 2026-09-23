@@ -17,13 +17,7 @@ from src.models.examination import (
 from src.models.attendance import Attendance, AttendanceSummary, AttendanceStatus
 from src.models.assignment import Assignment, Submission, SubmissionStatus
 from src.models.gamification import UserPoints, Badge, UserBadge
-from src.models.analytics import (
-    AnalyticsCache,
-    StudentPerformanceMetrics,
-    ClassPerformanceMetrics,
-    InstitutionPerformanceMetrics,
-)
-from src.schemas.analytics import (
+from src.schemas.academic_analytics import (
     AnalyticsQueryParams,
     StudentMetrics,
     ClassMetrics,
@@ -1087,9 +1081,9 @@ class AnalyticsService:
     ) -> List[str]:
         exam_marks = (
             self.db.query(ExamMarks, Subject.name)
-            .join(ExamSubject)
-            .join(Subject)
-            .join(Exam)
+            .join(ExamSubject, ExamMarks.exam_subject_id == ExamSubject.id)
+            .join(Subject, ExamSubject.subject_id == Subject.id)
+            .join(Exam, ExamSubject.exam_id == Exam.id)
             .filter(
                 ExamMarks.student_id == student_id,
                 ExamMarks.institution_id == institution_id,
@@ -1141,9 +1135,9 @@ class AnalyticsService:
     ) -> List[str]:
         exam_marks = (
             self.db.query(ExamMarks, Subject.name)
-            .join(ExamSubject)
-            .join(Subject)
-            .join(Exam)
+            .join(ExamSubject, ExamMarks.exam_subject_id == ExamSubject.id)
+            .join(Subject, ExamSubject.subject_id == Subject.id)
+            .join(Exam, ExamSubject.exam_id == Exam.id)
             .filter(
                 ExamMarks.student_id == student_id,
                 ExamMarks.institution_id == institution_id,

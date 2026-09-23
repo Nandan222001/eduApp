@@ -27,7 +27,7 @@ class TestParentMultiChildIntegration:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -64,7 +64,7 @@ class TestParentMultiChildIntegration:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -93,9 +93,8 @@ class TestParentMultiChildIntegration:
             last_name="One",
             email="child1@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 3, 15).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Male",
         )
         db_session.add(child1)
@@ -122,9 +121,8 @@ class TestParentMultiChildIntegration:
             last_name="Two",
             email="child2@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2012, 7, 20).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Female",
         )
         db_session.add(child2)
@@ -149,14 +147,11 @@ class TestParentMultiChildIntegration:
         db_session.commit()
         
         # Create access token for parent
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test getting children list
@@ -184,7 +179,7 @@ class TestParentMultiChildIntegration:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -219,7 +214,7 @@ class TestParentMultiChildIntegration:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -248,9 +243,8 @@ class TestParentMultiChildIntegration:
             last_name="Filter",
             email="child_filter@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 5, 10).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Male",
         )
         db_session.add(child)
@@ -267,14 +261,11 @@ class TestParentMultiChildIntegration:
         db_session.commit()
         
         # Create access token for parent
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test dashboard with child filter
@@ -298,7 +289,7 @@ class TestParentMultiChildIntegration:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -333,7 +324,7 @@ class TestParentMultiChildIntegration:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -362,9 +353,8 @@ class TestParentMultiChildIntegration:
             last_name="Specific",
             email="child_specific@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 8, 25).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Female",
         )
         db_session.add(child)
@@ -381,14 +371,11 @@ class TestParentMultiChildIntegration:
         db_session.commit()
         
         # Create access token for parent
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test child overview
@@ -433,7 +420,7 @@ class TestParentMultiChildIntegration:
         
         # Create parent role
         parent_role = Role(
-            name="Parent",
+            name="Parent", slug="parent",
             description="Parent role",
             is_system_role=True,
         )
@@ -468,7 +455,7 @@ class TestParentMultiChildIntegration:
         
         # Create student role
         student_role = Role(
-            name="Student",
+            name="Student", slug="student",
             description="Student role",
             is_system_role=True,
         )
@@ -497,23 +484,19 @@ class TestParentMultiChildIntegration:
             last_name="Child",
             email="unlinked@test.com",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=datetime(2010, 1, 1).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Male",
         )
         db_session.add(unlinked_child)
         db_session.commit()
         
         # Create access token for parent
-        token = create_access_token(
-            data={
-                "sub": parent_user.id,
-                "institution_id": parent_user.institution_id,
-                "role_id": parent_user.role_id,
-                "email": parent_user.email,
-            }
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": parent_user.email, "password": "password123"},
         )
+        token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
         # Try to access unlinked child's overview

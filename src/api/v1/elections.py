@@ -142,7 +142,7 @@ async def list_elections(
     elections = query.order_by(Election.voting_start.desc()).offset(skip).limit(limit).all()
     
     return {
-        "items": elections,
+        "items": [ElectionResponse.model_validate(e) for e in elections],
         "total": total,
         "skip": skip,
         "limit": limit

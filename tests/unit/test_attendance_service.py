@@ -145,14 +145,12 @@ class TestMarkAttendance:
         
         subject1 = Subject(
             institution_id=institution.id,
-            grade_id=section.grade_id,
             name="Mathematics",
             code="MATH",
             is_active=True
         )
         subject2 = Subject(
             institution_id=institution.id,
-            grade_id=section.grade_id,
             name="Science",
             code="SCI",
             is_active=True
@@ -263,9 +261,8 @@ class TestBulkMarkAttendance:
                 first_name=f"Student{i}",
                 last_name="Test",
                 section_id=section.id,
-                academic_year_id=academic_year.id,
                 date_of_birth=date(2008, 1, 1),
-                date_of_admission=date(2020, 1, 1),
+                admission_date=date(2020, 1, 1),
                 gender="Male",
                 is_active=True
             )
@@ -320,9 +317,8 @@ class TestBulkMarkAttendance:
                 first_name=f"BulkStudent{i}",
                 last_name="Test",
                 section_id=section.id,
-                academic_year_id=academic_year.id,
                 date_of_birth=date(2008, 1, 1),
-                date_of_admission=date(2020, 1, 1),
+                admission_date=date(2020, 1, 1),
                 gender="Female",
                 is_active=True
             )
@@ -412,9 +408,8 @@ class TestBulkMarkAttendance:
             first_name="Partial",
             last_name="Test",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=date(2008, 1, 1),
-            date_of_admission=date(2020, 1, 1),
+            admission_date=date(2020, 1, 1),
             gender="Male",
             is_active=True
         )
@@ -644,9 +639,8 @@ class TestIdentifyDefaulters:
                 first_name=f"Defaulter{i}",
                 last_name="Test",
                 section_id=section.id,
-                academic_year_id=academic_year.id,
                 date_of_birth=date(2008, 1, 1),
-                date_of_admission=date(2020, 1, 1),
+                admission_date=date(2020, 1, 1),
                 gender="Male",
                 is_active=True
             )
@@ -749,9 +743,8 @@ class TestIdentifyDefaulters:
             first_name="Section1",
             last_name="Student",
             section_id=section.id,
-            academic_year_id=academic_year.id,
             date_of_birth=date(2008, 1, 1),
-            date_of_admission=date(2020, 1, 1),
+            admission_date=date(2020, 1, 1),
             gender="Male",
             is_active=True
         )
@@ -778,9 +771,8 @@ class TestIdentifyDefaulters:
             first_name="Section2",
             last_name="Student",
             section_id=section2.id,
-            academic_year_id=academic_year.id,
             date_of_birth=date(2008, 1, 1),
-            date_of_admission=date(2020, 1, 1),
+            admission_date=date(2020, 1, 1),
             gender="Female",
             is_active=True
         )
@@ -984,14 +976,12 @@ class TestGetAttendanceHistory:
         # Create two subjects
         subject1 = Subject(
             institution_id=institution.id,
-            grade_id=grade.id,
             name="Math",
             code="MATH",
             is_active=True
         )
         subject2 = Subject(
             institution_id=institution.id,
-            grade_id=grade.id,
             name="English",
             code="ENG",
             is_active=True

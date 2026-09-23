@@ -11,6 +11,7 @@ from src.schemas.branding import (
 from src.utils.s3_client import s3_client
 from datetime import datetime
 import re
+import uuid
 
 
 class BrandingService:
@@ -178,10 +179,10 @@ class BrandingService:
         # Upload to S3
         try:
             folder = f"branding/{institution_id}/{field}"
-            file_url, s3_key = s3_client.upload_file(
+            s3_key = f"{folder}/{uuid.uuid4()}_{file.filename}"
+            file_url = s3_client.upload_file(
                 file.file,
-                file.filename,
-                folder=folder,
+                s3_key,
                 content_type=file.content_type
             )
         except Exception as e:

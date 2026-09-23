@@ -50,7 +50,7 @@ async def list_terms(
     terms = query.order_by(Term.display_order, Term.start_date).offset(skip).limit(limit).all()
     
     return {
-        "items": terms,
+        "items": [TermResponse.model_validate(t) for t in terms],
         "total": total,
         "skip": skip,
         "limit": limit,

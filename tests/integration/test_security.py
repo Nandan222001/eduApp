@@ -20,16 +20,8 @@ def second_institution(db_session: Session) -> Institution:
     institution = Institution(
         name="Second School",
         slug="second-school",
-        short_name="SS",
-        code="TEST002",
-        email="admin@secondschool.com",
         phone="+9876543210",
         address="456 Second Street",
-        city="Second City",
-        state="Second State",
-        country="Test Country",
-        postal_code="54321",
-        website="https://secondschool.com",
         is_active=True,
     )
     db_session.add(institution)
@@ -81,44 +73,34 @@ def second_institution_student(
 
 
 @pytest.fixture
-def teacher_auth_headers(teacher_user: User) -> dict:
-    token = create_access_token(
-        data={
-            "sub": teacher_user.id,
-            "institution_id": teacher_user.institution_id,
-            "role_id": teacher_user.role_id,
-            "email": teacher_user.email,
-            "role_slug": "teacher",
-        }
+def teacher_auth_headers(client: TestClient, teacher_user: User) -> dict:
+    """Log in for real so a matching session exists in the fake Redis --
+    get_current_user requires both a valid JWT AND an active session."""
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": teacher_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
-def student_auth_headers(student_user: User) -> dict:
-    token = create_access_token(
-        data={
-            "sub": student_user.id,
-            "institution_id": student_user.institution_id,
-            "role_id": student_user.role_id,
-            "email": student_user.email,
-            "role_slug": "student",
-        }
+def student_auth_headers(client: TestClient, student_user: User) -> dict:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": student_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
-def admin_auth_headers(admin_user: User) -> dict:
-    token = create_access_token(
-        data={
-            "sub": admin_user.id,
-            "institution_id": admin_user.institution_id,
-            "role_id": admin_user.role_id,
-            "email": admin_user.email,
-            "role_slug": "admin",
-        }
+def admin_auth_headers(client: TestClient, admin_user: User) -> dict:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": admin_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -371,7 +353,7 @@ class TestMultiTenantDataIsolation:
             last_name=second_institution_student.last_name,
             email=second_institution_student.email,
             date_of_birth=datetime(2008, 5, 15).date(),
-            date_of_admission=datetime(2020, 4, 1).date(),
+            admission_date=datetime(2020, 4, 1).date(),
             gender="Female",
             is_active=True,
         )
@@ -458,7 +440,7 @@ class TestMultiTenantDataIsolation:
             email=other_teacher_user.email,
             phone="+9999999999",
             date_of_birth=datetime(1985, 5, 15).date(),
-            date_of_joining=datetime(2020, 6, 1).date(),
+            joining_date=datetime(2020, 6, 1).date(),
             qualification="M.Sc",
             specialization="Physics",
             is_active=True,
@@ -688,14 +670,10 @@ class TestCORSConfiguration:
 @pytest.mark.integration
 class TestRateLimitingEnforcement:
     
-    @patch('src.middleware.rate_limit.limiter.test')
     def test_rate_limit_enforced_for_anonymous_users(
         self,
-        mock_limiter,
         client: TestClient,
     ):
-        mock_limiter.return_value = True
-        
         for i in range(60):
             response = client.get("/api/v1/health")
             if response.status_code == 429:

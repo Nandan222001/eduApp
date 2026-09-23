@@ -14,6 +14,7 @@ import {
   screen,
   userEvent,
   waitFor,
+  cleanup,
 } from '../test-utils';
 import {
   setupDemoStudent,
@@ -264,7 +265,7 @@ describe('Login Form Integration Tests', () => {
 
       renderUnauthenticated(<LoginForm onLogin={mockLogin} />);
 
-      const submitButton = screen.getByText('Login');
+      const submitButton = screen.getByRole('button', { name: 'Login' });
       await user.click(submitButton);
 
       expect(screen.getByTestId('error-message')).toHaveTextContent('Please fill in all fields');
@@ -279,7 +280,7 @@ describe('Login Form Integration Tests', () => {
 
       await user.type(screen.getByLabelText('Email'), 'wrong@example.com');
       await user.type(screen.getByLabelText('Password'), 'wrongpassword');
-      await user.click(screen.getByText('Login'));
+      await user.click(screen.getByRole('button', { name: 'Login' }));
 
       expect(screen.getByTestId('error-message')).toHaveTextContent('Invalid credentials');
       expect(mockLogin).not.toHaveBeenCalled();
@@ -295,7 +296,7 @@ describe('Login Form Integration Tests', () => {
 
       await user.type(screen.getByLabelText('Email'), DEMO_CREDENTIALS.email);
       await user.type(screen.getByLabelText('Password'), DEMO_CREDENTIALS.password);
-      await user.click(screen.getByText('Login'));
+      await user.click(screen.getByRole('button', { name: 'Login' }));
 
       expect(mockLogin).toHaveBeenCalledWith(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password);
       expect(screen.queryByTestId('error-message')).not.toBeInTheDocument();
@@ -354,7 +355,9 @@ describe('Complete User Journey', () => {
       expect(screen.getByTestId('student-section')).toBeInTheDocument();
     });
 
-    // Switch to teacher
+    // Switch to teacher -- unmount the student render first, since render()
+    // appends to the document rather than replacing the previous tree.
+    cleanup();
     setupDemoTeacher();
     renderWithDemoTeacher(<Dashboard />);
 

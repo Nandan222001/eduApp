@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models.user import User
-from src.dependencies.auth import get_current_user, get_current_superuser
+from src.dependencies.auth import get_current_user, get_current_superuser, require_roles
 from src.schemas.institution import (
     InstitutionCreate,
     InstitutionUpdate,
@@ -42,7 +42,7 @@ async def list_institutions(
         is_active=is_active
     )
     return {
-        "items": institutions,
+        "items": [InstitutionResponse.model_validate(i) for i in institutions],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -107,7 +107,9 @@ async def update_institution(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this institution"
         )
-    
+
+    require_roles(current_user, ["admin", "institution_admin"])
+
     service = InstitutionService(db)
     institution = service.update_institution(institution_id, institution_data)
     if not institution:

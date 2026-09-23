@@ -51,7 +51,7 @@ async def list_grades(
         is_active=is_active
     )
     return {
-        "items": grades,
+        "items": [GradeResponse.model_validate(g) for g in grades],
         "total": total,
         "skip": skip,
         "limit": limit,

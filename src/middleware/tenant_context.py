@@ -20,7 +20,8 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
             payload = decode_token(token)
 
             if payload and payload.get("type") == "access":
-                user_id = payload.get("sub")
+                raw_sub = payload.get("sub")
+                user_id = int(raw_sub) if raw_sub is not None else None
                 institution_id = payload.get("institution_id")
 
                 if user_id and redis_client:

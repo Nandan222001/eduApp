@@ -283,8 +283,13 @@ class DailyStudyTaskRepository:
         
         update_data = task_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
-            setattr(task, field, value)
-        
+            # `metadata` is reserved by SQLAlchemy's Declarative base for the
+            # MetaData object -- the real column is mapped as `metadata_json`.
+            if field == 'metadata':
+                task.metadata_json = value
+            else:
+                setattr(task, field, value)
+
         if update_data.get('status') == TaskStatus.COMPLETED and not task.completed_at:
             task.completed_at = datetime.utcnow()
         

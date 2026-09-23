@@ -129,7 +129,7 @@ async def list_books(
     books = query.offset(skip).limit(limit).all()
     
     return {
-        "items": books,
+        "items": [BookResponse.model_validate(b) for b in books],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -164,16 +164,34 @@ async def update_book(
         Book.id == book_id,
         Book.institution_id == current_user.institution_id
     ).first()
-    
+
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
-    
+
     for field, value in update_data.model_dump(exclude_unset=True).items():
         setattr(book, field, value)
-    
+
     db.commit()
     db.refresh(book)
     return book
+
+
+@router.delete("/books/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_book(
+    book_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    book = db.query(Book).filter(
+        Book.id == book_id,
+        Book.institution_id == current_user.institution_id
+    ).first()
+
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    db.delete(book)
+    db.commit()
 
 
 # Book Issues
@@ -283,6 +301,23 @@ async def return_book(
     return issue
 
 
+@router.get("/issues/{issue_id}", response_model=BookIssueResponse)
+async def get_issue(
+    issue_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    issue = db.query(BookIssue).filter(
+        BookIssue.id == issue_id,
+        BookIssue.institution_id == current_user.institution_id
+    ).first()
+
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue record not found")
+
+    return issue
+
+
 @router.get("/issues", response_model=dict)
 async def list_issues(
     skip: int = Query(0, ge=0),
@@ -306,7 +341,7 @@ async def list_issues(
     issues = query.order_by(BookIssue.issue_date.desc()).offset(skip).limit(limit).all()
     
     return {
-        "items": issues,
+        "items": [BookIssueResponse.model_validate(i) for i in issues],
         "total": total,
         "skip": skip,
         "limit": limit

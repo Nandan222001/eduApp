@@ -380,7 +380,7 @@ class LearningStylesService:
             supports_solitary_learning=tag_data.supports_solitary_learning,
             sequential_flow=tag_data.sequential_flow,
             holistic_approach=tag_data.holistic_approach,
-            metadata=tag_data.metadata,
+            metadata_json=tag_data.metadata,
             tagged_by=user_id,
             auto_tagged=tag_data.auto_tagged
         )

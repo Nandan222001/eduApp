@@ -279,7 +279,7 @@ class GamificationService:
             user_id=award_data.user_id,
             badge_id=award_data.badge_id,
             points_awarded=award_data.points_awarded,
-            metadata=award_data.metadata
+            metadata_json=award_data.metadata
         )
         db.add(user_badge)
         
@@ -355,7 +355,7 @@ class GamificationService:
             description=points_data.description,
             reference_id=points_data.reference_id,
             reference_type=points_data.reference_type,
-            metadata=points_data.metadata
+            metadata_json=points_data.metadata
         )
         db.add(point_history)
         

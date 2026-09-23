@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timedelta
@@ -63,7 +63,7 @@ from src.schemas.wellbeing import (
     ReferralResponse,
 )
 
-router = APIRouter(prefix="/wellbeing", tags=["Wellbeing"])
+router = APIRouter(tags=["Wellbeing"])
 
 
 @router.post("/sentiment-analysis", response_model=SentimentAnalysisResponse)
@@ -216,7 +216,17 @@ def create_alert(
             detail="No consent for wellbeing monitoring"
         )
     
-    alert = WellbeingAlert(**alert_data.model_dump())
+    # `alert_data.model_dump()` includes a 'metadata' key (the schema keeps
+    # 'metadata' as the JSON field name), but the ORM column is
+    # `metadata_json` -- SQLAlchemy Declarative models reserve `metadata`
+    # for the class's MetaData registry, so passing `metadata=` into the
+    # constructor silently shadowed that class attribute on the instance
+    # instead of setting the real column, losing the data. Same bug class
+    # documented in TESTING_PROGRESS.md; fixed the same way as the
+    # already-fixed sites in wellbeing_service.py.
+    alert_fields = alert_data.model_dump()
+    metadata_value = alert_fields.pop('metadata', None)
+    alert = WellbeingAlert(metadata_json=metadata_value, **alert_fields)
     db.add(alert)
     db.commit()
     db.refresh(alert)
@@ -548,7 +558,22 @@ def get_counselor_dashboard(
 ):
     service = WellbeingService(db)
     dashboard_data = service.get_counselor_dashboard(institution_id, counselor_id)
-    
+
+    # WellbeingService.get_counselor_dashboard returns raw WellbeingAlert
+    # ORM objects in 'active_alerts'/'critical_alerts'. response_model=Dict
+    # goes through pydantic-core's serializer (not jsonable_encoder), which
+    # has no serializer registered for an arbitrary ORM class, so this
+    # endpoint always raised `PydanticSerializationError: Unable to
+    # serialize unknown type` the instant any alert existed -- same bug
+    # class as the raw-ORM-in-response_model=dict findings elsewhere in
+    # TESTING_PROGRESS.md. Convert each alert to its response schema first.
+    dashboard_data["active_alerts"] = [
+        WellbeingAlertResponse.model_validate(a) for a in dashboard_data["active_alerts"]
+    ]
+    dashboard_data["critical_alerts"] = [
+        WellbeingAlertResponse.model_validate(a) for a in dashboard_data["critical_alerts"]
+    ]
+
     return dashboard_data
 
 

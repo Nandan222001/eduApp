@@ -37,7 +37,7 @@ class TestAssignmentAPI:
                 "subject_id": subject.id,
                 "teacher_id": teacher.id,
                 "due_date": (datetime.now() + timedelta(days=7)).isoformat(),
-                "total_marks": 100,
+                "max_marks": 100,
                 "instructions": "Solve all problems",
             },
         )
@@ -45,7 +45,7 @@ class TestAssignmentAPI:
         assert response.status_code == 201
         data = response.json()
         assert data["title"] == "Math Homework 1"
-        assert data["total_marks"] == 100
+        assert float(data["max_marks"]) == 100
 
     def test_list_assignments(
         self,
@@ -68,8 +68,8 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
-            status=AssignmentStatus.ACTIVE,
+            max_marks=100,
+            status=AssignmentStatus.PUBLISHED,
         )
         db_session.add(assignment)
         db_session.commit()
@@ -105,8 +105,8 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
-            status=AssignmentStatus.ACTIVE,
+            max_marks=100,
+            status=AssignmentStatus.PUBLISHED,
         )
         db_session.add(assignment)
         db_session.commit()
@@ -142,8 +142,8 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
-            status=AssignmentStatus.ACTIVE,
+            max_marks=100,
+            status=AssignmentStatus.PUBLISHED,
         )
         db_session.add(assignment)
         db_session.commit()
@@ -153,14 +153,14 @@ class TestAssignmentAPI:
             headers=auth_headers,
             json={
                 "title": "Updated Assignment",
-                "total_marks": 150,
+                "max_marks": 150,
             },
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["title"] == "Updated Assignment"
-        assert data["total_marks"] == 150
+        assert float(data["max_marks"]) == 150
 
     def test_delete_assignment(
         self,
@@ -183,8 +183,8 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
-            status=AssignmentStatus.ACTIVE,
+            max_marks=100,
+            status=AssignmentStatus.PUBLISHED,
         )
         db_session.add(assignment)
         db_session.commit()
@@ -217,8 +217,8 @@ class TestAssignmentAPI:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
-            status=AssignmentStatus.ACTIVE,
+            max_marks=100,
+            status=AssignmentStatus.PUBLISHED,
         )
         db_session.add(assignment)
         db_session.commit()
@@ -237,5 +237,8 @@ class TestAssignmentAPI:
         client: TestClient,
     ):
         """Test unauthorized access to assignment endpoints."""
+        # 403 (not 401): FastAPI's HTTPBearer(auto_error=True) raises 403
+        # when no Authorization header is sent at all; 401 is reserved for
+        # an invalid/expired token (see get_current_user).
         response = client.get("/api/v1/assignments/")
-        assert response.status_code == 401
+        assert response.status_code == 403

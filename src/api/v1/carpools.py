@@ -96,7 +96,7 @@ async def list_carpool_groups(
     groups = query.offset(skip).limit(limit).all()
     
     return {
-        "items": groups,
+        "items": [CarpoolGroupResponse.model_validate(g) for g in groups],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -282,7 +282,7 @@ async def list_carpool_requests(
     requests = query.offset(skip).limit(limit).all()
     
     return {
-        "items": requests,
+        "items": [CarpoolRequestResponse.model_validate(r) for r in requests],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -417,7 +417,7 @@ async def get_carpool_matches(
     matches = query.offset(skip).limit(limit).all()
     
     return {
-        "items": matches,
+        "items": [CarpoolMatchResponse.model_validate(m) for m in matches],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -490,7 +490,7 @@ async def list_carpool_rides(
     rides = query.offset(skip).limit(limit).all()
     
     return {
-        "items": rides,
+        "items": [CarpoolRideResponse.model_validate(r) for r in rides],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -692,7 +692,7 @@ async def list_emergency_notifications(
     emergencies = query.offset(skip).limit(limit).all()
     
     return {
-        "items": emergencies,
+        "items": [EmergencyNotificationResponse.model_validate(e) for e in emergencies],
         "total": total,
         "skip": skip,
         "limit": limit

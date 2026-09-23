@@ -4,6 +4,18 @@ import { cleanup } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 
+// happy-dom@12's requestAnimationFrame/cancelAnimationFrame implementation is
+// broken (cancelAnimationFrame throws "Cannot create property '_destroyed' on
+// number '-1'" for handles MUI components pass, e.g. TextareaAutosize on
+// unmount). Replace both with simple, spec-equivalent setTimeout-based
+// versions so components that use rAF for layout/resize work don't crash.
+window.requestAnimationFrame = (callback: FrameRequestCallback): number => {
+  return window.setTimeout(() => callback(Date.now()), 0) as unknown as number;
+};
+window.cancelAnimationFrame = (handle: number): void => {
+  window.clearTimeout(handle);
+};
+
 // Mock handlers for API
 export const handlers = [
   http.post('/api/v1/auth/login', () => {

@@ -96,7 +96,7 @@ async def list_conference_slots(
         is_active=is_active
     )
     return {
-        "items": slots,
+        "items": [ConferenceSlotResponse.model_validate(s) for s in slots],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -240,7 +240,7 @@ async def list_conference_bookings(
         date_to=date_to
     )
     return {
-        "items": bookings,
+        "items": [ConferenceBookingResponse.model_validate(b) for b in bookings],
         "total": total,
         "skip": skip,
         "limit": limit,

@@ -500,21 +500,29 @@ class LearningVelocityService:
         """Calculate learning velocity for a given period"""
         period_end = date.today()
         period_start = period_end - timedelta(days=period_days)
-        
+        # `completed_at`/`recorded_at` are DateTime columns. Comparing them
+        # with `<= period_end` (a bare date) implicitly compares against
+        # midnight of period_end, silently excluding every same-day
+        # completion/record made after 00:00 -- i.e. almost all of "today"'s
+        # activity, which is the common case when checking velocity right
+        # after a student finishes something. Use end-of-day for the upper
+        # bound so the whole of period_end's day is actually included.
+        period_end_bound = datetime.combine(period_end, datetime.max.time())
+
         # Get completed topics in period
         completed_topics = db.query(TopicSequence).filter(
             TopicSequence.institution_id == institution_id,
             TopicSequence.learning_path_id == learning_path_id,
             TopicSequence.completed_at >= period_start,
-            TopicSequence.completed_at <= period_end
+            TopicSequence.completed_at <= period_end_bound
         ).all()
-        
+
         # Get performance data
         performance_data = db.query(TopicPerformanceData).filter(
             TopicPerformanceData.institution_id == institution_id,
             TopicPerformanceData.student_id == student_id,
             TopicPerformanceData.recorded_at >= period_start,
-            TopicPerformanceData.recorded_at <= period_end
+            TopicPerformanceData.recorded_at <= period_end_bound
         ).all()
         
         # Calculate metrics
@@ -563,7 +571,16 @@ class LearningVelocityService:
             consistency_score=consistency,
             recommended_pace_adjustment=pace_adjustment,
             metrics={
-                "daily_completions": dict(daily_completions),
+                # `metrics` is a JSON column and `daily_completions`' keys
+                # are `date` objects (from `topic.completed_at.date()`)--
+                # json.dumps rejects non-str/int/float/bool/None dict keys,
+                # so this raised an unhandled 500 (TypeError deep inside the
+                # DB driver's JSON serializer) the instant any topic was
+                # actually completed within the period. Serialize the keys
+                # to ISO date strings first.
+                "daily_completions": {
+                    day.isoformat(): count for day, count in daily_completions.items()
+                },
                 "target_velocity": target_velocity,
                 "period_days": period_days
             }

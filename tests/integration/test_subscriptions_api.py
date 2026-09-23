@@ -59,15 +59,8 @@ class TestSubscriptionsAPICreate:
         """Test creating a subscription without trial period"""
         institution = Institution(
             name="No Trial School",
-            short_name="NTS",
-            code="NTS001",
-            email="admin@notrial.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -160,15 +153,8 @@ class TestSubscriptionsAPICreate:
         """Test creating subscription with invalid plan name fails"""
         institution = Institution(
             name="Invalid Plan School",
-            short_name="IPS",
-            code="IPS001",
-            email="admin@invalidplan.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -224,15 +210,8 @@ class TestSubscriptionsAPIUpgradeDowngrade:
         """Test downgrading subscription without immediate charge"""
         institution = Institution(
             name="Downgrade Test School",
-            short_name="DTS",
-            code="DTS001",
-            email="admin@downgrade.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -274,15 +253,8 @@ class TestSubscriptionsAPIUpgradeDowngrade:
         """Test upgrading subscription during trial period"""
         institution = Institution(
             name="Trial Upgrade School",
-            short_name="TUS",
-            code="TUS001",
-            email="admin@trialupgrade.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -323,15 +295,8 @@ class TestSubscriptionsAPIUpgradeDowngrade:
         """Test downgrading non-active subscription fails"""
         institution = Institution(
             name="Inactive Downgrade School",
-            short_name="IDS",
-            code="IDS001",
-            email="admin@inactivedown.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -394,15 +359,8 @@ class TestSubscriptionsAPIGetCurrent:
         """Test getting current subscription when none exists"""
         institution = Institution(
             name="No Subscription School",
-            short_name="NSS",
-            code="NSS001",
-            email="admin@nosub.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -423,15 +381,8 @@ class TestSubscriptionsAPIGetCurrent:
         """Test getting subscription in grace period"""
         institution = Institution(
             name="Grace Period School",
-            short_name="GPS",
-            code="GPS001",
-            email="admin@grace.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -476,15 +427,8 @@ class TestSubscriptionsAPIWebhook:
         """Test Razorpay payment capture webhook activates subscription"""
         institution = Institution(
             name="Webhook Test School",
-            short_name="WTS",
-            code="WTS001",
-            email="admin@webhook.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -550,15 +494,8 @@ class TestSubscriptionsAPIWebhook:
         """Test Razorpay payment failed webhook sets subscription to grace period"""
         institution = Institution(
             name="Failed Payment School",
-            short_name="FPS",
-            code="FPS001",
-            email="admin@failed.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -631,7 +568,8 @@ class TestSubscriptionsAPIWebhook:
             "payload": {"payment": {"entity": {"id": "pay_test"}}}
         }
 
-        with patch('src.api.v1.webhooks.verify_razorpay_webhook_signature', return_value=False):
+        with patch('src.api.v1.webhooks.settings.razorpay_webhook_secret', 'test_webhook_secret'), \
+             patch('src.api.v1.webhooks.verify_razorpay_webhook_signature', return_value=False):
             response = client.post(
                 "/api/v1/webhooks/razorpay",
                 json=webhook_payload,
@@ -647,15 +585,8 @@ class TestSubscriptionsAPIWebhook:
         """Test subscription charged webhook renews subscription"""
         institution = Institution(
             name="Renew Test School",
-            short_name="RTS",
-            code="RTS001",
-            email="admin@renew.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -708,15 +639,8 @@ class TestSubscriptionsAPIExpiration:
         """Test checking expired trial subscriptions"""
         institution = Institution(
             name="Expired Trial School",
-            short_name="ETS",
-            code="ETS001",
-            email="admin@expiredtrial.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -753,15 +677,8 @@ class TestSubscriptionsAPIExpiration:
         """Test checking expired grace period subscriptions"""
         institution = Institution(
             name="Expired Grace School",
-            short_name="EGS",
-            code="EGS001",
-            email="admin@expiredgrace.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -800,15 +717,8 @@ class TestSubscriptionsAPIExpiration:
 
         institution = Institution(
             name="Grace Handling School",
-            short_name="GHS",
-            code="GHS001",
-            email="admin@gracehandle.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -836,7 +746,11 @@ class TestSubscriptionsAPIExpiration:
         assert updated_sub.grace_period_end is not None
         assert updated_sub.grace_period_end > datetime.utcnow()
         
-        grace_days = (updated_sub.grace_period_end - datetime.utcnow()).days
+        # Compare calendar dates rather than an exact elapsed duration --
+        # `.days` on a timedelta floors, so it under-reports by one the
+        # instant any time elapses between grace_period_end being computed
+        # (utcnow() + 7 days) and this re-measurement of utcnow().
+        grace_days = (updated_sub.grace_period_end.date() - datetime.utcnow().date()).days
         assert grace_days == 7
 
     def test_subscription_expiration_after_grace_period(
@@ -847,15 +761,8 @@ class TestSubscriptionsAPIExpiration:
 
         institution = Institution(
             name="Expiration School",
-            short_name="ES",
-            code="ES001",
-            email="admin@expire.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         db_session.add(institution)
@@ -881,7 +788,10 @@ class TestSubscriptionsAPIExpiration:
 
         assert updated_sub.status == SubscriptionStatus.EXPIRED
         assert updated_sub.end_date is not None
-        assert updated_sub.end_date <= datetime.utcnow()
+        # MySQL's DATETIME column has only second-level precision and
+        # *rounds* (rather than truncates), so a value set to "now" can come
+        # back up to half a second later than the wall-clock time read here.
+        assert updated_sub.end_date <= datetime.utcnow() + timedelta(seconds=1)
 
 
 @pytest.mark.integration
@@ -894,28 +804,14 @@ class TestSubscriptionsAPIDataIsolation:
         """Test that institution cannot access another institution's subscription"""
         institution1 = Institution(
             name="School 1",
-            short_name="S1",
-            code="S1001",
-            email="admin@school1.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         institution2 = Institution(
             name="School 2",
-            short_name="S2",
-            code="S2001",
-            email="admin@school2.com",
             phone="+1234567891",
             address="456 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12346",
             is_active=True,
         )
         db_session.add_all([institution1, institution2])
@@ -957,28 +853,14 @@ class TestSubscriptionsAPIDataIsolation:
         """Test that payment listings are filtered by institution"""
         institution1 = Institution(
             name="Payment School 1",
-            short_name="PS1",
-            code="PS1001",
-            email="admin@payment1.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         institution2 = Institution(
             name="Payment School 2",
-            short_name="PS2",
-            code="PS2001",
-            email="admin@payment2.com",
             phone="+1234567891",
             address="456 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12346",
             is_active=True,
         )
         db_session.add_all([institution1, institution2])
@@ -1041,28 +923,14 @@ class TestSubscriptionsAPIDataIsolation:
         """Test that invoice listings are filtered by institution"""
         institution1 = Institution(
             name="Invoice School 1",
-            short_name="IS1",
-            code="IS1001",
-            email="admin@invoice1.com",
             phone="+1234567890",
             address="123 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12345",
             is_active=True,
         )
         institution2 = Institution(
             name="Invoice School 2",
-            short_name="IS2",
-            code="IS2001",
-            email="admin@invoice2.com",
             phone="+1234567891",
             address="456 Test",
-            city="City",
-            state="State",
-            country="Country",
-            postal_code="12346",
             is_active=True,
         )
         db_session.add_all([institution1, institution2])

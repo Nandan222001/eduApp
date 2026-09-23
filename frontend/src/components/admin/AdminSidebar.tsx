@@ -178,6 +178,11 @@ export default function AdminSidebar({
       variant={variant}
       open={open}
       onClose={onClose}
+      PaperProps={
+        variant === 'temporary'
+          ? { component: 'nav', 'aria-label': 'Mobile navigation' }
+          : undefined
+      }
       sx={{
         width: drawerWidth,
         flexShrink: 0,

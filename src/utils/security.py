@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+import uuid
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from src.config import settings
@@ -24,7 +25,13 @@ def create_access_token(
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
 
-    to_encode.update({"exp": expire, "type": "access"})
+    # JWT's "sub" claim must be a string per RFC 7521/python-jose's validation
+    # (jwt.decode raises JWTClaimsError otherwise) -- callers pass the numeric
+    # user id, so coerce it here rather than at every call site.
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
+
+    to_encode.update({"exp": expire, "type": "access", "jti": str(uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
@@ -38,7 +45,10 @@ def create_refresh_token(
     else:
         expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
-    to_encode.update({"exp": expire, "type": "refresh"})
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
+
+    to_encode.update({"exp": expire, "type": "refresh", "jti": str(uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 

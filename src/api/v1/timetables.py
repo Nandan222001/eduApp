@@ -65,7 +65,7 @@ async def list_timetable_templates(
     templates = query.offset(skip).limit(limit).all()
     
     return {
-        "items": templates,
+        "items": [TimetableTemplateResponse.model_validate(t) for t in templates],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -182,7 +182,7 @@ async def list_periods(
     ).order_by(Period.display_order, Period.start_time).all()
     
     return {
-        "items": periods,
+        "items": [PeriodResponse.model_validate(p) for p in periods],
         "total": len(periods),
     }
 
@@ -316,7 +316,7 @@ async def list_timetable_entries(
     ).all()
     
     return {
-        "items": entries,
+        "items": [TimetableEntryResponse.model_validate(e) for e in entries],
         "total": len(entries),
     }
 

@@ -123,7 +123,7 @@ async def list_live_events(
     events = query.order_by(desc(LiveEvent.scheduled_start_time)).offset(skip).limit(limit).all()
     
     return {
-        "items": events,
+        "items": [LiveEventResponse.model_validate(e) for e in events],
         "total": total,
         "skip": skip,
         "limit": limit

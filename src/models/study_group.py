@@ -507,12 +507,12 @@ class PeerTutorProfile(Base):
     
     __table_args__ = (
         UniqueConstraint('student_id', name='uq_student_tutor_profile'),
-        Index('idx_tutor_profile_institution', 'institution_id'),
-        Index('idx_tutor_profile_student', 'student_id'),
-        Index('idx_tutor_profile_user', 'user_id'),
-        Index('idx_tutor_profile_active', 'is_active'),
+        Index('idx_peer_tutor_profile_institution', 'institution_id'),
+        Index('idx_peer_tutor_profile_student', 'student_id'),
+        Index('idx_peer_tutor_profile_user', 'user_id'),
+        Index('idx_peer_tutor_profile_active', 'is_active'),
         Index('idx_tutor_profile_verified', 'is_verified'),
-        Index('idx_tutor_profile_rating', 'average_rating'),
+        Index('idx_peer_tutor_profile_rating', 'average_rating'),
     )
 
 

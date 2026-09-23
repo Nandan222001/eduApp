@@ -145,10 +145,10 @@ class GoalMilestone(Base):
     goal = relationship("Goal", back_populates="milestones")
     
     __table_args__ = (
-        Index('idx_milestone_institution', 'institution_id'),
+        Index('idx_goal_milestone_institution', 'institution_id'),
         Index('idx_milestone_goal', 'goal_id'),
-        Index('idx_milestone_status', 'status'),
-        Index('idx_milestone_order', 'goal_id', 'order'),
+        Index('idx_goal_milestone_status', 'status'),
+        Index('idx_goal_milestone_order', 'goal_id', 'order'),
     )
 
 

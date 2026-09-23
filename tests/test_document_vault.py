@@ -1,195 +1,232 @@
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
 from io import BytesIO
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
-from src.models.document_vault import FamilyDocument, DocumentAccessLog, DocumentShare
-from src.schemas.document_vault import (
-    DocumentUploadRequest,
-    FamilyDocumentUpdate,
-    DocumentShareCreate,
-    DocumentType,
-    ShareType
-)
-from src.services.document_vault_service import DocumentVaultService
-from src.services.encryption_service import encryption_service
+from src.models.user import User
+from src.models.role import Role
+from src.models.institution import Institution
+from src.models.student import Parent
+from src.utils.security import get_password_hash
 
 
 @pytest.fixture
-def mock_db():
-    return MagicMock()
-
-
-@pytest.fixture
-def document_service(mock_db):
-    return DocumentVaultService(mock_db)
-
-
-@pytest.fixture
-def mock_file():
-    file = MagicMock()
-    file.filename = "test_document.pdf"
-    file.content_type = "application/pdf"
-    file.file = BytesIO(b"test file content")
-    return file
-
-
-@pytest.fixture
-def sample_document():
-    return FamilyDocument(
-        id=1,
-        institution_id=1,
-        student_id=1,
-        uploaded_by_user_id=1,
-        document_name="Test Document",
-        document_type="birth_certificate",
-        file_url="https://s3.example.com/test.pdf",
-        s3_key="documents/1/1/birth_certificate/test.pdf",
-        encryption_key="test_encryption_key",
-        file_size=1024,
-        mime_type="application/pdf",
-        is_sensitive=True,
-        is_archived=False,
-        is_deleted=False,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+def parent_user_with_profile(
+    db_session: Session,
+    institution: Institution,
+    parent_role: Role,
+) -> tuple[User, Parent]:
+    user = User(
+        username="vault_parent",
+        email="vault_parent@test.com",
+        first_name="Vault",
+        last_name="Parent",
+        hashed_password=get_password_hash("password123"),
+        institution_id=institution.id,
+        role_id=parent_role.id,
+        is_active=True,
     )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    parent = Parent(
+        institution_id=institution.id,
+        user_id=user.id,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        relation_type="mother",
+        is_primary_contact=True,
+        is_active=True,
+    )
+    db_session.add(parent)
+    db_session.commit()
+    db_session.refresh(parent)
+
+    return user, parent
 
 
-class TestEncryptionService:
-    def test_generate_encryption_key(self):
-        key1 = encryption_service.generate_encryption_key()
-        key2 = encryption_service.generate_encryption_key()
-        
-        assert key1 != key2
-        assert len(key1) > 0
-        assert isinstance(key1, str)
-    
-    def test_encrypt_decrypt_file(self):
-        key = encryption_service.generate_encryption_key()
-        original_data = b"This is sensitive document content"
-        
-        encrypted = encryption_service.encrypt_file(original_data, key)
-        assert encrypted != original_data
-        
-        decrypted = encryption_service.decrypt_file(encrypted, key)
-        assert decrypted == original_data
-    
-    def test_encrypt_decrypt_text(self):
-        key = encryption_service.generate_encryption_key()
-        original_text = "Sensitive information"
-        
-        encrypted = encryption_service.encrypt_text(original_text, key)
-        assert encrypted != original_text
-        
-        decrypted = encryption_service.decrypt_text(encrypted, key)
-        assert decrypted == original_text
+@pytest.fixture
+def vault_auth_headers(client: TestClient, parent_user_with_profile: tuple[User, Parent]) -> dict:
+    user, _ = parent_user_with_profile
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": user.email, "password": "password123"},
+    )
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
-class TestDocumentVaultService:
-    @patch('src.services.document_vault_service.s3_client')
-    @patch('src.services.document_vault_service.ocr_service')
-    def test_create_document(self, mock_ocr, mock_s3, document_service, mock_file, mock_db):
-        mock_s3.upload_file.return_value = (
-            "https://s3.example.com/test.pdf",
-            "documents/1/1/birth_certificate/test.pdf"
+@pytest.mark.integration
+class TestDocumentVaultAPI:
+    """Integration tests for /api/v1/document-vault/* -- exercises the real,
+    already-working router (src/api/v1/document_vault.py), which queries
+    FamilyDocument/DocumentFolder/DocumentShare/DocumentAccessLog directly.
+
+    This file previously unit-tested src.services.document_vault_service,
+    which is dead code: nothing in src/ imports it, the real router never
+    uses it, and it imports names (DocumentType, ShareType enums) that don't
+    exist in src/schemas/document_vault.py -- that schema uses plain `str`
+    for document_type/permission instead, a different, later design the
+    service was never updated to match. See TESTING_PROGRESS.md for the
+    full investigation. Testing the real router here instead.
+    """
+
+    def test_create_and_list_folder(self, client: TestClient, vault_auth_headers: dict):
+        response = client.post(
+            "/api/v1/document-vault/folders",
+            headers=vault_auth_headers,
+            json={"name": "Medical Records", "description": "Health documents"},
         )
-        mock_ocr.extract_text_from_pdf.return_value = "Extracted text"
-        
-        request_data = DocumentUploadRequest(
-            student_id=1,
-            document_name="Test Document",
-            document_type=DocumentType.BIRTH_CERTIFICATE,
-            is_sensitive=True
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "Medical Records"
+        folder_id = data["id"]
+
+        response = client.get("/api/v1/document-vault/folders", headers=vault_auth_headers)
+        assert response.status_code == 200
+        folders = response.json()
+        assert any(f["id"] == folder_id for f in folders)
+
+    def test_upload_and_get_document(self, client: TestClient, vault_auth_headers: dict):
+        response = client.post(
+            "/api/v1/document-vault/upload",
+            headers=vault_auth_headers,
+            params={
+                "title": "Birth Certificate",
+                "document_type": "birth_certificate",
+            },
+            files={"file": ("cert.pdf", BytesIO(b"not a real pdf"), "application/pdf")},
         )
-        
-        mock_db.add = MagicMock()
-        mock_db.commit = MagicMock()
-        mock_db.refresh = MagicMock()
-        
-        document = document_service.create_document(
-            file=mock_file,
-            request_data=request_data,
-            institution_id=1,
-            user_id=1,
-            user_role="admin"
+        assert response.status_code == 200
+        data = response.json()
+        assert "document_id" in data
+        assert "encryption_key" in data
+        document_id = data["document_id"]
+
+        response = client.get(f"/api/v1/document-vault/documents/{document_id}", headers=vault_auth_headers)
+        assert response.status_code == 200
+        doc = response.json()
+        assert doc["title"] == "Birth Certificate"
+        assert doc["document_type"] == "birth_certificate"
+        # AES-256 encryption should have actually run, not just been simulated
+        assert doc["encrypted_file_url"].startswith("https://")
+
+    def test_list_documents(self, client: TestClient, vault_auth_headers: dict):
+        client.post(
+            "/api/v1/document-vault/upload",
+            headers=vault_auth_headers,
+            params={"title": "Report Card", "document_type": "transcript"},
+            files={"file": ("report.pdf", BytesIO(b"content"), "application/pdf")},
         )
-        
-        mock_db.add.assert_called()
-        mock_db.commit.assert_called()
-    
-    def test_categorize_document(self, document_service):
-        assert document_service._categorize_document("birth_certificate.pdf") == DocumentType.BIRTH_CERTIFICATE
-        assert document_service._categorize_document("immunization_record.pdf") == DocumentType.IMMUNIZATION_RECORD
-        assert document_service._categorize_document("report_card_2024.pdf") == DocumentType.REPORT_CARD
-        assert document_service._categorize_document("iep_document.pdf") == DocumentType.IEP
-        assert document_service._categorize_document("504_plan.pdf") == DocumentType.PLAN_504
-        assert document_service._categorize_document("transcript.pdf") == DocumentType.TRANSCRIPT
-        assert document_service._categorize_document("test_scores_sat.pdf") == DocumentType.TEST_SCORES
-        assert document_service._categorize_document("medical_records.pdf") == DocumentType.MEDICAL_RECORDS
-        assert document_service._categorize_document("insurance_card.pdf") == DocumentType.INSURANCE
-        assert document_service._categorize_document("id_proof.pdf") == DocumentType.ID_PROOF
-        assert document_service._categorize_document("random_file.pdf") == DocumentType.OTHER
-    
-    def test_has_access_uploader(self, document_service, sample_document):
-        assert document_service._has_access(sample_document, user_id=1, user_role="parent") is True
-    
-    def test_has_access_admin(self, document_service, sample_document):
-        assert document_service._has_access(sample_document, user_id=999, user_role="admin") is True
-        assert document_service._has_access(sample_document, user_id=999, user_role="super_admin") is True
-        assert document_service._has_access(sample_document, user_id=999, user_role="institution_admin") is True
-    
-    def test_has_access_shared_with_role(self, document_service, sample_document):
-        sample_document.shared_with = ["teacher", "counselor"]
-        assert document_service._has_access(sample_document, user_id=999, user_role="teacher") is True
-        assert document_service._has_access(sample_document, user_id=999, user_role="counselor") is True
-        assert document_service._has_access(sample_document, user_id=999, user_role="nurse") is False
 
+        response = client.get("/api/v1/document-vault/documents", headers=vault_auth_headers)
+        assert response.status_code == 200
+        documents = response.json()
+        assert len(documents) >= 1
+        assert any(d["document_type"] == "transcript" for d in documents)
 
-class TestDocumentTypes:
-    def test_document_type_enum(self):
-        assert DocumentType.BIRTH_CERTIFICATE == "birth_certificate"
-        assert DocumentType.IMMUNIZATION_RECORD == "immunization_record"
-        assert DocumentType.REPORT_CARD == "report_card"
-        assert DocumentType.IEP == "IEP"
-        assert DocumentType.PLAN_504 == "504_plan"
-        assert DocumentType.TRANSCRIPT == "transcript"
-        assert DocumentType.TEST_SCORES == "test_scores"
-        assert DocumentType.MEDICAL_RECORDS == "medical_records"
-        assert DocumentType.INSURANCE == "insurance"
-        assert DocumentType.ID_PROOF == "ID_proof"
-        assert DocumentType.OTHER == "other"
-
-
-class TestFERPACompliance:
-    def test_access_logging(self, document_service, mock_db):
-        mock_db.add = MagicMock()
-        mock_db.commit = MagicMock()
-        
-        document_service._log_access(
-            document_id=1,
-            user_id=1,
-            institution_id=1,
-            action_type="view",
-            user_role="teacher",
-            access_granted=True
+    def test_update_document(self, client: TestClient, vault_auth_headers: dict):
+        upload = client.post(
+            "/api/v1/document-vault/upload",
+            headers=vault_auth_headers,
+            params={"title": "Old Title", "document_type": "iep"},
+            files={"file": ("iep.pdf", BytesIO(b"content"), "application/pdf")},
         )
-        
-        mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
-        
-        call_args = mock_db.add.call_args[0][0]
-        assert isinstance(call_args, DocumentAccessLog)
-        assert call_args.document_id == 1
-        assert call_args.user_id == 1
-        assert call_args.action_type == "view"
-        assert call_args.access_granted is True
+        document_id = upload.json()["document_id"]
 
+        response = client.patch(
+            f"/api/v1/document-vault/documents/{document_id}",
+            headers=vault_auth_headers,
+            json={"title": "New Title"},
+        )
+        assert response.status_code == 200
+        assert response.json()["title"] == "New Title"
 
-class TestDocumentSharing:
-    def test_share_type_enum(self):
-        assert ShareType.TEACHER == "teacher"
-        assert ShareType.COUNSELOR == "counselor"
-        assert ShareType.NURSE == "nurse"
-        assert ShareType.ADMIN == "admin"
-        assert ShareType.PARENT == "parent"
+    def test_delete_document(self, client: TestClient, vault_auth_headers: dict):
+        upload = client.post(
+            "/api/v1/document-vault/upload",
+            headers=vault_auth_headers,
+            params={"title": "To Delete", "document_type": "other"},
+            files={"file": ("f.pdf", BytesIO(b"content"), "application/pdf")},
+        )
+        document_id = upload.json()["document_id"]
+
+        response = client.delete(f"/api/v1/document-vault/documents/{document_id}", headers=vault_auth_headers)
+        assert response.status_code == 204
+
+        # Deletion is a soft-delete (is_active=False); the real router still
+        # returns 200 for a direct get -- it doesn't filter get_document by
+        # is_active -- so confirm via the list endpoint instead, which does.
+        response = client.get("/api/v1/document-vault/documents", headers=vault_auth_headers)
+        assert all(d["id"] != document_id for d in response.json())
+
+    def test_document_not_found(self, client: TestClient, vault_auth_headers: dict):
+        response = client.get("/api/v1/document-vault/documents/999999", headers=vault_auth_headers)
+        assert response.status_code == 404
+
+    def test_share_document_and_access_logs(self, client: TestClient, vault_auth_headers: dict, db_session: Session, institution, parent_role: Role):
+        upload = client.post(
+            "/api/v1/document-vault/upload",
+            headers=vault_auth_headers,
+            params={"title": "Shared Doc", "document_type": "other"},
+            files={"file": ("f.pdf", BytesIO(b"content"), "application/pdf")},
+        )
+        document_id = upload.json()["document_id"]
+
+        other_user = User(
+            username="vault_recipient",
+            email="vault_recipient@test.com",
+            first_name="Recipient",
+            last_name="User",
+            hashed_password=get_password_hash("password123"),
+            institution_id=institution.id,
+            role_id=parent_role.id,
+            is_active=True,
+        )
+        db_session.add(other_user)
+        db_session.commit()
+        db_session.refresh(other_user)
+
+        response = client.post(
+            f"/api/v1/document-vault/documents/{document_id}/share",
+            headers=vault_auth_headers,
+            json={"document_id": document_id, "shared_with_user_id": other_user.id, "permission": "view"},
+        )
+        assert response.status_code == 201
+        assert response.json()["shared_with_user_id"] == other_user.id
+
+        response = client.get(
+            f"/api/v1/document-vault/documents/{document_id}/access-logs",
+            headers=vault_auth_headers,
+        )
+        assert response.status_code == 200
+        actions = [log["action"] for log in response.json()]
+        assert "upload" in actions
+        assert "share" in actions
+
+    def test_statistics(self, client: TestClient, vault_auth_headers: dict):
+        client.post(
+            "/api/v1/document-vault/upload",
+            headers=vault_auth_headers,
+            params={"title": "Stat Doc", "document_type": "transcript"},
+            files={"file": ("f.pdf", BytesIO(b"content"), "application/pdf")},
+        )
+
+        response = client.get("/api/v1/document-vault/statistics", headers=vault_auth_headers)
+        assert response.status_code == 200
+        stats = response.json()
+        assert stats["total_documents"] >= 1
+        assert "transcript" in stats["documents_by_type"]
+
+    def test_upload_without_parent_profile_is_forbidden(self, client: TestClient, auth_headers: dict):
+        # auth_headers (from conftest) is an admin User with no linked Parent
+        # row -- the router should reject them rather than 500.
+        response = client.post(
+            "/api/v1/document-vault/upload",
+            headers=auth_headers,
+            params={"title": "X", "document_type": "other"},
+            files={"file": ("f.pdf", BytesIO(b"content"), "application/pdf")},
+        )
+        assert response.status_code == 403

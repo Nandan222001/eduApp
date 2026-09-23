@@ -56,16 +56,16 @@ def parent_user_with_profile(
 
 
 @pytest.fixture
-def parent_auth_headers(parent_user_with_profile: tuple[User, Parent]) -> dict:
+def parent_auth_headers(client: TestClient, parent_user_with_profile: tuple[User, Parent]) -> dict:
     user, _ = parent_user_with_profile
-    token = create_access_token(
-        data={
-            "sub": user.id,
-            "institution_id": user.institution_id,
-            "role_id": user.role_id,
-            "email": user.email,
-        }
+    # Log in for real (rather than hand-crafting a JWT) so a matching
+    # session exists in the client fixture's fake Redis -- get_current_user
+    # requires both a valid JWT AND an active session.
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -102,7 +102,7 @@ def child_student(
         email=user.email,
         section_id=section.id,
         date_of_birth=date(2010, 5, 15),
-        date_of_admission=date(2020, 4, 1),
+        admission_date=date(2020, 4, 1),
         gender="Male",
         is_active=True,
     )
@@ -155,7 +155,7 @@ def second_child_student(
         email=user.email,
         section_id=section.id,
         date_of_birth=date(2012, 8, 20),
-        date_of_admission=date(2020, 4, 1),
+        admission_date=date(2020, 4, 1),
         gender="Female",
         is_active=True,
     )
@@ -757,14 +757,11 @@ class TestParentDataAccessControl:
         db_session.add(other_parent)
         db_session.commit()
         
-        other_parent_token = create_access_token(
-            data={
-                "sub": other_parent_user.id,
-                "institution_id": other_parent_user.institution_id,
-                "role_id": other_parent_user.role_id,
-                "email": other_parent_user.email,
-            }
+        other_login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": other_parent_user.email, "password": "password123"},
         )
+        other_parent_token = other_login_response.json()["access_token"]
         other_parent_headers = {"Authorization": f"Bearer {other_parent_token}"}
         
         response = client.get(

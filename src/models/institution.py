@@ -139,7 +139,18 @@ class Institution(Base):
     domain = Column(String(255), nullable=True, unique=True)
     address = Column(Text, nullable=True)
     phone = Column(String(50), nullable=True)
+    logo_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    # JSON-serialized settings blob (json.dumps/json.loads at the call
+    # sites, not a native JSON column) -- currently used for per-institution
+    # ML training schedule config (src/api/v1/ml_training.py's
+    # get_training_schedule/update_training_schedule,
+    # src/tasks/ml_training_tasks.py's scheduled_training_task). This column
+    # didn't exist at all before, so all 3 of those call sites raised
+    # AttributeError on every real request -- found while writing real
+    # integration test coverage for the ml_training router (see
+    # TESTING_PROGRESS.md).
+    settings = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

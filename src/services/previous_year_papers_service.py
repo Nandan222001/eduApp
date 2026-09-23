@@ -1,5 +1,6 @@
 from typing import Optional, List, Tuple, BinaryIO
 from sqlalchemy.orm import Session
+import uuid
 from src.repositories.previous_year_papers_repository import (
     PreviousYearPaperRepository,
     QuestionBankRepository
@@ -108,10 +109,10 @@ class PreviousYearPaperService:
             except Exception:
                 pass
         
-        file_url, s3_key = s3_client.upload_file(
-            file_obj=file,
-            file_name=file_name,
-            folder="previous_year_papers",
+        s3_key = f"previous_year_papers/{uuid.uuid4()}_{file_name}"
+        file_url = s3_client.upload_file(
+            file,
+            s3_key,
             content_type=content_type
         )
         
@@ -271,10 +272,10 @@ class QuestionBankService:
             except Exception:
                 pass
         
-        file_url, s3_key = s3_client.upload_file(
-            file_obj=file,
-            file_name=file_name,
-            folder="question_images",
+        s3_key = f"question_images/{uuid.uuid4()}_{file_name}"
+        file_url = s3_client.upload_file(
+            file,
+            s3_key,
             content_type=content_type
         )
         

@@ -207,10 +207,12 @@ def retry_failed_notifications(self, max_retries: int = 3) -> Dict[str, Any]:
                 notification.failed_at = None
                 notification.error_message = None
                 
-                if notification.data:
-                    notification.data["retry_count"] = retry_count + 1
-                else:
-                    notification.data = {"retry_count": retry_count + 1}
+                # Reassign the whole dict (rather than mutating it in place)
+                # so SQLAlchemy's change tracking picks up the update -- a
+                # plain JSON column doesn't detect in-place mutations, so
+                # notification.data["retry_count"] = ... would silently
+                # never persist, letting failed notifications retry forever.
+                notification.data = {**(notification.data or {}), "retry_count": retry_count + 1}
                 
                 self.db.commit()
                 send_notification.delay(notification.id)

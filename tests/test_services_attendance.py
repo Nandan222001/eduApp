@@ -1,5 +1,5 @@
 import pytest
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from src.services.attendance_service import AttendanceService
@@ -35,7 +35,6 @@ class TestAttendanceService:
             section_id=section.id,
             date=date.today(),
             status="present",
-            period=1,
         )
 
         attendance = attendance_service.create_attendance(attendance_data)
@@ -52,14 +51,14 @@ class TestAttendanceService:
         subject: Subject,
         section: Section,
         institution,
+        admin_user,
     ):
         """Test bulk attendance marking."""
         bulk_data = BulkAttendanceCreate(
             section_id=section.id,
             subject_id=subject.id,
             date=date.today(),
-            period=1,
-            attendance_records=[
+            attendances=[
                 {"student_id": student.id, "status": "present"}
             ],
         )
@@ -67,11 +66,11 @@ class TestAttendanceService:
         result = attendance_service.bulk_mark_attendance(
             institution_id=institution.id,
             data=bulk_data,
-            marked_by_id=1,
+            marked_by_id=admin_user.id,
         )
 
-        assert result["total_marked"] == 1
-        assert result["successful"] == 1
+        assert result["total"] == 1
+        assert result["success"] == 1
 
     def test_calculate_attendance_percentage(
         self,
@@ -89,16 +88,15 @@ class TestAttendanceService:
                 student_id=student.id,
                 subject_id=subject.id,
                 section_id=section.id,
-                date=date.today(),
+                date=date.today() - timedelta(days=i),
                 status=AttendanceStatus.PRESENT if i < 8 else AttendanceStatus.ABSENT,
-                period=i + 1,
             )
             db_session.add(attendance)
         db_session.commit()
 
         stats = attendance_service.get_student_attendance_stats(
             student_id=student.id,
-            start_date=date.today(),
+            start_date=date.today() - timedelta(days=9),
             end_date=date.today(),
         )
 
@@ -120,16 +118,15 @@ class TestAttendanceService:
                 student_id=student.id,
                 subject_id=subject.id,
                 section_id=section.id,
-                date=date.today(),
+                date=date.today() - timedelta(days=i),
                 status=AttendanceStatus.ABSENT if i < 7 else AttendanceStatus.PRESENT,
-                period=i + 1,
             )
             db_session.add(attendance)
         db_session.commit()
 
         defaulters = attendance_service.get_defaulters(
             institution_id=institution.id,
-            start_date=date.today(),
+            start_date=date.today() - timedelta(days=9),
             end_date=date.today(),
             threshold_percentage=75.0,
         )

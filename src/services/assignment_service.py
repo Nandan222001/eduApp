@@ -4,6 +4,7 @@ from fastapi import HTTPException, status, UploadFile
 from datetime import datetime
 from decimal import Decimal
 import io
+import uuid
 import zipfile
 from src.models.assignment import (
     Assignment, AssignmentFile, Submission, SubmissionFile, 
@@ -193,10 +194,10 @@ class AssignmentService:
         from io import BytesIO
         file_obj = BytesIO(file_content)
 
-        file_url, s3_key = s3_client.upload_file(
-            file_obj=file_obj,
-            file_name=file.filename,
-            folder=f"assignments/{assignment_id}",
+        s3_key = f"assignments/{assignment_id}/{uuid.uuid4()}_{file.filename}"
+        file_url = s3_client.upload_file(
+            file_obj,
+            s3_key,
             content_type=file.content_type
         )
 
@@ -370,7 +371,7 @@ class SubmissionService:
 
         marks = grade_data.marks_obtained
         if submission.is_late and assignment.late_penalty_percentage:
-            penalty = (assignment.late_penalty_percentage / 100) * marks
+            penalty = (assignment.late_penalty_percentage / 100) * float(marks)
             marks = marks - Decimal(str(penalty))
             marks = max(marks, Decimal("0"))
 
@@ -419,10 +420,10 @@ class SubmissionService:
         from io import BytesIO
         file_obj = BytesIO(file_content)
 
-        file_url, s3_key = s3_client.upload_file(
-            file_obj=file_obj,
-            file_name=file.filename,
-            folder=f"submissions/{submission_id}",
+        s3_key = f"submissions/{submission_id}/{uuid.uuid4()}_{file.filename}"
+        file_url = s3_client.upload_file(
+            file_obj,
+            s3_key,
             content_type=file.content_type
         )
 

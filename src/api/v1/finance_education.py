@@ -17,7 +17,7 @@ from src.schemas.finance_education import (
     ModuleCompletionCreate, ModuleCompletionUpdate, ModuleCompletionResponse,
     VirtualWalletCreate, VirtualWalletUpdate, VirtualWalletResponse,
     WalletTransactionCreate, WalletTransactionResponse,
-    InvestmentHoldingCreate, InvestmentHoldingUpdate, InvestmentHoldingResponse,
+    InvestmentHoldingCreate, InvestmentHoldingUpdate, InvestmentHoldingResponse, InvestmentPriceUpdate,
     FinanceChallengeCreate, FinanceChallengeUpdate, FinanceChallengeResponse,
     ChallengeParticipationCreate, ChallengeParticipationUpdate, ChallengeParticipationResponse,
     FinancialLiteracyAssessmentCreate, FinancialLiteracyAssessmentResponse,
@@ -260,7 +260,7 @@ def create_transaction(
         balance_after=new_balance,
         is_recurring=transaction.is_recurring,
         recurring_frequency=transaction.recurring_frequency,
-        metadata=transaction.metadata
+        metadata_json=transaction.metadata
     )
     
     wallet.current_balance = new_balance
@@ -324,7 +324,7 @@ def simulate_investment(
         total_value=total_cost,
         gain_loss=Decimal(0),
         gain_loss_percentage=Decimal(0),
-        metadata={"simulated": True}
+        metadata_json={"simulated": True}
     )
     db.add(holding)
     
@@ -336,7 +336,7 @@ def simulate_investment(
         description=f"Investment in {request.symbol}",
         category="investment",
         balance_after=wallet.current_balance - total_cost,
-        metadata={"investment_type": request.investment_type.value, "symbol": request.symbol}
+        metadata_json={"investment_type": request.investment_type.value, "symbol": request.symbol}
     )
     db.add(transaction)
     
@@ -413,13 +413,14 @@ def get_portfolio_performance(
 @router.put("/investments/{holding_id}/update-price", response_model=InvestmentHoldingResponse)
 def update_investment_price(
     holding_id: int,
-    new_price: Decimal,
+    payload: InvestmentPriceUpdate,
     db: Session = Depends(get_db)
 ):
     holding = db.query(InvestmentHolding).filter(InvestmentHolding.id == holding_id).first()
     if not holding:
         raise HTTPException(status_code=404, detail="Investment holding not found")
-    
+
+    new_price = payload.new_price
     holding.current_price = new_price
     holding.total_value = holding.quantity * new_price
     holding.gain_loss = holding.total_value - (holding.quantity * holding.purchase_price)
@@ -554,8 +555,16 @@ def update_participation(
         raise HTTPException(status_code=404, detail="Participation not found")
     
     for key, value in update_data.model_dump(exclude_unset=True).items():
-        setattr(participation, key, value)
-    
+        # `metadata` is reserved by SQLAlchemy's declarative base for the
+        # MetaData object -- the real column is mapped as `metadata_json`.
+        # A plain setattr(participation, 'metadata', value) would silently
+        # shadow the class attribute with an instance attribute that is
+        # never persisted, losing the update without raising any error.
+        if key == 'metadata':
+            participation.metadata_json = value
+        else:
+            setattr(participation, key, value)
+
     if update_data.status == ChallengeStatus.COMPLETED and not participation.completed_at:
         participation.completed_at = datetime.utcnow()
         

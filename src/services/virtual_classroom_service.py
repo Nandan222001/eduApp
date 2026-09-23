@@ -350,7 +350,11 @@ class VirtualClassroomService:
             sid=sid,
             status=RecordingStatus.RECORDING,
             started_at=datetime.utcnow(),
-            metadata={"acquire_response": acquire_response, "start_response": start_response}
+            # The mapped attribute is `metadata_json` (`metadata` is reserved by
+            # SQLAlchemy's Declarative Base for the MetaData object -- see
+            # src/models/virtual_classroom.py) -- passing `metadata=` here raised
+            # TypeError: 'metadata' is an invalid keyword argument for ClassroomRecording.
+            metadata_json={"acquire_response": acquire_response, "start_response": start_response}
         )
         
         self.db.add(recording)
@@ -390,9 +394,17 @@ class VirtualClassroomService:
             duration = (recording.stopped_at - recording.started_at).total_seconds()
             recording.duration_seconds = int(duration)
         
-        metadata = recording.metadata or {}
+        # Same `metadata` vs `metadata_json` mismatch as start_recording above:
+        # `recording.metadata` reads the class-level MetaData object (not the
+        # stored JSON), which doesn't support `[]` assignment. Also copy
+        # rather than mutate the existing dict in place: reassigning the
+        # exact same (mutated) object back to a plain JSON column is a
+        # no-op as far as SQLAlchemy's change tracking is concerned (old
+        # value == new value, since they're literally the same object), so
+        # the update would silently never be persisted.
+        metadata = dict(recording.metadata_json or {})
         metadata["stop_response"] = stop_response
-        recording.metadata = metadata
+        recording.metadata_json = metadata
         
         self.db.commit()
         self.db.refresh(recording)
@@ -853,30 +865,47 @@ class VirtualClassroomService:
         avg_duration = self.db.query(func.avg(ClassroomParticipant.duration_seconds)).filter(
             ClassroomParticipant.classroom_id == classroom_id
         ).scalar() or 0
-        
-        polls_count = self.db.query(ClassroomPoll).filter(
-            ClassroomPoll.classroom_id == classroom_id
-        ).count()
-        
-        quizzes_count = self.db.query(ClassroomQuiz).filter(
-            ClassroomQuiz.classroom_id == classroom_id
-        ).count()
-        
-        recordings_count = self.db.query(ClassroomRecording).filter(
-            ClassroomRecording.classroom_id == classroom_id,
-            ClassroomRecording.status == RecordingStatus.COMPLETED
-        ).count()
-        
+
         breakout_rooms_count = self.db.query(BreakoutRoom).filter(
             BreakoutRoom.classroom_id == classroom_id
         ).count()
-        
+
+        # No per-second presence tracking exists in this schema, so approximate
+        # peak concurrency with the number of participants who actually joined.
+        peak_concurrent_users = self.db.query(ClassroomParticipant).filter(
+            ClassroomParticipant.classroom_id == classroom_id,
+            ClassroomParticipant.joined_at.isnot(None)
+        ).count()
+
+        poll_respondents = self.db.query(PollResponse.user_id).join(
+            ClassroomPoll, PollResponse.poll_id == ClassroomPoll.id
+        ).filter(
+            ClassroomPoll.classroom_id == classroom_id
+        ).distinct().count()
+
+        quiz_completers = self.db.query(QuizSubmission.user_id).join(
+            ClassroomQuiz, QuizSubmission.quiz_id == ClassroomQuiz.id
+        ).filter(
+            ClassroomQuiz.classroom_id == classroom_id,
+            QuizSubmission.submitted_at.isnot(None)
+        ).distinct().count()
+
+        recording_views_count = self.db.query(RecordingView).join(
+            ClassroomRecording, RecordingView.recording_id == ClassroomRecording.id
+        ).filter(
+            ClassroomRecording.classroom_id == classroom_id
+        ).count()
+
         return {
             'classroom_id': classroom_id,
             'total_participants': participants_count,
             'average_duration_minutes': avg_duration / 60,
-            'polls_created': polls_count,
-            'quizzes_created': quizzes_count,
-            'recordings_count': recordings_count,
+            'peak_concurrent_users': peak_concurrent_users,
+            # Chat messages aren't persisted anywhere in this schema (chat is
+            # websocket-only), so there's nothing to count here.
+            'total_messages': 0,
+            'poll_engagement_rate': (poll_respondents / participants_count * 100) if participants_count else 0,
+            'quiz_completion_rate': (quiz_completers / participants_count * 100) if participants_count else 0,
+            'recording_views': recording_views_count,
             'breakout_rooms_created': breakout_rooms_count
         }

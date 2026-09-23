@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
-from datetime import datetime, date, time
+from datetime import datetime, date, date as date_type, time
 from decimal import Decimal
 from src.models.study_planner import StudyPlanStatus, TaskStatus, TaskPriority
 
@@ -289,7 +289,11 @@ class TopicPrioritizationResponse(BaseModel):
 class DailyTasksRequest(BaseModel):
     student_id: int
     study_plan_id: Optional[int] = None
-    date: Optional[date] = None
+    # Aliased import: see the identical comment in
+    # src/schemas/community_service.py's ServiceActivityUpdate for why a
+    # field literally named `date` needs Optional[date_type] here, not
+    # Optional[date] -- the latter resolves to NoneType under pydantic v2.
+    date: Optional[date_type] = None
 
 
 class DailyTasksSummary(BaseModel):

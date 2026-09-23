@@ -95,15 +95,8 @@ class TestAPIEndpointsMySQL:
         """Create test institution"""
         institution = Institution(
             name="API Test School",
-            short_name="ATS",
-            code="API001",
-            email="admin@apitest.com",
             phone="1234567890",
             address="Test Address",
-            city="Test City",
-            state="Test State",
-            country="Test Country",
-            postal_code="12345",
             is_active=True
         )
         db_session.add(institution)
@@ -115,9 +108,9 @@ class TestAPIEndpointsMySQL:
     def test_roles(self, db_session):
         """Create test roles"""
         roles = {
-            'admin': Role(name="Admin", description="Administrator", is_system_role=True),
-            'teacher': Role(name="Teacher", description="Teacher", is_system_role=True),
-            'student': Role(name="Student", description="Student", is_system_role=True),
+            'admin': Role(name="Admin", slug="admin", description="Administrator", is_system_role=True),
+            'teacher': Role(name="Teacher", slug="teacher", description="Teacher", is_system_role=True),
+            'student': Role(name="Student", slug="student", description="Student", is_system_role=True),
         }
         for role in roles.values():
             db_session.add(role)
@@ -314,7 +307,6 @@ class TestAPIEndpointsMySQL:
                 institution_id=test_institution.id,
                 user_id=user.id,
                 section_id=academic_setup['section'].id,
-                academic_year_id=academic_setup['academic_year'].id,
                 admission_number=f"ADM{i:03d}",
                 first_name=f"Student",
                 last_name=f"{i}",
@@ -440,7 +432,6 @@ class TestAPIEndpointsMySQL:
             institution_id=test_institution.id,
             user_id=user.id,
             section_id=academic_setup['section'].id,
-            academic_year_id=academic_setup['academic_year'].id,
             admission_number="ATT001",
             first_name="Attendance",
             last_name="Student",
@@ -553,28 +544,14 @@ class TestAPIEndpointsMySQL:
         # Create two institutions
         inst1 = Institution(
             name="School 1",
-            short_name="S1",
-            code="S1",
-            email="s1@test.com",
             phone="1111111111",
             address="Addr1",
-            city="City1",
-            state="State1",
-            country="Country1",
-            postal_code="11111",
             is_active=True
         )
         inst2 = Institution(
             name="School 2",
-            short_name="S2",
-            code="S2",
-            email="s2@test.com",
             phone="2222222222",
             address="Addr2",
-            city="City2",
-            state="State2",
-            country="Country2",
-            postal_code="22222",
             is_active=True
         )
         db_session.add_all([inst1, inst2])

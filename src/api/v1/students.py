@@ -79,7 +79,7 @@ async def list_students(
         gender=gender
     )
     return {
-        "items": students,
+        "items": [StudentResponse.model_validate(s) for s in students],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -139,7 +139,13 @@ async def get_student_profile(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this student"
         )
-    
+
+    if current_user.student_profile and current_user.student_profile.id != student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this student"
+        )
+
     profile = service.get_student_profile(student_id)
     return profile
 
@@ -164,7 +170,13 @@ async def get_student_dashboard(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this student"
         )
-    
+
+    if current_user.student_profile and current_user.student_profile.id != student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this student"
+        )
+
     dashboard_data = service.get_student_dashboard(student_id, current_user.institution_id)
     return dashboard_data
 

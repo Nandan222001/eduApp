@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from decimal import Decimal
+from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from fastapi import HTTPException, status
 import json
 import hmac
 import hashlib
+import uuid
 
 from src.models.subscription import Subscription, Payment, Invoice, UsageRecord
 from src.models.institution import Institution
@@ -116,7 +118,11 @@ class SubscriptionPlans:
         if not plan:
             raise ValueError(f"Invalid plan name: {plan_name}")
 
-        price_key = f"{billing_cycle}_price"
+        # Accept either a plain string or a BillingCycle enum member -- an
+        # f-string on an enum uses its `ClassName.MEMBER` repr, not its
+        # `.value`, which would always miss here.
+        billing_cycle_value = billing_cycle.value if isinstance(billing_cycle, Enum) else billing_cycle
+        price_key = f"{billing_cycle_value}_price"
         if price_key not in plan:
             raise ValueError(f"Invalid billing cycle: {billing_cycle}")
 
@@ -269,7 +275,12 @@ class SubscriptionService:
             update_dict["features"] = json.dumps(plan["features"])
 
         for field, value in update_dict.items():
-            setattr(subscription, field, value)
+            # `metadata` is reserved by SQLAlchemy's Declarative base for the
+            # MetaData object -- the real column is mapped as `metadata_json`.
+            if field == 'metadata':
+                subscription.metadata_json = value
+            else:
+                setattr(subscription, field, value)
 
         self.db.commit()
         self.db.refresh(subscription)
@@ -383,9 +394,13 @@ class SubscriptionService:
             subscription.end_date = subscription.next_billing_date or datetime.utcnow() + timedelta(days=30)
 
         if reason:
-            metadata = json.loads(subscription.metadata) if subscription.metadata else {}
+            # NOTE: the column is named `metadata_json` on the model (not
+            # `metadata`) because `metadata` is reserved by SQLAlchemy's
+            # Declarative base for the MetaData object -- `subscription.metadata`
+            # always resolves to that, never the JSON text column.
+            metadata = json.loads(subscription.metadata_json) if subscription.metadata_json else {}
             metadata["cancellation_reason"] = reason
-            subscription.metadata = json.dumps(metadata)
+            subscription.metadata_json = json.dumps(metadata)
 
         self.db.commit()
         self.db.refresh(subscription)
@@ -782,6 +797,11 @@ class SubscriptionService:
         return max(prorated_amount, Decimal("0.00"))
 
     def _generate_invoice_number(self, institution_id: int) -> str:
+        # Second-resolution timestamps alone collide whenever two invoices
+        # are generated for the same institution within the same second
+        # (e.g. back-to-back calls) -- add a short random suffix so the
+        # unique index on invoice_number is never violated by that.
         now = datetime.utcnow()
         timestamp = int(now.timestamp())
-        return f"INV-{institution_id}-{timestamp}"
+        suffix = uuid.uuid4().hex[:6]
+        return f"INV-{institution_id}-{timestamp}-{suffix}"

@@ -36,7 +36,7 @@ from src.models.attendance import Attendance, AttendanceStatus
 from src.models.assignment import Assignment, Submission, AssignmentStatus, SubmissionStatus
 from src.models.gamification import UserPoints, LeaderboardEntry, Leaderboard, LeaderboardType, LeaderboardPeriod
 from src.models.ml_prediction import PerformancePrediction, MLModel, MLModelVersion, ModelType, PredictionType, ModelStatus
-from src.models.analytics import DashboardMetric, AnalyticsEvent
+from src.models.analytics import AnalyticsEvent
 from src.models.role import Role
 from src.models.academic import AcademicYear, Grade, Section, Subject
 
@@ -198,30 +198,16 @@ class TestMySQLMigrationComprehensive:
             # Create two institutions
             inst1 = Institution(
                 name="School A",
-                short_name="SA",
-                code="INST001",
-                email="admin@schoola.com",
                 phone="1111111111",
                 address="Address A",
-                city="City A",
-                state="State A",
-                country="Country A",
-                postal_code="11111",
                 is_active=True
             )
             session.add(inst1)
             
             inst2 = Institution(
                 name="School B",
-                short_name="SB",
-                code="INST002",
-                email="admin@schoolb.com",
                 phone="2222222222",
                 address="Address B",
-                city="City B",
-                state="State B",
-                country="Country B",
-                postal_code="22222",
                 is_active=True
             )
             session.add(inst2)
@@ -229,7 +215,7 @@ class TestMySQLMigrationComprehensive:
             
             # Create roles
             role = Role(
-                name="Student",
+                name="Student", slug="student",
                 description="Student role",
                 is_system_role=True
             )
@@ -327,7 +313,6 @@ class TestMySQLMigrationComprehensive:
                 institution_id=inst1.id,
                 user_id=user1.id,
                 section_id=section1.id,
-                academic_year_id=ay1.id,
                 admission_number="ADM001",
                 first_name="Student",
                 last_name="One",
@@ -341,7 +326,6 @@ class TestMySQLMigrationComprehensive:
                 institution_id=inst2.id,
                 user_id=user2.id,
                 section_id=section2.id,
-                academic_year_id=ay2.id,
                 admission_number="ADM001",
                 first_name="Student",
                 last_name="One",
@@ -430,15 +414,8 @@ class TestMySQLMigrationComprehensive:
             # Create test institution
             institution = Institution(
                 name="Load Test School",
-                short_name="LTS",
-                code="LOAD001",
-                email="admin@loadtest.com",
                 phone="9999999999",
                 address="Load Test Address",
-                city="Load City",
-                state="Load State",
-                country="Load Country",
-                postal_code="99999",
                 is_active=True
             )
             session.add(institution)
@@ -446,7 +423,7 @@ class TestMySQLMigrationComprehensive:
             
             # Create role
             role = Role(
-                name="Student",
+                name="Student", slug="student",
                 description="Student role",
                 is_system_role=True
             )
@@ -521,7 +498,6 @@ class TestMySQLMigrationComprehensive:
                     institution_id=institution.id,
                     user_id=user.id,
                     section_id=section.id,
-                    academic_year_id=academic_year.id,
                     admission_number=f"ADM{i:04d}",
                     first_name=f"Student",
                     last_name=f"{i}",
@@ -651,15 +627,8 @@ class TestMySQLMigrationComprehensive:
             # Setup test data
             institution = Institution(
                 name="Analytics School",
-                short_name="AS",
-                code="ANAL001",
-                email="admin@analytics.com",
                 phone="8888888888",
                 address="Analytics Address",
-                city="Analytics City",
-                state="Analytics State",
-                country="Country",
-                postal_code="88888",
                 is_active=True
             )
             session.add(institution)
@@ -668,7 +637,7 @@ class TestMySQLMigrationComprehensive:
             # Test 1: Student count by section
             print("\n Analytics Test 1: Count Aggregation")
             
-            role = Role(name="Student", description="Student", is_system_role=True)
+            role = Role(name="Student", slug="student", description="Student", is_system_role=True)
             session.add(role)
             session.flush()
             
@@ -726,7 +695,6 @@ class TestMySQLMigrationComprehensive:
                         institution_id=institution.id,
                         user_id=user.id,
                         section_id=section.id,
-                        academic_year_id=ay.id,
                         admission_number=f"S{i}U{j}",
                         first_name="Student",
                         last_name=f"{j}",
@@ -832,15 +800,8 @@ class TestMySQLMigrationComprehensive:
             # Create test institution
             institution = Institution(
                 name="ML Test School",
-                short_name="MLS",
-                code="ML001",
-                email="admin@mltest.com",
                 phone="7777777777",
                 address="ML Address",
-                city="ML City",
-                state="ML State",
-                country="Country",
-                postal_code="77777",
                 is_active=True
             )
             session.add(institution)
@@ -891,7 +852,7 @@ class TestMySQLMigrationComprehensive:
             # Create student for prediction
             print("\n ML Test 3: Generate Predictions")
             
-            role = Role(name="Student", description="Student", is_system_role=True)
+            role = Role(name="Student", slug="student", description="Student", is_system_role=True)
             session.add(role)
             session.flush()
             
@@ -943,7 +904,6 @@ class TestMySQLMigrationComprehensive:
                 institution_id=institution.id,
                 user_id=user.id,
                 section_id=section.id,
-                academic_year_id=ay.id,
                 admission_number="ML001",
                 first_name="ML",
                 last_name="Student",
@@ -1064,15 +1024,8 @@ class TestMySQLRealTimeFeatures:
             # Create institution
             institution = Institution(
                 name="Leaderboard School",
-                short_name="LBS",
-                code="LB001",
-                email="admin@lb.com",
                 phone="6666666666",
                 address="LB Address",
-                city="LB City",
-                state="LB State",
-                country="Country",
-                postal_code="66666",
                 is_active=True
             )
             session.add(institution)
@@ -1096,7 +1049,7 @@ class TestMySQLRealTimeFeatures:
             print(f"   ✓ Created leaderboard: {leaderboard.name}")
             
             # Create users with points
-            role = Role(name="Student", description="Student", is_system_role=True)
+            role = Role(name="Student", slug="student", description="Student", is_system_role=True)
             session.add(role)
             session.flush()
             

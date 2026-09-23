@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { AccessibilityProvider } from '@/contexts/AccessibilityContext';
 import type { UserRole } from '@/types/auth';
 import {
   setupDemoStudent,
@@ -43,12 +44,19 @@ const theme = createTheme({
 
 interface AllTheProvidersProps {
   children: React.ReactNode;
+  /**
+   * Whether to wrap children in a BrowserRouter. Set to false when the
+   * component under test (or the test itself) supplies its own Router
+   * (e.g. a MemoryRouter for controlling the initial route) — nesting
+   * two Routers throws "You cannot render a <Router> inside another <Router>".
+   */
+  withRouter?: boolean;
 }
 
 /**
  * Wrapper component that includes all necessary providers for testing
  */
-function AllTheProviders({ children }: AllTheProvidersProps) {
+function AllTheProviders({ children, withRouter = true }: AllTheProvidersProps) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -62,14 +70,16 @@ function AllTheProviders({ children }: AllTheProvidersProps) {
     },
   });
 
+  const content = (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AccessibilityProvider>{children}</AccessibilityProvider>
+    </ThemeProvider>
+  );
+
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          {children}
-        </ThemeProvider>
-      </BrowserRouter>
+      {withRouter ? <BrowserRouter>{content}</BrowserRouter> : content}
     </QueryClientProvider>
   );
 }
@@ -97,6 +107,11 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
    * For 'regular' authState, specify the email
    */
   regularUserEmail?: string;
+  /**
+   * Set to false when the rendered tree provides its own Router
+   * (e.g. a MemoryRouter). Defaults to true.
+   */
+  withRouter?: boolean;
 }
 
 /**
@@ -108,7 +123,13 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
  * ```
  */
 function renderWithProviders(ui: ReactElement, options: CustomRenderOptions = {}) {
-  const { authState, regularUserRole = 'student', regularUserEmail, ...renderOptions } = options;
+  const {
+    authState,
+    regularUserRole = 'student',
+    regularUserEmail,
+    withRouter = true,
+    ...renderOptions
+  } = options;
 
   // Set up auth state before rendering
   if (authState === 'demo-student') {
@@ -125,7 +146,11 @@ function renderWithProviders(ui: ReactElement, options: CustomRenderOptions = {}
     setupUnauthenticatedState();
   }
 
-  return render(ui, { wrapper: AllTheProviders, ...renderOptions });
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <AllTheProviders withRouter={withRouter}>{children}</AllTheProviders>
+  );
+
+  return render(ui, { wrapper: Wrapper, ...renderOptions });
 }
 
 // ============================================================================

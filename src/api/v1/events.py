@@ -74,7 +74,7 @@ async def list_events(
     events = query.order_by(Event.start_date.desc()).offset(skip).limit(limit).all()
     
     return {
-        "items": events,
+        "items": [EventResponse.model_validate(e) for e in events],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -228,7 +228,7 @@ async def create_rsvp(
     rsvp = EventRSVP(
         event_id=event_id,
         user_id=current_user.id,
-        **rsvp_data.model_dump()
+        **rsvp_data.model_dump(exclude={"event_id", "user_id"})
     )
     db.add(rsvp)
     db.commit()

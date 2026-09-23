@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from src.dependencies.database import get_db
+from src.database import get_db
 from src.ml.model_monitoring import ModelMonitoringService, MonitoringDashboardService
 from src.schemas.ml_monitoring_schemas import (
     PredictionDriftResponse,

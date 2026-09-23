@@ -484,7 +484,10 @@ class TestSuspendSubscription:
         
         assert updated.status == SubscriptionStatus.PAST_DUE
         assert updated.grace_period_end is not None
-        assert (updated.grace_period_end - datetime.utcnow()).days == 7
+        # Compare calendar dates, not exact elapsed duration -- .days floors,
+        # so it under-reports by one the instant any time elapses between
+        # grace_period_end being computed and this re-measurement.
+        assert (updated.grace_period_end.date() - datetime.utcnow().date()).days == 7
 
     def test_handle_failed_payment_grace_period(self, db_session: Session, institution):
         """Test that failed payment sets grace period correctly"""
@@ -507,7 +510,7 @@ class TestSuspendSubscription:
         
         updated = service.handle_failed_payment(subscription.id)
         
-        grace_period_days = (updated.grace_period_end - datetime.utcnow()).days
+        grace_period_days = (updated.grace_period_end.date() - datetime.utcnow().date()).days
         assert grace_period_days == service.GRACE_PERIOD_DAYS
 
     def test_handle_expired_grace_period(self, db_session: Session, institution):

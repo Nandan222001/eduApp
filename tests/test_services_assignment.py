@@ -37,15 +37,15 @@ class TestAssignmentService:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
         )
 
         assignment = assignment_service.create_assignment(assignment_data)
 
         assert assignment is not None
         assert assignment.title == "Test Assignment"
-        assert assignment.total_marks == 100
-        assert assignment.status == AssignmentStatus.ACTIVE
+        assert assignment.max_marks == 100
+        assert assignment.status == AssignmentStatus.DRAFT
 
     def test_update_assignment(
         self,
@@ -67,21 +67,21 @@ class TestAssignmentService:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
-            status=AssignmentStatus.ACTIVE,
+            max_marks=100,
+            status=AssignmentStatus.PUBLISHED,
         )
         db_session.add(assignment)
         db_session.commit()
 
         update_data = AssignmentUpdate(
             title="Updated Title",
-            total_marks=150,
+            max_marks=150,
         )
 
         updated = assignment_service.update_assignment(assignment.id, update_data)
 
         assert updated.title == "Updated Title"
-        assert updated.total_marks == 150
+        assert updated.max_marks == 150
 
     def test_list_assignments_with_filters(
         self,
@@ -104,8 +104,8 @@ class TestAssignmentService:
                 subject_id=subject.id,
                 teacher_id=teacher.id,
                 due_date=datetime.now() + timedelta(days=7),
-                total_marks=100,
-                status=AssignmentStatus.ACTIVE,
+                max_marks=100,
+                status=AssignmentStatus.PUBLISHED,
             )
             db_session.add(assignment)
         db_session.commit()
@@ -138,8 +138,8 @@ class TestAssignmentService:
             subject_id=subject.id,
             teacher_id=teacher.id,
             due_date=datetime.now() + timedelta(days=7),
-            total_marks=100,
-            status=AssignmentStatus.ACTIVE,
+            max_marks=100,
+            status=AssignmentStatus.PUBLISHED,
         )
         db_session.add(assignment)
         db_session.commit()

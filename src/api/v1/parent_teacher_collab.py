@@ -6,6 +6,7 @@ from datetime import datetime, date
 
 from src.database import get_db
 from src.models.user import User
+from src.models.student import Parent
 from src.models.collaboration import (
     CollaborationGoal,
     CollaborationGoalProgress,
@@ -79,7 +80,7 @@ def create_collaboration_goal(
         success_criteria=goal_data.success_criteria,
         start_date=goal_data.start_date,
         target_date=goal_data.target_date,
-        metadata=goal_data.metadata,
+        metadata_json=goal_data.metadata,
         created_by_user_id=current_user.id,
     )
     db.add(goal)
@@ -185,10 +186,13 @@ def agree_to_goal(
     
     if current_user.teacher_profile and current_user.teacher_profile.id == goal.teacher_id:
         goal.teacher_agreed_at = datetime.utcnow()
-    
-    if hasattr(current_user, 'parent_profile') and current_user.parent_profile:
-        if current_user.parent_profile.id == goal.parent_id:
-            goal.parent_agreed_at = datetime.utcnow()
+
+    # User has no `parent_profile` relationship (unlike `teacher_profile`) --
+    # look the Parent row up by user_id, matching the pattern used
+    # throughout src/api/v1/document_vault.py and parent_education.py.
+    parent_profile = db.query(Parent).filter(Parent.user_id == current_user.id).first()
+    if parent_profile and parent_profile.id == goal.parent_id:
+        goal.parent_agreed_at = datetime.utcnow()
     
     if goal.parent_agreed_at and goal.teacher_agreed_at:
         goal.status = CollaborationGoalStatus.ACTIVE.value
@@ -281,15 +285,23 @@ def create_conference(
         location=conference_data.location,
         meeting_type=conference_data.meeting_type,
         video_conference_platform=conference_data.video_conference_platform,
-        agenda=conference_data.agenda,
+        # agenda is a JSON column -- it needs plain dicts, not pydantic
+        # model instances, or the INSERT's JSON encoding blows up with
+        # "Object of type ConferenceAgendaItem is not JSON serializable".
+        agenda=[item.model_dump(mode="json") for item in conference_data.agenda] if conference_data.agenda else None,
         created_by_user_id=current_user.id,
     )
-    
+
+    db.add(conference)
+    db.flush()
+
     if conference_data.meeting_type == "video_conference":
+        # conference.id is only assigned once the row is flushed, so this
+        # must run after db.add()/db.flush(), not before -- otherwise every
+        # video conference gets a URL/ID literally containing "None".
         conference.video_conference_url = f"https://meet.example.com/{conference.id}"
         conference.video_conference_id = f"meeting-{conference.id}"
-    
-    db.add(conference)
+
     db.commit()
     db.refresh(conference)
     return conference
@@ -1044,10 +1056,10 @@ def create_collaboration_document(
         requires_parent_signature=document_data.requires_parent_signature,
         requires_teacher_signature=document_data.requires_teacher_signature,
         expires_at=document_data.expires_at,
-        metadata=document_data.metadata,
+        metadata_json=document_data.metadata,
         created_by_user_id=current_user.id,
     )
-    
+
     db.add(document)
     db.commit()
     db.refresh(document)

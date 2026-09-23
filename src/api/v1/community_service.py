@@ -2,7 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, extract
+from sqlalchemy import and_, or_, func, extract, case
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import secrets
@@ -403,9 +403,10 @@ async def verify_external(
     activity.verifier_signature_url = verification.signature_url
     
     if verification.comments:
-        if not activity.metadata:
-            activity.metadata = {}
-        activity.metadata['verifier_comments'] = verification.comments
+        # NOTE: the column is named `metadata_json` on the model (not
+        # `metadata`) because `metadata` is reserved by SQLAlchemy's
+        # Declarative base for the MetaData object.
+        activity.metadata_json = {**(activity.metadata_json or {}), 'verifier_comments': verification.comments}
     
     db.commit()
     
@@ -458,10 +459,11 @@ async def reject_activity(
     activity.verification_status = VerificationStatus.REJECTED
     activity.verification_date = date.today()
     
-    if not activity.metadata:
-        activity.metadata = {}
-    activity.metadata['rejection_reason'] = reason
-    activity.metadata['rejected_by'] = current_user.id
+    activity.metadata_json = {
+        **(activity.metadata_json or {}),
+        'rejection_reason': reason,
+        'rejected_by': current_user.id,
+    }
     
     db.commit()
     
@@ -616,7 +618,7 @@ async def get_student_portfolio(
     org_data = db.query(
         ServiceActivity.organization_name,
         func.sum(ServiceActivity.hours_logged).label('total_hours'),
-        func.sum(func.case([(ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged)], else_=0)).label('verified_hours'),
+        func.sum(case((ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged), else_=0)).label('verified_hours'),
         func.count(ServiceActivity.id).label('activity_count')
     ).filter(
         ServiceActivity.student_id == student_id,
@@ -977,7 +979,7 @@ async def get_student_report(
     org_data = db.query(
         ServiceActivity.organization_name,
         func.sum(ServiceActivity.hours_logged).label('total_hours'),
-        func.sum(func.case([(ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged)], else_=0)).label('verified_hours'),
+        func.sum(case((ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged), else_=0)).label('verified_hours'),
         func.count(ServiceActivity.id).label('activity_count')
     ).filter(
         ServiceActivity.student_id == student_id
@@ -997,7 +999,7 @@ async def get_student_report(
         extract('month', ServiceActivity.date).label('month'),
         extract('year', ServiceActivity.date).label('year'),
         func.sum(ServiceActivity.hours_logged).label('hours'),
-        func.sum(func.case([(ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged)], else_=0)).label('verified_hours'),
+        func.sum(case((ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged), else_=0)).label('verified_hours'),
         func.count(ServiceActivity.id).label('activity_count')
     ).filter(
         ServiceActivity.student_id == student_id
@@ -1070,7 +1072,7 @@ async def get_institution_report(
     org_data = db.query(
         ServiceActivity.organization_name,
         func.sum(ServiceActivity.hours_logged).label('total_hours'),
-        func.sum(func.case([(ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged)], else_=0)).label('verified_hours'),
+        func.sum(case((ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged), else_=0)).label('verified_hours'),
         func.count(ServiceActivity.id).label('activity_count')
     ).filter(
         ServiceActivity.institution_id == current_user.institution_id
@@ -1090,7 +1092,7 @@ async def get_institution_report(
         extract('month', ServiceActivity.date).label('month'),
         extract('year', ServiceActivity.date).label('year'),
         func.sum(ServiceActivity.hours_logged).label('hours'),
-        func.sum(func.case([(ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged)], else_=0)).label('verified_hours'),
+        func.sum(case((ServiceActivity.verification_status == VerificationStatus.VERIFIED, ServiceActivity.hours_logged), else_=0)).label('verified_hours'),
         func.count(ServiceActivity.id).label('activity_count')
     ).filter(
         ServiceActivity.institution_id == current_user.institution_id

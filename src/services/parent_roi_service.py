@@ -9,7 +9,7 @@ from src.models.student import Parent, StudentParent, Student
 from src.models.assignment import Submission, SubmissionStatus
 from src.models.examination import ExamResult
 from src.models.attendance import Attendance, AttendanceStatus
-from src.models.doubt import Doubt
+from src.models.doubt import DoubtPost
 from src.models.study_planner import StudyPlan
 from src.models.fee import FeePayment
 from src.models.user import User
@@ -157,12 +157,12 @@ class ParentROIService:
         
         for child in children:
             # Doubt resolution time saved (vs in-person tutoring)
-            doubts_count = self.db.query(Doubt).filter(
+            doubts_count = self.db.query(DoubtPost).filter(
                 and_(
-                    Doubt.student_id == child.id,
-                    Doubt.created_at >= year_start,
-                    Doubt.created_at <= year_end,
-                    Doubt.status == 'resolved'
+                    DoubtPost.user_id == child.user_id,
+                    DoubtPost.created_at >= year_start,
+                    DoubtPost.created_at <= year_end,
+                    DoubtPost.status == 'resolved'
                 )
             ).count()
             # Assume 1 hour saved per doubt vs scheduling/traveling to tutor
@@ -210,12 +210,12 @@ class ParentROIService:
         
         for child in children:
             # Doubt resolution cost avoidance (vs private tutoring)
-            doubts_resolved = self.db.query(Doubt).filter(
+            doubts_resolved = self.db.query(DoubtPost).filter(
                 and_(
-                    Doubt.student_id == child.id,
-                    Doubt.created_at >= year_start,
-                    Doubt.created_at <= year_end,
-                    Doubt.status == 'resolved'
+                    DoubtPost.user_id == child.user_id,
+                    DoubtPost.created_at >= year_start,
+                    DoubtPost.created_at <= year_end,
+                    DoubtPost.status == 'resolved'
                 )
             ).count()
             # Assume $30 per tutoring session avoided
@@ -281,11 +281,11 @@ class ParentROIService:
         
         for child in children:
             # Doubt resolution usage
-            features['doubt_resolution'] += self.db.query(Doubt).filter(
+            features['doubt_resolution'] += self.db.query(DoubtPost).filter(
                 and_(
-                    Doubt.student_id == child.id,
-                    Doubt.created_at >= year_start,
-                    Doubt.created_at <= year_end
+                    DoubtPost.user_id == child.user_id,
+                    DoubtPost.created_at >= year_start,
+                    DoubtPost.created_at <= year_end
                 )
             ).count()
             

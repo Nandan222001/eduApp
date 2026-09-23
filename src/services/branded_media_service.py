@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 import io
 import json
+import uuid
 from datetime import datetime
 from pydub import AudioSegment
 import base64
@@ -113,10 +114,10 @@ class BrandedMediaService:
         # Upload to S3
         try:
             folder = f"branding/{institution_id}/sounds"
-            file_url, s3_key = s3_client.upload_file(
+            s3_key = f"{folder}/{uuid.uuid4()}_{notification_type}_{file.filename}"
+            file_url = s3_client.upload_file(
                 io.BytesIO(file_content),
-                f"{notification_type}_{file.filename}",
-                folder=folder,
+                s3_key,
                 content_type=file.content_type
             )
         except Exception as e:
@@ -211,10 +212,10 @@ class BrandedMediaService:
         # Upload to S3
         try:
             folder = f"branding/{institution_id}/animations"
-            file_url, s3_key = s3_client.upload_file(
+            s3_key = f"{folder}/{uuid.uuid4()}_{file.filename}"
+            file_url = s3_client.upload_file(
                 file.file,
-                file.filename,
-                folder=folder,
+                s3_key,
                 content_type=file.content_type
             )
         except Exception as e:

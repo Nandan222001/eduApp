@@ -514,7 +514,7 @@ class StudyPlannerService:
             task_date=request.new_date,
             status=TaskStatus.RESCHEDULED,
             metadata={
-                **(task.metadata or {}),
+                **(task.metadata_json or {}),
                 'rescheduled_from': str(task.task_date),
                 'reschedule_reason': request.reason
             }

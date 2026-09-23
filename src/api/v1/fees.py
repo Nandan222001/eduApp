@@ -7,7 +7,7 @@ from src.database import get_db
 from src.models.user import User
 from src.models.fee import FeeStructure, FeePayment, FeeWaiver
 from src.models.student import Student
-from src.models.academic import Grade
+from src.models.academic import Grade, Section
 from src.dependencies.auth import get_current_user
 from src.schemas.fee import (
     FeeStructureCreate,
@@ -71,7 +71,7 @@ async def list_fee_structures(
     structures = query.offset(skip).limit(limit).all()
     
     return {
-        "items": structures,
+        "items": [FeeStructureResponse.model_validate(s) for s in structures],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -204,7 +204,7 @@ async def list_payments(
     payments = query.order_by(FeePayment.payment_date.desc()).offset(skip).limit(limit).all()
     
     return {
-        "items": payments,
+        "items": [FeePaymentResponse.model_validate(p) for p in payments],
         "total": total,
         "skip": skip,
         "limit": limit
@@ -243,7 +243,12 @@ async def get_receipt(
         raise HTTPException(status_code=404, detail="Receipt not found")
     
     student = db.query(Student).filter(Student.id == payment.student_id).first()
-    grade = db.query(Grade).filter(Grade.id == student.grade_id).first() if student else None
+    # Student has no direct grade_id -- grade is reached via its section.
+    grade = (
+        db.query(Grade).join(Section, Section.grade_id == Grade.id)
+        .filter(Section.id == student.section_id).first()
+        if student and student.section_id else None
+    )
     fee_structure = db.query(FeeStructure).filter(FeeStructure.id == payment.fee_structure_id).first()
     collector = db.query(User).filter(User.id == payment.collected_by).first()
     
@@ -268,6 +273,7 @@ async def get_outstanding_dues(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Student has no direct grade_id -- grade is reached via its section.
     query = db.query(
         Student.id.label('student_id'),
         func.concat(Student.first_name, ' ', Student.last_name).label('student_name'),
@@ -275,10 +281,12 @@ async def get_outstanding_dues(
         func.coalesce(func.sum(FeeStructure.amount), 0).label('total_fees'),
         func.coalesce(func.sum(FeePayment.amount_paid), 0).label('amount_paid')
     ).join(
-        Grade, Student.grade_id == Grade.id
+        Section, Student.section_id == Section.id
+    ).join(
+        Grade, Section.grade_id == Grade.id
     ).outerjoin(
         FeeStructure, and_(
-            FeeStructure.grade_id == Student.grade_id,
+            FeeStructure.grade_id == Section.grade_id,
             FeeStructure.institution_id == current_user.institution_id
         )
     ).outerjoin(
@@ -289,9 +297,9 @@ async def get_outstanding_dues(
     ).filter(
         Student.institution_id == current_user.institution_id
     )
-    
+
     if grade_id:
-        query = query.filter(Student.grade_id == grade_id)
+        query = query.filter(Section.grade_id == grade_id)
     
     query = query.group_by(Student.id, Grade.name)
     
@@ -354,7 +362,7 @@ async def list_waivers(
     waivers = query.offset(skip).limit(limit).all()
     
     return {
-        "items": waivers,
+        "items": [FeeWaiverResponse.model_validate(w) for w in waivers],
         "total": total,
         "skip": skip,
         "limit": limit

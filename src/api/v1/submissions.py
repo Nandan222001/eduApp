@@ -142,6 +142,12 @@ async def grade_submission(
             detail="Only teachers can grade submissions"
         )
 
+    if assignment.teacher_id != teacher.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to grade this submission"
+        )
+
     graded_submission = service.grade_submission(
         submission_id=submission_id,
         grader_id=teacher.id,

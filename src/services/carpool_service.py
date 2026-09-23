@@ -310,16 +310,22 @@ class CarpoolService:
         
         group.active_driver_parent_id = new_driver_parent_id
         group.current_week_start = week_start_date
-        
+
         rotation = group.rotation_schedule
         if isinstance(rotation, dict):
-            rotation['history'] = rotation.get('history', [])
-            rotation['history'].append({
+            # Rebuild as a new dict/list rather than mutating group.rotation_schedule
+            # in place and reassigning the same object back to itself: SQLAlchemy's
+            # change tracking compares old/new by identity for JSON columns, so
+            # `group.rotation_schedule = rotation` where `rotation is group.rotation_schedule`
+            # is recorded as "unchanged" and silently dropped from the UPDATE,
+            # losing the rotation history on every call.
+            new_history = list(rotation.get('history', []))
+            new_history.append({
                 'parent_id': new_driver_parent_id,
                 'week_start': week_start_date.isoformat(),
                 'updated_at': datetime.utcnow().isoformat()
             })
-            group.rotation_schedule = rotation
+            group.rotation_schedule = {**rotation, 'history': new_history}
         
         self.db.commit()
         self.db.refresh(group)
@@ -382,8 +388,8 @@ class CarpoolService:
                     ride_type='afternoon',
                     passengers=passengers,
                     pickup_sequence=list(reversed(pickup_sequence)),
-                    pickup_time=pickup_sequence[-1].get('drop_time') if pickup_sequence else time(14, 0),
-                    drop_time=pickup_sequence[0].get('drop_time') if pickup_sequence else time(15, 0),
+                    pickup_time=pickup_sequence[-1].get('drop_time') or pickup_sequence[-1].get('pickup_time') if pickup_sequence else time(14, 0),
+                    drop_time=pickup_sequence[0].get('drop_time') or pickup_sequence[0].get('pickup_time') if pickup_sequence else time(15, 0),
                     confirmation_status=RideStatus.SCHEDULED.value
                 )
                 rides.append(afternoon_ride)
@@ -409,7 +415,11 @@ class CarpoolService:
         if not ride:
             raise ValueError("Ride not found")
         
-        confirmations = ride.confirmations or {}
+        # Build a fresh dict rather than mutating ride.confirmations in place --
+        # see the same-object-identity note in rotate_driver above. Reassigning
+        # the identical dict object back onto the JSON column is invisible to
+        # SQLAlchemy's change tracking and the UPDATE silently drops it.
+        confirmations = dict(ride.confirmations or {})
         confirmations[str(parent_id)] = {
             'confirmed': confirmation,
             'confirmed_at': datetime.utcnow().isoformat(),
@@ -491,7 +501,11 @@ class CarpoolService:
         if not parent:
             raise ValueError("Parent not found")
         
-        members = group.members
+        # Same-object-identity note (see rotate_driver above): build a new list
+        # instead of appending to group.members and reassigning the identical
+        # object, which SQLAlchemy's JSON-column change tracking treats as
+        # "unchanged" and never includes in the UPDATE.
+        members = list(group.members)
         members.append({
             'parent_id': parent_id,
             'parent_name': f"{parent.first_name} {parent.last_name}",
@@ -499,7 +513,7 @@ class CarpoolService:
             'students': students,
             'joined_at': datetime.utcnow().isoformat()
         })
-        
+
         group.members = members
         self.db.commit()
         self.db.refresh(group)

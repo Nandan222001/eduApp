@@ -1,16 +1,21 @@
 import pytest
 import asyncio
+import tempfile
+import uuid
+from pathlib import Path
 from typing import Generator, AsyncGenerator
 from fastapi.testclient import TestClient
+from filelock import FileLock
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from faker import Faker
 from datetime import datetime, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
 import boto3
 from moto import mock_aws
+from fakeredis import FakeAsyncRedis
 
 from src.database import Base, get_db
 from src.main import app
@@ -25,6 +30,12 @@ from src.models.academic import AcademicYear, Grade, Section, Subject
 from src.models.subscription import Subscription, Payment, Invoice
 from src.utils.security import get_password_hash
 from src.utils.session import SessionManager
+from tests.test_mocks import (
+    mock_sendgrid_client,
+    mock_razorpay_client,
+    mock_s3_client,
+    mock_redis_client,
+)
 
 fake = Faker()
 
@@ -46,10 +57,80 @@ def event_loop():
     loop.close()
 
 
+REQUIRED_PERMISSIONS = [
+    ("users", "create"),
+    ("users", "read"),
+    ("users", "update"),
+    ("users", "delete"),
+]
+
+
+def _seed_permissions() -> None:
+    """Seed the Permission rows admin_role attaches, exactly once.
+
+    Permission.resource+action has a global unique index. Doing this
+    get-or-create per-test (as admin_role used to) raced concurrent xdist
+    worker processes' first-time inserts of the same row and deadlocked at
+    the DB (InnoDB gap-lock contention on a not-yet-existing unique key) --
+    a MySQL deadlock rolls back the whole current transaction, including
+    unrelated work already flushed earlier in that test's session, so it
+    isn't recoverable with a savepoint retry either. Seeding once here,
+    inside _create_schema_once's cross-worker lock, avoids the race
+    entirely: admin_role only ever reads these rows afterward.
+    """
+    session = TestingSessionLocal(bind=engine)
+    try:
+        for resource, action in REQUIRED_PERMISSIONS:
+            exists = session.query(Permission).filter(
+                Permission.resource == resource,
+                Permission.action == action,
+            ).first()
+            if not exists:
+                session.add(Permission(
+                    name=f"{resource.capitalize()} {action.capitalize()}",
+                    slug=f"{resource}-{action}",
+                    resource=resource,
+                    action=action,
+                ))
+        session.commit()
+    finally:
+        session.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _create_schema_once(tmp_path_factory, worker_id) -> None:
+    """Create all tables and seed shared reference data exactly once.
+
+    Previously each test's db_session fixture called Base.metadata.create_all
+    on every single test, which is redundant and -- under pytest-xdist's
+    parallel workers, all hitting the same shared MySQL database -- actively
+    racy ("Table was skipped since its definition is being modified by
+    concurrent DDL statement"). This follows pytest-xdist's documented
+    pattern for a one-time shared resource: a cross-worker file lock so only
+    the first worker to reach it runs create_all (and permission seeding),
+    and a sentinel file so later workers (and later sessions reusing the
+    same tmp root) skip it.
+    """
+    if worker_id == "master":
+        # Not running under xdist -- just create directly.
+        Base.metadata.create_all(bind=engine)
+        _seed_permissions()
+        return
+
+    root_tmp_dir = tmp_path_factory.getbasetemp().parent
+    lock_path = root_tmp_dir / "eduapp_schema.lock"
+    done_path = root_tmp_dir / "eduapp_schema.done"
+
+    with FileLock(str(lock_path)):
+        if not done_path.exists():
+            Base.metadata.create_all(bind=engine)
+            _seed_permissions()
+            done_path.write_text("done")
+
+
 @pytest.fixture(scope="function")
 def db_session() -> Generator[Session, None, None]:
     """Create a new database session for a test."""
-    Base.metadata.create_all(bind=engine)
     connection = engine.connect()
     transaction = connection.begin()
     session = TestingSessionLocal(bind=connection)
@@ -70,19 +151,19 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         finally:
             pass
 
-    async def mock_get_redis():
-        mock_redis = AsyncMock()
-        mock_redis.get.return_value = None
-        mock_redis.set.return_value = True
-        mock_redis.delete.return_value = True
-        mock_redis.exists.return_value = False
-        mock_redis.expire.return_value = True
-        mock_redis.ttl.return_value = 3600
-        mock_redis.keys.return_value = []
-        return mock_redis
+    # A plain AsyncMock with fixed return values (exists()->False, get()->None,
+    # ...) can't support flows that need real state across calls within one
+    # test -- e.g. login stores a refresh token then a follow-up /auth/refresh
+    # call checks it exists. FakeAsyncRedis is a real in-memory implementation
+    # of the redis.asyncio.Redis interface, so SET/GET/EXISTS/DELETE/EXPIRE
+    # etc. behave like actual Redis would.
+    fake_redis = FakeAsyncRedis()
+
+    async def override_get_redis():
+        return fake_redis
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_redis] = mock_get_redis
+    app.dependency_overrides[get_redis] = override_get_redis
 
     with TestClient(app) as test_client:
         yield test_client
@@ -93,18 +174,17 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 @pytest.fixture
 def institution(db_session: Session) -> Institution:
     """Create a test institution."""
+    # name/slug must be unique per test: under pytest-xdist, many parallel
+    # workers run this fixture concurrently against the same shared MySQL
+    # database, and identical unique-constrained values across concurrent
+    # uncommitted transactions cause real lock contention/deadlocks
+    # (MySQL error 1213), not just a would-be duplicate-key error.
+    unique_suffix = uuid.uuid4().hex[:12]
     institution = Institution(
-        name="Test School",
-        short_name="TS",
-        code="TEST001",
-        email="admin@testschool.com",
+        name=f"Test School {unique_suffix}",
+        slug=f"test-school-{unique_suffix}",
         phone="+1234567890",
-        address="123 Test Street",
-        city="Test City",
-        state="Test State",
-        country="Test Country",
-        postal_code="12345",
-        website="https://testschool.com",
+        address="123 Test Street, Test City, Test State, Test Country 12345",
         is_active=True,
     )
     db_session.add(institution)
@@ -113,15 +193,59 @@ def institution(db_session: Session) -> Institution:
     return institution
 
 
+def _get_or_create_permission(db_session: Session, resource: str, action: str) -> Permission:
+    """Get-or-create a Permission row.
+
+    _seed_permissions() (see _create_schema_once) already creates the rows
+    admin_role needs exactly once before any test runs, so the normal path
+    here is a plain read. The insert is only a fallback for a
+    resource/action pair outside REQUIRED_PERMISSIONS; it isn't
+    race-protected, but nothing currently requests one concurrently.
+    """
+    permission = db_session.query(Permission).filter(
+        Permission.resource == resource,
+        Permission.action == action,
+    ).first()
+    if not permission:
+        permission = Permission(
+            name=f"{resource.capitalize()} {action.capitalize()}",
+            slug=f"{resource}-{action}",
+            resource=resource,
+            action=action,
+        )
+        db_session.add(permission)
+        db_session.flush()
+    return permission
+
+
 @pytest.fixture
 def admin_role(db_session: Session) -> Role:
-    """Create admin role."""
+    """Create admin role.
+
+    Attaches the users:create/read/update/delete permissions that
+    src/api/v1/users.py's require_permissions(...) dependencies check for,
+    so admin_user/auth_headers can actually exercise those endpoints in
+    tests -- without this, every /users/* request from the standard test
+    admin 403s before reaching the endpoint at all.
+    """
     role = Role(
         name="Admin",
+        slug="admin",
         description="Administrator role",
         is_system_role=True,
     )
     db_session.add(role)
+    db_session.flush()
+
+    for resource, action in [
+        ("users", "create"),
+        ("users", "read"),
+        ("users", "update"),
+        ("users", "delete"),
+    ]:
+        permission = _get_or_create_permission(db_session, resource, action)
+        role.permissions.append(permission)
+
     db_session.commit()
     db_session.refresh(role)
     return role
@@ -132,6 +256,7 @@ def teacher_role(db_session: Session) -> Role:
     """Create teacher role."""
     role = Role(
         name="Teacher",
+        slug="teacher",
         description="Teacher role",
         is_system_role=True,
     )
@@ -146,6 +271,7 @@ def student_role(db_session: Session) -> Role:
     """Create student role."""
     role = Role(
         name="Student",
+        slug="student",
         description="Student role",
         is_system_role=True,
     )
@@ -269,7 +395,6 @@ def subject(db_session: Session, institution: Institution, grade: Grade) -> Subj
     """Create a subject."""
     subject = Subject(
         institution_id=institution.id,
-        grade_id=grade.id,
         name="Mathematics",
         code="MATH10",
         description="Mathematics for Grade 10",
@@ -293,7 +418,7 @@ def teacher(db_session: Session, institution: Institution, teacher_user: User) -
         email=teacher_user.email,
         phone="+1234567890",
         date_of_birth=datetime(1985, 5, 15).date(),
-        date_of_joining=datetime(2020, 6, 1).date(),
+        joining_date=datetime(2020, 6, 1).date(),
         qualification="M.Sc Mathematics",
         specialization="Mathematics",
         is_active=True,
@@ -321,9 +446,8 @@ def student(
         last_name=student_user.last_name,
         email=student_user.email,
         section_id=section.id,
-        academic_year_id=academic_year.id,
         date_of_birth=datetime(2008, 3, 20).date(),
-        date_of_admission=datetime(2020, 4, 1).date(),
+        admission_date=datetime(2020, 4, 1).date(),
         gender="Female",
         blood_group="O+",
         is_active=True,
@@ -358,17 +482,20 @@ def subscription(db_session: Session, institution: Institution) -> Subscription:
 
 
 @pytest.fixture
-def auth_headers(admin_user: User) -> dict:
-    """Create authentication headers for testing."""
-    from src.utils.security import create_access_token
-    token = create_access_token(
-        data={
-            "sub": admin_user.id,
-            "institution_id": admin_user.institution_id,
-            "role_id": admin_user.role_id,
-            "email": admin_user.email,
-        }
+def auth_headers(client: TestClient, admin_user: User) -> dict:
+    """Create authentication headers for testing.
+
+    Logs in for real through the API (rather than just minting a JWT with
+    create_access_token) so a matching session actually exists in the
+    client fixture's fake Redis -- get_current_user requires both a valid
+    JWT AND an active session (SessionManager.get_session), by design, so
+    a hand-crafted token alone gets a 401 from every protected endpoint.
+    """
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": admin_user.email, "password": "password123"},
     )
+    token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -390,9 +517,16 @@ def mock_redis():
 
 
 @pytest.fixture
-def mock_session_manager(mock_redis):
-    """Mock SessionManager for testing."""
-    return SessionManager(mock_redis)
+def mock_session_manager():
+    """Mock SessionManager for testing.
+
+    A real SessionManager(mock_redis) has plain bound methods, not Mocks --
+    tests calling e.g. mock_session_manager.create_session.assert_called_once()
+    or setting .return_value on a method need actual Mock objects.
+    create_autospec detects SessionManager's async methods and gives each
+    one an AsyncMock automatically, matching the real class's signatures.
+    """
+    return create_autospec(SessionManager, instance=True)
 
 
 @pytest.fixture
@@ -438,6 +572,7 @@ def parent_role(db_session: Session) -> Role:
     """Create parent role."""
     role = Role(
         name="Parent",
+        slug="parent",
         description="Parent role",
         is_system_role=True,
     )

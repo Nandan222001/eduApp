@@ -70,7 +70,7 @@ async def list_questions(
         search=search
     )
     return {
-        "items": questions,
+        "items": [QuestionBankResponse.model_validate(q) for q in questions],
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -107,9 +107,9 @@ async def get_questions_by_paper(
 ):
     service = QuestionBankService(db)
     questions, total = service.get_questions_by_paper(paper_id, skip, limit)
-    
+
     return {
-        "items": questions,
+        "items": [QuestionBankResponse.model_validate(q) for q in questions],
         "total": total,
         "skip": skip,
         "limit": limit,

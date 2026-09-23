@@ -212,7 +212,7 @@ class TestNotificationSendingTasks:
     @patch('src.tasks.notification_tasks.send_notification.delay')
     @patch('src.tasks.notification_tasks.NotificationService')
     def test_send_bulk_notifications_success(
-        self, mock_notification_service, mock_delay, db_session: Session, institution
+        self, mock_notification_service, mock_delay, db_session: Session, institution, student_role
     ):
         """Test bulk notification sending"""
         # Create users
@@ -225,6 +225,7 @@ class TestNotificationSendingTasks:
                 last_name="Test",
                 hashed_password="hashed",
                 institution_id=institution.id,
+                role_id=student_role.id,
                 is_active=True,
             )
             db_session.add(user)
@@ -301,8 +302,10 @@ class TestNotificationSendingTasks:
         # Create device
         device = NotificationDevice(
             user_id=admin_user.id,
+            role="admin",
             device_token="ExponentPushToken[xxxxx]",
             device_type="ios",
+            platform="ios",
             is_active=True,
         )
         db_session.add(device)
@@ -341,24 +344,30 @@ class TestScheduledTasks:
     """Test scheduled tasks"""
     
     def test_send_scheduled_announcements(
-        self, db_session: Session, institution
+        self, db_session: Session, institution, admin_user
     ):
         """Test daily attendance reminder task"""
         # Create scheduled announcements
         past_time = datetime.utcnow() - timedelta(minutes=5)
         future_time = datetime.utcnow() + timedelta(hours=1)
-        
+
         scheduled_announcement = Announcement(
             institution_id=institution.id,
+            created_by=admin_user.id,
             title="Scheduled Announcement",
             content="This should be published",
+            audience_type="all",
+            channels=["email"],
             is_published=False,
             scheduled_at=past_time,
         )
         future_announcement = Announcement(
             institution_id=institution.id,
+            created_by=admin_user.id,
             title="Future Announcement",
             content="This should not be published yet",
+            audience_type="all",
+            channels=["email"],
             is_published=False,
             scheduled_at=future_time,
         )
@@ -571,7 +580,23 @@ class TestScheduledTasks:
         """Test processing grouped notifications"""
         # Create old grouped notification
         old_time = datetime.utcnow() - timedelta(hours=2)
-        
+
+        # grouped_with_id is a real FK to another notification's id
+        parent_notification = Notification(
+            institution_id=institution.id,
+            user_id=admin_user.id,
+            title="Parent Notification",
+            message="Parent message",
+            notification_type="alert",
+            notification_group="system",
+            channel="email",
+            priority="low",
+            status=NotificationStatus.SENT.value,
+            created_at=old_time,
+        )
+        db_session.add(parent_notification)
+        db_session.commit()
+
         grouped_notification = Notification(
             institution_id=institution.id,
             user_id=admin_user.id,
@@ -582,7 +607,7 @@ class TestScheduledTasks:
             channel="email",
             priority="low",
             status=NotificationStatus.BATCHED.value,
-            grouped_with_id=1,
+            grouped_with_id=parent_notification.id,
             created_at=old_time,
         )
         db_session.add(grouped_notification)
@@ -698,31 +723,32 @@ class TestWeeklyPerformanceReports:
     
     @patch('src.tasks.email_tasks.send_verification_email.delay')
     def test_weekly_performance_report_generation(
-        self, mock_delay, db_session: Session, institution, student, teacher
+        self, mock_delay, db_session: Session, institution, student, teacher, grade, subject
     ):
         """Test generating weekly performance reports"""
         # This would be implemented in a separate task file
         # Simulating the concept here
-        
-        from src.models.assignment import Assignment, AssignmentSubmission
-        from src.models.exam import Exam, ExamResult
-        
+
+        from src.models.assignment import Assignment, Submission
+        from src.models.examination import Exam, ExamResult
+
         # Create assignments and submissions
         assignment = Assignment(
             institution_id=institution.id,
             teacher_id=teacher.id,
+            grade_id=grade.id,
+            subject_id=subject.id,
             title="Math Assignment",
             description="Test assignment",
             due_date=datetime.utcnow() + timedelta(days=7),
-            total_marks=100,
+            max_marks=100,
         )
         db_session.add(assignment)
         db_session.commit()
-        
-        submission = AssignmentSubmission(
+
+        submission = Submission(
             assignment_id=assignment.id,
             student_id=student.id,
-            institution_id=institution.id,
             marks_obtained=Decimal("85.00"),
             submitted_at=datetime.utcnow(),
         )
@@ -903,7 +929,7 @@ class TestTaskChaining:
     @patch('src.tasks.notification_tasks.send_notification.delay')
     @patch('src.tasks.notification_tasks.NotificationService')
     def test_bulk_notification_chain(
-        self, mock_notification_service, mock_delay, db_session: Session, institution
+        self, mock_notification_service, mock_delay, db_session: Session, institution, student_role
     ):
         """Test chaining bulk notification creation and sending"""
         # Create users
@@ -916,6 +942,7 @@ class TestTaskChaining:
                 last_name="Test",
                 hashed_password="hashed",
                 institution_id=institution.id,
+                role_id=student_role.id,
                 is_active=True,
             )
             db_session.add(user)
@@ -1016,6 +1043,22 @@ class TestTaskChaining:
         self, mock_delay, db_session: Session, institution, admin_user
     ):
         """Test chaining grouped notification processing"""
+        # grouped_with_id is a real FK to another notification's id
+        parent_notification = Notification(
+            institution_id=institution.id,
+            user_id=admin_user.id,
+            title="Parent Notification",
+            message="Parent message",
+            notification_type="alert",
+            notification_group="system",
+            channel="email",
+            priority="low",
+            status=NotificationStatus.SENT.value,
+            created_at=datetime.utcnow() - timedelta(hours=2),
+        )
+        db_session.add(parent_notification)
+        db_session.commit()
+
         # Create grouped notifications
         for i in range(3):
             notification = Notification(
@@ -1028,7 +1071,7 @@ class TestTaskChaining:
                 channel="email",
                 priority="low",
                 status=NotificationStatus.BATCHED.value,
-                grouped_with_id=1,
+                grouped_with_id=parent_notification.id,
                 created_at=datetime.utcnow() - timedelta(hours=2),
             )
             db_session.add(notification)
@@ -1050,7 +1093,7 @@ class TestTaskChaining:
 class TestExternalServiceMocking:
     """Test comprehensive external service mocking"""
     
-    @patch('sendgrid.SendGridAPIClient')
+    @patch('src.services.notification_providers.SendGridAPIClient')
     def test_sendgrid_api_mocked(self, mock_sendgrid, db_session: Session):
         """Test SendGrid API is properly mocked"""
         # Mock SendGrid

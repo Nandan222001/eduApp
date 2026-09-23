@@ -1,9 +1,9 @@
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models.user import User
-from src.dependencies.auth import get_current_user
+from src.dependencies.auth import get_current_user, require_roles
 from src.schemas.teacher import (
     TeacherCreate,
     TeacherUpdate,
@@ -13,6 +13,7 @@ from src.schemas.teacher import (
     BulkImportResult,
     TeacherMyDashboardResponse,
 )
+from src.schemas.academic import SubjectResponse
 from src.services.teacher_service import TeacherService
 
 router = APIRouter()
@@ -24,6 +25,8 @@ async def create_teacher(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_roles(current_user, ["admin", "institution_admin"])
+
     if current_user.institution_id != teacher_data.institution_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -53,11 +56,21 @@ async def list_teachers(
         is_active=is_active
     )
     return {
-        "items": teachers,
+        "items": [TeacherResponse.model_validate(t) for t in teachers],
         "total": total,
         "skip": skip,
         "limit": limit,
     }
+
+
+@router.get("/my-dashboard", response_model=TeacherMyDashboardResponse)
+async def get_my_dashboard(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = TeacherService(db)
+    dashboard_data = service.get_teacher_my_dashboard(current_user)
+    return dashboard_data
 
 
 @router.get("/{teacher_id}", response_model=TeacherResponse)
@@ -66,21 +79,23 @@ async def get_teacher(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_roles(current_user, ["admin", "institution_admin"])
+
     service = TeacherService(db)
     teacher = service.get_teacher(teacher_id)
-    
+
     if not teacher:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Teacher not found"
         )
-    
+
     if teacher.institution_id != current_user.institution_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this teacher"
         )
-    
+
     return teacher
 
 
@@ -182,7 +197,7 @@ async def remove_subject_from_teacher(
     return None
 
 
-@router.get("/{teacher_id}/subjects", response_model=list)
+@router.get("/{teacher_id}/subjects", response_model=List[SubjectResponse])
 async def get_teacher_subjects(
     teacher_id: int,
     current_user: User = Depends(get_current_user),
@@ -202,16 +217,12 @@ async def get_teacher_subjects(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized"
         )
-    
+
+    if current_user.teacher_profile and current_user.teacher_profile.id != teacher_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized"
+        )
+
     subjects = service.get_teacher_subjects(teacher_id)
     return subjects
-
-
-@router.get("/my-dashboard", response_model=TeacherMyDashboardResponse)
-async def get_my_dashboard(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = TeacherService(db)
-    dashboard_data = service.get_teacher_my_dashboard(current_user)
-    return dashboard_data

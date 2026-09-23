@@ -300,7 +300,7 @@ class TestCombinedExternalServices:
             
             message = Mail(
                 from_email='noreply@example.com',
-                to_emails=subscription.institution.email,
+                to_emails='billing@example.com',
                 subject='Payment Successful',
                 html_content='<strong>Your payment was successful</strong>'
             )

@@ -85,7 +85,16 @@ class WellbeingAlertUpdate(BaseModel):
 
 class WellbeingAlertResponse(WellbeingAlertBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
+    # Override the inherited `metadata` field: the ORM attribute is
+    # `metadata_json` (SQLAlchemy reserves `metadata` on Declarative models
+    # for the class's MetaData registry -- `alert.metadata` returns that
+    # registry object, not the JSON column, and without this alias
+    # `model_validate(alert)` raised a ValidationError ("Input should be a
+    # valid dictionary") for every alert response). The API keeps
+    # `metadata` as the JSON key -- same pattern as src/schemas/merchandise.py.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
+
     id: int
     institution_id: int
     student_id: int

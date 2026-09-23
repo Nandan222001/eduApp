@@ -32,7 +32,7 @@ class MLAnalyticsIntegrationService:
         """
         Get unified dashboard combining traditional analytics with ML monitoring
         """
-        from src.schemas.analytics import AnalyticsQueryParams, DateRangeType
+        from src.schemas.academic_analytics import AnalyticsQueryParams, DateRangeType
         
         params = AnalyticsQueryParams(
             date_range_type=DateRangeType.CUSTOM,

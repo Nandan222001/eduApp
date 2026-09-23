@@ -178,7 +178,10 @@ class MerchandiseOrderResponse(BaseModel):
     commission_paid: bool
     printful_order_id: Optional[str] = None
     fulfillment_status: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # Declarative models for the MetaData object), but the API keeps
+    # `metadata` as the JSON key -- same pattern as src/schemas/subscription.py.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     notes: Optional[str] = None
     confirmed_at: Optional[datetime] = None
     shipped_at: Optional[datetime] = None
