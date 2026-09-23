@@ -371,7 +371,14 @@ class DoubtTeacherAssignmentService:
         
         if not doubt:
             return {'success': False, 'message': 'Doubt not found'}
-        
+
+        new_teacher = db.query(Teacher).filter(
+            Teacher.id == new_teacher_id,
+            Teacher.institution_id == institution_id
+        ).first()
+        if not new_teacher:
+            return {'success': False, 'message': 'Teacher not found in this institution'}
+
         old_teacher_id = doubt.assigned_teacher_id
         
         if old_teacher_id:

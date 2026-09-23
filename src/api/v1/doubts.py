@@ -22,7 +22,7 @@ priority_service = DoubtPriorityService()
 teacher_assignment_service = DoubtTeacherAssignmentService()
 
 
-@router.post("/{doubt_id}/process")
+@router.post("/{doubt_id:int}/process")
 async def process_doubt_with_ai(
     doubt_id: int,
     enable_auto_assignment: bool = Query(True),
@@ -39,7 +39,7 @@ async def process_doubt_with_ai(
     return result
 
 
-@router.get("/{doubt_id}/intelligence")
+@router.get("/{doubt_id:int}/intelligence")
 async def get_doubt_intelligence(
     doubt_id: int,
     db: Session = Depends(get_db),
@@ -55,7 +55,7 @@ async def get_doubt_intelligence(
     return result
 
 
-@router.get("/{doubt_id}/similar")
+@router.get("/{doubt_id:int}/similar")
 async def find_similar_doubts(
     doubt_id: int,
     top_k: int = Query(10, ge=1, le=50),
@@ -97,7 +97,7 @@ async def semantic_search_doubts(
     }
 
 
-@router.get("/{doubt_id}/suggestions")
+@router.get("/{doubt_id:int}/suggestions")
 async def get_answer_suggestions(
     doubt_id: int,
     min_confidence: float = Query(0.5, ge=0.0, le=1.0),
@@ -115,7 +115,7 @@ async def get_answer_suggestions(
     }
 
 
-@router.post("/{doubt_id}/suggestions/generate")
+@router.post("/{doubt_id:int}/suggestions/generate")
 async def generate_answer_suggestions(
     doubt_id: int,
     db: Session = Depends(get_db),
@@ -140,7 +140,7 @@ async def vote_suggestion_helpful(
     current_user: User = Depends(get_current_user)
 ):
     suggestion = answer_suggestion_service.vote_suggestion_helpful(
-        db, suggestion_id, is_helpful
+        db, suggestion_id, is_helpful, current_user.institution_id
     )
     
     if not suggestion:
@@ -153,21 +153,21 @@ async def vote_suggestion_helpful(
     }
 
 
-@router.post("/{doubt_id}/tags/auto-generate")
+@router.post("/{doubt_id:int}/tags/auto-generate")
 async def auto_generate_tags(
     doubt_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = tagging_service.auto_tag_doubt(db, doubt_id)
-    
+    result = tagging_service.auto_tag_doubt(db, doubt_id, current_user.institution_id)
+
     if not result['success']:
         raise HTTPException(status_code=404, detail=result['message'])
-    
+
     return result
 
 
-@router.get("/{doubt_id}/tags/suggestions")
+@router.get("/{doubt_id:int}/tags/suggestions")
 async def get_tag_suggestions(
     doubt_id: int,
     db: Session = Depends(get_db),
@@ -183,17 +183,17 @@ async def get_tag_suggestions(
     }
 
 
-@router.post("/{doubt_id}/priority/calculate")
+@router.post("/{doubt_id:int}/priority/calculate")
 async def calculate_priority(
     doubt_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = priority_service.calculate_priority_score(db, doubt_id)
-    
+    result = priority_service.calculate_priority_score(db, doubt_id, current_user.institution_id)
+
     if not result['success']:
         raise HTTPException(status_code=404, detail=result['message'])
-    
+
     return result
 
 
@@ -228,7 +228,7 @@ async def get_prioritized_doubts(
     }
 
 
-@router.post("/{doubt_id}/assign-teacher")
+@router.post("/{doubt_id:int}/assign-teacher")
 async def assign_teacher(
     doubt_id: int,
     auto_assign: bool = Query(True),
@@ -245,7 +245,7 @@ async def assign_teacher(
     return result
 
 
-@router.post("/{doubt_id}/reassign-teacher")
+@router.post("/{doubt_id:int}/reassign-teacher")
 async def reassign_teacher(
     doubt_id: int,
     new_teacher_id: int,
@@ -353,7 +353,7 @@ async def get_intelligence_analytics(
     return analytics
 
 
-@router.post("/{doubt_id}/reprocess")
+@router.post("/{doubt_id:int}/reprocess")
 async def reprocess_doubt(
     doubt_id: int,
     steps: Optional[List[str]] = Query(None),

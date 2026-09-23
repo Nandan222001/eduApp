@@ -291,12 +291,16 @@ class DoubtAnswerSuggestionService:
         self,
         db: Session,
         suggestion_id: int,
-        is_helpful: bool
+        is_helpful: bool,
+        institution_id: Optional[int] = None
     ) -> Optional[DoubtSuggestedAnswer]:
-        suggestion = db.query(DoubtSuggestedAnswer).filter(
+        query = db.query(DoubtSuggestedAnswer).filter(
             DoubtSuggestedAnswer.id == suggestion_id
-        ).first()
-        
+        )
+        if institution_id is not None:
+            query = query.filter(DoubtSuggestedAnswer.institution_id == institution_id)
+        suggestion = query.first()
+
         if not suggestion:
             return None
         
