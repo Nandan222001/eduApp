@@ -3249,3 +3249,90 @@ push), and committed.
 6. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
    running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
    of an injected `Depends(get_db)` session.
+
+## Backend fixes, thirty-fifth pass — commit e35788f (complete)
+
+138-139. **`assignments`, `submissions`** (commit `e35788f`, written by a background agent,
+    independently re-verified this pass) — `tests/integration/test_assignments_api.py` (17
+    endpoint groups) and `tests/integration/test_submissions_api.py` (6 endpoints), 99 tests
+    total. Independently re-ran fresh under both `-n0` and `-n auto` (99/99 both ways),
+    re-verified no regressions in `tests/test_api_assignments.py` and
+    `tests/integration/test_teachers_api.py`, confirmed clean full-suite collection (1699
+    tests), and reviewed the full diff line-by-line (including confirming `User.student_profile`/
+    `User.teacher_profile` relationships exist as claimed) before pushing. Found and fixed
+    **6 real bugs**:
+    - **`list_assignment_submissions`'s own query parameter shadowed the `status` module** --
+      `status: Optional[SubmissionStatus] = Query(None)` shadowed `from fastapi import status`
+      within the same function, which later did `raise HTTPException(status_code=
+      status.HTTP_404_NOT_FOUND, ...)`. Since `status` was always `None` or a `SubmissionStatus`
+      enum member by that point, every 404/403 branch of this endpoint raised an unhandled
+      `AttributeError` (500) instead. A genuinely new bug shape for this session -- a query
+      parameter name colliding with an already-imported module used later in the same function.
+      Fixed by renaming the internal parameter to `submission_status` with
+      `Query(None, alias="status")`, keeping the public `?status=` query string unchanged.
+    - `create_assignment` had no role check beyond institution match -- any authenticated user,
+      including a student, could create an assignment naming any teacher's id. Fixed: students
+      rejected outright, and a teacher caller may only create with their own `teacher_id`.
+    - `update_assignment`/`delete_assignment` were missing the teacher-owns-this-assignment
+      check `get_assignment` already enforces (confirmed pre-existing/intended behavior via the
+      already-passing `test_teachers_api.py::test_teacher_cannot_view_other_teacher_assignments`)
+      -- any teacher in the institution could edit or delete a colleague's assignment. Fixed by
+      adding the same ownership check to both mutations.
+    - `grade_submission_with_rubric` passed `grader_id=current_user.id` (a `users.id`) straight
+      into `Submission.graded_by`, which is `ForeignKey('teachers.id')` -- an `IntegrityError` on
+      any real grading call unless a user id happened to collide with a teacher id. It also had
+      zero teacher-role/ownership check, so any authenticated user could call it. Fixed to
+      resolve the caller's real `Teacher` row and enforce `assignment.teacher_id == teacher.id`,
+      matching the already-correct pattern in `submissions.py`'s own `grade_submission`.
+    - **5 missing same-student ownership checks across `submissions.py` (bug class 12 variant,
+      one level more granular than the usual cross-institution check)**: every submission
+      lookup checked cross-institution ownership but none checked that a *student* caller was
+      acting on their own submission -- any student could view, submit-as, or
+      upload/delete-files-for another student's submission within the same institution. Fixed
+      with a `current_user.student_profile.id == <owning student id>` check (matching the
+      existing convention already used elsewhere in this codebase, e.g. `src/api/v1/students.py`)
+      across `create_or_update_submission`, `get_submission`, `get_student_submission`,
+      `upload_submission_file`, and `delete_submission_file`. Teachers/admins (no
+      `student_profile`) are unaffected.
+    - Confirmed clean, no bug: no `AssignmentStatus.ACTIVE`-style enum mismatch in these two
+      files (that earlier-flagged bug was in `dashboard_widget_service.py`, already fixed), no
+      `func.case`/`next(get_db())`/frozen-`redis_client`-import/raw-ORM-in-`response_model=dict`/
+      route-ordering issues, and the S3 client call sites already use the correct signature from
+      an earlier pass's fix.
+
+`pytest --collect-only tests/` now collects **1699 tests, 0 errors**.
+
+## Every router dispatched in this pass's 3-agent batch is now complete
+`academic_years`, `terms`, `subjects`, `sections`, `grades`, `institutions`, `users`,
+`assignments`, `submissions` -- all 9 routers from the first parallel batch of the Phase-2/3
+backend route-module audit are now tested, fixed, independently verified, and pushed. Running 3
+background agents concurrently on fully disjoint router sets continued to work cleanly across
+this whole batch (no rate-limit hits, no file conflicts).
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue the Phase-2/3 backend route-module audit** with the next batch from the remaining
+   ~55 untested routers (see pass thirty-three's list for the full remaining set as of that
+   pass; remove `assignments`/`submissions` from it now that both are done). Suggested next
+   batch, grouped by theme: core communication/social (`messages`, `announcements`,
+   `notification_analytics`, `notification_templates`, `feedback`, `doubts`), attendance/grading
+   adjacent (`attendance`, `grade_configurations`, `quizzes`, `question_bank`,
+   `question_blueprints`, `question_bookmarks`), or admin/platform (`super_admin`,
+   `super_admin_analytics`, `institution_admin`, `institution_health`, `settings`,
+   `data_management`, `webhooks`). Same method as every router above: read router+service+models
+   fully first, check all eleven numbered bug classes plus the cross-tenant-authorization-gap
+   pattern (bug class 12) and same-*resource-owner* variant (found this pass in `submissions.py`
+   -- not just cross-institution, but cross-user-within-the-same-institution too), write tests,
+   fix what's broken, verify under both `-n0`/`-n auto`, confirm full-suite collection, commit
+   with a detailed message, update this file, and **check `git log --oneline -3`/`git status`
+   immediately before every push** (a lesson from pass thirty-four -- with multiple concurrent
+   background agents landing commits to the same shared working directory, it's easy to
+   accidentally push another agent's not-yet-reviewed commit bundled with your own).
+2. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding`, `collaboration`, `parent_education`, `sel`, `timetable`.
+3. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
+   anything NEW in that audit without the user's confirmation landing first.
+4. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
+   not-yet-started bodies of work.
+5. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
+   of an injected `Depends(get_db)` session.
