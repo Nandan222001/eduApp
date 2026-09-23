@@ -3521,3 +3521,99 @@ the `doubt_*_service.py` files until its hand-back is reviewed, verified, and co
    `create_access_token()` directly without also registering a matching
    `SessionManager.create_session(...)` record -- `get_current_user` requires both, so a token
    minted without a session is unusable the moment Redis is actually reachable.
+
+## Backend fixes, thirty-eighth pass — commit 8d1682d (complete)
+
+145-147. **`attendance`, `grade_configurations`, `doubts`** (commit `8d1682d`, written by a
+    continuation agent that inherited an uncommitted, never-test-validated diff from a
+    rate-limited predecessor) — `tests/integration/test_attendance_api.py` (46 tests),
+    `test_grade_configurations_api.py` (25 tests), `test_doubts_api.py` (58 tests), 129 total.
+    Independently re-ran fresh under both `-n0` and `-n auto` (129/129 both ways), confirmed
+    clean full-suite collection (**2050 tests, 0 errors** -- exactly 1699 + this session's
+    3 concurrent batches of 124/98/129), and reviewed the full diff line-by-line (including
+    confirming every new `Optional`/`Teacher` import) before pushing. The continuation agent
+    first validated the 5 inherited `attendance.py`/`attendance_service.py` fixes (student-role
+    rejection on write endpoints, institution-scoped student lookup on create,
+    bulk-mark-attendance cross-institution filtering, same-student checks on
+    get/request-correction, and the check-after-act ordering fix in `review_correction`) with
+    real regression tests -- all 5 held up correctly -- then found and fixed **8 more real
+    bugs**:
+    - **`GET /attendance/corrections` was completely unreachable** (bug class 7): registered
+      after the untyped `GET /{attendance_id}`, so a request to `/corrections` matched the
+      wildcard first and 422'd. Fixed with `{attendance_id:int}` converters on the
+      get/update/delete routes.
+    - **`request_correction` only checked the caller's *claimed* institution_id, never the
+      target attendance record's actual institution** (a subtler variant of bug class 12): a
+      caller could submit their own institution_id in the request body (passing that check)
+      while pointing `attendance_id` at a different institution's record, creating a
+      cross-institution correction. Fixed by looking up the target record first and comparing
+      its real `institution_id`.
+    - **A scope finding worth remembering for future routers**: despite `doubts.py`'s models
+      and the frontend (`frontend/src/api/doubts.ts`) clearly implying a full student Q&A CRUD
+      feature (`POST /doubts`, answer/vote/bookmark endpoints), none of that basic CRUD exists
+      anywhere in the backend -- `doubts.py` is solely an AI-intelligence layer (auto-tagging,
+      semantic search, answer suggestions, priority scoring, teacher auto-assignment) on top of
+      `DoubtPost` rows that must originate elsewhere (or nowhere yet). Correctly flagged back
+      rather than silently inventing the missing feature; tests scoped to what actually exists.
+      Worth checking whether this gap is tracked/intentional in a future pass.
+    - **4 cross-tenant authorization gaps in `doubts.py`'s AI services** (bug class 12):
+      `DoubtTaggingService.auto_tag_doubt`, `DoubtPriorityService.calculate_priority_score`, and
+      `DoubtAnswerSuggestionService.vote_suggestion_helpful` all looked up their target row by id
+      alone with zero institution scoping, letting any authenticated user of any institution
+      mutate/read another institution's doubt tags, priority scores, or suggestion votes.
+      `DoubtTeacherAssignmentService.reassign_doubt` never validated `new_teacher_id` belonged
+      to (or even existed in) the caller's institution -- a bogus id caused an unhandled FK
+      `IntegrityError`, a valid-but-wrong-institution id silently cross-assigned. Fixed all 4 by
+      threading `institution_id` through to each service method.
+    - **2 more unreachable routes in `doubts.py`** (`POST /batch/process`, `GET
+      /analytics/intelligence`), same route-shadowing shape as the attendance bug above. Fixed
+      with `{doubt_id:int}` converters across every `/{doubt_id}/...` route in the file.
+    - Explicitly ruled out after direct verification (not just inspection): `DoubtDifficulty`/
+      `DoubtStatus` are `(str, Enum)` subclasses whose member values already equal their
+      lowercase names, so a raw lowercase string assignment does NOT trigger the usual
+      SQLEnum-`.value`-vs-`.name` mismatch (bug class 2) here -- worth remembering that this bug
+      class only bites when the enum's values differ from its member names, not universally.
+    - `grade_configurations.py` needed no fixes -- behavior matches sibling
+      institution-scoped config routers (`terms.py`, `academic_years.py`).
+
+## This session's three-way simultaneous rate-limit recovery is now fully resolved
+All three routers/router-groups dispatched in the batch that hit the simultaneous rate limit
+(`messages`/`announcements`/`notification_templates`/`feedback`, `super_admin`, and
+`attendance`/`grade_configurations`/`doubts`) are now complete, independently verified, and
+pushed.
+
+## Next resume point (current, supersedes the ones above)
+1. **Continue the Phase-2/3 backend route-module audit** with the remaining untested routers.
+   Remaining from the original pass-thirty-three/thirty-five list (after removing everything
+   done through this pass): `analytics`, `board_exam_predictions`, `career`, `chatbot`,
+   `classroom_websocket`, `college_planning`, `conferences`, `content_marketplace`,
+   `data_management`, `document_vault`, `entrepreneurship`, `flashcards`, `goals`,
+   `homework_scanner`, `institution_admin`, `institution_health`, `mistake_analysis`,
+   `ml_monitoring`, `mobile_auth`, `notification_analytics`, `olympics`, `onboarding`,
+   `parent_roi`, `peer_recognition`, `peer_tutoring`, `plagiarism`, `podcasts`, `predictions`,
+   `previous_year_papers`, `profile`, `question_bank`, `question_blueprints`,
+   `question_bookmarks`, `question_nlp`, `quizzes`, `reverse_classroom`, `scholarship_essays`,
+   `search`, `settings`, `student_employment`, `study_buddy`, `study_materials`,
+   `study_planner`, `subject_rpg`, `super_admin_analytics`, `timetables`, `weakness_detection`,
+   `webhooks` (verify with `ls tests/integration/` before assuming any given one is still
+   untested -- some may have partial coverage under a differently-named file).
+2. **Fix the 5 routers that don't import cleanly** (unchanged): `branding`, `collaboration`,
+   `parent_education`, `sel`, `timetable`.
+3. **Lower-priority follow-up from pass thirty-seven**: register `BrandingMiddleware` in
+   `src/main.py` (or otherwise wire up `/super-admin/branding/current`), deliberately deferred
+   as an app-wide change outside a single router's scope.
+4. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
+   anything NEW in that audit without the user's confirmation landing first.
+5. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
+   not-yet-started bodies of work.
+6. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
+   of an injected `Depends(get_db)` session, a router mixing async SQLAlchemy against the sync
+   `get_db()` dependency, and any endpoint that mints a JWT via `create_access_token()` directly
+   without also registering a matching `SessionManager.create_session(...)` record. When a
+   background agent hits the session rate limit, do NOT discard its uncommitted work by
+   default -- read the diff, judge coherence, and if it looks complete and correct, dispatch a
+   continuation agent (or verify+extend it yourself) rather than starting over from scratch; this
+   pass's continuation agent found 2 genuinely new bugs (the corrections route-shadowing and the
+   request_correction ownership gap) specifically *because* it had to write real regression
+   tests against the inherited diff rather than just trusting it.
