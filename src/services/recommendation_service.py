@@ -526,12 +526,23 @@ class MultiModalContentRecommender:
         Detect student's learning style preferences based on material access patterns.
         Returns VARK scores (Visual, Auditory, Reading, Kinesthetic).
         """
+        # `User` has TWO foreign keys reachable from this join chain once
+        # StudyMaterial is joined in: MaterialAccessLog.user_id AND
+        # StudyMaterial.uploaded_by. An unqualified `.join(User)` here let
+        # SQLAlchemy pick the *StudyMaterial.uploaded_by* FK (the material's
+        # uploader) instead of the intended MaterialAccessLog.user_id (the
+        # person who accessed it) -- since students essentially never
+        # upload their own study materials, `uploaded_by` was NULL for
+        # nearly every material, so this query silently returned zero rows
+        # for real students, and detect_learning_style() always fell back
+        # to the flat 0.25/0.25/0.25/0.25 default regardless of actual
+        # access history. Fixed with an explicit join condition.
         access_logs = self.db.query(
             MaterialAccessLog
         ).join(
             StudyMaterial
         ).join(
-            User
+            User, MaterialAccessLog.user_id == User.id
         ).join(
             Student, Student.user_id == User.id
         ).filter(
@@ -688,10 +699,15 @@ class StudyPathSequencer:
             WeakArea.is_resolved == False
         ).order_by(WeakArea.weakness_score.desc()).all()
         
+        # Scoped to this institution too -- otherwise passing another
+        # institution's subject_id would happily return its chapters/topics
+        # (a cross-tenant data leak), even though the student_id above is
+        # scoped correctly by the caller.
         chapters = self.db.query(Chapter).filter(
             Chapter.subject_id == subject_id,
+            Chapter.institution_id == institution_id,
             Chapter.is_active == True
-        ).order_by(Chapter.sequence_number).all()
+        ).order_by(Chapter.display_order).all()
         
         chapter_performances = {
             cp.chapter_id: cp
@@ -719,12 +735,12 @@ class StudyPathSequencer:
             topics = self.db.query(Topic).filter(
                 Topic.chapter_id == chapter.id,
                 Topic.is_active == True
-            ).order_by(Topic.sequence_number).all()
-            
+            ).order_by(Topic.display_order).all()
+
             sequenced_path.append({
                 'chapter_id': chapter.id,
                 'chapter_name': chapter.name,
-                'sequence': chapter.sequence_number,
+                'sequence': chapter.display_order,
                 'mastery_score': mastery,
                 'is_weak': is_weak,
                 'priority_score': priority_score,
@@ -732,7 +748,7 @@ class StudyPathSequencer:
                     {
                         'topic_id': topic.id,
                         'topic_name': topic.name,
-                        'sequence': topic.sequence_number
+                        'sequence': topic.display_order
                     }
                     for topic in topics
                 ],
@@ -763,8 +779,8 @@ class StudyPathSequencer:
             priority += 50.0
         
         priority += (100.0 - mastery_score) * 0.3
-        
-        priority += chapter.sequence_number * 0.1
+
+        priority += chapter.display_order * 0.1
         
         return priority
     
@@ -999,6 +1015,7 @@ class IntelligentRecommendationService:
         )
         
         material_recommendations = self._merge_all_recommendations(
+            institution_id,
             learning_style_recommendations,
             difficulty_recommendations,
             peer_materials
@@ -1028,10 +1045,26 @@ class IntelligentRecommendationService:
             )
             study_paths.append(path)
         
-        learning_style_profile = self.multimodal_recommender.detect_learning_style(
+        raw_learning_style = self.multimodal_recommender.detect_learning_style(
             institution_id, student_id
         )
-        
+        dominant_style = max(raw_learning_style.items(), key=lambda x: x[1])[0]
+        # The schema (LearningStyleProfile) expects *_score field names and a
+        # dominant_style/confidence_level pair, not the raw {'visual': ...,
+        # 'auditory': ...} dict detect_learning_style() returns -- without
+        # this remapping, every /recommendations/comprehensive/{id} call
+        # raised a ResponseValidationError (missing required fields), 100%
+        # reproducible, since the raw dict was passed straight into the
+        # response body.
+        learning_style_profile = {
+            'visual_score': raw_learning_style.get('visual', 0.25),
+            'auditory_score': raw_learning_style.get('auditory', 0.25),
+            'reading_writing_score': raw_learning_style.get('reading_writing', 0.25),
+            'kinesthetic_score': raw_learning_style.get('kinesthetic', 0.25),
+            'dominant_style': dominant_style,
+            'confidence_level': raw_learning_style.get(dominant_style, 0.25)
+        }
+
         return {
             'student_id': student_id,
             'generated_at': datetime.utcnow().isoformat(),
@@ -1064,13 +1097,14 @@ class IntelligentRecommendationService:
     
     def _merge_all_recommendations(
         self,
+        institution_id: int,
         style_recs: List[Dict[str, Any]],
         difficulty_recs: List[Dict[str, Any]],
         peer_recs: List[Tuple[int, float, str]]
     ) -> List[Dict[str, Any]]:
         """Merge recommendations from all sources with weighted scoring"""
         merged = {}
-        
+
         for rec in style_recs:
             material_id = rec['material_id']
             merged[material_id] = {
@@ -1078,34 +1112,42 @@ class IntelligentRecommendationService:
                 'material': rec['material'],
                 'score': rec['style_match_score'] * 0.4,
                 'reasons': [rec['explanation']],
-                'sources': ['learning_style']
+                'sources': ['learning_style'],
+                'style_match_score': rec['style_match_score']
             }
-        
+
         for rec in difficulty_recs:
             material_id = rec['material_id']
             if material_id in merged:
                 merged[material_id]['score'] += rec['relevance_score'] * 0.3
                 merged[material_id]['reasons'].append(rec['reasoning'])
                 merged[material_id]['sources'].append('difficulty_match')
+                merged[material_id]['difficulty_match_score'] = rec['relevance_score']
             else:
                 merged[material_id] = {
                     'material_id': material_id,
                     'material': rec['material'],
                     'score': rec['relevance_score'] * 0.3,
                     'reasons': [rec['reasoning']],
-                    'sources': ['difficulty_match']
+                    'sources': ['difficulty_match'],
+                    'difficulty_match_score': rec['relevance_score']
                 }
-        
+
         for material_id, peer_score, peer_reason in peer_recs:
             if material_id in merged:
                 merged[material_id]['score'] += peer_score * 0.3
                 merged[material_id]['reasons'].append(peer_reason)
                 merged[material_id]['sources'].append('peer_success')
             else:
+                # Scoped to this institution -- unscoped, a peer material id
+                # from `get_peer_success_materials` could resolve to a
+                # different institution's StudyMaterial row and leak its
+                # title/type into this student's recommendations.
                 material = self.db.query(StudyMaterial).filter(
-                    StudyMaterial.id == material_id
+                    StudyMaterial.id == material_id,
+                    StudyMaterial.institution_id == institution_id
                 ).first()
-                
+
                 if material:
                     merged[material_id] = {
                         'material_id': material_id,
@@ -1114,24 +1156,45 @@ class IntelligentRecommendationService:
                         'reasons': [peer_reason],
                         'sources': ['peer_success']
                     }
-        
+
         result = []
         for mat_id, data in merged.items():
             effectiveness = self.effectiveness_engine.calculate_material_effectiveness(
                 data['material'].institution_id,
                 mat_id
             )
-            
+
+            effectiveness_score = None
             if effectiveness:
+                effectiveness_score = effectiveness['effectiveness_score']
                 data['score'] += effectiveness['effectiveness_score'] * 0.2
                 if effectiveness['effectiveness_score'] > 0.7:
                     data['reasons'].append(
                         f"Highly effective (avg improvement: {effectiveness['avg_improvement']:.1f}%)"
                     )
-            
-            data['explanation'] = ' | '.join(data['reasons'])
-            result.append(data)
-        
+
+            # Build the plain, JSON/Pydantic-serializable shape the
+            # MaterialRecommendation schema expects. The old code returned
+            # `data` as-is with a raw StudyMaterial ORM instance under
+            # 'material' and no 'title'/'material_type' keys at all --
+            # MaterialRecommendation requires title/material_type (no
+            # defaults), so every response validation failed, and even for
+            # the response_model=dict endpoints (`/topic`, `/filtered`) the
+            # raw ORM object isn't JSON-serializable via jsonable_encoder.
+            material = data.pop('material')
+            result.append({
+                'material_id': mat_id,
+                'title': material.title,
+                'material_type': material.material_type.value if material.material_type else None,
+                'score': data['score'],
+                'reasons': data['reasons'],
+                'explanation': ' | '.join(data['reasons']),
+                'sources': data['sources'],
+                'effectiveness_score': effectiveness_score,
+                'style_match_score': data.get('style_match_score'),
+                'difficulty_match_score': data.get('difficulty_match_score')
+            })
+
         result.sort(key=lambda x: x['score'], reverse=True)
         return result
     
@@ -1143,8 +1206,14 @@ class IntelligentRecommendationService:
         include_external: bool = True
     ) -> Dict[str, Any]:
         """Get targeted recommendations for specific topic"""
-        topic = self.db.query(Topic).filter(Topic.id == topic_id).first()
-        
+        # Scoped to this institution -- otherwise a student could pass
+        # another institution's topic_id and get back its chapter/subject
+        # names (and, before the internal_materials fix, its materials).
+        topic = self.db.query(Topic).filter(
+            Topic.id == topic_id,
+            Topic.institution_id == institution_id
+        ).first()
+
         if not topic:
             return {'error': 'Topic not found'}
         
@@ -1172,10 +1241,20 @@ class IntelligentRecommendationService:
             )
             
             score = style_match * 0.5 + (effectiveness['effectiveness_score'] * 0.5 if effectiveness else 0)
-            
+
             recommendations.append({
                 'material_id': material.id,
-                'material': material,
+                # A raw StudyMaterial ORM instance (previously embedded here
+                # under 'material') isn't JSON-serializable through
+                # jsonable_encoder -- this endpoint's response_model=dict
+                # does not validate/strip it, so every call raised a 500
+                # once it fell into FastAPI's `vars(obj)` fallback and hit
+                # SQLAlchemy's internal `_sa_instance_state`. Return plain,
+                # already-serializable fields instead.
+                'title': material.title,
+                'material_type': material.material_type.value if material.material_type else None,
+                'view_count': material.view_count,
+                'download_count': material.download_count,
                 'score': score,
                 'style_match': style_match,
                 'effectiveness': effectiveness
