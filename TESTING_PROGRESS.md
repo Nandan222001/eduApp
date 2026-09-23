@@ -2963,3 +2963,95 @@ this pass by design -- the `live_events` agent was told explicitly not to touch 
    full-suite collection check, then commit) worked cleanly again this pass -- continue using it
    without hesitation when it happens again; it is a normal, well-understood recoverable event,
    not a reason to discard the agent's work.
+
+## Backend fixes, thirty-second pass — commit 04800f8 (complete)
+
+130. **`live_events_websocket`** (commit `04800f8`, written directly) —
+    `tests/integration/test_live_events_websocket_api.py`, 17 tests covering both websocket
+    endpoints (`/ws/{event_id}`, `/ws/{event_id}/moderator`): connect/auth, viewer row creation,
+    chat send/broadcast/persist, chat-disabled rejection, viewer watch-duration updates,
+    ping/pong, disconnect cleanup + viewer-count broadcast, message deletion, mute/unmute.
+    Uses FastAPI `TestClient`'s in-process `websocket_connect` (ASGI transport, no real server
+    needed) rather than the older `tests/integration/test_websocket.py`'s pattern of dialing a
+    real `ws://localhost:8000` (which mostly `pytest.skip()`s in this environment since nothing
+    is listening there -- confirmed 10 of its 37 tests skip for exactly that reason, still true
+    after this pass). This completes every router from the original pass-twenty-three "+12
+    newly registered" resume list.
+
+    Found and fixed **3 real bugs, the most serious of this whole session**:
+    - Both endpoints had a literal `# TODO: Verify token and get user` /
+      `# TODO: Verify token and check moderator permissions` with **no authentication
+      implemented at all**, despite requiring a `token` query parameter. `websocket_endpoint`
+      hardcoded `user_id = 1` for every connection regardless of what token (or garbage) was
+      supplied -- any client could join any event's chat and post messages attributed to
+      whichever user happens to have id 1. `moderator_websocket_endpoint` accepted any
+      connection unconditionally, so anyone could delete any chat message or mute/unmute chat
+      for any event with zero authentication. Neither endpoint scoped the event lookup to the
+      caller's institution either. Fixed both using the existing `get_current_user_ws` helper in
+      `src/dependencies/auth.py` (already used correctly by the sibling `src/api/v1/websocket.py`
+      router -- it just was never wired into this file) plus the same institution-scoping the
+      REST equivalents already use (`check_event_access`, `moderate_chat_message`) -- a
+      cross-institution event now closes as not-found, matching its REST counterpart, "public"
+      events included (public only means public within that event's own institution). This one
+      wasn't found via the usual "run the test, see what breaks" process -- it was caught by
+      reading the router's source before writing a single test, per this session's established
+      practice of reading the full router/service/model before assuming it's correct.
+    - Both endpoints called `db: Session = next(get_db())` directly instead of declaring
+      `db: Session = Depends(get_db)`. Calling `next(get_db())` bypasses FastAPI's
+      dependency-injection/override mechanism entirely, so it always opened its own
+      `SessionLocal()` against the app's real (placeholder) DB credentials -- confirmed this is
+      exactly what made the endpoints untestable until fixed ("Access denied for user 'mysql'").
+      Fixed to use `Depends(get_db)`, matching every other router in this codebase; FastAPI does
+      support `Depends()` in websocket route handlers, this just wasn't used here.
+    - Once that was fixed, both endpoints' own `finally: db.close()` turned out to be **actively
+      harmful, not just redundant**, against a caller sharing one session across a
+      request/assertion sequence via `app.dependency_overrides` (exactly what the test client
+      fixture does) -- it closed the shared `db_session` out from under the test, raising
+      `DetachedInstanceError`/`InvalidRequestError` on every subsequent query in the same test.
+      Removed both `finally: db.close()` blocks: the `Depends(get_db)` dependency itself now
+      owns closing the session as part of its own generator teardown, exactly like every other
+      db-using dependency in this codebase.
+
+`pytest --collect-only tests/` now collects **1404 tests, 0 errors**.
+
+## Every router from the pass-twenty-three "+12 newly registered" list is now tested
+`fees`, `dashboard_widgets`, `database_maintenance`, `elections`, `events`, `family`,
+`library`, `live_events`, `live_events_websocket`, `performance_monitoring`, `rate_limits`,
+`recommendations`, `transport` -- all 13 (one more than originally counted; `fees` was pass
+twenty-three itself) now have real integration coverage, with a combined total of well over 30
+real bugs found and fixed across them this session. This is a natural milestone: the
+"newly-registered-but-untested-router" backlog that drove most of this session's work (passes
+twenty-three through thirty-two) is now fully cleared.
+
+## Next resume point (current, supersedes the ones above)
+1. **Shift focus to the broader Phase-2/3 backend route-module audit** — roughly 35 of the
+   originally-known ~95 routers (before pass twenty-three's +12) still have no real test
+   coverage, and this is now the single largest remaining body of backend work. No curated list
+   exists yet for these; the next iteration should enumerate them (e.g. diff the full `ROUTERS`
+   list in `src/api/v1/__init__.py` against `tests/integration/test_*_api.py` file names) and
+   pick up systematically, same method as every router above: read router+service+models fully
+   first, check all eleven numbered bug classes plus the cross-tenant-authorization-gap pattern
+   (bug class 12, unnumbered but tracked), write tests, fix what's broken, verify under both
+   `-n0`/`-n auto`, confirm full-suite collection, commit with a detailed message, update this
+   file, push.
+2. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+3. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings, now also including the two unauthenticated-websocket
+   vulnerabilities from this pass (both already fixed). Do NOT start fixing anything NEW in that
+   audit without the user's confirmation landing first.
+4. Frontend Phase 2/3 (~210 untested pages) and the mobile app (exists at
+   `/home/user/eduApp/mobile`, no `node_modules` installed, substantial `npm install` bootstrap
+   needed) remain the two largest not-yet-started bodies of work, and should be considered once
+   the backend router audit above reaches a natural stopping point.
+5. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; `DATABASE_USER`/`DATABASE_PASSWORD`/`DATABASE_NAME` default to
+   placeholders that don't match the test DB, so watch for `next(get_db())`/`SessionLocal()`
+   used directly instead of an injected `Depends(get_db)` session -- now confirmed in 4 separate
+   places this session (3 in `database_maintenance_service.py`, 2 in
+   `live_events_websocket.py`), worth grepping for proactively (`grep -rn "next(get_db())\|
+   SessionLocal()" src/api/`) on any new router before assuming it's fine. Clear
+   `/tmp/eduapp_schema.lock`/`.done` after any fresh MySQL start or schema reset.
