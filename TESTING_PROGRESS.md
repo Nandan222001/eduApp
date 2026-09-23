@@ -3055,3 +3055,116 @@ twenty-three through thirty-two) is now fully cleared.
    `live_events_websocket.py`), worth grepping for proactively (`grep -rn "next(get_db())\|
    SessionLocal()" src/api/`) on any new router before assuming it's fine. Clear
    `/tmp/eduapp_schema.lock`/`.done` after any fresh MySQL start or schema reset.
+
+## Backend fixes, thirty-third pass — commit ef9b125 (complete)
+
+Started the broader Phase-2/3 backend route-module audit (the ~35-68 routers that were never
+part of the pass-twenty-three "newly registered" list). Dispatched 3 background agents in
+parallel on disjoint routers this pass; this section covers the first to land.
+
+131-132. **`institutions`, `users`** (commit `ef9b125`, written by a background agent,
+    independently re-verified this pass) — `tests/integration/test_institutions_api.py` (33
+    tests) and `tests/integration/test_users_api.py` (48 tests), 81 total, covering these two
+    foundational routers that nearly every other tested router in this codebase depends on for
+    auth/fixtures. Independently re-ran fresh under both `-n0` and `-n auto` (81/81 both ways)
+    and reviewed the full diff line-by-line before pushing. Found and fixed **5 real bugs**:
+    - **`Institution` (the ORM model) was missing the `description` and `max_users` columns
+      entirely**, even though `InstitutionBase`/`InstitutionCreate`/`InstitutionUpdate` all
+      declare them, and `src/api/v1/super_admin.py`, `institution_health_service.py`, and
+      `src/utils/tenant.py` (the actual per-institution seat-limit enforcement) all read
+      `institution.description`/`institution.max_users` as if they existed.
+      `InstitutionService.create_institution`'s `Institution(**data.model_dump())` therefore
+      raised `TypeError: 'description' is an invalid keyword argument for Institution` on
+      **every single call** -- `POST /institutions` (institution onboarding, the platform-level
+      operation used to bring a new school onto the system) was completely broken. Fixed by
+      adding both columns to the model.
+    - `create_institution`'s duplicate check used `or_(Institution.slug == ..., Institution.domain
+      == institution_data.domain)` unconditionally. SQLAlchemy translates
+      `Institution.domain == None` to `domain IS NULL`, so with `domain` omitted (a common,
+      legitimate case -- it's optional) the OR matched *any* other existing domain-less
+      institution, spuriously raising "domain already exists" as soon as a second domain-less
+      institution existed. Fixed to only add the domain clause when a domain was actually
+      supplied.
+    - Neither `create_institution` nor `update_institution` checked `name` for uniqueness even
+      though `Institution.name` is `unique=True` at the DB level -- a duplicate name fell
+      through to an unhandled `IntegrityError` -> 500 instead of a clean 400. Fixed both.
+    - **Cross-tenant authorization gap (role escalation across institutions), bug class 12**:
+      `create_user`/`update_user` accepted `role_id` with zero validation -- not even that the
+      role exists. `Role.institution_id` scopes a custom role to one institution (system roles
+      like the seeded admin/teacher/student have `institution_id=None` and are legitimately
+      shared), but nothing checked this: an institution-A admin who knew/guessed another
+      institution's custom role id could assign that role -- and whatever permissions it
+      carries -- to a user in institution A, crossing the exact tenant boundary the adjacent
+      institution-scoping check was supposed to enforce. A nonexistent `role_id` also fell
+      through to a raw FK `IntegrityError` -> 500. Fixed both endpoints to require the role be
+      either a shared system role or scoped to the same institution as the target user, else
+      400.
+    - `create_user` never validated `user_data.institution_id` refers to a real institution -- a
+      bogus id fell through to an unhandled FK `IntegrityError` -> 500 instead of a clean 404.
+      Fixed with an explicit existence check.
+    - Confirmed clean, no bug: `get_user`/`update_user`/`delete_user` all correctly scope by the
+      *target* user's institution (not just the requester's own), `list_users` correctly filters
+      to the caller's institution unless superuser, and `/me/profile`'s route declaration after
+      `/{user_id}` is NOT an instance of bug class 7 (different path-segment counts, both
+      resolve correctly regardless of order -- worth remembering this distinction when auditing
+      future routers for the route-shadowing bug: it only bites when segment counts match).
+
+## In progress at end of this pass
+Two more background agents are concurrently working on disjoint routers as part of this same
+audit push, not yet complete as of this write-up:
+- **`academic_years`/`terms`/`subjects`/`sections`/`grades`** (5 small, closely-related
+  "academic structure" routers)
+- **`assignments`/`submissions`** (core teaching-and-learning entities)
+
+Do NOT start independent work on any of these 7 files until each agent's hand-back is reviewed,
+verified, and committed (or explicitly abandoned) -- same discipline as every recovered/verified
+background-agent pass so far this session.
+
+## Next resume point (current, supersedes the ones above)
+1. **Finish verifying and committing the two in-progress agents' work** (see above) -- review
+   diffs, re-run tests fresh under `-n0`/`-n auto`, confirm full-suite collection (now including
+   `institutions`/`users` plus whichever of these 7 land), then push.
+2. **Continue the Phase-2/3 backend route-module audit** with the remaining ~60 untested routers
+   (a full list as of pass thirty-two: `ai_prediction_dashboard`, `analytics`, `announcements`,
+   `attendance`, `board_exam_predictions`, `career`, `chatbot`, `classroom_websocket`,
+   `college_planning`, `conferences`, `content_marketplace`, `data_management`,
+   `document_vault`, `doubts`, `entrepreneurship`, `feedback`, `flashcards`, `goals`,
+   `grade_configurations`, `homework_scanner`, `institution_admin`, `institution_health`,
+   `messages`, `migrations`, `mistake_analysis`, `ml_monitoring`, `mobile_auth`,
+   `notification_analytics`, `notification_templates`, `olympics`, `onboarding`, `parent_roi`,
+   `peer_recognition`, `peer_tutoring`, `plagiarism`, `podcasts`, `predictions`,
+   `previous_year_papers`, `profile`, `question_bank`, `question_blueprints`,
+   `question_bookmarks`, `question_nlp`, `quizzes`, `reverse_classroom`, `scholarship_essays`,
+   `search`, `settings`, `student_employment`, `study_buddy`, `study_materials`,
+   `study_planner`, `subject_rpg`, `super_admin`, `super_admin_analytics`, `timetables`,
+   `weakness_detection`, `webhooks` -- note some of these may already have partial coverage
+   under a differently-named test file or via another router's tests exercising shared models;
+   verify with `ls tests/integration/` and a quick grep before assuming a router is fully
+   untested). Same method as every router above: read router+service+models fully first, check
+   all eleven numbered bug classes plus the cross-tenant-authorization-gap pattern (bug class
+   12), write tests, fix what's broken, verify under both `-n0`/`-n auto`, confirm full-suite
+   collection, commit with a detailed message, update this file, push. 2-3 background agents in
+   parallel on disjoint routers continues to work cleanly (no rate-limit or file-conflict issues
+   across 3 concurrent agents this pass) -- keep using that pattern for throughput, always
+   independently re-verifying before pushing.
+3. **Fix the 5 routers that don't import cleanly** (unchanged from pass twenty-three):
+   `branding` (missing third-party `pydub` dependency), `collaboration` (missing
+   `StudyBuddyProfileCreate` schema), `parent_education` (missing `CourseModule` model),
+   `sel` (missing the entire `src.models.sel` module), `timetable` (missing `DayOfWeek` in
+   `src.models.timetable`).
+4. **The pending security-posture audit is still unanswered by the user** — see prior resume
+   points for the top findings. Do NOT start fixing anything NEW in that audit without the
+   user's confirmation landing first.
+5. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
+   not-yet-started bodies of work, to be picked up once the backend router audit above reaches a
+   natural stopping point.
+6. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
+   running at iteration start; watch for `next(get_db())`/`SessionLocal()` used directly instead
+   of an injected `Depends(get_db)` session. This pass's `institutions` fix also required a
+   direct `ALTER TABLE institutions ADD COLUMN description TEXT NULL, ADD COLUMN max_users INT
+   NULL;` against the local test-DB MySQL instance (a model column addition doesn't retroactively
+   alter an already-created table) -- if a fresh MySQL start/schema reset picks up the corrected
+   model via `Base.metadata.create_all` this becomes unnecessary, but if tests fail with "Unknown
+   column" after a model change, check whether the already-provisioned test-DB table needs a
+   matching manual `ALTER TABLE` (or just clear `/tmp/eduapp_schema.lock`/`.done` and let the
+   schema get recreated from scratch, which is usually simpler).
