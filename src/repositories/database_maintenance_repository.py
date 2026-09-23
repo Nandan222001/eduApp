@@ -67,13 +67,14 @@ class DatabaseMaintenanceRepository:
                     0 as idx_scan,
                     0 as idx_tup_read,
                     0 as idx_tup_fetch,
-                    CONCAT(ROUND((s.INDEX_LENGTH / 1024 / 1024), 2), ' MB') as index_size,
-                    s.INDEX_LENGTH as index_size_bytes
+                    CONCAT(ROUND((t.INDEX_LENGTH / 1024 / 1024), 2), ' MB') as index_size,
+                    t.INDEX_LENGTH as index_size_bytes
                 FROM
                     information_schema.STATISTICS s
+                    INNER JOIN information_schema.TABLES t ON s.TABLE_NAME = t.TABLE_NAME AND s.TABLE_SCHEMA = t.TABLE_SCHEMA
                 WHERE
                     s.TABLE_SCHEMA = DATABASE() AND s.INDEX_NAME = :index_name
-                GROUP BY s.TABLE_SCHEMA, s.TABLE_NAME, s.INDEX_NAME, s.INDEX_LENGTH
+                GROUP BY s.TABLE_SCHEMA, s.TABLE_NAME, s.INDEX_NAME, t.INDEX_LENGTH
             """)
             result = db.execute(query, {"index_name": index_name})
         else:
@@ -85,16 +86,16 @@ class DatabaseMaintenanceRepository:
                     0 as idx_scan,
                     0 as idx_tup_read,
                     0 as idx_tup_fetch,
-                    CONCAT(ROUND((s.INDEX_LENGTH / 1024 / 1024), 2), ' MB') as index_size,
-                    s.INDEX_LENGTH as index_size_bytes
+                    CONCAT(ROUND((t.INDEX_LENGTH / 1024 / 1024), 2), ' MB') as index_size,
+                    t.INDEX_LENGTH as index_size_bytes
                 FROM
                     information_schema.STATISTICS s
                     INNER JOIN information_schema.TABLES t ON s.TABLE_NAME = t.TABLE_NAME AND s.TABLE_SCHEMA = t.TABLE_SCHEMA
                 WHERE
                     s.TABLE_SCHEMA = DATABASE()
-                GROUP BY s.TABLE_SCHEMA, s.TABLE_NAME, s.INDEX_NAME, s.INDEX_LENGTH
+                GROUP BY s.TABLE_SCHEMA, s.TABLE_NAME, s.INDEX_NAME, t.INDEX_LENGTH
                 ORDER BY
-                    s.INDEX_LENGTH DESC
+                    t.INDEX_LENGTH DESC
             """)
             result = db.execute(query)
         

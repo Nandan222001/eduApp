@@ -1,10 +1,12 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy import text
+from sqlalchemy.orm import Session
+import json
 import logging
 
-from src.database import SessionLocal, engine
-from src.redis_client import redis_client
+from src.database import engine
+from src.redis_client import get_redis
 from src.tasks.database_maintenance_tasks import (
     vacuum_analyze_task,
     analyze_index_usage_task,
@@ -36,17 +38,18 @@ class DatabaseMaintenanceService:
         }
     
     @staticmethod
-    def get_index_recommendations() -> Dict[str, Any]:
+    async def get_index_recommendations() -> Dict[str, Any]:
         """
         Retrieve index usage recommendations from cache or trigger new analysis.
         """
-        cached = redis_client.get("db_maintenance:index_recommendations")
-        
+        redis_client = await get_redis()
+        cached = await redis_client.get("db_maintenance:index_recommendations") if redis_client else None
+
         if cached:
             return {
                 "status": "success",
                 "source": "cache",
-                "data": eval(cached.decode() if isinstance(cached, bytes) else cached)
+                "data": json.loads(cached.decode() if isinstance(cached, bytes) else cached)
             }
         
         result = analyze_index_usage_task.delay()
@@ -69,17 +72,18 @@ class DatabaseMaintenanceService:
         }
     
     @staticmethod
-    def get_slow_queries() -> Dict[str, Any]:
+    async def get_slow_queries() -> Dict[str, Any]:
         """
         Retrieve slow query report from cache or trigger new analysis.
         """
-        cached = redis_client.get("db_maintenance:slow_queries")
-        
+        redis_client = await get_redis()
+        cached = await redis_client.get("db_maintenance:slow_queries") if redis_client else None
+
         if cached:
             return {
                 "status": "success",
                 "source": "cache",
-                "data": eval(cached.decode() if isinstance(cached, bytes) else cached)
+                "data": json.loads(cached.decode() if isinstance(cached, bytes) else cached)
             }
         
         result = log_slow_queries_task.delay()
@@ -114,17 +118,18 @@ class DatabaseMaintenanceService:
         }
     
     @staticmethod
-    def get_table_bloat_report() -> Dict[str, Any]:
+    async def get_table_bloat_report() -> Dict[str, Any]:
         """
         Retrieve table bloat report from cache or trigger new analysis.
         """
-        cached = redis_client.get("db_maintenance:bloat_report")
-        
+        redis_client = await get_redis()
+        cached = await redis_client.get("db_maintenance:bloat_report") if redis_client else None
+
         if cached:
             return {
                 "status": "success",
                 "source": "cache",
-                "data": eval(cached.decode() if isinstance(cached, bytes) else cached)
+                "data": json.loads(cached.decode() if isinstance(cached, bytes) else cached)
             }
         
         result = table_bloat_report_task.delay()
@@ -159,13 +164,11 @@ class DatabaseMaintenanceService:
         }
     
     @staticmethod
-    def get_database_stats() -> Dict[str, Any]:
+    def get_database_stats(db: Session) -> Dict[str, Any]:
         """
         Get current database statistics including size, connections, and activity.
         """
         try:
-            db = SessionLocal()
-            
             # MySQL database size query
             size_query = text("""
                 SELECT
@@ -205,9 +208,7 @@ class DatabaseMaintenanceService:
                     100.0 as commit_ratio
             """)
             tx_result = db.execute(transaction_query).fetchone()
-            
-            db.close()
-            
+
             return {
                 "status": "success",
                 "database": {
@@ -240,13 +241,11 @@ class DatabaseMaintenanceService:
             }
     
     @staticmethod
-    def get_partition_info() -> Dict[str, Any]:
+    def get_partition_info(db: Session) -> Dict[str, Any]:
         """
         Get information about existing partitions.
         """
         try:
-            db = SessionLocal()
-            
             query = text("""
                 SELECT
                     TABLE_SCHEMA as schemaname,
@@ -274,9 +273,7 @@ class DatabaseMaintenanceService:
                     "name": row[1],
                     "size": row[2]
                 })
-            
-            db.close()
-            
+
             return {
                 "status": "success",
                 "partition_count": len(partitions),
@@ -327,21 +324,45 @@ class DatabaseMaintenanceService:
             return f"{seconds / 86400} days"
     
     @staticmethod
-    def drop_unused_index(index_name: str) -> Dict[str, Any]:
+    def drop_unused_index(index_name: str, db: Session) -> Dict[str, Any]:
         """
         Drop a specific unused index.
         """
+        import re
+
+        if not re.match(r'^[A-Za-z0-9_]+$', index_name):
+            return {
+                "status": "error",
+                "message": f"Invalid index name: {index_name}"
+            }
+
         try:
+            table_row = db.execute(
+                text(
+                    "SELECT TABLE_NAME FROM information_schema.STATISTICS "
+                    "WHERE TABLE_SCHEMA = DATABASE() AND INDEX_NAME = :index_name LIMIT 1"
+                ),
+                {"index_name": index_name}
+            ).fetchone()
+
+            if not table_row:
+                return {
+                    "status": "error",
+                    "message": f"Index {index_name} not found"
+                }
+
+            table_name = table_row[0]
+
             with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                query = text(f"DROP INDEX {index_name} ON {index_name.split('_')[0]}")
+                query = text(f"DROP INDEX `{index_name}` ON `{table_name}`")
                 conn.execute(query)
                 logger.info(f"Dropped index: {index_name}")
-                
+
                 return {
                     "status": "success",
                     "message": f"Index {index_name} has been dropped"
                 }
-        
+
         except Exception as e:
             logger.error(f"Error dropping index {index_name}: {str(e)}")
             return {

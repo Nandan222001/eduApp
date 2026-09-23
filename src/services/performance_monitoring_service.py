@@ -31,7 +31,7 @@ from src.schemas.performance_monitoring import (
     PerformanceDashboardData,
     PerformanceThresholds,
 )
-from src.redis_client import redis_client
+from src.redis_client import get_redis
 import json
 
 
@@ -761,6 +761,7 @@ class PerformanceMonitoringService:
         ).scalar() or 0
         
         current_active_users = 0
+        redis_client = await get_redis()
         if redis_client:
             try:
                 keys = await redis_client.keys("session:*")
