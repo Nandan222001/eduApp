@@ -85,9 +85,18 @@ export default function AttendanceMarkingPage() {
       const response = await studentsApi.listStudents({ limit: 1000, skip: 0 });
       const uniqueSections = Array.from(
         new Map(
-          response.items.filter((s) => s.section).map((s) => [s.section!.id, s.section!])
+          response.items
+            .filter((s) => s.section)
+            .map((s) => [
+              s.section!.id,
+              {
+                id: s.section!.id,
+                name: s.section!.name,
+                grade_name: s.section!.grade?.name,
+              },
+            ])
         ).values()
-      ) as Section[];
+      );
       setSections(uniqueSections);
     } catch (err) {
       console.error('Failed to load sections:', err);
