@@ -113,6 +113,20 @@ class PeerTutoringService:
         institution_id: int,
         session_data: TutoringSessionCreate
     ) -> TutoringSession:
+        tutor = db.query(TutorProfile).filter(
+            TutorProfile.id == session_data.tutor_id,
+            TutorProfile.institution_id == institution_id
+        ).first()
+        if not tutor:
+            raise ValueError("Tutor not found")
+
+        student = db.query(Student).filter(
+            Student.id == session_data.student_id,
+            Student.institution_id == institution_id
+        ).first()
+        if not student:
+            raise ValueError("Student not found")
+
         session = TutoringSession(
             institution_id=institution_id,
             tutor_id=session_data.tutor_id,
@@ -235,12 +249,13 @@ class PeerTutoringService:
         review_data: TutorReviewCreate
     ) -> TutorReview:
         session = db.query(TutoringSession).filter(
-            TutoringSession.id == review_data.session_id
+            TutoringSession.id == review_data.session_id,
+            TutoringSession.institution_id == institution_id
         ).first()
-        
+
         if not session:
             raise ValueError("Session not found")
-        
+
         review = TutorReview(
             institution_id=institution_id,
             tutor_id=session.tutor_id,
@@ -278,13 +293,20 @@ class PeerTutoringService:
         endorser_id: int,
         endorsement_data: TutorEndorsementCreate
     ) -> TutorEndorsement:
+        tutor = db.query(TutorProfile).filter(
+            TutorProfile.id == endorsement_data.tutor_id,
+            TutorProfile.institution_id == institution_id
+        ).first()
+        if not tutor:
+            raise ValueError("Tutor not found")
+
         endorser = db.query(User).filter(User.id == endorser_id).first()
-        
+
         weight = 1
         if endorser and endorser.role_id:
             from src.models.role import Role
             role = db.query(Role).filter(Role.id == endorser.role_id).first()
-            if role and 'teacher' in role.name.lower():
+            if role and 'teacher' in role.slug.lower():
                 weight = 3
         
         endorsement = TutorEndorsement(
@@ -309,6 +331,14 @@ class PeerTutoringService:
         moderator_id: int,
         log_data: SessionModerationLogCreate
     ) -> SessionModerationLog:
+        session = db.query(TutoringSession).filter(
+            TutoringSession.id == log_data.session_id,
+            TutoringSession.institution_id == institution_id
+        ).first()
+
+        if not session:
+            raise ValueError("Session not found")
+
         log = SessionModerationLog(
             institution_id=institution_id,
             session_id=log_data.session_id,
@@ -321,18 +351,14 @@ class PeerTutoringService:
             auto_flagged=False
         )
         db.add(log)
-        
+
         if log_data.action_type == ModerationActionType.TEMPORARY_SUSPENSION:
-            session = db.query(TutoringSession).filter(
-                TutoringSession.id == log_data.session_id
+            tutor = db.query(TutorProfile).filter(
+                TutorProfile.id == session.tutor_id
             ).first()
-            if session:
-                tutor = db.query(TutorProfile).filter(
-                    TutorProfile.id == session.tutor_id
-                ).first()
-                if tutor:
-                    tutor.status = TutorStatus.SUSPENDED
-        
+            if tutor:
+                tutor.status = TutorStatus.SUSPENDED
+
         db.commit()
         db.refresh(log)
         return log
@@ -443,6 +469,13 @@ class PeerTutoringService:
         institution_id: int,
         preference_data: MatchingPreferenceCreate
     ) -> MatchingPreference:
+        student = db.query(Student).filter(
+            Student.id == preference_data.student_id,
+            Student.institution_id == institution_id
+        ).first()
+        if not student:
+            raise ValueError("Student not found")
+
         preference = MatchingPreference(
             institution_id=institution_id,
             student_id=preference_data.student_id,

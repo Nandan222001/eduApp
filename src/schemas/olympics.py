@@ -167,7 +167,7 @@ class CompetitionLeaderboardBase(BaseModel):
     scope: CompetitionScope
     rankings: Dict[str, Any]
     total_participants: int = 0
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
 
 
 class CompetitionLeaderboardCreate(CompetitionLeaderboardBase):

@@ -168,7 +168,7 @@ class PeerRecognitionService:
                 description=f"Received {recognition.recognition_type.value} recognition",
                 reference_id=recognition.id,
                 reference_type="peer_recognition",
-                metadata={
+                metadata_json={
                     "recognition_type": recognition.recognition_type.value,
                     "from_student_id": recognition.from_student_id
                 }
@@ -343,11 +343,15 @@ class PeerRecognitionService:
     def toggle_like(
         db: Session,
         recognition_id: int,
-        student_id: int
+        student_id: int,
+        institution_id: Optional[int] = None
     ) -> Dict[str, any]:
-        recognition = db.query(PeerRecognition).filter(
+        query = db.query(PeerRecognition).filter(
             PeerRecognition.id == recognition_id
-        ).first()
+        )
+        if institution_id is not None:
+            query = query.filter(PeerRecognition.institution_id == institution_id)
+        recognition = query.first()
         
         if not recognition:
             raise HTTPException(

@@ -118,7 +118,7 @@ class TutoringSessionResponse(TutoringSessionBase):
     flagged_reason: Optional[str] = None
     cancellation_reason: Optional[str] = None
     cancelled_by: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -231,7 +231,7 @@ class TutorIncentiveResponse(BaseModel):
     is_redeemed: bool
     redeemed_at: Optional[datetime] = None
     requirements_met: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -246,7 +246,7 @@ class TutorPointHistoryResponse(BaseModel):
     points: int
     reason: str
     description: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -296,7 +296,7 @@ class TutorLeaderboardResponse(BaseModel):
     sessions_count: int
     total_hours: Decimal
     average_rating: Decimal
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 
@@ -348,7 +348,7 @@ class MatchingPreferenceResponse(MatchingPreferenceBase):
     id: int
     institution_id: int
     student_id: int
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 

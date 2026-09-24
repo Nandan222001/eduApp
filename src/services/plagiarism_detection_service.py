@@ -729,15 +729,39 @@ class PlagiarismDetectionService:
         medium_similarity = [r for r in results if 0.5 <= r.similarity_score < 0.8]
         low_similarity = [r for r in results if r.similarity_score < 0.5]
         
+        # `ComparisonPair` requires both submission ids plus the two
+        # students' names -- previously this only populated the raw ids
+        # (leaving `submission_id_2` as `None` whenever `matched_submission_id`
+        # was unset, e.g. an external-source match with no second in-batch
+        # submission) and never looked up either student's name at all, so
+        # this endpoint raised a `ResponseValidationError` (500) 100% of the
+        # time it had at least one flagged high-similarity, non-external
+        # match (model/schema drift, bug class 11). Fixed by only building a
+        # pair when there is a real second submission to compare against,
+        # and by resolving both students' names via `Submission.student`.
         flagged_pairs = []
         for result in high_similarity:
-            if not result.is_false_positive:
-                flagged_pairs.append({
-                    'submission_id_1': result.submission_id,
-                    'submission_id_2': result.matched_submission_id,
-                    'similarity_score': result.similarity_score,
-                    'matched_segments': result.matched_segments_count
-                })
+            if result.is_false_positive or not result.matched_submission_id:
+                continue
+
+            submission_1 = self.db.query(Submission).filter(
+                Submission.id == result.submission_id
+            ).first()
+            submission_2 = self.db.query(Submission).filter(
+                Submission.id == result.matched_submission_id
+            ).first()
+
+            student_1 = submission_1.student if submission_1 else None
+            student_2 = submission_2.student if submission_2 else None
+
+            flagged_pairs.append({
+                'submission_id_1': result.submission_id,
+                'submission_id_2': result.matched_submission_id,
+                'student_name_1': f"{student_1.first_name} {student_1.last_name}" if student_1 else "Unknown",
+                'student_name_2': f"{student_2.first_name} {student_2.last_name}" if student_2 else "Unknown",
+                'similarity_score': result.similarity_score,
+                'matched_segments': result.matched_segments_count
+            })
         
         avg_similarity = (
             sum(r.similarity_score for r in results) / len(results)

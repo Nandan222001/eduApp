@@ -260,16 +260,25 @@ class OnboardingService:
     def start_onboarding(
         db: Session,
         user_id: int,
-        flow_id: int
-    ) -> OnboardingProgress:
+        flow_id: int,
+        institution_id: Optional[int] = None
+    ) -> Optional[OnboardingProgress]:
         existing = db.query(OnboardingProgress).filter(
             OnboardingProgress.user_id == user_id,
             OnboardingProgress.flow_id == flow_id
         ).first()
-        
+
         if existing:
             return existing
-        
+
+        if institution_id is not None:
+            flow = db.query(OnboardingFlow).filter(
+                OnboardingFlow.id == flow_id,
+                OnboardingFlow.institution_id == institution_id
+            ).first()
+            if not flow:
+                return None
+
         progress = OnboardingProgress(
             user_id=user_id,
             flow_id=flow_id,
@@ -379,23 +388,27 @@ class OnboardingService:
         db: Session,
         user_id: int,
         step_id: int,
-        completion_data: StepCompletionRequest
+        completion_data: StepCompletionRequest,
+        institution_id: Optional[int] = None
     ) -> OnboardingStepProgress:
-        step = db.query(OnboardingStep).filter(
-            OnboardingStep.id == step_id
-        ).first()
-        
+        query = db.query(OnboardingStep).filter(OnboardingStep.id == step_id)
+        if institution_id is not None:
+            query = query.join(OnboardingFlow).filter(
+                OnboardingFlow.institution_id == institution_id
+            )
+        step = query.first()
+
         if not step:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Step not found"
             )
-        
+
         progress = db.query(OnboardingProgress).filter(
             OnboardingProgress.user_id == user_id,
             OnboardingProgress.flow_id == step.flow_id
         ).first()
-        
+
         if not progress:
             progress = OnboardingService.start_onboarding(db, user_id, step.flow_id)
         
@@ -415,9 +428,21 @@ class OnboardingService:
         step_progress.is_skipped = completion_data.is_skipped
         step_progress.response_data = completion_data.response_data
         step_progress.completed_at = datetime.utcnow()
-        
+
         progress.current_step_order = step.step_order
-        
+
+        # `step_progress` was attached via `progress_id=progress.id` rather
+        # than through the `progress.step_progress` relationship itself, so
+        # SQLAlchemy never appended it to that already-loaded collection.
+        # `get_next_step` below reads `progress.step_progress` to work out
+        # which steps are done, so without flushing + expiring it here, a
+        # student's very last step could never complete the flow: the
+        # freshly-completed step would look un-completed to `get_next_step`,
+        # which would keep returning it as the "next" step forever, and
+        # `progress.is_completed` would never get set to True.
+        db.flush()
+        db.expire(progress, ['step_progress'])
+
         next_step = OnboardingService.get_next_step(db, progress)
         if not next_step:
             progress.is_completed = True
@@ -431,7 +456,8 @@ class OnboardingService:
     def get_progress_summary(
         db: Session,
         user_id: int,
-        flow_id: int
+        flow_id: int,
+        institution_id: Optional[int] = None
     ) -> FlowProgressSummary:
         progress = db.query(OnboardingProgress).options(
             joinedload(OnboardingProgress.step_progress),
@@ -440,12 +466,17 @@ class OnboardingService:
             OnboardingProgress.user_id == user_id,
             OnboardingProgress.flow_id == flow_id
         ).first()
-        
+
         if not progress:
-            flow = db.query(OnboardingFlow).filter(
+            flow_query = db.query(OnboardingFlow).filter(
                 OnboardingFlow.id == flow_id
-            ).first()
-            
+            )
+            if institution_id is not None:
+                flow_query = flow_query.filter(
+                    OnboardingFlow.institution_id == institution_id
+                )
+            flow = flow_query.first()
+
             if not flow:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
