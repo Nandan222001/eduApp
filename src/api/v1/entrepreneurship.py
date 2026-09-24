@@ -48,12 +48,35 @@ from src.models.user import User
 router = APIRouter()
 
 
+def _check_institution_access(current_user: User, institution_id: Optional[int]) -> None:
+    """403s unless the caller is a superuser, belongs to this institution,
+    or the institution is unset (some records here, e.g. platform-wide
+    mentors, are intentionally institution-less).
+
+    None of the create/update/delete endpoints below checked this before:
+    a caller could create a venture/competition/mentor/mentorship/funding
+    request tagged with *any* institution_id (not just their own), and
+    could update or delete any other institution's existing records by id
+    -- a cross-tenant write gap (bug class 12), distinct from this
+    router's read-side endpoints (list/get/showcase), which are
+    deliberately cross-institution by design (a public venture/competition/
+    mentor discovery surface, per the optional institution_id filters and
+    the dedicated /showcase endpoint).
+    """
+    if institution_id is None:
+        return
+    if not current_user.is_superuser and current_user.institution_id != institution_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+
 @router.post("/ventures", response_model=StudentVentureResponse, status_code=status.HTTP_201_CREATED)
 async def create_venture(
     venture_data: StudentVentureCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_institution_access(current_user, venture_data.institution_id)
+
     venture = StudentVenture(
         institution_id=venture_data.institution_id,
         venture_name=venture_data.venture_name,
@@ -149,7 +172,9 @@ async def update_venture(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Venture not found"
         )
-    
+
+    _check_institution_access(current_user, venture.institution_id)
+
     update_data = venture_data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(venture, key, value)
@@ -173,7 +198,9 @@ async def delete_venture(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Venture not found"
         )
-    
+
+    _check_institution_access(current_user, venture.institution_id)
+
     venture.is_active = False
     db.commit()
     
@@ -186,6 +213,8 @@ async def create_competition(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_institution_access(current_user, competition_data.institution_id)
+
     competition = PitchCompetition(
         institution_id=competition_data.institution_id,
         competition_name=competition_data.competition_name,
@@ -268,7 +297,9 @@ async def update_competition(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Competition not found"
         )
-    
+
+    _check_institution_access(current_user, competition.institution_id)
+
     update_data = competition_data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(competition, key, value)
@@ -294,12 +325,28 @@ async def submit_pitch(
             detail="Competition not found"
         )
     
+    venture = db.query(StudentVenture).filter(StudentVenture.id == submission_data.venture_id).first()
+
+    if not venture:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Venture not found"
+        )
+
+    # Previously unchecked: submission_data.venture_id was used directly in
+    # the PitchSubmission(...) constructor below with no existence check at
+    # all (an unknown venture_id raised an unhandled FK IntegrityError ->
+    # 500 instead of a clean 404) and no institution check (any caller
+    # could submit *any* institution's venture into a competition, cross-
+    # tenant).
+    _check_institution_access(current_user, venture.institution_id)
+
     if competition.status != CompetitionStatus.OPEN:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Competition is not open for submissions"
         )
-    
+
     if datetime.utcnow() > competition.submission_deadline:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -379,15 +426,27 @@ async def score_submission(
             detail="User is not a judge for this competition"
         )
     
-    if not submission.judge_scores:
-        submission.judge_scores = {}
-    
-    submission.judge_scores[str(score_data.judge_id)] = {
+    # `judge_scores` is a plain JSON column (not wrapped in
+    # sqlalchemy.ext.mutable.MutableDict), so SQLAlchemy's change-tracking
+    # only notices a *reassignment* of the attribute, not an in-place
+    # mutation of the dict object it already holds. Mutating in place (the
+    # previous `submission.judge_scores[key] = ...`) worked by accident the
+    # very first time a submission was scored (that call also did
+    # `submission.judge_scores = {}` right above it, which IS a tracked
+    # reassignment), but every subsequent judge's score on the same
+    # submission was silently dropped: db.commit() never included the
+    # column in its UPDATE, and the following db.refresh() then overwrote
+    # the in-memory dict with the (still-missing-that-score) DB value,
+    # permanently losing it. Building a new dict and reassigning it ensures
+    # every scoring call is tracked and persisted correctly.
+    updated_scores = dict(submission.judge_scores or {})
+    updated_scores[str(score_data.judge_id)] = {
         "scores": {k: float(v) for k, v in score_data.scores.items()},
         "feedback": score_data.feedback,
         "scored_at": datetime.utcnow().isoformat()
     }
-    
+    submission.judge_scores = updated_scores
+
     total = Decimal(0)
     count = 0
     for judge_score in submission.judge_scores.values():
@@ -410,6 +469,8 @@ async def create_mentor(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_institution_access(current_user, mentor_data.institution_id)
+
     mentor = EntrepreneurshipMentor(
         institution_id=mentor_data.institution_id,
         user_id=mentor_data.user_id,
@@ -496,13 +557,15 @@ async def update_mentor(
     db: Session = Depends(get_db),
 ):
     mentor = db.query(EntrepreneurshipMentor).filter(EntrepreneurshipMentor.id == mentor_id).first()
-    
+
     if not mentor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Mentor not found"
         )
-    
+
+    _check_institution_access(current_user, mentor.institution_id)
+
     update_data = mentor_data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(mentor, key, value)
@@ -554,20 +617,34 @@ async def create_mentorship(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_institution_access(current_user, mentorship_data.institution_id)
+
     mentor = db.query(EntrepreneurshipMentor).filter(EntrepreneurshipMentor.id == mentorship_data.mentor_id).first()
-    
+
     if not mentor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Mentor not found"
         )
-    
+
+    # `venture_id` was never validated at all before being handed straight
+    # to the MentorshipRelationship(...) constructor below -- an unknown
+    # venture_id raised an unhandled FK IntegrityError (500) instead of a
+    # clean 404.
+    venture = db.query(StudentVenture).filter(StudentVenture.id == mentorship_data.venture_id).first()
+
+    if not venture:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Venture not found"
+        )
+
     if not mentor.available_for_mentoring or mentor.current_mentees >= mentor.mentoring_capacity:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Mentor is not available for new mentorships"
         )
-    
+
     mentorship = MentorshipRelationship(
         institution_id=mentorship_data.institution_id,
         mentor_id=mentorship_data.mentor_id,
@@ -618,13 +695,15 @@ async def update_mentorship(
     db: Session = Depends(get_db),
 ):
     mentorship = db.query(MentorshipRelationship).filter(MentorshipRelationship.id == mentorship_id).first()
-    
+
     if not mentorship:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Mentorship not found"
         )
-    
+
+    _check_institution_access(current_user, mentorship.institution_id)
+
     old_status = mentorship.status
     
     update_data = mentorship_data.model_dump(exclude_unset=True)
@@ -655,14 +734,16 @@ async def create_funding_request(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_institution_access(current_user, funding_data.institution_id)
+
     venture = db.query(StudentVenture).filter(StudentVenture.id == funding_data.venture_id).first()
-    
+
     if not venture:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Venture not found"
         )
-    
+
     funding_request = VentureFundingRequest(
         institution_id=funding_data.institution_id,
         venture_id=funding_data.venture_id,
@@ -737,7 +818,9 @@ async def update_funding_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Funding request not found"
         )
-    
+
+    _check_institution_access(current_user, funding_request.institution_id)
+
     old_status = funding_request.status
     
     update_data = funding_data.model_dump(exclude_unset=True)
