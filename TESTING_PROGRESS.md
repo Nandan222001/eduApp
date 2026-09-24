@@ -3924,41 +3924,149 @@ redispatching) — simply redispatching the identical batch a short time later s
 special recovery needed, so a rate-limit failure with an empty diff doesn't always mean waiting
 for the stated reset time.
 
+## Backend fixes, forty-second pass — commits dede1b6, 92c2c79, c7cee38 (complete)
+
+**THIS PASS COMPLETES THE PHASE-2/3 BACKEND ROUTE-MODULE AUDIT** — all 35 originally-listed
+untested routers (the pass-40 "Next resume point" list plus everything since) now have real
+integration test coverage. 178-195. **18 routers**: `olympics`, `onboarding`, `peer_recognition`,
+    `peer_tutoring`, `plagiarism`, `podcasts` (confirmed genuine 3-line stub, nothing to
+    test), `predictions`, `previous_year_papers`, `reverse_classroom`, `scholarship_essays`,
+    `student_employment`, `study_buddy`, `study_materials`, `study_planner`, `subject_rpg`,
+    `super_admin_analytics`, `timetables`, `weakness_detection` — 365 new tests (`test_{router}
+    _api.py` for all 17 non-stub routers), independently re-run fresh under `-n0` in three
+    batches (127 + 132 + 106, all 100% pass), clean full-suite collection (3251 tests, 0
+    errors), clean `api_router` import (1628 routes). Reviewed the largest/riskiest diff
+    (`timetables.py`, a near-total rewrite) line-by-line and confirmed every referenced model
+    attribute (`Timetable`, `period_slots`, the new `TimetableInstance*` schemas) genuinely
+    exists before pushing.
+    - **Process note, worth remembering going forward**: the dispatch that produced these 18
+      routers was itself rate-limited a SECOND time, but this time mid-flight rather than at
+      the very start — three agents had already made real, syntax-valid, correctly-scoped code
+      fixes across 12 files (confirmed via `git diff` review, `ast.parse` on every changed
+      file, and a clean app import) with zero test files written yet. Rather than discard and
+      restart, three continuation agents were dispatched with explicit "here's what's already
+      changed in your file scope, verify it via `git diff` before doing anything else, then
+      finish" context, operating on the same shared working tree (background agents in this
+      environment share one filesystem, so a continuation agent sees a prior agent's
+      uncommitted edits directly — no need to stash/commit/hand off a patch). All three
+      continuation agents correctly identified and preserved the good partial work, finished
+      the remaining endpoints, wrote the tests, and committed cleanly with zero file-scope
+      collisions. This is now the established recovery path for a mid-flight (as opposed to
+      immediate) rate-limit hit.
+    - **Ninth zero-auth router found this session**: `subject_rpg.py` (all 19 endpoints), plus
+      8 of those with no institution scoping either on top of that.
+    - **Two more instances of `Role` compared/used as a string instead of `.slug`** were
+      *not* the finding this pass (plagiarism.py's was fixed in the interrupted first attempt)
+      — instead a new, closely-related shape recurred repeatedly: **`metadata`/`metadata_json`
+      shadowing on the READ side**, i.e. a Pydantic response schema declaring a plain
+      `metadata` field against an ORM model whose column is `metadata_json` — SQLAlchemy's
+      declarative base reserves `.metadata` for its own `MetaData` object, so `from_attributes`
+      silently resolves to that instead of the real column, guaranteeing a
+      `ResponseValidationError` on every response that touches the field. Found in **6 response
+      schemas across `peer_tutoring.py`/`olympics.py`** in one sweep
+      (`TutoringSessionResponse`, `TutorIncentiveResponse`, `TutorPointHistoryResponse`,
+      `TutorLeaderboardResponse`, `MatchingPreferenceResponse`,
+      `CompetitionLeaderboardResponse`), again in `study_buddy.py`'s two response schemas, and
+      again in `study_planner.py`/`weakness_detection.py`'s three (`StudyPlanResponse`,
+      `DailyStudyTaskResponse`, `QuestionRecommendationResponse`) — all fixed with the
+      established `validation_alias='metadata_json', serialization_alias='metadata'` pattern.
+      **This is now a mandatory grep on every remaining/future router**: search for a bare
+      `metadata` field on any response schema whose backing model has `metadata_json`.
+    - **A near-identical "stale `__dict__`/attribute-expiry after an intermediate commit"
+      shape recurred three separate times this pass, in three unrelated routers** (same root
+      shape as pass 40/41's `content_marketplace.py`/`get_content_detail` bug): `peer_recognition
+      .py`'s `send_recognition` (service does extra commits after its own `db.refresh()`,
+      re-expiring attributes before the router builds a response from `__dict__`) — 100% failure
+      on every call; `study_materials.py`'s `create_material`/`create_share` (called
+      `db.refresh()` *before* a second commit that then expired everything) — same 100%
+      failure shape, opposite ordering bug. Both fixed by moving/adding a `db.refresh()` to run
+      strictly last, after all commits.
+    - **Severe, session-first bugs found this pass**: `super_admin_analytics.py` had an
+      unconditional infinite loop in trend analysis (`<=` vs `<` in a date-stepping `while`
+      loop — hangs the whole request thread), `Submission.institution_id` model drift, and
+      Postgres-only `EXTRACT(epoch FROM ...)` syntax MySQL rejects outright.
+      `timetables.py` was comprehensively non-functional (severe, pre-existing model/schema
+      drift — very likely the same root shape as the separately-known, out-of-scope
+      `timetable.py` singular-file `DayOfWeek` crash) and was rebuilt against the real
+      normalized `Timetable`/`period_slots` model plus a missing "timetable instance" resource;
+      also fixed a pre-existing `/periods/{id}` route-shadowing bug in the same file.
+    - **Real, non-test-artifact production bugs** (worth flagging specifically since they'd
+      corrupt real data, not just fail a test): `study_planner.py`'s `reschedule_task` read
+      `task.task_date` for its "rescheduled from" audit field *after* the same identity-mapped
+      object had already been mutated to the new date, always recording the wrong "from" date;
+      `onboarding_service.py`'s `complete_step` could never mark the LAST step of any onboarding
+      flow complete, because a newly-attached child row wasn't visible on the parent's
+      already-loaded relationship within the same request (fixed with `db.flush()` +
+      `db.expire(...)`); `olympics_service.py`'s leaderboard-update built response dicts with
+      wrong key names, silently failing every call whenever any student had a graded entry;
+      `study_planner.py`'s `prioritize_topics`/`generate_study_plan` fed a
+      chapter-or-subject-only weak-area id straight into a `topics`-only FK, guaranteeing an
+      IntegrityError for a common, legitimate input shape.
+    - **Widespread cross-tenant/cross-owner gaps** (bug class 12/17) fixed across nearly every
+      router this pass — `peer_tutoring.py` (6 create/write endpoints trusting a body-supplied
+      id with no institution check, including one that could let a teacher suspend another
+      institution's tutor via the moderation-log endpoint), `plagiarism.py` (4 more sites beyond
+      the interrupted pass's `.slug` fix — teacher/admin-facing endpoints had no institution
+      check at all, only the student-facing ones did), `scholarship_essays.py` (5 create
+      endpoints trusting a client-suppliable `institution_id`), `student_employment.py` (4 create
+      endpoints, same shape, plus a route-shadowing bug on `/work-permits/{id}` vs
+      `/work-permits/expiring` fixed with `{id:int}`), `study_buddy.py` (9 of 10 endpoints had
+      auth but zero institution scoping at all — any authenticated user from any institution
+      could read another institution's student chat transcripts by guessing an id),
+      `reverse_classroom.py` (12 of its 17 endpoints were entirely unauthenticated — the
+      interrupted first attempt had only reached the first 3 — fixed the rest, plus a stale
+      2-arg background-task call site the interrupted pass's own 3-arg signature change had
+      missed), and `study_materials.py` (unvalidated `material_id` before use, causing an
+      unhandled IntegrityError/500 instead of 404, on top of the missing scope check).
+    - `predictions.py`/`prediction_service.py`, `previous_year_papers.py`,
+      `super_admin_analytics.py`'s `require_super_admin` gate, and `study_planner.py`'s
+      institution-access checks were all independently confirmed already complete and correct
+      from the interrupted first attempt — no rework needed, just verification.
+
 ## Next resume point (current, supersedes the ones above)
-1. **Continue the Phase-2/3 backend route-module audit** with the remaining untested routers:
-   `olympics`, `onboarding`, `peer_recognition`, `peer_tutoring`, `plagiarism`, `podcasts`
-   (3-line stub, verify), `predictions`, `previous_year_papers`, `reverse_classroom`,
-   `scholarship_essays`, `student_employment`, `study_buddy`, `study_materials`,
-   `study_planner`, `subject_rpg`, `super_admin_analytics`, `timetables`,
-   `weakness_detection` (18 routers left). Same method as every router above -- check all
-   fourteen numbered bug classes (see any recent pass section above for the full list, e.g.
-   the fortieth-pass section), PLUS explicitly check for a completely missing auth dependency
-   on the whole router (8 found this session so far: `feedback.py`'s async/sync crash,
-   `institution_admin.py`, `quizzes.py`, `live_events_websocket.py`'s auth stub,
-   `parent_roi.py`, `classroom_websocket.py`, `flashcards.py`, `mistake_analysis.py`, plus
-   `ml_monitoring.py` at 10/11 endpoints), PLUS the UUID-vs-CHAR(36) comparison bug, the
-   "shared admin schema forwarded unfiltered to a self-service endpoint" privilege-escalation
-   shape, and the `Role` relationship compared directly to a string (`.name` or the object
-   itself) instead of `.slug` (found 3 times now: `data_management.py`, `content_marketplace.py`,
-   and earlier `search.py`) -- worth checking explicitly in every new router from here on.
+1. **The Phase-2/3 backend route-module audit (all 35 originally-listed routers) is now
+   complete.** From here, any further backend work should be either (a) the specific
+   follow-ups below, or (b) starting Frontend Phase 2/3 / mobile (see item 5).
 2. **`analytics.py`'s missing authentication is flagged, not fixed** -- needs a deliberate
    decision (is unauthenticated cross-institution telemetry/dashboard access intentional for
    this generic ingest API, or should it require auth like its sibling
    `notification_analytics.py` does?) before touching it.
-3. **Fix the 5 routers that don't import cleanly** (unchanged): `branding`, `collaboration`,
-   `parent_education`, `sel`, `timetable`.
+3. **Fix the 5 routers that don't import cleanly** (unchanged all session): `branding`
+   (missing `pydub`), `collaboration` (missing `StudyBuddyProfileCreate` schema),
+   `parent_education` (missing `CourseModule` model), `sel` (missing `src.models.sel`),
+   `timetable` (singular — missing `DayOfWeek` in `src.models.timetable`; this pass's
+   `timetables.py` (plural) rewrite is a different, working file and was deliberately left
+   separate from this one per instructions, though the two look like they may share a root
+   cause worth a unified fix).
 4. **Lower-priority follow-up from pass thirty-seven**: register `BrandingMiddleware` in
    `src/main.py` (or otherwise wire up `/super-admin/branding/current`).
 5. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
-   anything NEW in that audit without the user's confirmation landing first. (Note: this pass's
-   unauthenticated-router fixes were treated as ordinary bugs found via testing, consistent
-   with this session's established practice of NOT routing individually-discovered bugs through
-   that separate, still-pending audit hold.)
-6. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
-   not-yet-started bodies of work.
+   anything NEW in that audit without the user's confirmation landing first.
+6. **Start Frontend Phase 2/3** (~210 untested pages) or the mobile app (`/home/user/eduApp/mobile`,
+   no `node_modules` installed) — these are now the two largest not-yet-started bodies of work,
+   with the backend router audit itself complete. Recommend frontend first (mobile explicitly
+   lower priority per the original task framing).
 7. **Environment note for future iterations**: MySQL/Redis are not guaranteed to be running at
    iteration start (re-check with `mysqladmin ping`/`redis-cli ping`, restart if needed) --
-   Redis was confirmed running as of this pass, reversing the "Redis NOT running" note from
-   pass 28, but don't assume that holds on a fresh container. A model column addition requires
-   either a manual `ALTER TABLE` against an already-provisioned test-DB table or clearing
+   Redis was confirmed running again this pass. A model column addition requires either a
+   manual `ALTER TABLE` against an already-provisioned test-DB table or clearing
    `/tmp/eduapp_schema.lock`/`.done` for a fresh `create_all`.
+8. **Full recurring bug-class checklist for any future router work** (consolidated, supersedes
+   prior per-pass lists): (1) async/sync SQLAlchemy mismatch; (2) missing/partial auth
+   dependency (9 fully/partially zero-auth routers found this session:
+   `feedback.py`/`institution_admin.py`/`quizzes.py`/`live_events_websocket.py`/`parent_roi.py`
+   /`classroom_websocket.py`/`flashcards.py`/`mistake_analysis.py`/`ml_monitoring.py`
+   /`subject_rpg.py`); (3) `func.count().filter()` on MySQL; (4) unc­ast Decimal in a
+   `dict`/`Any` response; (5) MySQL DATETIME rounding (test-fixture workaround only); (6)
+   `SessionLocal()`/`next(get_db())` instead of the injected session (REST endpoints AND
+   BackgroundTasks callbacks both — reuse the request's own `db`); (7) route-shadowing, fix
+   with `{id:int}`; (8) router missing from `ROUTERS`; (9) wrong enum literals; (10) JWT minted
+   without a matching Redis session; (11) model/schema column drift; (12)/(17) cross-tenant/
+   cross-owner id trust; (13) UUID-vs-CHAR(36) comparison; (14) shared admin schema forwarded
+   unfiltered to a self-service endpoint; (15) `metadata=`/`metadata_json` shadowing — check
+   BOTH the write side (ORM constructor kwargs) AND the read side (response schema field
+   names); (16) in-place JSON-column mutation not tracked by SQLAlchemy; (NEW, this pass) a
+   `db.refresh()` called before a later commit re-expires the object, or omitted after the
+   LAST commit — always refresh strictly last before building a `__dict__`-based response;
+   (NEW, this pass) an ORM relationship-loaded collection not reflecting a just-added child row
+   within the same request/transaction — use `db.flush()` + `db.expire(parent, ['relationship_name'])`.
