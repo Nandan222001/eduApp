@@ -63,7 +63,7 @@ async def setup_biometric(
         auth_method=request.biometric_type,
         success=True,
         device_fingerprint=request.device_fingerprint,
-        metadata={"enabled": request.enabled}
+        metadata_json={"enabled": request.enabled}
     )
     db.add(event)
     db.commit()
@@ -173,7 +173,7 @@ async def setup_pin(
         auth_method="pin",
         success=True,
         device_fingerprint=request.device_fingerprint,
-        metadata={"enabled": request.enabled}
+        metadata_json={"enabled": request.enabled}
     )
     db.add(event)
     db.commit()
@@ -291,7 +291,7 @@ async def verify_sensitive_operation(
         required_reauth=True,
         reauth_method=request.auth_method,
         reauth_success=request.auth_success,
-        metadata=request.metadata
+        metadata_json=request.metadata
     )
     db.add(log_entry)
 
@@ -301,7 +301,7 @@ async def verify_sensitive_operation(
         event_type="sensitive_operation",
         auth_method=request.auth_method,
         success=request.auth_success,
-        metadata={
+        metadata_json={
             "operation_type": request.operation_type,
             "operation_details": request.operation_details
         }

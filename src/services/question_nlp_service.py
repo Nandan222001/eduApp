@@ -213,7 +213,9 @@ class QuestionNLPService:
             return {
                 'status': 'insufficient_data',
                 'total_questions': len(questions),
-                'clusters_created': 0
+                'clusters_created': 0,
+                'noise_points': 0,
+                'cluster_ids': []
             }
         
         question_ids = [q.id for q in questions]
