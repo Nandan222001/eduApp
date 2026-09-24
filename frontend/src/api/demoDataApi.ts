@@ -673,7 +673,20 @@ export const demoAIPredictionDashboardApi = {
       marks_distribution: demoData.aiPrediction.marksDistribution,
       focus_areas: demoData.aiPrediction.focusAreas,
       study_time_allocation: demoData.aiPrediction.studyTimeAllocation,
-      overall_prediction: {},
+      overall_prediction: {
+        total_topics_analyzed: demoData.aiPrediction.topicProbabilities.length,
+        high_probability_topics: demoData.aiPrediction.topicProbabilities.filter(
+          (t) => t.probability_score >= 70
+        ).length,
+        total_expected_marks: demoData.aiPrediction.topicProbabilities.reduce(
+          (sum, t) => sum + t.expected_marks,
+          0
+        ),
+        recommended_study_hours: demoData.aiPrediction.topicProbabilities.reduce(
+          (sum, t) => sum + t.study_hours_recommended,
+          0
+        ),
+      },
     });
   },
 
