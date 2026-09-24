@@ -70,24 +70,37 @@ class ContentMarketplaceService:
         content = self.content_repo.get_by_id(content_id)
         if not content:
             return None
-        
-        self.content_repo.increment_views(content_id)
-        
+
+        # `increment_views` re-fetches this same identity-mapped row and
+        # calls db.commit(). SQLAlchemy's Session defaults to
+        # expire_on_commit=True, which -- unlike normal attribute access --
+        # actually *empties* `content.__dict__` of every mapped column so it
+        # can be lazily reloaded on next access. Building `response_data`
+        # from `content.__dict__` used to happen *after* this call, so it
+        # silently unpacked almost nothing (no `institution_id`, no
+        # `price_credits`, etc.), which crashed every single
+        # `GET /contents/{content_id}` request downstream (the router reads
+        # `content['institution_id']` right after calling this). Building
+        # the response dict first, while the row's columns are still
+        # populated, and only incrementing views afterward (its return
+        # value isn't used) fixes this without changing behavior.
         response_data = {
             **content.__dict__,
             'is_purchased': False,
             'can_download': False
         }
-        
+
         if student_id:
             purchase = self.purchase_repo.get_by_content_and_buyer(content_id, student_id)
             response_data['is_purchased'] = purchase is not None
             response_data['can_download'] = (
-                purchase is not None or 
-                content.price_credits == 0 or 
+                purchase is not None or
+                content.price_credits == 0 or
                 content.creator_student_id == student_id
             )
-        
+
+        self.content_repo.increment_views(content_id)
+
         return response_data
     
     def purchase_content(
@@ -169,7 +182,15 @@ class ContentMarketplaceService:
             'description': f'Sale of: {content.title}',
             'reference_type': 'content_sale',
             'reference_id': purchase.id,
-            'metadata': {'buyer_id': buyer_student_id}
+            # `CreditTransaction`'s mapped attribute for this JSON column is
+            # `metadata_json` (SQLAlchemy reserves the `metadata` attribute
+            # name on every Declarative model for the schema registry).
+            # Passing 'metadata' here used to silently shadow that class
+            # attribute on the new instance instead of persisting to the
+            # real column, permanently losing the buyer_id on every creator
+            # earning transaction record (no exception -- `hasattr` on
+            # `metadata` is true, so the ORM's constructor accepted it).
+            'metadata_json': {'buyer_id': buyer_student_id}
         }
         self.credits_repo.add_transaction(creator_balance.id, creator_transaction)
         
