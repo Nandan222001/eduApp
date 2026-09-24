@@ -4070,3 +4070,306 @@ integration test coverage. 178-195. **18 routers**: `olympics`, `onboarding`, `p
    LAST commit — always refresh strictly last before building a `__dict__`-based response;
    (NEW, this pass) an ORM relationship-loaded collection not reflecting a just-added child row
    within the same request/transaction — use `db.flush()` + `db.expire(parent, ['relationship_name'])`.
+
+## Frontend Phase 2/3 — kickoff (current)
+
+With the backend router audit complete, this iteration starts Frontend Phase 2/3: adding real
+unit/integration test coverage for React pages/components that currently have none.
+
+**Baseline reconfirmed unchanged**: `cd frontend && npx vitest run` -- 13 test files, 337 tests,
+100% passing (same as Phase 1's original "DONE" status at the top of this file). `node_modules`
+already installed, no setup needed.
+
+**Conventions found in the existing 13 test files** (follow these, don't invent new patterns):
+- Vitest + `@testing-library/react`, colocated `ComponentName.test.tsx` next to
+  `ComponentName.tsx` in `src/pages/`, `src/components/`, etc.
+- `frontend/tests/test-utils.tsx` provides a custom `render` replacement and re-exports
+  everything from `@testing-library/react` plus `userEvent`: use `renderWithDemoStudent`,
+  `renderWithDemoTeacher`, `renderWithDemoParent`, `renderWithDemoAdmin`,
+  `renderWithRegularUser(ui, role, email)`, or `renderUnauthenticated` (all wrap in
+  QueryClientProvider/ThemeProvider/AccessibilityProvider/BrowserRouter already) instead of
+  hand-rolling providers per test file. Pass `withRouter: false` if the component under test
+  supplies its own Router.
+- Mock API modules with `vi.mock('@/api/whatever', () => ({ ... }))` (see
+  `src/pages/StudentDashboard.test.tsx` for the canonical example) rather than hitting a real
+  backend -- there is no live API server in this test environment, only Vitest's JSDOM
+  environment. Use fixtures from `@/data/dummyData` (`demoData`) where a page already assumes
+  demo-mode shape, matching the existing test.
+- `npx vitest run <path-or-pattern>` runs a subset; `npx vitest run --reporter=dot` for a fast
+  full-suite check. There is no MySQL/Redis dependency for frontend tests -- these are pure
+  component tests with mocked API modules, unlike the backend integration tests.
+- No live backend / browser needed for these tests (JSDOM), but if a page component imports
+  something environment-sensitive (e.g. `window.matchMedia`, `IntersectionObserver`), check
+  `frontend/tests/setup.ts` first -- it may already polyfill it; add a polyfill there rather
+  than in individual test files if it's a broad browser API multiple pages need.
+
+**Scope**: 228 page/component files under `frontend/src/pages/` currently have no test file
+(only `StudentDashboard.tsx` does, from Phase 1). Full ordered inventory below (alphabetical,
+paths relative to `frontend/src/pages/`), split into 8 batches of ~30 for round-tracking --
+same one-router-per-agent-file granularity as the backend audit, just ~3x the file count, so
+batches (not individual routers) are the unit of pass-tracking here. Do NOT re-list this
+inventory in future pass sections -- just reference "batch N" and record what was found;
+this list is the single source of truth for what's left.
+
+### Batch 1
+- `AIPredictionDashboard.tsx`
+- `AIStudyBuddy.tsx`
+- `About.tsx`
+- `AcademicStructure.tsx`
+- `AccessibilityDemo.tsx`
+- `AdaptiveLearningLibrary.tsx`
+- `AdminDocumentVerification.tsx`
+- `AdminGraduationRequirementDashboard.tsx`
+- `AdminMerchandiseManager.tsx`
+- `AdminOnboardingDesigner.tsx`
+- `AdminVolunteerAnalytics.tsx`
+- `AdministratorsList.tsx`
+- `Analytics/AnalyticsDashboard.tsx`
+- `Analytics/components/EventsTab.tsx`
+- `Analytics/components/FeatureAdoptionTab.tsx`
+- `Analytics/components/OverviewTab.tsx`
+- `Analytics/components/PerformanceTab.tsx`
+- `Analytics/components/RetentionTab.tsx`
+- `Analytics/components/UserFlowTab.tsx`
+- `AnnouncementManagement.tsx`
+- `AppreciationWall.tsx`
+- `AssignmentManagement.tsx`
+- `AttendanceCorrectionPage.tsx`
+- `AttendanceDefaultersPage.tsx`
+- `AttendanceMarkingPage.tsx`
+- `AttendanceOverviewPage.tsx`
+- `AttendanceSheetPage.tsx`
+- `CampaignManager.tsx`
+- `CareerCounselorWorkflow.tsx`
+- `CareerExploration.tsx`
+
+### Batch 2
+- `CertificateManagement.tsx`
+- `ClassManagement.tsx`
+- `ClassPerformanceAnalytics.tsx`
+- `CollegeApplicationTracker.tsx`
+- `CollegeComparison.tsx`
+- `CollegePlanningTracker.tsx`
+- `CollegeSearch.tsx`
+- `CommunicationCenter.tsx`
+- `ContentCreatorStudio.tsx`
+- `ContentCreditsEconomy.tsx`
+- `CounselorCollaboration.tsx`
+- `Dashboard.tsx`
+- `DataExport.tsx`
+- `DataImport.tsx`
+- `DigitalYearbook.tsx`
+- `DoubtDetail.tsx`
+- `DoubtForum.tsx`
+- `ElectionAdministration.tsx`
+- `ElectionResults.tsx`
+- `EmployerPortal.tsx`
+- `EnquiryManagement.tsx`
+- `EntrepreneurshipIncubator.tsx`
+- `ErrorPage.tsx`
+- `EssayPeerReview.tsx`
+- `EventBroadcaster.tsx`
+- `EventManagement.tsx`
+- `ExamAnalyticsDashboard.tsx`
+- `ExamCreationWizard.tsx`
+- `ExamListPage.tsx`
+- `FamilyDocumentVault.tsx`
+
+### Batch 3
+- `FeeManagement.tsx`
+- `FinanceChallengesDashboard.tsx`
+- `FinancialAidCalculator.tsx`
+- `FinancialHealthScore.tsx`
+- `FinancialLiteracyHub.tsx`
+- `FlashcardDeckList.tsx`
+- `FlashcardStudyPage.tsx`
+- `GamificationDashboard.tsx`
+- `GoalsManagement.tsx`
+- `Home.tsx`
+- `HomeworkScanner.tsx`
+- `IDCardTemplateManager.tsx`
+- `InstitutionAdminDashboard.tsx`
+- `InstitutionAnalytics.tsx`
+- `InstitutionAnalyticsDashboard.tsx`
+- `InstitutionBrandingAdvanced.tsx`
+- `InstitutionCreate.tsx`
+- `InstitutionDetail.tsx`
+- `InstitutionSubscription.tsx`
+- `InstitutionsList.tsx`
+- `JobDetail.tsx`
+- `JournalistDashboard.tsx`
+- `LearningStyleAssessment.tsx`
+- `LibraryManagement.tsx`
+- `LiveEventViewer.tsx`
+- `MarksEntryPage.tsx`
+- `MarksVerificationPage.tsx`
+- `MentorMarketplace.tsx`
+- `MerchandiseOrderTracking.tsx`
+- `MessagingCenter.tsx`
+
+### Batch 4
+- `MistakeInsurance.tsx`
+- `MistakeReplay.tsx`
+- `MobileAssignmentListPage.tsx`
+- `MobileAttendanceMarkingPage.tsx`
+- `MobileStudentListPage.tsx`
+- `MyContentPurchases.tsx`
+- `MyEmploymentDashboard.tsx`
+- `NewspaperAnalytics.tsx`
+- `NewspaperArchive.tsx`
+- `NewspaperEditor.tsx`
+- `NotFound.tsx`
+- `OlympicsCompetitionPage.tsx`
+- `OlympicsDetailPage.tsx`
+- `PaperListPage.tsx`
+- `PaperUploadPage.tsx`
+- `PaperViewerPage.tsx`
+- `ParentAssignmentsView.tsx`
+- `ParentAttendanceMonitor.tsx`
+- `ParentCarpoolHub.tsx`
+- `ParentCommunicationDashboard.tsx`
+- `ParentConferenceBooking.tsx`
+- `ParentConferenceDashboard.tsx`
+- `ParentCourseCertificate.tsx`
+- `ParentCourseDiscussions.tsx`
+- `ParentCourseLearning.tsx`
+- `ParentCoursesDashboard.tsx`
+- `ParentDashboard.tsx`
+- `ParentEducationPortal.tsx`
+- `ParentEventSettings.tsx`
+- `ParentFamilyDashboard.tsx`
+
+### Batch 5
+- `ParentFinancialResources.tsx`
+- `ParentGradesMonitor.tsx`
+- `ParentLearningGuide.tsx`
+- `ParentNotifications.tsx`
+- `ParentProgressView.tsx`
+- `ParentROIDashboard.tsx`
+- `ParentSELView.tsx`
+- `ParentScheduleView.tsx`
+- `ParentTeacherWorkspace.tsx`
+- `ParentVolunteerHours.tsx`
+- `PayrollManagement.tsx`
+- `PeerRecognition.tsx`
+- `PeerTutoringMarketplace.tsx`
+- `PersonalizedLearningFeed.tsx`
+- `PitchCompetition.tsx`
+- `PlagiarismDashboard.tsx`
+- `PomodoroTimer.tsx`
+- `QuestionBankBrowserPage.tsx`
+- `QuizAnalyticsPage.tsx`
+- `QuizLeaderboardPage.tsx`
+- `QuizList.tsx`
+- `QuizTakePage.tsx`
+- `RealtimeChatDemo.tsx`
+- `RecognitionSettings.tsx`
+- `ResearchProjectDetail.tsx`
+- `ResearchProjectHub.tsx`
+- `ResearchShowcase.tsx`
+- `ResearchWorkspace.tsx`
+- `ResultGenerationPage.tsx`
+- `ReverseClassroom.tsx`
+
+### Batch 6
+- `SELTracking.tsx`
+- `SMSTemplateManagement.tsx`
+- `ScholarshipEssayCenter.tsx`
+- `ScholarshipEssayDemo.tsx`
+- `SchoolCultureAnalyticsDashboard.tsx`
+- `SchoolEventsCalendar.tsx`
+- `SchoolMerchandiseStore.tsx`
+- `ScienceFairHub.tsx`
+- `SearchResultsPage.tsx`
+- `ServiceOpportunities.tsx`
+- `ServiceReflectionJournal.tsx`
+- `ServiceVerificationPortal.tsx`
+- `SettingsPage.tsx`
+- `StaffManagement.tsx`
+- `StressOMeter.tsx`
+- `StudentBulkImport.tsx`
+- `StudentCommunityService.tsx`
+- `StudentContentMarketplace.tsx`
+- `StudentCredentials.tsx`
+- `StudentElections.tsx`
+- `StudentForm.tsx`
+- `StudentIDCard.tsx`
+- `StudentJobBoard.tsx`
+- `StudentList.tsx`
+- `StudentMarksheetPage.tsx`
+- `StudentNewspaper.tsx`
+- `StudentPerformanceAnalytics.tsx`
+- `StudentProfile.tsx`
+- `StudentPromotion.tsx`
+- `StudentSELJourney.tsx`
+
+### Batch 7
+- `StudentVirtualWallet.tsx`
+- `StudyGroupDetail.tsx`
+- `StudyGroups.tsx`
+- `StudyMaterialsLibrary.tsx`
+- `SubjectBattles.tsx`
+- `SubjectManagement.tsx`
+- `SubjectPassport.tsx`
+- `SubscriptionBilling.tsx`
+- `SuperAdmin/AdvancedReports.tsx`
+- `SuperAdmin/BrandingManager.tsx`
+- `SuperAdmin/InstitutionHealthMonitor.tsx`
+- `SuperAdminCrossInstitutionAnalytics.tsx`
+- `SuperAdminDashboard.tsx`
+- `SyllabusManagement.tsx`
+- `TeacherAssignments.tsx`
+- `TeacherBulkImport.tsx`
+- `TeacherCommunicationDashboard.tsx`
+- `TeacherConferenceManager.tsx`
+- `TeacherContentModeration.tsx`
+- `TeacherDashboard.tsx`
+- `TeacherFinancialLiteracyDashboard.tsx`
+- `TeacherForm.tsx`
+- `TeacherLearningStyleInsights.tsx`
+- `TeacherList.tsx`
+- `TeacherPerformanceDashboard.tsx`
+- `TeacherProfile.tsx`
+- `TeacherRecognitionModeration.tsx`
+- `TeacherRoleAssignment.tsx`
+- `TeacherVolunteerVerification.tsx`
+- `TimetableBuilder.tsx`
+
+### Batch 8
+- `TransportManagement.tsx`
+- `UnauthorizedPage.tsx`
+- `UsageMetricsPanel.tsx`
+- `VentureAnalytics.tsx`
+- `VentureBuilder.tsx`
+- `VentureFundingPlatform.tsx`
+- `VerifyEmailPage.tsx`
+- `VirtualOlympics.tsx`
+- `VolunteerLeaderboard.tsx`
+- `WellbeingDashboard.tsx`
+- `WorkHourMonitoring.tsx`
+- `WorkPermitManager.tsx`
+- `YearbookArchive.tsx`
+- `YearbookBuilder.tsx`
+- `YearbookMemorySubmission.tsx`
+- `YearbookPhotoSubmission.tsx`
+- `YearbookPrintOrder.tsx`
+- `YearbookSignatures.tsx`
+
+## Next resume point (current, supersedes the ones above)
+1. **Batch 1 of Frontend Phase 2/3 dispatched** (this iteration) -- 3 agents x 10 pages each
+   (pages 1-10, 11-20, 21-30 of Batch 1 above). Verify their output the same way backend rounds
+   were verified: re-run the new test files fresh, run the full `npx vitest run` suite to
+   confirm no regressions/collisions, spot-check 1-2 of the larger/riskier diffs, then commit
+   (house style, one paragraph per real bug found -- frontend bugs will mostly be things like
+   broken conditional rendering, wrong prop names, missing null-checks, API-shape mismatches
+   between the page and its actual `@/api/*` module, not the backend's SQL-specific bug
+   classes) and push.
+2. Continue with batches 2 through 8 in subsequent iterations, same 3-agents-per-round pattern.
+3. Once all 8 batches are done, do a final full-suite `npx vitest run` pass and update the
+   Status line near the top of this file.
+4. Backend follow-ups still open (unchanged): `analytics.py` auth decision pending user input;
+   5 routers with import errors (`branding`, `collaboration`, `parent_education`, `sel`,
+   `timetable` singular); `BrandingMiddleware` registration; the still-unanswered
+   security-posture audit (do not act on it without the user's go-ahead).
+5. Mobile app (`/home/user/eduApp/mobile`, no `node_modules`) remains the lowest-priority,
+   not-yet-started body of work, explicitly deprioritized in the original task framing.
