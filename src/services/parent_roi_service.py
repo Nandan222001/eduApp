@@ -244,18 +244,29 @@ class ParentROIService:
         """Calculate total fees paid by parent for the academic year"""
         year_start, year_end = self._get_academic_year_dates(academic_year)
         
-        # Get all fee payments for this parent's children
+        # Get all fee payments for this parent's children, scoped to this
+        # institution -- `StudentParent` itself carries no institution_id,
+        # so without this filter a parent linked to children at more than
+        # one institution would have another institution's fee payments
+        # folded into this institution's ROI report.
         children_ids = self.db.query(Student.id).join(StudentParent).filter(
-            StudentParent.parent_id == parent_id
+            StudentParent.parent_id == parent_id,
+            Student.institution_id == institution_id,
         ).all()
         children_ids = [c[0] for c in children_ids]
         
+        # The real column is `payment_status`, not `status` (model/schema
+        # drift, bug class 11) -- this previously raised
+        # `AttributeError: type object 'FeePayment' has no attribute
+        # 'status'` unconditionally, making `_calculate_fees_paid` (and so
+        # `POST /reports/generate`, the only way to produce a report) 100%
+        # broken regardless of whether the parent had any fee payments.
         total_fees = self.db.query(func.sum(FeePayment.amount_paid)).filter(
             and_(
                 FeePayment.student_id.in_(children_ids),
                 FeePayment.payment_date >= year_start.date(),
                 FeePayment.payment_date <= year_end.date(),
-                FeePayment.status == 'completed'
+                FeePayment.payment_status == 'completed'
             )
         ).scalar()
         
@@ -371,33 +382,39 @@ class ParentROIService:
         year_end: datetime
     ) -> float:
         """Calculate grade improvement percentage"""
-        # Get first quarter and last quarter exam results
+        # `ExamResult` has no `marks_obtained` column (model/schema drift,
+        # bug class 11) -- it has `total_marks_obtained`/`total_max_marks`
+        # (raw, per-exam-varying scale) and `percentage` (already
+        # normalized 0-100, matching what "grade improvement percentage"
+        # actually needs). This previously raised `AttributeError`
+        # unconditionally, making `POST /reports/generate` 100% broken for
+        # any student with exam results in range.
         first_quarter_end = year_start + timedelta(days=90)
         last_quarter_start = year_end - timedelta(days=90)
-        
+
         first_quarter_results = self.db.query(ExamResult).filter(
             and_(
                 ExamResult.student_id == student_id,
                 ExamResult.created_at >= year_start,
                 ExamResult.created_at <= first_quarter_end,
-                ExamResult.marks_obtained.isnot(None)
+                ExamResult.percentage.isnot(None)
             )
         ).all()
-        
+
         last_quarter_results = self.db.query(ExamResult).filter(
             and_(
                 ExamResult.student_id == student_id,
                 ExamResult.created_at >= last_quarter_start,
                 ExamResult.created_at <= year_end,
-                ExamResult.marks_obtained.isnot(None)
+                ExamResult.percentage.isnot(None)
             )
         ).all()
-        
+
         if not first_quarter_results or not last_quarter_results:
             return 0.0
-        
-        first_avg = sum(float(r.marks_obtained) for r in first_quarter_results) / len(first_quarter_results)
-        last_avg = sum(float(r.marks_obtained) for r in last_quarter_results) / len(last_quarter_results)
+
+        first_avg = sum(float(r.percentage) for r in first_quarter_results) / len(first_quarter_results)
+        last_avg = sum(float(r.percentage) for r in last_quarter_results) / len(last_quarter_results)
         
         if first_avg == 0:
             return 0.0

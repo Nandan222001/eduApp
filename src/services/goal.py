@@ -62,7 +62,18 @@ class GoalService:
         if not goal:
             return None
 
-        self.repository.update_milestone_progress(milestone_id, goal_id, progress)
+        # The repository silently returns None (with no other side effect)
+        # when `milestone_id` doesn't match any milestone under this goal --
+        # previously that was never checked here, so a nonexistent
+        # milestone_id fell straight through to returning the (unchanged)
+        # goal as if the update had succeeded, and the router's `if not
+        # goal: 404` check never fired since `goal` itself was always
+        # truthy. Now propagates the miss as a 404 like every other
+        # not-found case in this router.
+        milestone = self.repository.update_milestone_progress(milestone_id, goal_id, progress)
+        if not milestone:
+            return None
+
         updated_goal = self.repository.get_goal_by_id(goal_id, user_id)
         return self._map_goal_to_response(updated_goal)
 
@@ -73,7 +84,12 @@ class GoalService:
         if not goal:
             return None
 
-        self.repository.complete_milestone(milestone_id, goal_id)
+        # Same fix as update_milestone_progress above: a nonexistent
+        # milestone_id must 404, not silently return the unchanged goal.
+        milestone = self.repository.complete_milestone(milestone_id, goal_id)
+        if not milestone:
+            return None
+
         updated_goal = self.repository.get_goal_by_id(goal_id, user_id)
         return self._map_goal_to_response(updated_goal)
 
