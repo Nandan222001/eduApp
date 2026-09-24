@@ -7,7 +7,7 @@ from src.models.college_planning import (
     ApplicationStatus,
     DecisionOutcome,
 )
-from src.models.notification import Notification
+from src.models.notification import Notification, NotificationChannel, NotificationStatus
 
 
 class CollegePlanningService:
@@ -196,9 +196,10 @@ class CollegePlanningService:
             user_id=application.student_id,
             title="College Application Decision",
             message=message,
-            type="college_decision",
+            notification_type="college_decision",
+            channel=NotificationChannel.IN_APP.value,
+            status=NotificationStatus.PENDING.value,
             priority="high" if application.decision_outcome == DecisionOutcome.ACCEPTED else "medium",
-            is_read=False,
         )
 
         self.db.add(notification)
@@ -280,9 +281,10 @@ class CollegePlanningService:
             user_id=counselor_user_id,
             title="College Planning Collaboration Request",
             message=notification_message,
-            type="counselor_collaboration",
+            notification_type="counselor_collaboration",
+            channel=NotificationChannel.IN_APP.value,
+            status=NotificationStatus.PENDING.value,
             priority="medium",
-            is_read=False,
         )
 
         self.db.add(notification)

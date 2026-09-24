@@ -28,7 +28,15 @@ class HomeworkScanResponse(BaseModel):
     confidence_score: Optional[Decimal] = None
     processing_status: str
     error_message: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # Declarative models for the MetaData object), but the API keeps
+    # `metadata` as the JSON key -- same pattern as src/schemas/virtual_classroom.py
+    # and src/schemas/merchandise.py. Without the alias, `from_attributes`
+    # populates this field from `scan.metadata` (the class-level SQLAlchemy
+    # MetaData registry object, inherited from Base), which fails Pydantic
+    # validation against `Optional[Dict[str, Any]]` on every single response
+    # -- create_scan/get_scans/get_scan all 500'd unconditionally.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
     updated_at: datetime
 

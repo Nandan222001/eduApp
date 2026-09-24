@@ -505,13 +505,28 @@ class ParentROIService:
     def get_roi_report(
         self,
         parent_id: int,
+        institution_id: int,
         academic_year: str
     ) -> Optional[ParentROIReport]:
-        """Retrieve existing ROI report"""
+        """Retrieve existing ROI report, scoped to the caller's own institution."""
         return self.db.query(ParentROIReport).filter(
             and_(
                 ParentROIReport.parent_id == parent_id,
+                ParentROIReport.institution_id == institution_id,
                 ParentROIReport.academic_year == academic_year
+            )
+        ).first()
+
+    def get_roi_report_by_id(
+        self,
+        report_id: int,
+        institution_id: int
+    ) -> Optional[ParentROIReport]:
+        """Retrieve a specific ROI report by id, scoped to the caller's own institution."""
+        return self.db.query(ParentROIReport).filter(
+            and_(
+                ParentROIReport.id == report_id,
+                ParentROIReport.institution_id == institution_id
             )
         ).first()
     

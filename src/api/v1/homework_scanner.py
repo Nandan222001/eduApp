@@ -59,6 +59,7 @@ async def get_scans(
     service = HomeworkScannerService(db)
     scans = service.get_student_scans(
         student_id=student_id,
+        institution_id=current_user.institution_id,
         subject_id=subject_id,
         limit=limit,
         skip=skip
@@ -73,7 +74,7 @@ async def get_scan(
     db: Session = Depends(get_db),
 ):
     service = HomeworkScannerService(db)
-    scan = service.get_scan(scan_id)
+    scan = service.get_scan(scan_id, current_user.institution_id)
     if not scan:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -89,7 +90,7 @@ async def analyze_scan(
     db: Session = Depends(get_db),
 ):
     service = HomeworkScannerService(db)
-    analysis = service.analyze_scan(scan_id)
+    analysis = service.analyze_scan(scan_id, current_user.institution_id)
     if "error" in analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -105,7 +106,7 @@ async def delete_scan(
     db: Session = Depends(get_db),
 ):
     service = HomeworkScannerService(db)
-    success = service.delete_scan(scan_id)
+    success = service.delete_scan(scan_id, current_user.institution_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

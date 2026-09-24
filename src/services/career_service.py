@@ -13,7 +13,7 @@ from src.models.career import (
     MentorshipStatus, CareerInterestCategory, IndustryType
 )
 from src.models.student import Student
-from src.models.examination import ExamMarks, ExamResult
+from src.models.examination import ExamMarks, ExamResult, ExamSubject
 from src.models.assignment import Submission
 from src.models.attendance import Attendance
 from src.ml.career_recommender import CareerRecommenderModel
@@ -174,19 +174,34 @@ class CareerService:
         return profile_data
     
     def _get_academic_performance(self, student_id: int) -> Dict[str, Any]:
-        exam_marks = self.db.query(ExamMarks).filter(
+        # `ExamMarks` has no `subject_id`/`marks_obtained`/`total_marks`
+        # columns of its own (model/schema drift, bug class 11) -- marks are
+        # split into `theory_marks_obtained`/`practical_marks_obtained`, and
+        # the corresponding max marks (`theory_max_marks`/
+        # `practical_max_marks`) live on the joined `ExamSubject` row via
+        # `exam_subject_id`. This previously raised `AttributeError` on
+        # every call with at least one exam record for the student.
+        exam_marks = self.db.query(ExamMarks).join(
+            ExamSubject, ExamMarks.exam_subject_id == ExamSubject.id
+        ).filter(
             ExamMarks.student_id == student_id
         ).all()
-        
+
         if not exam_marks:
             return {
                 'overall_gpa': 0,
                 'average_score': 0,
                 'attendance_percentage': 0
             }
-        
-        total_marks = sum(mark.marks_obtained for mark in exam_marks if mark.marks_obtained)
-        max_marks = sum(mark.total_marks for mark in exam_marks if mark.total_marks)
+
+        total_marks = sum(
+            float(mark.theory_marks_obtained or 0) + float(mark.practical_marks_obtained or 0)
+            for mark in exam_marks
+        )
+        max_marks = sum(
+            float(mark.exam_subject.theory_max_marks or 0) + float(mark.exam_subject.practical_max_marks or 0)
+            for mark in exam_marks
+        )
         average_score = (total_marks / max_marks * 100) if max_marks > 0 else 0
         
         attendance_records = self.db.query(Attendance).filter(
@@ -205,20 +220,39 @@ class CareerService:
         }
     
     def _get_top_subjects(self, student_id: int) -> List[Dict[str, Any]]:
+        # Same drift as `_get_academic_performance` above: `subject_id` and
+        # the max-marks columns live on the joined `ExamSubject`, not on
+        # `ExamMarks` itself -- this previously raised `AttributeError:
+        # type object 'ExamMarks' has no attribute 'subject_id'`
+        # unconditionally, even with zero exam records (the bad column
+        # reference is built into the query itself).
         exam_marks = self.db.query(
-            ExamMarks.subject_id,
-            func.avg(ExamMarks.marks_obtained).label('avg_marks'),
-            func.avg(ExamMarks.total_marks).label('avg_total')
+            ExamSubject.subject_id,
+            func.avg(
+                func.coalesce(ExamMarks.theory_marks_obtained, 0)
+                + func.coalesce(ExamMarks.practical_marks_obtained, 0)
+            ).label('avg_marks'),
+            func.avg(
+                func.coalesce(ExamSubject.theory_max_marks, 0)
+                + func.coalesce(ExamSubject.practical_max_marks, 0)
+            ).label('avg_total')
+        ).join(
+            ExamSubject, ExamMarks.exam_subject_id == ExamSubject.id
         ).filter(
             ExamMarks.student_id == student_id
         ).group_by(
-            ExamMarks.subject_id
+            ExamSubject.subject_id
         ).all()
         
         subjects = []
         for mark in exam_marks:
             if mark.avg_total and mark.avg_total > 0:
-                percentage = (mark.avg_marks / mark.avg_total) * 100
+                # `func.avg(...)` returns a `Decimal` via pymysql (bug class
+                # 4) -- explicitly cast to float before this dict is stored
+                # in `StudentCareerProfile.top_subjects` (a JSON column):
+                # Decimal isn't JSON-serializable, so committing a Decimal
+                # here raised a TypeError on every call with exam data.
+                percentage = (float(mark.avg_marks) / float(mark.avg_total)) * 100
                 subjects.append({
                     'subject_id': mark.subject_id,
                     'score': round(percentage, 2)
