@@ -31,6 +31,11 @@ async def create_paper(
             detail="Not authorized to create paper for this institution"
         )
 
+    # `uploaded_by` is client-suppliable on the create schema; force it to the
+    # caller's own id rather than trusting whatever id the request body names,
+    # so attribution can't be spoofed to another user.
+    paper_data = paper_data.model_copy(update={"uploaded_by": current_user.id})
+
     service = PreviousYearPaperService(db)
     paper = service.create_paper(paper_data)
     return paper

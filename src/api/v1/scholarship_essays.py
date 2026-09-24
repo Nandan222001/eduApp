@@ -28,6 +28,7 @@ from src.schemas.scholarship_essays import (
 from src.services.scholarship_essays_service import ScholarshipEssaysService
 from src.dependencies.auth import get_current_user
 from src.models.user import User
+from src.models.student import Student
 
 router = APIRouter()
 
@@ -38,8 +39,15 @@ async def create_essay_prompt(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # `institution_id`/`created_by` are client-suppliable on the create
+    # schema; every read/update/delete endpoint below scopes strictly by
+    # `current_user.institution_id`, but create never checked it, letting
+    # any authenticated caller plant a prompt in another institution. Force
+    # both to the caller's own session instead of trusting the request body.
     service = ScholarshipEssaysService(db)
     prompt_dict = prompt_data.model_dump()
+    prompt_dict["institution_id"] = current_user.institution_id
+    prompt_dict["created_by"] = current_user.id
     return service.create_essay_prompt(prompt_dict)
 
 
@@ -118,8 +126,23 @@ async def create_student_essay(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Same cross-tenant gap as `create_essay_prompt` above, plus `student_id`
+    # was never verified to belong to the caller's own institution at all --
+    # fixed by scoping the student lookup and forcing `institution_id`.
+    student = db.query(Student).filter(
+        Student.id == essay_data.student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+
     service = ScholarshipEssaysService(db)
+    prompt = service.get_essay_prompt(essay_data.prompt_id, current_user.institution_id)
+    if not prompt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Essay prompt not found")
+
     essay_dict = essay_data.model_dump()
+    essay_dict["institution_id"] = current_user.institution_id
     return service.create_student_essay(essay_dict)
 
 
@@ -322,8 +345,23 @@ async def create_peer_review(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Same cross-tenant gap: `essay_id`/`reviewer_student_id` were never
+    # verified against the caller's own institution before the review row
+    # was created, and `institution_id` was taken from the request body.
     service = ScholarshipEssaysService(db)
+    essay = service.get_student_essay(review_data.essay_id, current_user.institution_id)
+    if not essay:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Essay not found")
+
+    reviewer = db.query(Student).filter(
+        Student.id == review_data.reviewer_student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
+    if not reviewer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reviewer student not found")
+
     review_dict = review_data.model_dump()
+    review_dict["institution_id"] = current_user.institution_id
     return service.create_peer_review(review_dict)
 
 
@@ -393,6 +431,8 @@ async def create_essay_template(
 ):
     service = ScholarshipEssaysService(db)
     template_dict = template_data.model_dump()
+    template_dict["institution_id"] = current_user.institution_id
+    template_dict["uploaded_by"] = current_user.id
     return service.create_essay_template(template_dict)
 
 
@@ -476,6 +516,7 @@ async def create_review_rubric(
 ):
     service = ScholarshipEssaysService(db)
     rubric_dict = rubric_data.model_dump()
+    rubric_dict["institution_id"] = current_user.institution_id
     return service.create_review_rubric(rubric_dict)
 
 

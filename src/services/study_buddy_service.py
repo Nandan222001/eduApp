@@ -37,37 +37,48 @@ class StudyBuddyService:
         self.db.refresh(session)
         return session
     
-    def get_session(self, session_id: int) -> Optional[StudyBuddySession]:
-        return self.db.query(StudyBuddySession).filter(
+    def get_session(self, session_id: int, institution_id: Optional[int] = None) -> Optional[StudyBuddySession]:
+        query = self.db.query(StudyBuddySession).filter(
             StudyBuddySession.id == session_id
-        ).first()
-    
-    def end_session(self, session_id: int) -> Optional[StudyBuddySession]:
-        session = self.get_session(session_id)
+        )
+        if institution_id is not None:
+            query = query.filter(StudyBuddySession.institution_id == institution_id)
+        return query.first()
+
+    def end_session(self, session_id: int, institution_id: Optional[int] = None) -> Optional[StudyBuddySession]:
+        session = self.get_session(session_id, institution_id=institution_id)
         if session:
             session.is_active = False
             session.ended_at = datetime.utcnow()
             self.db.commit()
             self.db.refresh(session)
         return session
-    
+
     def get_student_sessions(
         self,
         student_id: int,
+        institution_id: Optional[int] = None,
         is_active: Optional[bool] = None,
         limit: int = 10
     ) -> List[StudyBuddySession]:
         query = self.db.query(StudyBuddySession).filter(
             StudyBuddySession.student_id == student_id
         )
+        if institution_id is not None:
+            query = query.filter(StudyBuddySession.institution_id == institution_id)
         if is_active is not None:
             query = query.filter(StudyBuddySession.is_active == is_active)
         return query.order_by(desc(StudyBuddySession.created_at)).limit(limit).all()
-    
-    def get_session_messages(self, session_id: int, limit: int = 50) -> List[StudyBuddyMessage]:
-        return self.db.query(StudyBuddyMessage).filter(
+
+    def get_session_messages(self, session_id: int, limit: int = 50, institution_id: Optional[int] = None) -> List[StudyBuddyMessage]:
+        query = self.db.query(StudyBuddyMessage).join(
+            StudyBuddySession, StudyBuddyMessage.session_id == StudyBuddySession.id
+        ).filter(
             StudyBuddyMessage.session_id == session_id
-        ).order_by(StudyBuddyMessage.created_at).limit(limit).all()
+        )
+        if institution_id is not None:
+            query = query.filter(StudyBuddySession.institution_id == institution_id)
+        return query.order_by(StudyBuddyMessage.created_at).limit(limit).all()
     
     def chat(
         self,
@@ -102,7 +113,7 @@ class StudyBuddyService:
             )
             session_id = session.id
         else:
-            session = self.get_session(session_id)
+            session = self.get_session(session_id, institution_id=institution_id)
             if not session:
                 session = self.create_session(
                     institution_id=institution_id,
@@ -279,12 +290,19 @@ class StudyBuddyService:
         total_hours = sum(float(t.actual_duration_minutes or 0) / 60 for t in completed_tasks)
         avg_hours_per_day = total_hours / 30 if total_hours > 0 else 0
         
+        # `ExamResult` is a per-exam (not per-subject) summary row -- it has
+        # no `subject` relationship at all (that lives on the joined
+        # `ExamSubject`/`ExamMarks` rows), so `result.subject` raised an
+        # unconditional `AttributeError` here for any student with any exam
+        # result in the last 30 days, 500ing this entire endpoint. Uses the
+        # exam's own name instead, which is the closest real attribute for
+        # labeling a point in this trend.
         performance_trend = []
         for result in exam_results:
             performance_trend.append({
                 "date": result.created_at.strftime("%Y-%m-%d"),
                 "percentage": float(result.percentage),
-                "subject": result.subject.name if result.subject else "Unknown"
+                "subject": result.exam.name if result.exam else "Unknown"
             })
         
         consistency_score = self._calculate_consistency_score(daily_tasks)
@@ -455,6 +473,13 @@ class StudyBuddyService:
         priority: int = 1,
         metadata: Optional[Dict[str, Any]] = None
     ) -> StudyBuddyInsight:
+        # `StudyBuddyInsight` maps its `metadata` DB column to the Python
+        # attribute `metadata_json` (SQLAlchemy's declarative base already
+        # reserves the bare `metadata` name for the class-level MetaData
+        # object), so constructing with `metadata=...` raised
+        # `TypeError: 'metadata' is an invalid keyword argument` on every
+        # call -- this method was unreachable from any endpoint, which is
+        # exactly how that broke silently. Fixed to use the real attribute.
         insight = StudyBuddyInsight(
             institution_id=institution_id,
             student_id=student_id,
@@ -462,30 +487,36 @@ class StudyBuddyService:
             title=title,
             content=content,
             priority=priority,
-            metadata=metadata
+            metadata_json=metadata
         )
         self.db.add(insight)
         self.db.commit()
         self.db.refresh(insight)
         return insight
-    
+
     def get_student_insights(
         self,
         student_id: int,
+        institution_id: Optional[int] = None,
         is_read: Optional[bool] = None,
         limit: int = 20
     ) -> List[StudyBuddyInsight]:
         query = self.db.query(StudyBuddyInsight).filter(
             StudyBuddyInsight.student_id == student_id
         )
+        if institution_id is not None:
+            query = query.filter(StudyBuddyInsight.institution_id == institution_id)
         if is_read is not None:
             query = query.filter(StudyBuddyInsight.is_read == is_read)
         return query.order_by(desc(StudyBuddyInsight.priority), desc(StudyBuddyInsight.created_at)).limit(limit).all()
-    
-    def mark_insight_read(self, insight_id: int) -> Optional[StudyBuddyInsight]:
-        insight = self.db.query(StudyBuddyInsight).filter(
+
+    def mark_insight_read(self, insight_id: int, institution_id: Optional[int] = None) -> Optional[StudyBuddyInsight]:
+        query = self.db.query(StudyBuddyInsight).filter(
             StudyBuddyInsight.id == insight_id
-        ).first()
+        )
+        if institution_id is not None:
+            query = query.filter(StudyBuddyInsight.institution_id == institution_id)
+        insight = query.first()
         if insight:
             insight.is_read = True
             insight.read_at = datetime.utcnow()

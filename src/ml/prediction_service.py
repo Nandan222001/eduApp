@@ -420,9 +420,13 @@ class PerformancePredictionService:
     def get_student_predictions_history(
         self,
         student_id: int,
+        institution_id: Optional[int] = None,
         limit: int = 10
     ) -> List[PerformancePrediction]:
-        return self.db.query(PerformancePrediction).filter(
+        query = self.db.query(PerformancePrediction).filter(
             PerformancePrediction.student_id == student_id,
             PerformancePrediction.is_scenario == False
-        ).order_by(PerformancePrediction.predicted_at.desc()).limit(limit).all()
+        )
+        if institution_id is not None:
+            query = query.filter(PerformancePrediction.institution_id == institution_id)
+        return query.order_by(PerformancePrediction.predicted_at.desc()).limit(limit).all()
