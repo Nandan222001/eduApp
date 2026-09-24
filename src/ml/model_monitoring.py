@@ -94,7 +94,8 @@ class ModelMonitoringService:
                 'drift_detected': False,
                 'drift_score': 0.0,
                 'reason': 'Insufficient recent predictions',
-                'recent_sample_size': len(recent_predictions)
+                'recent_sample_size': len(recent_predictions),
+                'checked_at': datetime.utcnow().isoformat()
             }
         
         recent_values = np.array([p.predicted_value for p in recent_predictions])
@@ -113,7 +114,8 @@ class ModelMonitoringService:
                     'drift_detected': False,
                     'drift_score': 0.0,
                     'reason': 'Insufficient baseline predictions',
-                    'baseline_sample_size': len(baseline_predictions)
+                    'baseline_sample_size': len(baseline_predictions),
+                    'checked_at': datetime.utcnow().isoformat()
                 }
             
             baseline_values = np.array([p.predicted_value for p in baseline_predictions])
@@ -210,7 +212,8 @@ class ModelMonitoringService:
                 'drift_detected': False,
                 'reason': 'Insufficient data for feature drift detection',
                 'recent_sample_size': len(recent_predictions),
-                'baseline_sample_size': len(baseline_predictions)
+                'baseline_sample_size': len(baseline_predictions),
+                'checked_at': datetime.utcnow().isoformat()
             }
         
         feature_drift_scores = {}
@@ -304,7 +307,8 @@ class ModelMonitoringService:
         if not baseline_metrics:
             return {
                 'degradation_detected': False,
-                'reason': 'No baseline metrics available'
+                'reason': 'No baseline metrics available',
+                'checked_at': datetime.utcnow().isoformat()
             }
         
         cutoff_date = datetime.utcnow() - timedelta(days=recent_days)
@@ -319,7 +323,8 @@ class ModelMonitoringService:
             return {
                 'degradation_detected': False,
                 'reason': 'Insufficient recent predictions',
-                'sample_size': len(recent_predictions)
+                'sample_size': len(recent_predictions),
+                'checked_at': datetime.utcnow().isoformat()
             }
         
         current_metrics = {}
@@ -435,7 +440,8 @@ class ModelMonitoringService:
             return {
                 'trend_detected': False,
                 'reason': 'Insufficient predictions with confidence intervals',
-                'sample_size': len(predictions)
+                'sample_size': len(predictions),
+                'checked_at': datetime.utcnow().isoformat()
             }
         
         daily_confidence = defaultdict(list)
