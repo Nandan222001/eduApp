@@ -23,7 +23,14 @@ class StudyPlanRepository:
         self.db = db
     
     def create_study_plan(self, plan_data: StudyPlanCreate) -> StudyPlan:
-        plan = StudyPlan(**plan_data.model_dump())
+        data = plan_data.model_dump()
+        # `metadata` is reserved by SQLAlchemy's Declarative base for the
+        # MetaData object -- passing it straight into the constructor sets an
+        # unmapped instance attribute instead of the real `metadata_json`
+        # column (same shape as the fix in update_task below).
+        metadata_value = data.pop('metadata', None)
+        plan = StudyPlan(**data)
+        plan.metadata_json = metadata_value
         self.db.add(plan)
         self.db.commit()
         self.db.refresh(plan)
@@ -70,11 +77,21 @@ class StudyPlanRepository:
         plan = self.get_study_plan_by_id(plan_id, institution_id)
         if not plan:
             return None
-        
+
         update_data = plan_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
-            setattr(plan, field, value)
-        
+            # `metadata` is reserved by SQLAlchemy's Declarative base for
+            # the MetaData object -- the real column is mapped as
+            # `metadata_json` (identical shape to `update_task` below, which
+            # already had this fix; this method was missed). Without it,
+            # `setattr(plan, 'metadata', value)` silently set an unmapped,
+            # never-persisted instance attribute, so PATCHing a study
+            # plan's `metadata` field had no effect at all.
+            if field == 'metadata':
+                plan.metadata_json = value
+            else:
+                setattr(plan, field, value)
+
         self.db.commit()
         self.db.refresh(plan)
         return plan
@@ -189,14 +206,24 @@ class DailyStudyTaskRepository:
         self.db = db
     
     def create_daily_task(self, task_data: DailyStudyTaskCreate) -> DailyStudyTask:
-        task = DailyStudyTask(**task_data.model_dump())
+        data = task_data.model_dump()
+        # See the identical `metadata` shadowing comment in create_study_plan.
+        metadata_value = data.pop('metadata', None)
+        task = DailyStudyTask(**data)
+        task.metadata_json = metadata_value
         self.db.add(task)
         self.db.commit()
         self.db.refresh(task)
         return task
-    
+
     def bulk_create_tasks(self, tasks_data: List[DailyStudyTaskCreate]) -> List[DailyStudyTask]:
-        tasks = [DailyStudyTask(**task_data.model_dump()) for task_data in tasks_data]
+        tasks = []
+        for task_data in tasks_data:
+            data = task_data.model_dump()
+            metadata_value = data.pop('metadata', None)
+            task = DailyStudyTask(**data)
+            task.metadata_json = metadata_value
+            tasks.append(task)
         self.db.add_all(tasks)
         self.db.commit()
         for task in tasks:

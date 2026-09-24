@@ -275,111 +275,144 @@ class TermResponse(TermBase):
 
 
 class TimetableTemplateBase(BaseModel):
-    name: str = Field(..., max_length=200)
+    name: str = Field(..., max_length=100)
     description: Optional[str] = None
     is_active: bool = True
 
 
 class TimetableTemplateCreate(TimetableTemplateBase):
     institution_id: int
-    academic_year_id: int
 
 
 class TimetableTemplateUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=200)
+    name: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = None
     is_active: Optional[bool] = None
 
 
 class TimetableTemplateResponse(TimetableTemplateBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     institution_id: int
-    academic_year_id: int
     created_at: datetime
     updated_at: datetime
 
 
+# NOTE on this file's Timetable* schemas: `src.models.timetable.PeriodSlot`/
+# `TimetableEntry` are normalized as TimetableTemplate -> PeriodSlot (a
+# template's period grid, keyed by `period_number`) and separately
+# Timetable (one per section+academic_year, optionally following a
+# template) -> TimetableEntry (that section's actual day/period/subject/
+# teacher grid). These schemas previously assumed a flat, denormalized shape
+# with `institution_id`/`display_order`/`name`/`is_break` on the period and
+# `institution_id`/`template_id`/`section_id`/`period_id` on the entry, none
+# of which exist on the real models (model/schema drift, bug class 11) --
+# every endpoint in `src/api/v1/timetables.py` that touched a period or
+# entry raised an `AttributeError` building its query. This is very likely
+# the same underlying cause as `src/api/v1/timetable.py` (singular)'s
+# separately-known `DayOfWeek`-import crash: both routers/schema modules
+# read like they were written against an older, richer version of
+# `src.models.timetable` that has since been normalized down to the shape
+# below, and neither was updated to match. Fixed here (for this router
+# only) by rebuilding these schemas to mirror the real columns.
 class PeriodBase(BaseModel):
-    name: str = Field(..., max_length=100)
+    period_number: int = Field(..., ge=1)
     start_time: time
     end_time: time
-    display_order: int = 0
-    is_break: bool = False
+    duration_minutes: int = Field(..., ge=1)
+    period_type: str = Field("lecture", max_length=20)
 
 
 class PeriodCreate(PeriodBase):
-    institution_id: int
     template_id: int
 
 
 class PeriodUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=100)
+    period_number: Optional[int] = Field(None, ge=1)
     start_time: Optional[time] = None
     end_time: Optional[time] = None
-    display_order: Optional[int] = None
-    is_break: Optional[bool] = None
+    duration_minutes: Optional[int] = Field(None, ge=1)
+    period_type: Optional[str] = Field(None, max_length=20)
 
 
 class PeriodResponse(PeriodBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
-    institution_id: int
     template_id: int
     created_at: datetime
-    updated_at: datetime
-
-
-class TimetableEntryBase(BaseModel):
-    section_id: int
-    period_id: int
-    subject_id: int
-    teacher_id: Optional[int] = None
-    day_of_week: DayOfWeekEnum
-    room_number: Optional[str] = Field(None, max_length=100)
-    notes: Optional[str] = None
-
-
-class TimetableEntryCreate(TimetableEntryBase):
-    institution_id: int
-    template_id: int
-
-
-class TimetableEntryUpdate(BaseModel):
-    subject_id: Optional[int] = None
-    teacher_id: Optional[int] = None
-    room_number: Optional[str] = Field(None, max_length=100)
-    notes: Optional[str] = None
-
-
-class TimetableEntryResponse(TimetableEntryBase):
-    model_config = ConfigDict(from_attributes=True)
-    
-    id: int
-    institution_id: int
-    template_id: int
-    created_at: datetime
-    updated_at: datetime
-
-
-class TimetableEntryWithDetailsResponse(TimetableEntryResponse):
-    subject: Optional[SubjectResponse] = None
-    period: Optional[PeriodResponse] = None
 
 
 class TimetableTemplateWithPeriodsResponse(TimetableTemplateResponse):
     periods: List[PeriodResponse] = []
 
 
+class TimetableInstanceCreate(BaseModel):
+    institution_id: int
+    section_id: int
+    academic_year_id: int
+    template_id: Optional[int] = None
+    is_active: bool = True
+
+
+class TimetableInstanceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    institution_id: int
+    section_id: int
+    academic_year_id: int
+    template_id: Optional[int]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class TimetableEntryBase(BaseModel):
+    day_of_week: DayOfWeekEnum
+    period_number: int = Field(..., ge=1)
+    subject_id: int
+    teacher_id: Optional[int] = None
+    room_number: Optional[str] = Field(None, max_length=50)
+    notes: Optional[str] = None
+
+
+class TimetableEntryCreate(TimetableEntryBase):
+    timetable_id: int
+
+
+class TimetableEntryUpdate(BaseModel):
+    subject_id: Optional[int] = None
+    teacher_id: Optional[int] = None
+    room_number: Optional[str] = Field(None, max_length=50)
+    notes: Optional[str] = None
+
+
+class TimetableEntryResponse(TimetableEntryBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    timetable_id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class TimetableEntryWithDetailsResponse(TimetableEntryResponse):
+    subject: Optional[SubjectResponse] = None
+
+
+class TimetableInstanceWithEntriesResponse(TimetableInstanceResponse):
+    entries: List[TimetableEntryResponse] = []
+
+
 class TimetableConflict(BaseModel):
     type: str
     message: str
     entry_id: Optional[int] = None
-    section_id: Optional[int] = None
+    timetable_id: Optional[int] = None
     teacher_id: Optional[int] = None
-    period_id: Optional[int] = None
+    period_number: Optional[int] = None
     day_of_week: Optional[DayOfWeekEnum] = None
 
 
@@ -397,7 +430,7 @@ class BulkSectionOrderUpdate(BaseModel):
 
 
 class BulkPeriodOrderUpdate(BaseModel):
-    periods: List[dict] = Field(..., description="List of {id: int, display_order: int}")
+    periods: List[dict] = Field(..., description="List of {id: int, period_number: int}")
 
 
 class AcademicYearWithTermsResponse(AcademicYearResponse):
