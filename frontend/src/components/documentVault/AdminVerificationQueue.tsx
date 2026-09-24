@@ -47,7 +47,8 @@ export const AdminVerificationQueue: React.FC<AdminVerificationQueueProps> = ({ 
         rejection_reason: reason,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['all-documents'] });
+      queryClient.invalidateQueries({ queryKey: ['document-vault-stats'] });
       setRejectDialogOpen(false);
       setSelectedDocument(null);
       setRejectionReason('');
@@ -76,20 +77,20 @@ export const AdminVerificationQueue: React.FC<AdminVerificationQueueProps> = ({ 
     setRejectDialogOpen(true);
   };
 
-  const pendingDocuments = documents.filter((d) => d.status === DocumentStatus.PENDING);
-
-  if (pendingDocuments.length === 0) {
+  if (documents.length === 0) {
     return <Alert severity="success">All documents have been verified. Great job!</Alert>;
   }
+
+  const allPending = documents.every((d) => d.status === DocumentStatus.PENDING);
 
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Verification Queue ({pendingDocuments.length} pending)
+        {allPending ? `Verification Queue (${documents.length} pending)` : `${documents.length} document(s)`}
       </Typography>
 
       <Grid container spacing={2}>
-        {pendingDocuments.map((document) => (
+        {documents.map((document) => (
           <Grid item xs={12} md={6} key={document.id}>
             <Card>
               <CardContent>
@@ -144,6 +145,16 @@ export const AdminVerificationQueue: React.FC<AdminVerificationQueueProps> = ({ 
                     Expires: {format(new Date(document.expiry_date), 'PPP')}
                   </Typography>
                 )}
+                {document.status === DocumentStatus.REJECTED && document.rejection_reason && (
+                  <Typography variant="caption" color="error.main" display="block">
+                    Rejection reason: {document.rejection_reason}
+                  </Typography>
+                )}
+                {document.status === DocumentStatus.VERIFIED && document.verified_date && (
+                  <Typography variant="caption" color="success.main" display="block">
+                    Verified: {format(new Date(document.verified_date), 'PPp')}
+                  </Typography>
+                )}
               </CardContent>
 
               <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
@@ -158,27 +169,29 @@ export const AdminVerificationQueue: React.FC<AdminVerificationQueueProps> = ({ 
                   View
                 </Button>
 
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Button
-                    size="small"
-                    color="error"
-                    startIcon={<Cancel />}
-                    onClick={() => handleRequestReupload(document)}
-                    disabled={verifyMutation.isPending}
-                  >
-                    Reject
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    color="success"
-                    startIcon={<CheckCircle />}
-                    onClick={() => handleApprove(document)}
-                    disabled={verifyMutation.isPending}
-                  >
-                    Approve
-                  </Button>
-                </Box>
+                {document.status === DocumentStatus.PENDING && (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<Cancel />}
+                      onClick={() => handleRequestReupload(document)}
+                      disabled={verifyMutation.isPending}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="success"
+                      startIcon={<CheckCircle />}
+                      onClick={() => handleApprove(document)}
+                      disabled={verifyMutation.isPending}
+                    >
+                      Approve
+                    </Button>
+                  </Box>
+                )}
               </CardActions>
             </Card>
           </Grid>
