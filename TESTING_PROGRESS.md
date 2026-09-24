@@ -3816,22 +3816,131 @@ The three agents dispatched together this round (`institution_admin`/`institutio
 verified, and pushed -- 13 routers, 433 new tests, 27 real bugs found and fixed in this single
 round alone.
 
+## Backend fixes, forty-first pass — commits 6ef5f59, f7b874d, f61b2ac, 2ea33f5, 1be30ff, a945c26, 42b301f (complete)
+
+161-177. **17 routers in one three-agent round**: `board_exam_predictions`, `career`,
+    `chatbot`, `classroom_websocket`, `college_planning`, `content_marketplace`,
+    `data_management`, `entrepreneurship`, `flashcards`, `goals`, `homework_scanner`,
+    `mistake_analysis`, `ml_monitoring`, `mobile_auth`, `notification_analytics`,
+    `parent_roi`, `question_nlp` — 403 new tests (`tests/integration/test_{router}_api.py`
+    for all 17), ~35 real bugs found and fixed. Independently re-ran all 403 fresh under
+    `-n0` in two batches (207 + 196, both 100% pass), confirmed clean full-suite collection
+    (2886 tests, 0 errors) and a clean `from src.api.v1 import api_router` import (1624
+    routes), and reviewed the two most severe diffs (`parent_roi.py`, `classroom_websocket.py`)
+    line-by-line before pushing. All 17 were already present in the `ROUTERS` list (no
+    reachability bugs this round). Highlights:
+    - **Three more completely-unauthenticated routers found** (6th, 7th, 8th this session,
+      after `feedback.py`/`institution_admin.py`/`quizzes.py`/`live_events_websocket.py`):
+      `parent_roi.py` (all endpoints, plus trusted a client-supplied `institution_id`
+      directly instead of deriving it from the session), `classroom_websocket.py` (the
+      websocket accepted a raw client-supplied `user_id` with zero verification —
+      full impersonation of any user in any classroom's live chat/whiteboard/polls —
+      and all 3 REST endpoints had no auth either), and `flashcards.py` (all 20
+      endpoints). Also `mistake_analysis.py` (13 endpoints) and `ml_monitoring.py`
+      (10 of 11 endpoints, health check excepted) — bringing this session's total
+      zero-auth-router count to **8**.
+    - **`data_management.py`: a systemic bug 403'ing the entire feature for everyone,
+      including real admins** — all 12 endpoints' admin gate compared the ORM `Role`
+      relationship object directly to the string `"admin"` (`current_user.role != "admin"`),
+      which is unconditionally `True` regardless of the caller's actual role. Fixed to
+      `current_user.role.slug != "admin"`.
+    - **`content_marketplace.py`: the same role-comparison bug in a different shape** —
+      `require_roles` and 3 inline checks compared `Role.name` (the human-readable label)
+      instead of `Role.slug`, 403ing every real student/teacher/admin caller (only
+      superusers ever passed). Also: `get_content_detail` built its response from
+      `content.__dict__` *after* `increment_views()` committed (SQLAlchemy expires
+      `__dict__` on commit) — 100% `KeyError` on every `GET /contents/{id}`; a
+      `metadata=` write into `CreditTransaction(**data)` shadowed SQLAlchemy's reserved
+      attribute (bug class 1, response-side too); an uncaught plagiarism-check `ValueError`
+      surfaced as 500 instead of 404; and a cross-tenant gap across 6 moderation/plagiarism
+      endpoints.
+    - **`notification_analytics.py` was largely non-functional**: `func.case(...)` was used
+      instead of SQLAlchemy's real `case(...)` at 11 call sites across 5 methods —
+      `func.case` calls a SQL function named `case` that doesn't exist, raising `TypeError`
+      at query-build time — breaking 6 of the router's endpoints outright (delivery-metrics,
+      priority/group breakdown, timeline, top-types, dashboard).
+    - **`mobile_auth.py`/`content_marketplace.py`/other: `metadata=`/`metadata_json`
+      shadowing recurred again** (4 sites in `mobile_auth.py` alone) — same shape as prior
+      passes, always worth grepping for explicitly.
+    - **`career.py`, `college_planning.py`: more model/schema drift** — `ExamMarks.subject_id`/
+      `marks_obtained`/`total_marks` don't exist (data lives on the joined `ExamSubject`),
+      100% breaking `POST /career/recommendations/generate` for new students;
+      `Notification(type=..., is_read=...)` used nonexistent columns (real: `notification_type`/
+      `status`/`channel`), and fixing that surfaced a second bug — a `students.id` value was
+      being written into `Notification.user_id` (a `users.id` FK), an `IntegrityError` waiting
+      to happen once the first bug was fixed.
+    - **`college_planning.py`: route-shadowing** (bug class 7) — `GET /applications/{id}`
+      swallowed `/applications/deadlines/{id}` and `/applications/statistics/{id}`, both
+      permanently 422ing. Fixed with the `{id:int}` path-converter.
+    - **`parent_roi.py`: model/schema drift** — `FeePayment.status` doesn't exist (real:
+      `payment_status`), `ExamResult.marks_obtained` doesn't exist (real:
+      `total_marks_obtained`/`total_max_marks`/`percentage`) — both broke report generation
+      100% for any real parent.
+    - **`flashcards.py`: several distinct bugs beyond the zero-auth issue** — `POST
+      /decks/bulk` passed `order_index` twice into the constructor (same shape as this
+      session's earlier `quizzes.py` bulk-create fix); a genuine SM-2 spaced-repetition
+      algorithm bug where `repetitions` was incremented twice per correct answer, skipping
+      straight to a 6-day interval instead of 1-day on the very first correct review; and two
+      `autoflush=False`-related off-by-one bugs (`delete_flashcard`'s recount ran before the
+      pending DELETE flushed; `update_study_session`'s recount ran before the new row
+      flushed) fixed with explicit `db.flush()`.
+    - **`ml_monitoring.py`: schema drift hidden inside error handling** — 6 "insufficient
+      data" early-return branches across 4 service methods in `src/ml/model_monitoring.py`
+      omitted the required `checked_at` field, so a pydantic `ValidationError` (which
+      subclasses `ValueError`) got miscategorized as a 404 — the routine path for any
+      new/low-traffic model. Same drift shape independently found in `question_nlp.py`
+      (`cluster_questions`'s insufficient-data branch omitted `noise_points`/`cluster_ids`,
+      surfacing as an unhandled 500 instead).
+    - **`entrepreneurship.py`: a silent data-loss bug** — `score_submission` mutated the
+      `judge_scores` JSON column in place instead of reassigning it, so SQLAlchemy never
+      detected the change and every judge's score after the first on a given submission was
+      silently dropped from both the response and the DB.
+    - Routers confirmed already correct with no bugs: `board_exam_predictions.py` (clean
+      throughout), `chatbot.py` (stateless rule-based stub, no DB access), `mobile_auth.py`
+      and `notification_analytics.py` and `question_nlp.py` (already fully authenticated —
+      only the specific bugs listed above applied to them).
+    - Cross-tenant/cross-owner gaps (bug class 12) also found and fixed in:
+      `homework_scanner.py` (get/list/analyze/delete had no institution scoping),
+      `entrepreneurship.py` (all 11 create/update/delete endpoints, reads/showcase
+      deliberately left open by design), and `content_marketplace.py` (6 moderation/
+      plagiarism endpoints).
+    - One environment note from the agent that did `board_exam_predictions`/`career`/etc:
+      both MySQL and Redis were down at the start of its run despite the last pass's notes
+      saying otherwise, so it started both itself (`service mysql start`,
+      `service redis-server start`). **Redis is now running in this container** (confirmed
+      via `redis-cli ping` → `PONG` as of this pass) — this may no longer hold true on a
+      fresh container restart, so keep checking rather than assuming either state.
+
+## This session's 6th parallel-agent round is now fully resolved
+The three agents dispatched together this round (8 routers / 6 routers / 3 routers, split as
+`board_exam_predictions`+`career`+`chatbot`+`classroom_websocket`+`college_planning`+`goals`+
+`homework_scanner`+`parent_roi`, `data_management`+`mistake_analysis`+`ml_monitoring`+
+`mobile_auth`+`notification_analytics`+`question_nlp`, and `content_marketplace`+
+`entrepreneurship`+`flashcards`) are all complete, independently verified, and pushed — 17
+routers, 403 new tests, ~35 real bugs found and fixed in this single round. Note: the first
+dispatch attempt for this exact round hit a session-wide rate limit and all three agents were
+terminated almost immediately with zero file changes (confirmed via `git status` before
+redispatching) — simply redispatching the identical batch a short time later succeeded with no
+special recovery needed, so a rate-limit failure with an empty diff doesn't always mean waiting
+for the stated reset time.
+
 ## Next resume point (current, supersedes the ones above)
 1. **Continue the Phase-2/3 backend route-module audit** with the remaining untested routers:
-   `board_exam_predictions`, `career`, `chatbot`, `classroom_websocket`, `college_planning`,
-   `content_marketplace`, `data_management`, `entrepreneurship`, `flashcards`, `goals`,
-   `homework_scanner`, `mistake_analysis`, `ml_monitoring`, `mobile_auth`,
-   `notification_analytics`, `olympics`, `onboarding`, `parent_roi`, `peer_recognition`,
-   `peer_tutoring`, `plagiarism`, `podcasts`, `predictions`, `previous_year_papers`,
-   `question_nlp`, `reverse_classroom`, `scholarship_essays`, `student_employment`,
-   `study_buddy`, `study_materials`, `study_planner`, `subject_rpg`, `super_admin_analytics`,
-   `timetables`, `weakness_detection`. Same method as every router above -- check all eleven
-   numbered bug classes plus bug class 12 (cross-tenant/cross-owner gaps), PLUS explicitly
-   check for a completely missing auth dependency on the whole router (4 found this session:
-   `feedback.py`'s async/sync crash, `institution_admin.py`, `quizzes.py`,
-   `live_events_websocket.py`'s auth stub), PLUS the newly-found UUID-vs-CHAR(36) comparison
-   bug and the "shared admin schema forwarded unfiltered to a self-service endpoint" privilege-
-   escalation shape.
+   `olympics`, `onboarding`, `peer_recognition`, `peer_tutoring`, `plagiarism`, `podcasts`
+   (3-line stub, verify), `predictions`, `previous_year_papers`, `reverse_classroom`,
+   `scholarship_essays`, `student_employment`, `study_buddy`, `study_materials`,
+   `study_planner`, `subject_rpg`, `super_admin_analytics`, `timetables`,
+   `weakness_detection` (18 routers left). Same method as every router above -- check all
+   fourteen numbered bug classes (see any recent pass section above for the full list, e.g.
+   the fortieth-pass section), PLUS explicitly check for a completely missing auth dependency
+   on the whole router (8 found this session so far: `feedback.py`'s async/sync crash,
+   `institution_admin.py`, `quizzes.py`, `live_events_websocket.py`'s auth stub,
+   `parent_roi.py`, `classroom_websocket.py`, `flashcards.py`, `mistake_analysis.py`, plus
+   `ml_monitoring.py` at 10/11 endpoints), PLUS the UUID-vs-CHAR(36) comparison bug, the
+   "shared admin schema forwarded unfiltered to a self-service endpoint" privilege-escalation
+   shape, and the `Role` relationship compared directly to a string (`.name` or the object
+   itself) instead of `.slug` (found 3 times now: `data_management.py`, `content_marketplace.py`,
+   and earlier `search.py`) -- worth checking explicitly in every new router from here on.
 2. **`analytics.py`'s missing authentication is flagged, not fixed** -- needs a deliberate
    decision (is unauthenticated cross-institution telemetry/dashboard access intentional for
    this generic ingest API, or should it require auth like its sibling
@@ -3842,13 +3951,14 @@ round alone.
    `src/main.py` (or otherwise wire up `/super-admin/branding/current`).
 5. **The pending security-posture audit is still unanswered by the user** — do NOT start fixing
    anything NEW in that audit without the user's confirmation landing first. (Note: this pass's
-   `profile.py` privilege-escalation fix and the prior unauthenticated-router fixes were treated
-   as ordinary bugs found via testing, consistent with this session's established practice of
-   NOT routing individually-discovered bugs through that separate, still-pending audit hold.)
+   unauthenticated-router fixes were treated as ordinary bugs found via testing, consistent
+   with this session's established practice of NOT routing individually-discovered bugs through
+   that separate, still-pending audit hold.)
 6. Frontend Phase 2/3 (~210 untested pages) and the mobile app remain the two largest
    not-yet-started bodies of work.
-7. **Environment note for future iterations** (unchanged): MySQL/Redis are not guaranteed to be
-   running at iteration start; a model column addition requires either a manual `ALTER TABLE`
-   against an already-provisioned test-DB table or clearing `/tmp/eduapp_schema.lock`/`.done`
-   for a fresh `create_all` (found again this pass for `conferences.py`, same as `institutions.py`
-   in pass thirty-three).
+7. **Environment note for future iterations**: MySQL/Redis are not guaranteed to be running at
+   iteration start (re-check with `mysqladmin ping`/`redis-cli ping`, restart if needed) --
+   Redis was confirmed running as of this pass, reversing the "Redis NOT running" note from
+   pass 28, but don't assume that holds on a fresh container. A model column addition requires
+   either a manual `ALTER TABLE` against an already-provisioned test-DB table or clearing
+   `/tmp/eduapp_schema.lock`/`.done` for a fresh `create_all`.
