@@ -35,7 +35,10 @@ async def get_comprehensive_recommendations(
     - Difficulty-appropriate resources
     - Peer success patterns
     """
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     
     if not student:
         raise HTTPException(
@@ -82,7 +85,16 @@ async def get_topic_recommendations(
         topic_id=request.topic_id,
         include_external=request.include_external
     )
-    
+
+    if recommendations.get('error'):
+        # The service returns {'error': ...} rather than raising, so
+        # without this check a nonexistent/cross-institution topic_id
+        # returned 200 with an error body instead of a proper 404.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Topic not found"
+        )
+
     return recommendations
 
 
@@ -99,7 +111,10 @@ async def get_learning_style_profile(
     - Reading/Writing (PDFs, documents)
     - Kinesthetic (interactive content, practice)
     """
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     
     if not student:
         raise HTTPException(
@@ -137,7 +152,10 @@ async def get_difficulty_recommendation(
     Get recommended difficulty level for student based on current mastery.
     Helps suggest appropriate resources for optimal learning.
     """
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     
     if not student:
         raise HTTPException(
@@ -167,7 +185,10 @@ async def find_similar_students(
     Find students with similar performance patterns using collaborative filtering.
     Used to recommend materials that helped similar students succeed.
     """
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     
     if not student:
         raise HTTPException(
@@ -243,7 +264,10 @@ async def get_study_path(
     - Difficulty progression
     - Time estimates
     """
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     
     if not student:
         raise HTTPException(
@@ -277,8 +301,11 @@ async def search_external_content(
     - MIT OpenCourseWare
     """
     from src.models.academic import Topic
-    
-    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+
+    topic = db.query(Topic).filter(
+        Topic.id == topic_id,
+        Topic.institution_id == current_user.institution_id
+    ).first()
     
     if not topic:
         raise HTTPException(
@@ -334,12 +361,17 @@ async def get_filtered_recommendations(
             topic_id=filters.topic_id,
             include_external=filters.include_external
         )
+        if recommendations.get('error'):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Topic not found"
+            )
     else:
         recommendations = service.generate_comprehensive_recommendations(
             institution_id=current_user.institution_id,
             student_id=student.id
         )
-    
+
     return recommendations
 
 
@@ -356,7 +388,10 @@ async def get_peer_success_materials(
     """
     from src.models.study_planner import WeakArea
     
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     
     if not student:
         raise HTTPException(

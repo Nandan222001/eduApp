@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from src.database import get_db
 from src.models.user import User
-from src.dependencies.auth import get_current_user
+from src.dependencies.auth import get_current_user, require_roles
 from src.services.onboarding_service import OnboardingService
 from src.schemas.onboarding import (
     OnboardingFlowResponse,
@@ -52,7 +52,16 @@ async def create_onboarding_flow(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Create a new onboarding flow (admin only)"""
+    """Create a new onboarding flow (admin only).
+
+    Previously this endpoint (and every other endpoint in this router
+    documented "admin only" in its docstring) had a real auth dependency
+    but no role check behind it at all -- any authenticated user, including
+    a student, could create/edit/delete onboarding flows and steps or
+    verify other users' documents for their institution. Fixed by adding
+    `require_roles(current_user, ["admin", "super_admin"])`.
+    """
+    require_roles(current_user, ["admin", "super_admin"])
     flow = OnboardingService.create_flow(
         db,
         current_user.institution_id,
@@ -90,6 +99,7 @@ async def update_onboarding_flow(
     db: Session = Depends(get_db),
 ):
     """Update an onboarding flow (admin only)"""
+    require_roles(current_user, ["admin", "super_admin"])
     flow = OnboardingService.update_flow(
         db,
         flow_id,
@@ -111,6 +121,7 @@ async def delete_onboarding_flow(
     db: Session = Depends(get_db),
 ):
     """Delete an onboarding flow (admin only)"""
+    require_roles(current_user, ["admin", "super_admin"])
     success = OnboardingService.delete_flow(
         db,
         flow_id,
@@ -132,6 +143,7 @@ async def add_step_to_flow(
     db: Session = Depends(get_db),
 ):
     """Add a step to an onboarding flow (admin only)"""
+    require_roles(current_user, ["admin", "super_admin"])
     step = OnboardingService.add_step_to_flow(
         db,
         flow_id,
@@ -153,7 +165,8 @@ async def update_flow_steps_bulk(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Replace all steps in a flow (drag-drop builder)"""
+    """Replace all steps in a flow (drag-drop builder, admin only)"""
+    require_roles(current_user, ["admin", "super_admin"])
     flow = OnboardingService.get_flow_by_id(
         db,
         flow_id,
@@ -187,6 +200,7 @@ async def update_onboarding_step(
     db: Session = Depends(get_db),
 ):
     """Update a specific onboarding step (admin only)"""
+    require_roles(current_user, ["admin", "super_admin"])
     step = OnboardingService.update_step(
         db,
         step_id,
@@ -208,6 +222,7 @@ async def delete_onboarding_step(
     db: Session = Depends(get_db),
 ):
     """Delete a specific onboarding step (admin only)"""
+    require_roles(current_user, ["admin", "super_admin"])
     success = OnboardingService.delete_step(
         db,
         step_id,
@@ -242,12 +257,26 @@ async def start_onboarding(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Start onboarding for a specific flow"""
+    """Start onboarding for a specific flow.
+
+    Previously validated nothing about `progress_data.flow_id` beyond it
+    existing anywhere in the database -- any authenticated user from any
+    institution could start (and thereby read/progress through) another
+    institution's onboarding flow by guessing its id (cross-tenant gap,
+    bug class 17). Fixed by scoping the flow lookup to
+    `current_user.institution_id` in `OnboardingService.start_onboarding`.
+    """
     progress = OnboardingService.start_onboarding(
         db,
         current_user.id,
-        progress_data.flow_id
+        progress_data.flow_id,
+        current_user.institution_id
     )
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Onboarding flow not found"
+        )
     return progress
 
 
@@ -281,7 +310,8 @@ async def get_progress_summary(
     summary = OnboardingService.get_progress_summary(
         db,
         current_user.id,
-        flow_id
+        flow_id,
+        current_user.institution_id
     )
     return summary
 
@@ -293,12 +323,19 @@ async def complete_step(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Mark a step as completed"""
+    """Mark a step as completed.
+
+    Previously looked up `step_id` with no institution scoping at all --
+    any authenticated user could mark any other institution's onboarding
+    step complete for themselves (cross-tenant gap, bug class 17). Fixed by
+    scoping the step lookup to `current_user.institution_id`.
+    """
     step_progress = OnboardingService.complete_step(
         db,
         current_user.id,
         step_id,
-        completion_data
+        completion_data,
+        current_user.institution_id
     )
     return MessageResponse(message="Step completed successfully")
 
@@ -309,20 +346,32 @@ async def get_next_step(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get the next step to complete in the onboarding flow"""
+    """Get the next step to complete in the onboarding flow.
+
+    Same cross-tenant fix as `start_onboarding` above -- `flow_id` is now
+    scoped to `current_user.institution_id` before a fresh progress record
+    is created for it.
+    """
     progress = OnboardingService.get_user_progress(
         db,
         current_user.id,
         flow_id
     )
-    
+
     if not progress:
         progress = OnboardingService.start_onboarding(
             db,
             current_user.id,
-            flow_id
+            flow_id,
+            current_user.institution_id
         )
-    
+
+    if not progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Onboarding flow not found"
+        )
+
     next_step = OnboardingService.get_next_step(db, progress)
     return next_step
 
@@ -364,6 +413,7 @@ async def verify_document(
     db: Session = Depends(get_db),
 ):
     """Verify a user's document (admin only)"""
+    require_roles(current_user, ["admin", "super_admin"])
     document = OnboardingService.verify_document(
         db,
         document_id,

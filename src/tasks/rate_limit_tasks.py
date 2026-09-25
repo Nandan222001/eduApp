@@ -1,57 +1,67 @@
 from datetime import datetime, timedelta
+from typing import Optional
 from celery import shared_task
 from sqlalchemy.orm import Session
 from src.database import SessionLocal
 from src.models.rate_limit import RateLimitViolation
 from src.schemas.rate_limit import RateLimitViolationCreate
 from src.services.rate_limit_service import RateLimitService
-from src.redis_client import redis_client
+from src.redis_client import get_redis
+import asyncio
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 
+async def _persist_rate_limit_violations_async(db: Session) -> Optional[int]:
+    client = await get_redis()
+    if not client:
+        return None
+
+    keys = await client.keys("rate_limit:violations:*")
+    total_persisted = 0
+
+    for key in keys:
+        violations = await client.lrange(key, 0, -1)
+
+        for violation_json in violations:
+            try:
+                violation_data = json.loads(violation_json)
+
+                violation_create = RateLimitViolationCreate(
+                    user_id=violation_data.get("user_id"),
+                    role_slug=violation_data.get("role_slug"),
+                    path=violation_data.get("path"),
+                    method=violation_data.get("method"),
+                    ip_address=violation_data.get("ip_address"),
+                    limit_hit=violation_data.get("limit"),
+                    user_agent=violation_data.get("user_agent"),
+                )
+
+                RateLimitService.create_violation(db, violation_create)
+                total_persisted += 1
+
+            except Exception as e:
+                logger.error(f"Error persisting violation: {e}")
+                continue
+
+        await client.delete(key)
+
+    return total_persisted
+
+
 @shared_task(name="persist_rate_limit_violations")
 def persist_rate_limit_violations():
-    if not redis_client:
-        logger.warning("Redis client not available for rate limit persistence")
-        return
-    
     db = SessionLocal()
     try:
-        keys = redis_client.keys("rate_limit:violations:*")
-        total_persisted = 0
-        
-        for key in keys:
-            violations = redis_client.lrange(key, 0, -1)
-            
-            for violation_json in violations:
-                try:
-                    violation_data = json.loads(violation_json)
-                    
-                    violation_create = RateLimitViolationCreate(
-                        user_id=violation_data.get("user_id"),
-                        role_slug=violation_data.get("role_slug"),
-                        path=violation_data.get("path"),
-                        method=violation_data.get("method"),
-                        ip_address=violation_data.get("ip_address"),
-                        limit_hit=violation_data.get("limit"),
-                        user_agent=violation_data.get("user_agent"),
-                    )
-                    
-                    RateLimitService.create_violation(db, violation_create)
-                    total_persisted += 1
-                    
-                except Exception as e:
-                    logger.error(f"Error persisting violation: {e}")
-                    continue
-            
-            redis_client.delete(key)
-        
+        total_persisted = asyncio.run(_persist_rate_limit_violations_async(db))
+        if total_persisted is None:
+            logger.warning("Redis client not available for rate limit persistence")
+            return
         logger.info(f"Persisted {total_persisted} rate limit violations to database")
         return {"persisted": total_persisted}
-        
+
     except Exception as e:
         logger.error(f"Error in persist_rate_limit_violations task: {e}")
         raise

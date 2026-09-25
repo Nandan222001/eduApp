@@ -4,6 +4,9 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from src.database import get_db
+from src.dependencies.auth import get_current_user
+from src.models.user import User
+from src.models.ml_prediction import MLModel
 from src.ml.model_monitoring import ModelMonitoringService, MonitoringDashboardService
 from src.schemas.ml_monitoring_schemas import (
     PredictionDriftResponse,
@@ -21,17 +24,37 @@ from src.schemas.ml_monitoring_schemas import (
 router = APIRouter(prefix="/ml-monitoring", tags=["ML Model Monitoring"])
 
 
+def _verify_model_access(model_id: int, current_user: User, db: Session) -> None:
+    """Ensure the requested model belongs to the caller's institution.
+
+    Every per-model endpoint below only ever took a bare `model_id` with no
+    authentication or tenant check at all, so any caller (even unauthenticated,
+    before this fix) could pull drift/performance/confidence data -- or
+    trigger a real retraining job -- for any OTHER institution's model just
+    by guessing/incrementing the id. Superusers bypass the check.
+    """
+    if current_user.is_superuser:
+        return
+    model = db.query(MLModel).filter(MLModel.id == model_id).first()
+    if model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model not found")
+    if model.institution_id != current_user.institution_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this model")
+
+
 @router.get("/models/{model_id}/drift/predictions", response_model=PredictionDriftResponse)
 async def check_prediction_drift(
     model_id: int,
     recent_days: int = Query(default=7, ge=1, le=90, description="Number of recent days to analyze"),
     use_baseline: bool = Query(default=True, description="Use historical baseline for comparison"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> PredictionDriftResponse:
     """
     Detect drift in prediction distributions by comparing recent predictions
     to training distribution or historical baseline.
     """
+    _verify_model_access(model_id, current_user, db)
     try:
         monitoring_service = ModelMonitoringService(db)
         result = monitoring_service.detect_prediction_drift(
@@ -53,12 +76,14 @@ async def check_prediction_drift(
 async def check_feature_drift(
     model_id: int,
     recent_days: int = Query(default=7, ge=1, le=90, description="Number of recent days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> FeatureDriftResponse:
     """
     Monitor drift in input feature distributions by comparing recent features
     to baseline distributions.
     """
+    _verify_model_access(model_id, current_user, db)
     try:
         monitoring_service = ModelMonitoringService(db)
         result = monitoring_service.detect_feature_drift(
@@ -79,14 +104,16 @@ async def check_feature_drift(
 async def check_performance_degradation(
     model_id: int,
     recent_days: int = Query(default=7, ge=1, le=90, description="Number of recent days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> PerformanceDegradationResponse:
     """
     Monitor model performance degradation by comparing recent performance
     to baseline metrics.
-    
+
     Note: Actual values can be provided for more accurate performance monitoring.
     """
+    _verify_model_access(model_id, current_user, db)
     try:
         monitoring_service = ModelMonitoringService(db)
         result = monitoring_service.monitor_performance_degradation(
@@ -108,12 +135,14 @@ async def check_performance_degradation(
 async def analyze_confidence_trends(
     model_id: int,
     days: int = Query(default=30, ge=7, le=180, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> ConfidenceTrendsResponse:
     """
     Analyze trends in prediction confidence over time to identify
     potential model uncertainty issues.
     """
+    _verify_model_access(model_id, current_user, db)
     try:
         monitoring_service = ModelMonitoringService(db)
         result = monitoring_service.analyze_confidence_trends(
@@ -134,6 +163,7 @@ async def analyze_confidence_trends(
 async def get_comprehensive_monitoring_report(
     model_id: int,
     recent_days: int = Query(default=7, ge=1, le=90, description="Number of recent days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> ComprehensiveMonitoringReportResponse:
     """
@@ -144,6 +174,7 @@ async def get_comprehensive_monitoring_report(
     - Confidence trend analysis
     - Retraining recommendations
     """
+    _verify_model_access(model_id, current_user, db)
     try:
         monitoring_service = ModelMonitoringService(db)
         result = monitoring_service.comprehensive_monitoring_report(
@@ -165,15 +196,17 @@ async def get_comprehensive_monitoring_report(
 async def trigger_automatic_retraining(
     model_id: int,
     request: TriggerRetrainingRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> AutoRetrainingResponse:
     """
     Trigger automatic model retraining when performance drops below threshold.
-    
+
     This endpoint will:
     1. Train a new model version with current data
     2. Optionally auto-promote if it performs better than the current champion
     """
+    _verify_model_access(model_id, current_user, db)
     try:
         monitoring_service = ModelMonitoringService(db)
         result = monitoring_service.trigger_automatic_retraining(
@@ -195,14 +228,17 @@ async def trigger_automatic_retraining(
 async def get_institution_monitoring_overview(
     institution_id: int,
     days: int = Query(default=7, ge=1, le=90, description="Number of days to analyze"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> MonitoringOverviewResponse:
     """
     Get monitoring overview for all models in an institution.
-    
+
     Provides a high-level dashboard view of model health across
     all active models.
     """
+    if not current_user.is_superuser and institution_id != current_user.institution_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this institution")
     try:
         dashboard_service = MonitoringDashboardService(db)
         result = dashboard_service.get_model_monitoring_overview(
@@ -221,12 +257,14 @@ async def get_institution_monitoring_overview(
 async def get_prediction_timeline(
     model_id: int,
     days: int = Query(default=30, ge=7, le=180, description="Number of days to include"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> PredictionTimelineResponse:
     """
     Get prediction timeline for visualization showing daily prediction
     statistics and trends over time.
     """
+    _verify_model_access(model_id, current_user, db)
     try:
         dashboard_service = MonitoringDashboardService(db)
         result = dashboard_service.get_model_prediction_timeline(
@@ -244,12 +282,14 @@ async def get_prediction_timeline(
 @router.get("/models/{model_id}/features/importance-trends", response_model=FeatureImportanceTrendsResponse)
 async def get_feature_importance_trends(
     model_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> FeatureImportanceTrendsResponse:
     """
     Get feature importance trends across model versions to understand
     how feature contributions change over time.
     """
+    _verify_model_access(model_id, current_user, db)
     try:
         dashboard_service = MonitoringDashboardService(db)
         result = dashboard_service.get_feature_importance_trends(

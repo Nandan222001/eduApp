@@ -10,12 +10,20 @@ class StudyBuddyMessageCreate(BaseModel):
 
 class StudyBuddyMessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     session_id: int
     role: str
     content: str
-    metadata: Optional[Dict[str, Any]] = None
+    # The ORM model maps this DB column to the Python attribute
+    # `metadata_json` (SQLAlchemy's declarative `Base` already reserves the
+    # bare `metadata` name for the class-level `MetaData` object), so
+    # reading `metadata` via `from_attributes` here used to fetch that
+    # `MetaData` instance instead of the JSON payload and fail Pydantic
+    # validation with a 500 on every `GET /sessions/{id}/messages` call
+    # whose messages carried metadata. Aliased to read/write the real
+    # attribute while keeping the public field name unchanged.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias="metadata_json", serialization_alias="metadata")
     created_at: datetime
 
 
@@ -91,5 +99,7 @@ class StudyBuddyInsightResponse(BaseModel):
     priority: int
     is_read: bool
     read_at: Optional[datetime] = None
-    metadata: Optional[Dict[str, Any]] = None
+    # Same `metadata`/`metadata_json` attribute-name mismatch as
+    # `StudyBuddyMessageResponse` above.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias="metadata_json", serialization_alias="metadata")
     created_at: datetime

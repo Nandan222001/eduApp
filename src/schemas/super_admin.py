@@ -370,7 +370,15 @@ class SessionReplayItem(BaseModel):
 
 class SessionReplayDetail(SessionReplayItem):
     events: List[dict]
-    metadata: Optional[dict]
+    # `SessionReplay.metadata_json` (src/models/audit_log.py) is the real ORM attribute --
+    # `metadata` is reserved by SQLAlchemy's declarative Base for the MetaData registry, so
+    # the column is mapped under a different Python name. A bare `metadata` field here with no
+    # alias would silently read/write nothing real; alias it to the actual attribute name while
+    # keeping the public API field named `metadata`, matching the same pattern already used
+    # correctly for Subscription/Payment/Invoice/UsageRecord.metadata_json elsewhere.
+    metadata: Optional[dict] = Field(
+        None, validation_alias="metadata_json", serialization_alias="metadata"
+    )
 
 
 class SessionReplayFilters(BaseModel):

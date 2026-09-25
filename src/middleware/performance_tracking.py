@@ -10,7 +10,7 @@ from src.models.performance_monitoring import (
     APIPerformanceMetric,
     ResourceUtilizationMetric,
 )
-from src.redis_client import redis_client
+from src.redis_client import get_redis
 
 
 class PerformanceTrackingMiddleware(BaseHTTPMiddleware):
@@ -97,8 +97,8 @@ class PerformanceTrackingMiddleware(BaseHTTPMiddleware):
                 )
                 db.add(metric)
                 db.commit()
-                
-                if redis_client:
+
+                if await get_redis():
                     await self._update_realtime_metrics(
                         endpoint, method, response_time_ms, status_code
                     )
@@ -111,6 +111,7 @@ class PerformanceTrackingMiddleware(BaseHTTPMiddleware):
         self, endpoint: str, method: str, response_time_ms: float, status_code: int
     ):
         try:
+            redis_client = await get_redis()
             if redis_client:
                 key = f"realtime:api:{endpoint}:{method}"
                 await redis_client.lpush(
@@ -137,6 +138,7 @@ async def collect_resource_metrics():
                 active_connections = len(psutil.net_connections())
                 
                 active_sessions = 0
+                redis_client = await get_redis()
                 if redis_client:
                     keys = await redis_client.keys("session:*")
                     active_sessions = len(keys)

@@ -3,7 +3,7 @@ from fastapi import Request, HTTPException, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from src.redis_client import redis_client
+from src.redis_client import get_redis
 from src.utils.security import decode_token
 from src.config import settings
 import json
@@ -60,9 +60,10 @@ async def log_rate_limit_violation(
     role_slug: Optional[str],
     limit: str
 ) -> None:
+    redis_client = await get_redis()
     if not redis_client:
         return
-    
+
     violation_data = {
         "user_id": user_id,
         "role_slug": role_slug or "anonymous",

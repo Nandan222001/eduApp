@@ -11,7 +11,7 @@ from src.schemas.academic import (
     BulkGradeOrderUpdate,
 )
 from src.services.academic_service import GradeService
-from src.models.academic import Grade
+from src.models.academic import Grade, AcademicYear
 
 router = APIRouter()
 
@@ -27,7 +27,17 @@ async def create_grade(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create grade for this institution"
         )
-    
+
+    academic_year = db.query(AcademicYear).filter(
+        AcademicYear.id == grade_data.academic_year_id,
+        AcademicYear.institution_id == current_user.institution_id,
+    ).first()
+    if not academic_year:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Academic year not found"
+        )
+
     service = GradeService(db)
     grade = service.create_grade(grade_data)
     return grade
@@ -58,7 +68,7 @@ async def list_grades(
     }
 
 
-@router.get("/{grade_id}", response_model=GradeResponse)
+@router.get("/{grade_id:int}", response_model=GradeResponse)
 async def get_grade(
     grade_id: int,
     current_user: User = Depends(get_current_user),
@@ -82,7 +92,7 @@ async def get_grade(
     return grade
 
 
-@router.put("/{grade_id}", response_model=GradeResponse)
+@router.put("/{grade_id:int}", response_model=GradeResponse)
 async def update_grade(
     grade_id: int,
     grade_data: GradeUpdate,
@@ -108,7 +118,7 @@ async def update_grade(
     return updated_grade
 
 
-@router.delete("/{grade_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{grade_id:int}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_grade(
     grade_id: int,
     current_user: User = Depends(get_current_user),

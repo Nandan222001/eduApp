@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 
 from src.database import get_db
+from src.dependencies.auth import get_current_user_ws
 from src.models.live_events import LiveEvent, EventViewer, EventChatMessage
 from src.models.user import User
 from src.services.chat_moderation_service import ChatModerationService
@@ -60,24 +61,47 @@ async def websocket_endpoint(
     websocket: WebSocket,
     event_id: int,
     token: str = Query(...),
+    db: Session = Depends(get_db),
 ):
     """
     WebSocket endpoint for real-time event chat and updates.
     Clients should connect with their auth token as a query parameter.
     """
-    db: Session = next(get_db())
-    
+    # `db` is now injected via Depends(get_db) rather than calling
+    # `next(get_db())` directly -- the latter bypassed FastAPI's dependency
+    # injection (and any app.dependency_overrides[get_db] override) entirely,
+    # so it always opened its own SessionLocal() against whatever
+    # credentials the app happens to be configured with, never the one a
+    # caller (e.g. a test client) may have overridden.
+    viewer = None
+
     try:
-        # Verify event exists
-        event = db.query(LiveEvent).filter(LiveEvent.id == event_id).first()
+        # Verify the token identifies a real, active user before doing
+        # anything else -- previously this was a hardcoded `user_id = 1`
+        # placeholder with no verification at all, so any client supplying
+        # any (even garbage) token value could connect, post chat messages,
+        # and be recorded as viewer/user id 1 regardless of who they
+        # actually were.
+        user = await get_current_user_ws(token, db)
+        if not user:
+            await websocket.close(code=1008, reason="Invalid or expired token")
+            return
+
+        # Scoped the same way check_event_access (the REST equivalent)
+        # scopes its own LiveEvent lookup -- an event ID from a different
+        # institution should 404 (here: close as not-found) rather than
+        # ever being reachable, "public" events included (public only means
+        # public within that event's own institution).
+        event = db.query(LiveEvent).filter(
+            LiveEvent.id == event_id,
+            LiveEvent.institution_id == user.institution_id
+        ).first()
         if not event:
             await websocket.close(code=1008, reason="Event not found")
             return
-        
-        # TODO: Verify token and get user
-        # For now, we'll accept the connection
-        user_id = 1  # Placeholder
-        
+
+        user_id = user.id
+
         await manager.connect(websocket, event_id)
         
         # Send connection confirmation
@@ -218,9 +242,13 @@ async def websocket_endpoint(
     except Exception as e:
         manager.disconnect(websocket, event_id)
         await websocket.close(code=1011, reason=str(e))
-    
-    finally:
-        db.close()
+    # No `finally: db.close()` here -- `db` now comes from Depends(get_db),
+    # which owns closing it as part of its own generator teardown (as with
+    # every other db-using dependency in this codebase). Closing it again
+    # here was harmless against a real per-request SessionLocal(), but it
+    # breaks a caller (e.g. a test's fixture) that intentionally shares one
+    # session across a whole request/assertion sequence via
+    # app.dependency_overrides.
 
 
 @router.websocket("/ws/{event_id}/moderator")
@@ -228,21 +256,33 @@ async def moderator_websocket_endpoint(
     websocket: WebSocket,
     event_id: int,
     token: str = Query(...),
+    db: Session = Depends(get_db),
 ):
     """
     WebSocket endpoint for moderators to receive real-time moderation alerts.
     """
-    db: Session = next(get_db())
-    
     try:
-        # Verify event exists
-        event = db.query(LiveEvent).filter(LiveEvent.id == event_id).first()
+        # Same as websocket_endpoint above: previously there was no token
+        # verification at all, so any client could connect here and delete
+        # chat messages / mute-unmute chat for any event with no
+        # authentication whatsoever. This endpoint doesn't gate on a
+        # specific "moderator" role -- matching moderate_chat_message (the
+        # REST equivalent in live_events.py), which likewise only requires
+        # an authenticated user of the event's own institution, not a
+        # distinct moderator permission.
+        user = await get_current_user_ws(token, db)
+        if not user:
+            await websocket.close(code=1008, reason="Invalid or expired token")
+            return
+
+        event = db.query(LiveEvent).filter(
+            LiveEvent.id == event_id,
+            LiveEvent.institution_id == user.institution_id
+        ).first()
         if not event:
             await websocket.close(code=1008, reason="Event not found")
             return
-        
-        # TODO: Verify token and check moderator permissions
-        
+
         await websocket.accept()
         
         # Send connection confirmation
@@ -309,9 +349,8 @@ async def moderator_websocket_endpoint(
     
     except WebSocketDisconnect:
         pass
-    
+
     except Exception as e:
         await websocket.close(code=1011, reason=str(e))
-    
-    finally:
-        db.close()
+    # See websocket_endpoint above for why there's no `finally: db.close()`
+    # here -- Depends(get_db) already owns that.

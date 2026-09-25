@@ -48,10 +48,14 @@ class DoubtTaggingService:
     def auto_tag_doubt(
         self,
         db: Session,
-        doubt_id: int
+        doubt_id: int,
+        institution_id: Optional[int] = None
     ) -> Dict:
-        doubt = db.query(DoubtPost).filter(DoubtPost.id == doubt_id).first()
-        
+        query = db.query(DoubtPost).filter(DoubtPost.id == doubt_id)
+        if institution_id is not None:
+            query = query.filter(DoubtPost.institution_id == institution_id)
+        doubt = query.first()
+
         if not doubt:
             return {'success': False, 'message': 'Doubt not found'}
         

@@ -7,7 +7,7 @@ from src.models.college_planning import (
     ApplicationStatus,
     DecisionOutcome,
 )
-from src.models.notification import Notification
+from src.models.notification import Notification, NotificationChannel, NotificationStatus
 
 
 class CollegePlanningService:
@@ -179,6 +179,18 @@ class CollegePlanningService:
         return application
 
     def _create_decision_notification(self, application: CollegeApplication) -> None:
+        # `application.student_id` is a `students.id` value, not a
+        # `users.id` -- `Notification.user_id` is a foreign key to `users`,
+        # so passing the raw student id through directly failed with a
+        # foreign-key IntegrityError on commit (once the earlier `type=`/
+        # `is_read=` TypeError above was fixed and this line was actually
+        # reached). The user to notify is the student's own linked User
+        # account, `application.student.user_id`; a Student with no linked
+        # User account has nobody to notify, so skip rather than violate
+        # the FK constraint.
+        if not application.student or not application.student.user_id:
+            return
+
         outcome_messages = {
             DecisionOutcome.ACCEPTED: f"Congratulations! You've been accepted to {application.college_name}!",
             DecisionOutcome.REJECTED: f"Decision received from {application.college_name}.",
@@ -193,12 +205,13 @@ class CollegePlanningService:
 
         notification = Notification(
             institution_id=application.institution_id,
-            user_id=application.student_id,
+            user_id=application.student.user_id,
             title="College Application Decision",
             message=message,
-            type="college_decision",
+            notification_type="college_decision",
+            channel=NotificationChannel.IN_APP.value,
+            status=NotificationStatus.PENDING.value,
             priority="high" if application.decision_outcome == DecisionOutcome.ACCEPTED else "medium",
-            is_read=False,
         )
 
         self.db.add(notification)
@@ -280,9 +293,10 @@ class CollegePlanningService:
             user_id=counselor_user_id,
             title="College Planning Collaboration Request",
             message=notification_message,
-            type="counselor_collaboration",
+            notification_type="counselor_collaboration",
+            channel=NotificationChannel.IN_APP.value,
+            status=NotificationStatus.PENDING.value,
             priority="medium",
-            is_read=False,
         )
 
         self.db.add(notification)

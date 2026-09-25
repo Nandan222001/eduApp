@@ -26,12 +26,31 @@ from src.schemas.study_planner import (
 router = APIRouter(prefix="/study-planner", tags=["Study Planner"])
 
 
+def _check_institution_access(current_user: User, institution_id: int) -> None:
+    """403s unless the caller is a superuser or belongs to this institution.
+
+    Every endpoint in this router took `institution_id` straight from the
+    client (a query param, or a field on the request body) and used it to
+    scope every DB lookup without ever checking it against the caller's own
+    institution -- any authenticated user could read or write another
+    institution's study plans, weak areas, tasks, and progress just by
+    passing a different institution_id (same shape as the previously-fixed
+    parent_roi.py cross-tenant gap).
+    """
+    if not current_user.is_superuser and current_user.institution_id != institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this institution's data"
+        )
+
+
 @router.post("/plans", response_model=StudyPlanResponse, status_code=status.HTTP_201_CREATED)
 def create_study_plan(
     plan_data: StudyPlanCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, plan_data.institution_id)
     service = StudyPlannerService(db)
     return service.create_study_plan(plan_data)
 
@@ -43,6 +62,7 @@ def get_study_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     plan = service.get_study_plan(plan_id, institution_id)
     if not plan:
@@ -60,6 +80,7 @@ def list_study_plans(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.list_study_plans(institution_id, student_id, status, skip, limit)
 
@@ -72,6 +93,7 @@ def update_study_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     plan = service.update_study_plan(plan_id, institution_id, plan_data)
     if not plan:
@@ -86,6 +108,7 @@ def delete_study_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     success = service.delete_study_plan(plan_id, institution_id)
     if not success:
@@ -99,6 +122,7 @@ def generate_study_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.generate_study_plan(institution_id, request)
 
@@ -109,6 +133,7 @@ def create_weak_area(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, weak_area_data.institution_id)
     service = StudyPlannerService(db)
     return service.weak_area_repo.create_weak_area(weak_area_data)
 
@@ -122,6 +147,7 @@ def identify_weak_areas_from_exam(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.identify_weak_areas_from_exam(
         student_id, exam_id, institution_id, weakness_threshold
@@ -140,6 +166,7 @@ def list_weak_areas(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.list_weak_areas(
         institution_id, student_id, subject_id, is_resolved,
@@ -155,6 +182,7 @@ def update_weak_area(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     weak_area = service.update_weak_area(weak_area_id, institution_id, weak_area_data)
     if not weak_area:
@@ -169,6 +197,7 @@ def prioritize_topics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.prioritize_topics(institution_id, request)
 
@@ -179,6 +208,7 @@ def create_daily_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, task_data.institution_id)
     service = StudyPlannerService(db)
     return service.daily_task_repo.create_daily_task(task_data)
 
@@ -190,6 +220,7 @@ def get_daily_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     task = service.daily_task_repo.get_task_by_id(task_id, institution_id)
     if not task:
@@ -210,6 +241,7 @@ def list_daily_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.daily_task_repo.list_tasks(
         institution_id, study_plan_id, student_id, task_date,
@@ -224,6 +256,7 @@ def get_daily_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.get_daily_tasks(institution_id, request)
 
@@ -236,6 +269,7 @@ def update_daily_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     task = service.daily_task_repo.update_task(task_id, institution_id, task_data)
     if not task:
@@ -250,6 +284,7 @@ def complete_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     task = service.complete_task(institution_id, request)
     if not task:
@@ -264,6 +299,7 @@ def reschedule_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     task = service.reschedule_task(institution_id, request)
     if not task:
@@ -278,6 +314,7 @@ def adaptive_reschedule(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.adaptive_reschedule(institution_id, request)
 
@@ -288,6 +325,7 @@ def create_topic_assignment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, assignment_data.institution_id)
     service = StudyPlannerService(db)
     return service.topic_assignment_repo.create_topic_assignment(assignment_data)
 
@@ -303,6 +341,7 @@ def list_topic_assignments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.topic_assignment_repo.list_assignments(
         institution_id, study_plan_id, subject_id, is_completed, skip, limit
@@ -317,6 +356,7 @@ def update_topic_assignment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     assignment = service.topic_assignment_repo.update_assignment(
         assignment_id, institution_id, assignment_data
@@ -338,6 +378,7 @@ def get_study_progress(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     return service.get_study_progress(
         institution_id, study_plan_id, student_id,
@@ -352,11 +393,12 @@ def sync_calendar(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _check_institution_access(current_user, institution_id)
     service = StudyPlannerService(db)
     plan = service.get_study_plan(request.study_plan_id, institution_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Study plan not found")
-    
+
     tasks = service.daily_task_repo.list_tasks(
         institution_id=institution_id,
         study_plan_id=request.study_plan_id,

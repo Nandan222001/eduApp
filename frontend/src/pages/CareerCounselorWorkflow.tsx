@@ -64,7 +64,6 @@ export default function CareerCounselorWorkflow() {
   const [error, setError] = useState<string | null>(null);
   const [selectedListing, setSelectedListing] = useState<StudentJobListing | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
-  const [reviewDecision, setReviewDecision] = useState<'approve' | 'deny' | null>(null);
   const [jobReviewDialogOpen, setJobReviewDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -94,23 +93,21 @@ export default function CareerCounselorWorkflow() {
     setSelectedListing(listing);
     setJobReviewDialogOpen(true);
     setReviewNotes('');
-    setReviewDecision(null);
   };
 
-  const handleSubmitJobReview = async () => {
-    if (!selectedListing || reviewDecision === null) return;
+  const handleSubmitJobReview = async (decision: 'approve' | 'deny') => {
+    if (!selectedListing) return;
 
     try {
       const updateData: StudentJobListingUpdate = {
-        employer_verified: reviewDecision === 'approve',
-        is_active: reviewDecision === 'approve',
+        employer_verified: decision === 'approve',
+        is_active: decision === 'approve',
       };
 
       await employmentApi.updateJobListing(selectedListing.id, updateData);
       setJobReviewDialogOpen(false);
       setSelectedListing(null);
       setReviewNotes('');
-      setReviewDecision(null);
       fetchData();
       setError(null);
     } catch (err) {
@@ -620,10 +617,7 @@ export default function CareerCounselorWorkflow() {
             variant="outlined"
             color="error"
             startIcon={<DenyIcon />}
-            onClick={() => {
-              setReviewDecision('deny');
-              handleSubmitJobReview();
-            }}
+            onClick={() => handleSubmitJobReview('deny')}
           >
             Reject
           </Button>
@@ -631,10 +625,7 @@ export default function CareerCounselorWorkflow() {
             variant="contained"
             color="success"
             startIcon={<ApproveIcon />}
-            onClick={() => {
-              setReviewDecision('approve');
-              handleSubmitJobReview();
-            }}
+            onClick={() => handleSubmitJobReview('approve')}
           >
             Approve
           </Button>

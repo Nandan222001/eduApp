@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from src.database import get_db
+from src.dependencies.auth import get_current_user, require_roles
 from src.services.peer_tutoring_service import PeerTutoringService
 from src.schemas.peer_tutoring import (
     TutorProfileCreate, TutorProfileUpdate, TutorProfileResponse,
@@ -33,34 +34,63 @@ router = APIRouter()
 @router.post("/tutors", response_model=TutorProfileResponse, status_code=status.HTTP_201_CREATED)
 def create_tutor_profile(
     profile: TutorProfileCreate,
-    institution_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return PeerTutoringService.create_tutor_profile(db, institution_id, profile)
+    """Create a tutor profile.
+
+    Previously this whole router had no authentication dependency on any
+    endpoint at all, and every create/list endpoint accepted an arbitrary
+    `institution_id` (and, on several endpoints, an arbitrary acting-user
+    id such as `moderator_id`/`endorser_id`/`user_id`) straight from the
+    caller -- any unauthenticated client could read or write peer-tutoring
+    data for any institution and act as any user. Fixed by requiring
+    `Depends(get_current_user)` on every endpoint (matching every other
+    router in this codebase), always deriving `institution_id` from
+    `current_user.institution_id`, and scoping id-based lookups
+    (tutor/session/review/etc.) to the caller's own institution.
+    """
+    is_staff = current_user.is_superuser or (
+        current_user.role and current_user.role.slug in ("teacher", "admin", "super_admin")
+    )
+    if profile.user_id != current_user.id and not is_staff:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot create a tutor profile on behalf of another user"
+        )
+    if profile.user_id != current_user.id:
+        target_user = db.query(User).filter(User.id == profile.user_id).first()
+        if not target_user or target_user.institution_id != current_user.institution_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Target user not found"
+            )
+    return PeerTutoringService.create_tutor_profile(db, current_user.institution_id, profile)
 
 
 @router.get("/tutors", response_model=List[TutorProfileResponse])
 def list_tutors(
-    institution_id: int = Query(...),
     status_filter: Optional[TutorStatus] = Query(None, alias="status"),
     subject_id: Optional[int] = Query(None),
     min_rating: Optional[float] = Query(None, ge=0, le=5),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     return PeerTutoringService.list_tutors(
-        db, institution_id, status_filter, subject_id, min_rating, skip, limit
+        db, current_user.institution_id, status_filter, subject_id, min_rating, skip, limit
     )
 
 
 @router.get("/tutors/{tutor_id}", response_model=TutorProfileResponse)
 def get_tutor_profile(
     tutor_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     tutor = PeerTutoringService.get_tutor_profile(db, tutor_id)
-    if not tutor:
+    if not tutor or tutor.institution_id != current_user.institution_id:
         raise HTTPException(status_code=404, detail="Tutor profile not found")
     return tutor
 
@@ -68,10 +98,10 @@ def get_tutor_profile(
 @router.get("/tutors/user/{user_id}", response_model=TutorProfileResponse)
 def get_tutor_profile_by_user(
     user_id: int,
-    institution_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    tutor = PeerTutoringService.get_tutor_profile_by_user(db, user_id, institution_id)
+    tutor = PeerTutoringService.get_tutor_profile_by_user(db, user_id, current_user.institution_id)
     if not tutor:
         raise HTTPException(status_code=404, detail="Tutor profile not found")
     return tutor
@@ -81,8 +111,12 @@ def get_tutor_profile_by_user(
 def update_tutor_profile(
     tutor_id: int,
     profile: TutorProfileUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    existing = PeerTutoringService.get_tutor_profile(db, tutor_id)
+    if not existing or existing.institution_id != current_user.institution_id:
+        raise HTTPException(status_code=404, detail="Tutor profile not found")
     updated = PeerTutoringService.update_tutor_profile(db, tutor_id, profile)
     if not updated:
         raise HTTPException(status_code=404, detail="Tutor profile not found")
@@ -92,24 +126,35 @@ def update_tutor_profile(
 @router.post("/sessions", response_model=TutoringSessionResponse, status_code=status.HTTP_201_CREATED)
 def create_session(
     session: TutoringSessionCreate,
-    institution_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return PeerTutoringService.create_session(db, institution_id, session)
+    """Create a tutoring session.
+
+    Previously `session.tutor_id`/`session.student_id` were never checked
+    against the caller's institution -- a session could be created linking
+    a tutor/student from a different institution entirely (cross-tenant
+    gap, bug class 17). Fixed by validating both belong to the caller's
+    own institution first.
+    """
+    try:
+        return PeerTutoringService.create_session(db, current_user.institution_id, session)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/sessions", response_model=List[TutoringSessionResponse])
 def list_sessions(
-    institution_id: int = Query(...),
     tutor_id: Optional[int] = Query(None),
     student_id: Optional[int] = Query(None),
     status_filter: Optional[SessionStatus] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     query = db.query(TutoringSession).filter(
-        TutoringSession.institution_id == institution_id
+        TutoringSession.institution_id == current_user.institution_id
     )
     
     if tutor_id:
@@ -129,10 +174,11 @@ def list_sessions(
 @router.get("/sessions/{session_id}", response_model=TutoringSessionResponse)
 def get_session(
     session_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     session = db.query(TutoringSession).filter(TutoringSession.id == session_id).first()
-    if not session:
+    if not session or session.institution_id != current_user.institution_id:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
 
@@ -141,8 +187,12 @@ def get_session(
 def update_session(
     session_id: int,
     session: TutoringSessionUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    existing = db.query(TutoringSession).filter(TutoringSession.id == session_id).first()
+    if not existing or existing.institution_id != current_user.institution_id:
+        raise HTTPException(status_code=404, detail="Session not found")
     updated = PeerTutoringService.update_session(db, session_id, session)
     if not updated:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -153,8 +203,12 @@ def update_session(
 def start_session(
     session_id: int,
     start_data: SessionStartRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    existing = db.query(TutoringSession).filter(TutoringSession.id == session_id).first()
+    if not existing or existing.institution_id != current_user.institution_id:
+        raise HTTPException(status_code=404, detail="Session not found")
     session = PeerTutoringService.start_session(db, session_id, start_data)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -165,8 +219,12 @@ def start_session(
 def complete_session(
     session_id: int,
     complete_data: SessionCompleteRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    existing = db.query(TutoringSession).filter(TutoringSession.id == session_id).first()
+    if not existing or existing.institution_id != current_user.institution_id:
+        raise HTTPException(status_code=404, detail="Session not found")
     session = PeerTutoringService.complete_session(db, session_id, complete_data)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -177,10 +235,20 @@ def complete_session(
 def cancel_session(
     session_id: int,
     cancel_data: SessionCancelRequest,
-    user_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    session = PeerTutoringService.cancel_session(db, session_id, user_id, cancel_data)
+    """Cancel a session as the caller.
+
+    Previously accepted an arbitrary `user_id` query parameter with no
+    verification -- any caller could cancel a session while attributing
+    the cancellation to any other user. Fixed to always attribute the
+    cancellation to `current_user.id`.
+    """
+    existing = db.query(TutoringSession).filter(TutoringSession.id == session_id).first()
+    if not existing or existing.institution_id != current_user.institution_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session = PeerTutoringService.cancel_session(db, session_id, current_user.id, cancel_data)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
@@ -189,27 +257,34 @@ def cancel_session(
 @router.post("/reviews", response_model=TutorReviewResponse, status_code=status.HTTP_201_CREATED)
 def create_review(
     review: TutorReviewCreate,
-    institution_id: int = Query(...),
-    student_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    from src.models.student import Student
+    student = db.query(Student).filter(
+        Student.user_id == current_user.id,
+        Student.institution_id == current_user.institution_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=400, detail="Student profile not found")
+
     try:
-        return PeerTutoringService.create_review(db, institution_id, student_id, review)
+        return PeerTutoringService.create_review(db, current_user.institution_id, student.id, review)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/reviews", response_model=List[TutorReviewResponse])
 def list_reviews(
-    institution_id: int = Query(...),
     tutor_id: Optional[int] = Query(None),
     student_id: Optional[int] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     query = db.query(TutorReview).filter(
-        TutorReview.institution_id == institution_id
+        TutorReview.institution_id == current_user.institution_id
     )
     
     if tutor_id:
@@ -228,40 +303,57 @@ def get_tutor_reviews(
     tutor_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     return db.query(TutorReview).filter(
-        TutorReview.tutor_id == tutor_id
+        TutorReview.tutor_id == tutor_id,
+        TutorReview.institution_id == current_user.institution_id
     ).order_by(desc(TutorReview.created_at)).offset(skip).limit(limit).all()
 
 
 @router.post("/endorsements", response_model=TutorEndorsementResponse, status_code=status.HTTP_201_CREATED)
 def create_endorsement(
     endorsement: TutorEndorsementCreate,
-    institution_id: int = Query(...),
-    endorser_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return PeerTutoringService.create_endorsement(db, institution_id, endorser_id, endorsement)
+    """Create an endorsement as the caller.
+
+    Previously accepted an arbitrary `endorser_id` query parameter --
+    fixed to always attribute the endorsement to `current_user.id`. Also
+    fixed: `endorsement.tutor_id` was never checked against the caller's
+    institution (cross-tenant gap, bug class 17).
+    """
+    try:
+        return PeerTutoringService.create_endorsement(
+            db, current_user.institution_id, current_user.id, endorsement
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/tutors/{tutor_id}/endorsements", response_model=List[TutorEndorsementResponse])
 def get_tutor_endorsements(
     tutor_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     return db.query(TutorEndorsement).filter(
-        TutorEndorsement.tutor_id == tutor_id
+        TutorEndorsement.tutor_id == tutor_id,
+        TutorEndorsement.institution_id == current_user.institution_id
     ).order_by(desc(TutorEndorsement.created_at)).all()
 
 
 @router.get("/tutors/{tutor_id}/badges", response_model=List[TutorBadgeResponse])
 def get_tutor_badges(
     tutor_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     return db.query(TutorBadge).filter(
         TutorBadge.tutor_id == tutor_id,
+        TutorBadge.institution_id == current_user.institution_id,
         TutorBadge.is_displayed == True
     ).order_by(TutorBadge.display_order, desc(TutorBadge.earned_at)).all()
 
@@ -269,10 +361,12 @@ def get_tutor_badges(
 @router.get("/tutors/{tutor_id}/incentives", response_model=List[TutorIncentiveResponse])
 def get_tutor_incentives(
     tutor_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     return db.query(TutorIncentive).filter(
-        TutorIncentive.tutor_id == tutor_id
+        TutorIncentive.tutor_id == tutor_id,
+        TutorIncentive.institution_id == current_user.institution_id
     ).order_by(desc(TutorIncentive.created_at)).all()
 
 
@@ -280,20 +374,23 @@ def get_tutor_incentives(
 def get_tutor_points_history(
     tutor_id: int,
     limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     return db.query(TutorPointHistory).filter(
-        TutorPointHistory.tutor_id == tutor_id
+        TutorPointHistory.tutor_id == tutor_id,
+        TutorPointHistory.institution_id == current_user.institution_id
     ).order_by(desc(TutorPointHistory.created_at)).limit(limit).all()
 
 
 @router.get("/tutors/{tutor_id}/stats", response_model=TutorStatsResponse)
 def get_tutor_stats(
     tutor_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     tutor = db.query(TutorProfile).filter(TutorProfile.id == tutor_id).first()
-    if not tutor:
+    if not tutor or tutor.institution_id != current_user.institution_id:
         raise HTTPException(status_code=404, detail="Tutor not found")
     
     sessions_by_status = db.query(
@@ -371,34 +468,46 @@ def get_tutor_stats(
 @router.post("/moderation", response_model=SessionModerationLogResponse, status_code=status.HTTP_201_CREATED)
 def create_moderation_log(
     log: SessionModerationLogCreate,
-    institution_id: int = Query(...),
-    moderator_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return PeerTutoringService.create_moderation_log(db, institution_id, moderator_id, log)
+    """Create a moderation log entry (teacher/admin only).
+
+    Previously accepted arbitrary `institution_id`/`moderator_id` query
+    parameters with no auth at all. Fixed to require a teacher/admin/
+    super_admin caller and always attribute the entry to `current_user`.
+    """
+    require_roles(current_user, ["teacher", "admin", "super_admin"])
+    try:
+        return PeerTutoringService.create_moderation_log(
+            db, current_user.institution_id, current_user.id, log
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/moderation", response_model=List[SessionModerationLogResponse])
 def list_moderation_logs(
-    institution_id: int = Query(...),
     session_id: Optional[int] = Query(None),
     resolved: Optional[bool] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    require_roles(current_user, ["teacher", "admin", "super_admin"])
     query = db.query(SessionModerationLog).filter(
-        SessionModerationLog.institution_id == institution_id
+        SessionModerationLog.institution_id == current_user.institution_id
     )
-    
+
     if session_id:
         query = query.filter(SessionModerationLog.session_id == session_id)
-    
+
     if resolved is not None:
         query = query.filter(SessionModerationLog.resolved == resolved)
-    
+
     query = query.order_by(desc(SessionModerationLog.created_at))
-    
+
     return query.offset(skip).limit(limit).all()
 
 
@@ -406,9 +515,14 @@ def list_moderation_logs(
 def resolve_moderation_log(
     log_id: int,
     payload: SessionModerationLogResolve,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    log = db.query(SessionModerationLog).filter(SessionModerationLog.id == log_id).first()
+    require_roles(current_user, ["teacher", "admin", "super_admin"])
+    log = db.query(SessionModerationLog).filter(
+        SessionModerationLog.id == log_id,
+        SessionModerationLog.institution_id == current_user.institution_id
+    ).first()
     if not log:
         raise HTTPException(status_code=404, detail="Moderation log not found")
 
@@ -423,15 +537,15 @@ def resolve_moderation_log(
 
 @router.get("/leaderboard", response_model=LeaderboardListResponse)
 def get_leaderboard(
-    institution_id: int = Query(...),
     period: str = Query("monthly", regex="^(weekly|monthly|yearly)$"),
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    leaderboard_entries = PeerTutoringService.get_leaderboard(db, institution_id, period, limit)
-    
+    leaderboard_entries = PeerTutoringService.get_leaderboard(db, current_user.institution_id, period, limit)
+
     if not leaderboard_entries:
-        leaderboard_entries = PeerTutoringService.update_leaderboard(db, institution_id, period)
+        leaderboard_entries = PeerTutoringService.update_leaderboard(db, current_user.institution_id, period)
     
     entries = []
     for entry in leaderboard_entries[:limit]:
@@ -471,32 +585,40 @@ def get_leaderboard(
 
 @router.post("/leaderboard/update")
 def update_leaderboard(
-    institution_id: int = Query(...),
     period: str = Query("monthly", regex="^(weekly|monthly|yearly)$"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    entries = PeerTutoringService.update_leaderboard(db, institution_id, period)
+    entries = PeerTutoringService.update_leaderboard(db, current_user.institution_id, period)
     return {"message": "Leaderboard updated successfully", "entries_count": len(entries)}
 
 
 @router.post("/matching-preferences", response_model=MatchingPreferenceResponse, status_code=status.HTTP_201_CREATED)
 def create_matching_preference(
     preference: MatchingPreferenceCreate,
-    institution_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return PeerTutoringService.create_matching_preference(db, institution_id, preference)
+    """Create a student's tutor-matching preferences.
+
+    Previously `preference.student_id` was never checked against the
+    caller's institution (cross-tenant gap, bug class 17).
+    """
+    try:
+        return PeerTutoringService.create_matching_preference(db, current_user.institution_id, preference)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/matching-preferences/{student_id}", response_model=MatchingPreferenceResponse)
 def get_matching_preference(
     student_id: int,
-    institution_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     preference = db.query(MatchingPreference).filter(
         MatchingPreference.student_id == student_id,
-        MatchingPreference.institution_id == institution_id
+        MatchingPreference.institution_id == current_user.institution_id
     ).first()
     if not preference:
         raise HTTPException(status_code=404, detail="Matching preference not found")
@@ -507,8 +629,15 @@ def get_matching_preference(
 def update_matching_preference(
     preference_id: int,
     preference: MatchingPreferenceUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    existing = db.query(MatchingPreference).filter(
+        MatchingPreference.id == preference_id,
+        MatchingPreference.institution_id == current_user.institution_id
+    ).first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Matching preference not found")
     updated = PeerTutoringService.update_matching_preference(db, preference_id, preference)
     if not updated:
         raise HTTPException(status_code=404, detail="Matching preference not found")
@@ -518,10 +647,10 @@ def update_matching_preference(
 @router.post("/match", response_model=TutorMatchResponse)
 def match_tutors(
     match_request: TutorMatchRequest,
-    institution_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    matches = PeerTutoringService.match_tutors(db, institution_id, match_request)
+    matches = PeerTutoringService.match_tutors(db, current_user.institution_id, match_request)
     return TutorMatchResponse(
         matches=matches,
         total_matches=len(matches)
@@ -531,10 +660,11 @@ def match_tutors(
 @router.get("/tutors/{tutor_id}/incentive-eligibility", response_model=List[IncentiveEligibilityResponse])
 def check_incentive_eligibility(
     tutor_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     tutor = db.query(TutorProfile).filter(TutorProfile.id == tutor_id).first()
-    if not tutor:
+    if not tutor or tutor.institution_id != current_user.institution_id:
         raise HTTPException(status_code=404, detail="Tutor not found")
     
     eligibility_results = []
@@ -592,18 +722,31 @@ def check_incentive_eligibility(
 @router.post("/incentives/{incentive_id}/redeem", response_model=TutorIncentiveResponse)
 def redeem_incentive(
     incentive_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    incentive = db.query(TutorIncentive).filter(TutorIncentive.id == incentive_id).first()
+    """Redeem a tutor incentive.
+
+    This was the last of three endpoints at the bottom of the router (along
+    with `get_session_participants` and `flag_session` below) that had no
+    auth dependency at all and no institution scoping -- any unauthenticated
+    client could redeem, view or flag any institution's peer-tutoring
+    records by id. Fixed to require `Depends(get_current_user)` and scope
+    the lookup to the caller's own institution.
+    """
+    incentive = db.query(TutorIncentive).filter(
+        TutorIncentive.id == incentive_id,
+        TutorIncentive.institution_id == current_user.institution_id
+    ).first()
     if not incentive:
         raise HTTPException(status_code=404, detail="Incentive not found")
-    
+
     if incentive.is_redeemed:
         raise HTTPException(status_code=400, detail="Incentive already redeemed")
-    
+
     incentive.is_redeemed = True
     incentive.redeemed_at = datetime.utcnow()
-    
+
     db.commit()
     db.refresh(incentive)
     return incentive
@@ -612,8 +755,16 @@ def redeem_incentive(
 @router.get("/sessions/{session_id}/participants", response_model=List[SessionParticipantResponse])
 def get_session_participants(
     session_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    session = db.query(TutoringSession).filter(
+        TutoringSession.id == session_id,
+        TutoringSession.institution_id == current_user.institution_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
     return db.query(SessionParticipant).filter(
         SessionParticipant.session_id == session_id
     ).all()
@@ -623,14 +774,18 @@ def get_session_participants(
 def flag_session(
     session_id: int,
     reason: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    session = db.query(TutoringSession).filter(TutoringSession.id == session_id).first()
+    session = db.query(TutoringSession).filter(
+        TutoringSession.id == session_id,
+        TutoringSession.institution_id == current_user.institution_id
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     session.is_flagged = True
     session.flagged_reason = reason
-    
+
     db.commit()
     return {"message": "Session flagged successfully", "session_id": session_id}

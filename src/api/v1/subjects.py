@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from src.database import get_db
@@ -12,6 +12,7 @@ from src.schemas.academic import (
     GradeSubjectResponse,
 )
 from src.services.academic_service import SubjectService
+from src.models.academic import Grade, Subject
 
 router = APIRouter()
 
@@ -144,7 +145,27 @@ async def assign_subject_to_grade(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized"
         )
-    
+
+    grade = db.query(Grade).filter(
+        Grade.id == data.grade_id,
+        Grade.institution_id == current_user.institution_id,
+    ).first()
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grade not found"
+        )
+
+    subject_row = db.query(Subject).filter(
+        Subject.id == data.subject_id,
+        Subject.institution_id == current_user.institution_id,
+    ).first()
+    if not subject_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Subject not found"
+        )
+
     service = SubjectService(db)
     grade_subject = service.assign_subject_to_grade(data)
     return grade_subject
@@ -157,24 +178,44 @@ async def remove_subject_from_grade(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    grade = db.query(Grade).filter(
+        Grade.id == grade_id,
+        Grade.institution_id == current_user.institution_id,
+    ).first()
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grade not found"
+        )
+
     service = SubjectService(db)
     success = service.remove_subject_from_grade(grade_id, subject_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Grade-subject assignment not found"
         )
-    
+
     return None
 
 
-@router.get("/grades/{grade_id}/subjects", response_model=list)
+@router.get("/grades/{grade_id}/subjects", response_model=List[SubjectResponse])
 async def get_grade_subjects(
     grade_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    grade = db.query(Grade).filter(
+        Grade.id == grade_id,
+        Grade.institution_id == current_user.institution_id,
+    ).first()
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grade not found"
+        )
+
     service = SubjectService(db)
     subjects = service.get_grade_subjects(grade_id)
     return subjects

@@ -6,6 +6,8 @@ from datetime import datetime
 from src.database import get_db
 from src.models.reverse_classroom import TeachingSession, TeachingChallenge, ExplanationType, DifficultyLevel
 from src.models.student import Student
+from src.models.user import User
+from src.dependencies.auth import get_current_user
 from src.schemas.reverse_classroom import (
     TeachingSessionCreate,
     TeachingSessionUpdate,
@@ -30,11 +32,15 @@ router = APIRouter(prefix="/reverse-classroom", tags=["reverse-classroom"])
 def create_teaching_session(
     session_data: TeachingSessionCreate,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new teaching session where student explains a topic"""
-    # Verify student exists
-    student = db.query(Student).filter(Student.id == session_data.student_id).first()
+    # Verify student exists and belongs to the caller's own institution
+    student = db.query(Student).filter(
+        Student.id == session_data.student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
@@ -52,9 +58,17 @@ def create_teaching_session(
     db.commit()
     db.refresh(db_session)
 
-    # Trigger analysis in background
+    # Trigger analysis in background, reusing the request-scoped `db` --
+    # FastAPI (>=0.106) keeps a `yield`-based dependency like `get_db` open
+    # until background tasks finish, so this session is still valid here.
+    # Previously this opened its own `SessionLocal()`, which binds to
+    # `settings.database_url` (the app's real configured credentials)
+    # instead of whatever `app.dependency_overrides[get_db]` a caller (e.g.
+    # this test suite) has installed -- in this environment that meant
+    # "Access denied for user 'mysql'" on every background analysis attempt.
     background_tasks.add_task(
         analyze_session_background,
+        db,
         db_session.id,
         session_data.topic_id
     )
@@ -62,10 +76,8 @@ def create_teaching_session(
     return db_session
 
 
-def analyze_session_background(session_id: int, topic_id: int):
+def analyze_session_background(db: Session, session_id: int, topic_id: int):
     """Background task to analyze teaching session"""
-    from src.database import SessionLocal
-    db = SessionLocal()
     try:
         session = db.query(TeachingSession).filter(TeachingSession.id == session_id).first()
         if not session:
@@ -83,19 +95,21 @@ def analyze_session_background(session_id: int, topic_id: int):
         )
     except Exception as e:
         print(f"Background analysis failed: {e}")
-    finally:
-        db.close()
 
 
 @router.post("/sessions/transcribe", response_model=TeachingSessionResponse, status_code=status.HTTP_201_CREATED)
 def create_session_with_audio(
     audio_request: AudioTranscriptionRequest,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a teaching session by transcribing audio using Whisper API"""
-    # Verify student exists
-    student = db.query(Student).filter(Student.id == audio_request.student_id).first()
+    # Verify student exists and belongs to the caller's own institution
+    student = db.query(Student).filter(
+        Student.id == audio_request.student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
@@ -118,9 +132,10 @@ def create_session_with_audio(
     db.commit()
     db.refresh(db_session)
 
-    # Trigger analysis in background
+    # Trigger analysis in background (see note above on reusing `db`)
     background_tasks.add_task(
         analyze_session_background,
+        db,
         db_session.id,
         audio_request.topic_id
     )
@@ -135,10 +150,13 @@ def list_teaching_sessions(
     explanation_type: Optional[ExplanationType] = None,
     skip: int = 0,
     limit: int = 100,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List teaching sessions with optional filters"""
-    query = db.query(TeachingSession)
+    query = db.query(TeachingSession).filter(
+        TeachingSession.institution_id == current_user.institution_id
+    )
 
     if student_id:
         query = query.filter(TeachingSession.student_id == student_id)
@@ -152,9 +170,16 @@ def list_teaching_sessions(
 
 
 @router.get("/sessions/{session_id}", response_model=TeachingSessionDetail)
-def get_teaching_session(session_id: int, db: Session = Depends(get_db)):
+def get_teaching_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get a specific teaching session with AI analysis and challenges"""
-    session = db.query(TeachingSession).filter(TeachingSession.id == session_id).first()
+    session = db.query(TeachingSession).filter(
+        TeachingSession.id == session_id,
+        TeachingSession.institution_id == current_user.institution_id
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Teaching session not found")
     return session
@@ -164,10 +189,14 @@ def get_teaching_session(session_id: int, db: Session = Depends(get_db)):
 def update_teaching_session(
     session_id: int,
     session_update: TeachingSessionUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update a teaching session"""
-    db_session = db.query(TeachingSession).filter(TeachingSession.id == session_id).first()
+    db_session = db.query(TeachingSession).filter(
+        TeachingSession.id == session_id,
+        TeachingSession.institution_id == current_user.institution_id
+    ).first()
     if not db_session:
         raise HTTPException(status_code=404, detail="Teaching session not found")
 
@@ -180,9 +209,16 @@ def update_teaching_session(
 
 
 @router.post("/sessions/{session_id}/analyze", response_model=AIAnalysisResult)
-def analyze_session(session_id: int, db: Session = Depends(get_db)):
+def analyze_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Manually trigger AI analysis for a teaching session"""
-    session = db.query(TeachingSession).filter(TeachingSession.id == session_id).first()
+    session = db.query(TeachingSession).filter(
+        TeachingSession.id == session_id,
+        TeachingSession.institution_id == current_user.institution_id
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Teaching session not found")
 
@@ -203,9 +239,16 @@ def analyze_session(session_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_teaching_session(session_id: int, db: Session = Depends(get_db)):
+def delete_teaching_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a teaching session"""
-    db_session = db.query(TeachingSession).filter(TeachingSession.id == session_id).first()
+    db_session = db.query(TeachingSession).filter(
+        TeachingSession.id == session_id,
+        TeachingSession.institution_id == current_user.institution_id
+    ).first()
     if not db_session:
         raise HTTPException(status_code=404, detail="Teaching session not found")
 
@@ -217,10 +260,14 @@ def delete_teaching_session(session_id: int, db: Session = Depends(get_db)):
 @router.post("/challenges", response_model=TeachingChallengeResponse, status_code=status.HTTP_201_CREATED)
 def create_teaching_challenge(
     challenge_data: TeachingChallengeCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new teaching challenge for a session"""
-    session = db.query(TeachingSession).filter(TeachingSession.id == challenge_data.session_id).first()
+    session = db.query(TeachingSession).filter(
+        TeachingSession.id == challenge_data.session_id,
+        TeachingSession.institution_id == current_user.institution_id
+    ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Teaching session not found")
 
@@ -266,10 +313,13 @@ def list_teaching_challenges(
     completed: Optional[bool] = None,
     skip: int = 0,
     limit: int = 100,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List teaching challenges with optional filters"""
-    query = db.query(TeachingChallenge)
+    query = db.query(TeachingChallenge).filter(
+        TeachingChallenge.institution_id == current_user.institution_id
+    )
 
     if session_id:
         query = query.filter(TeachingChallenge.session_id == session_id)
@@ -285,9 +335,16 @@ def list_teaching_challenges(
 
 
 @router.get("/challenges/{challenge_id}", response_model=TeachingChallengeResponse)
-def get_teaching_challenge(challenge_id: int, db: Session = Depends(get_db)):
+def get_teaching_challenge(
+    challenge_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get a specific teaching challenge"""
-    challenge = db.query(TeachingChallenge).filter(TeachingChallenge.id == challenge_id).first()
+    challenge = db.query(TeachingChallenge).filter(
+        TeachingChallenge.id == challenge_id,
+        TeachingChallenge.institution_id == current_user.institution_id
+    ).first()
     if not challenge:
         raise HTTPException(status_code=404, detail="Teaching challenge not found")
     return challenge
@@ -297,10 +354,14 @@ def get_teaching_challenge(challenge_id: int, db: Session = Depends(get_db)):
 def submit_challenge_response(
     challenge_id: int,
     submission: TeachingChallengeSubmit,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Submit a response to a teaching challenge"""
-    challenge = db.query(TeachingChallenge).filter(TeachingChallenge.id == challenge_id).first()
+    challenge = db.query(TeachingChallenge).filter(
+        TeachingChallenge.id == challenge_id,
+        TeachingChallenge.institution_id == current_user.institution_id
+    ).first()
     if not challenge:
         raise HTTPException(status_code=404, detail="Teaching challenge not found")
 
@@ -332,9 +393,16 @@ def submit_challenge_response(
 
 
 @router.delete("/challenges/{challenge_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_teaching_challenge(challenge_id: int, db: Session = Depends(get_db)):
+def delete_teaching_challenge(
+    challenge_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a teaching challenge"""
-    db_challenge = db.query(TeachingChallenge).filter(TeachingChallenge.id == challenge_id).first()
+    db_challenge = db.query(TeachingChallenge).filter(
+        TeachingChallenge.id == challenge_id,
+        TeachingChallenge.institution_id == current_user.institution_id
+    ).first()
     if not db_challenge:
         raise HTTPException(status_code=404, detail="Teaching challenge not found")
 
@@ -344,9 +412,16 @@ def delete_teaching_challenge(challenge_id: int, db: Session = Depends(get_db)):
 
 # Progress Tracking Endpoints
 @router.get("/progress/student/{student_id}", response_model=StudentProgress)
-def get_student_progress(student_id: int, db: Session = Depends(get_db)):
+def get_student_progress(
+    student_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get comprehensive progress for a student"""
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
@@ -359,12 +434,20 @@ def get_student_progress(student_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/progress/topic/{topic_id}", response_model=TopicProgress)
-def get_topic_progress(topic_id: int, institution_id: int, db: Session = Depends(get_db)):
+def get_topic_progress(
+    topic_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get progress analytics for a specific topic"""
+    # `institution_id` used to be a client-supplied query parameter, letting
+    # any authenticated caller pull another institution's topic-mastery
+    # analytics just by passing a different id. Derived from the caller's
+    # own session instead.
     progress = reverse_classroom_service.get_topic_progress(
         db=db,
         topic_id=topic_id,
-        institution_id=institution_id
+        institution_id=current_user.institution_id
     )
     return TopicProgress(**progress)
 
@@ -374,21 +457,31 @@ def get_topic_progress(topic_id: int, institution_id: int, db: Session = Depends
 def bulk_analyze_sessions(
     request: BulkAnalysisRequest,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Trigger bulk analysis for multiple sessions"""
     sessions = db.query(TeachingSession).filter(
-        TeachingSession.id.in_(request.session_ids)
+        TeachingSession.id.in_(request.session_ids),
+        TeachingSession.institution_id == current_user.institution_id
     ).all()
 
     if not sessions:
         raise HTTPException(status_code=404, detail="No sessions found")
 
-    # Add background tasks for each session
+    # Add background tasks for each session. `analyze_session_background`'s
+    # signature is `(db, session_id, topic_id)` -- this call site was never
+    # updated when that signature changed to take `db` first (see the note
+    # on `create_teaching_session` above), so it silently passed
+    # `session.id` in as `db` and `session.topic_id` in as `session_id` with
+    # `topic_id` missing entirely, raising a `TypeError` in every queued
+    # background task (invisible to the 202 response, but the sessions were
+    # never actually analyzed). Fixed to pass the request-scoped `db`.
     for session in sessions:
         if not session.is_analyzed:
             background_tasks.add_task(
                 analyze_session_background,
+                db,
                 session.id,
                 session.topic_id
             )

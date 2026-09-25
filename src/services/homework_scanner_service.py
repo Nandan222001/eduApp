@@ -285,27 +285,32 @@ Keep it concise and student-friendly."""
         except Exception as e:
             return f"Could not generate AI feedback: {str(e)}"
     
-    def get_scan(self, scan_id: int) -> Optional[HomeworkScan]:
-        return self.db.query(HomeworkScan).filter(HomeworkScan.id == scan_id).first()
-    
+    def get_scan(self, scan_id: int, institution_id: int) -> Optional[HomeworkScan]:
+        return self.db.query(HomeworkScan).filter(
+            HomeworkScan.id == scan_id,
+            HomeworkScan.institution_id == institution_id
+        ).first()
+
     def get_student_scans(
         self,
         student_id: int,
+        institution_id: int,
         subject_id: Optional[int] = None,
         limit: int = 20,
         skip: int = 0
     ) -> List[HomeworkScan]:
         query = self.db.query(HomeworkScan).filter(
-            HomeworkScan.student_id == student_id
+            HomeworkScan.student_id == student_id,
+            HomeworkScan.institution_id == institution_id
         )
-        
+
         if subject_id:
             query = query.filter(HomeworkScan.subject_id == subject_id)
-        
+
         return query.order_by(HomeworkScan.created_at.desc()).offset(skip).limit(limit).all()
-    
-    def analyze_scan(self, scan_id: int) -> Dict[str, Any]:
-        scan = self.get_scan(scan_id)
+
+    def analyze_scan(self, scan_id: int, institution_id: int) -> Dict[str, Any]:
+        scan = self.get_scan(scan_id, institution_id)
         if not scan:
             return {"error": "Scan not found"}
         
@@ -356,8 +361,8 @@ Keep it concise and student-friendly."""
             "ai_feedback": scan.ai_feedback or "Processing feedback..."
         }
     
-    def delete_scan(self, scan_id: int) -> bool:
-        scan = self.get_scan(scan_id)
+    def delete_scan(self, scan_id: int, institution_id: int) -> bool:
+        scan = self.get_scan(scan_id, institution_id)
         if not scan:
             return False
         

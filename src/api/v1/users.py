@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.schemas.user import UserCreate, UserResponse, UserUpdate
 from src.models.user import User
+from src.models.role import Role
+from src.models.institution import Institution
 from src.dependencies.auth import get_current_user, get_current_superuser
 from src.dependencies.rbac import require_permissions, require_role
 from src.utils.security import get_password_hash
@@ -28,6 +30,17 @@ def create_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot create user for this institution",
+        )
+
+    # A superuser can target any institution_id, including one that
+    # doesn't exist -- previously unchecked, which fell through to the
+    # users.institution_id FK constraint at commit time as an unhandled
+    # IntegrityError -> 500 instead of a clean 404.
+    institution = db.query(Institution).filter(Institution.id == user_data.institution_id).first()
+    if not institution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Institution not found",
         )
 
     existing_user = (
@@ -58,6 +71,26 @@ def create_user(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already taken in this institution",
+        )
+
+    # Cross-tenant gap: `role_id` was accepted with no ownership check at
+    # all -- `Role.institution_id` scopes a custom role to one institution
+    # (a system role like the seeded "admin"/"teacher"/"student" roles has
+    # institution_id=None and is legitimately shared across all
+    # institutions), but nothing here verified the role even exists, let
+    # alone that it belongs to the target institution. An institution A
+    # admin who knew or guessed another institution's custom role id could
+    # assign that role -- and whatever permissions it carries -- to a user
+    # being created in institution A, crossing a tenant boundary the
+    # institution_id check right above this was supposed to enforce for
+    # user creation itself. A nonexistent role_id also fell straight
+    # through to the DB's FK constraint, surfacing as an unhandled
+    # IntegrityError -> 500 instead of a clean 400.
+    role = db.query(Role).filter(Role.id == user_data.role_id).first()
+    if not role or (role.institution_id is not None and role.institution_id != user_data.institution_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid role for this institution",
         )
 
     db_user = User(
@@ -149,6 +182,18 @@ def update_user(
         )
 
     update_data = user_data.model_dump(exclude_unset=True)
+
+    # Same cross-tenant role gap as create_user: validate any incoming
+    # role_id belongs to this user's institution (or is a shared system
+    # role) before applying it, rather than letting an unscoped/foreign
+    # role_id through or falling through to a raw FK IntegrityError.
+    if "role_id" in update_data:
+        role = db.query(Role).filter(Role.id == update_data["role_id"]).first()
+        if not role or (role.institution_id is not None and role.institution_id != db_user.institution_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid role for this institution",
+            )
 
     if "password" in update_data:
         update_data["hashed_password"] = get_password_hash(update_data.pop("password"))

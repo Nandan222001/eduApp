@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 from src.models.content_marketplace import (
     ContentType, ContentStatus, ModerationStatus, PlagiarismStatus, TransactionType
 )
@@ -190,6 +190,8 @@ class StudentCreditsBalanceResponse(BaseModel):
 
 
 class CreditTransactionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     institution_id: int
     student_balance_id: int
@@ -199,11 +201,15 @@ class CreditTransactionResponse(BaseModel):
     description: Optional[str] = None
     reference_type: Optional[str] = None
     reference_id: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
+    # The ORM attribute is `metadata_json` (SQLAlchemy reserves `metadata` on
+    # Declarative models), matching src/schemas/merchandise.py's pattern.
+    # Without this alias, `from_attributes` read the class-level
+    # `sqlalchemy.MetaData` object off `metadata_json`'s sibling `metadata`
+    # attribute (inherited from every Declarative model) instead of the
+    # actual JSON column -- which isn't a dict, so response validation
+    # raised on every transaction returned by GET /credits/transactions.
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias='metadata_json', serialization_alias='metadata')
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 
 class ContentSearchFilters(BaseModel):

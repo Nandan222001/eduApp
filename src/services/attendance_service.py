@@ -242,7 +242,8 @@ class AttendanceService:
         self,
         correction_id: int,
         data: AttendanceCorrectionReview,
-        reviewed_by_id: Optional[int] = None
+        reviewed_by_id: Optional[int] = None,
+        institution_id: Optional[int] = None
     ) -> AttendanceCorrection:
         correction = self.correction_repo.get_by_id(correction_id)
         if not correction:
@@ -250,7 +251,18 @@ class AttendanceService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Correction request not found"
             )
-        
+
+        # Institution ownership MUST be checked before any mutation below --
+        # previously this check only happened in the router, after this
+        # method had already committed the status change, letting a caller
+        # from a different institution approve/reject another institution's
+        # correction requests before the 403 was ever raised.
+        if institution_id is not None and correction.institution_id != institution_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to review this correction"
+            )
+
         if correction.status != CorrectionStatus.PENDING:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

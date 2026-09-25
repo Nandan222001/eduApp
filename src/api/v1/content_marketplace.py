@@ -29,14 +29,40 @@ router = APIRouter(prefix="/content-marketplace", tags=["content-marketplace"])
 def require_roles(user: User, allowed_roles: List[str]) -> None:
     if user.is_superuser:
         return
-    
-    if user.role and user.role.name in allowed_roles:
+
+    # Role.name is a display label (e.g. "Student", "Admin"); Role.slug is the
+    # lowercase machine-readable identifier (e.g. "student", "admin") that
+    # every caller of this helper passes in `allowed_roles`. Comparing
+    # against `.name` here meant this check could never pass for any
+    # non-superuser -- every single role-gated endpoint in this router
+    # (create/update/delete content, reviews, purchases, moderation,
+    # plagiarism) 403'd for every real student/teacher/admin caller.
+    if user.role and user.role.slug in allowed_roles:
         return
-    
+
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Insufficient role permissions"
     )
+
+
+def _get_scoped_content(db: Session, content_id: int, institution_id: int):
+    """Fetch content and 404 unless it belongs to the caller's institution.
+
+    Used by the moderation/plagiarism endpoints below, none of which
+    previously checked that the content_id they were given actually belonged
+    to the reviewing teacher/admin's own institution -- a caller could act on
+    (or read moderation/plagiarism data for) any other institution's content
+    just by knowing/guessing its id.
+    """
+    repo = StudentContentRepository(db)
+    content = repo.get_by_id(content_id)
+    if not content or content.institution_id != institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content not found"
+        )
+    return content
 
 
 @router.post("/contents", response_model=StudentContentResponse)
@@ -177,7 +203,7 @@ async def delete_content(
         )
     
     is_creator = current_user.student_profile and content.creator_student_id == current_user.student_profile.id
-    is_admin = current_user.role.name in ["admin", "super_admin"]
+    is_admin = bool(current_user.role and current_user.role.slug in ["admin", "super_admin"])
     
     if not (is_creator or is_admin):
         raise HTTPException(
@@ -375,7 +401,7 @@ async def delete_review(
         )
     
     is_reviewer = current_user.student_profile and review.reviewer_student_id == current_user.student_profile.id
-    is_admin = current_user.role.name in ["admin", "super_admin"]
+    is_admin = bool(current_user.role and current_user.role.slug in ["admin", "super_admin"])
     
     if not (is_reviewer or is_admin):
         raise HTTPException(
@@ -488,13 +514,15 @@ async def approve_content(
     db: Session = Depends(get_db)
 ):
     require_roles(current_user, ["teacher", "admin", "super_admin"])
-    
+
     if not current_user.teacher_profile:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Teacher profile required"
         )
-    
+
+    _get_scoped_content(db, content_id, current_user.institution_id)
+
     service = ContentModerationService(db)
     review = service.approve_content(
         content_id=content_id,
@@ -528,7 +556,9 @@ async def reject_content(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Rejection reason is required"
         )
-    
+
+    _get_scoped_content(db, content_id, current_user.institution_id)
+
     service = ContentModerationService(db)
     review = service.reject_content(
         content_id=content_id,
@@ -562,7 +592,9 @@ async def request_content_revision(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Revision notes are required"
         )
-    
+
+    _get_scoped_content(db, content_id, current_user.institution_id)
+
     service = ContentModerationService(db)
     review = service.request_revision(
         content_id=content_id,
@@ -583,10 +615,12 @@ async def get_moderation_history(
     db: Session = Depends(get_db)
 ):
     require_roles(current_user, ["teacher", "admin", "super_admin"])
-    
+
+    _get_scoped_content(db, content_id, current_user.institution_id)
+
     service = ContentModerationService(db)
     history = service.get_content_moderation_history(content_id)
-    
+
     return history
 
 
@@ -597,13 +631,27 @@ async def check_content_plagiarism(
     db: Session = Depends(get_db)
 ):
     require_roles(current_user, ["teacher", "admin", "super_admin"])
-    
-    service = ContentPlagiarismService(db)
-    check = service.check_content_plagiarism(
-        content_id=content_id,
-        institution_id=current_user.institution_id
-    )
-    
+
+    _get_scoped_content(db, content_id, current_user.institution_id)
+
+    try:
+        service = ContentPlagiarismService(db)
+        check = service.check_content_plagiarism(
+            content_id=content_id,
+            institution_id=current_user.institution_id
+        )
+    except ValueError as e:
+        # check_content_plagiarism raises ValueError("Content not found") for
+        # an unknown content_id -- this was never caught here, so it bubbled
+        # up as an unhandled 500 instead of a clean 404. (The
+        # `_get_scoped_content` call above already makes this unreachable in
+        # practice, but the service can be called standalone elsewhere, so
+        # the endpoint should still degrade cleanly rather than 500.)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
     return check
 
 
@@ -624,15 +672,21 @@ async def get_plagiarism_report(
             detail="Content not found"
         )
     
+    if content.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content not found"
+        )
+
     is_creator = current_user.student_profile and content.creator_student_id == current_user.student_profile.id
-    is_staff = current_user.role.name in ["teacher", "admin", "super_admin"]
-    
+    is_staff = bool(current_user.role and current_user.role.slug in ["teacher", "admin", "super_admin"])
+
     if not (is_creator or is_staff):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
-    
+
     service = ContentPlagiarismService(db)
     report = service.get_plagiarism_report(content_id)
     

@@ -371,9 +371,18 @@ async def create_manual_alert(
     health_score = db.query(InstitutionHealthScore).filter(
         InstitutionHealthScore.institution_id == alert_data.institution_id
     ).first()
-    
+
+    # InstitutionHealthAlert.health_score_id is NOT NULL -- passing None
+    # here for an institution with no health score calculated yet raised an
+    # unhandled IntegrityError (500) on every such call. Calculate one on
+    # the fly instead, matching how get_institution_health already
+    # lazily computes a missing score.
+    if not health_score:
+        service = InstitutionHealthService(db)
+        health_score = service.calculate_health_score(alert_data.institution_id)
+
     alert = InstitutionHealthAlert(
-        health_score_id=health_score.id if health_score else None,
+        health_score_id=health_score.id,
         institution_id=alert_data.institution_id,
         alert_type=alert_data.alert_type,
         severity=alert_data.severity,

@@ -31,7 +31,7 @@ async def get_index_recommendations(
     Get recommendations for unused or rarely used indexes.
     Requires super admin privileges.
     """
-    result = DatabaseMaintenanceService.get_index_recommendations()
+    result = await DatabaseMaintenanceService.get_index_recommendations()
     return result
 
 
@@ -55,7 +55,7 @@ async def get_slow_queries(
     Get slow query report from performance_schema.
     Requires super admin privileges.
     """
-    result = DatabaseMaintenanceService.get_slow_queries()
+    result = await DatabaseMaintenanceService.get_slow_queries()
     return result
 
 
@@ -92,7 +92,7 @@ async def get_table_bloat_report(
     Get table bloat report showing largest tables.
     Requires super admin privileges.
     """
-    result = DatabaseMaintenanceService.get_table_bloat_report()
+    result = await DatabaseMaintenanceService.get_table_bloat_report()
     return result
 
 
@@ -123,25 +123,27 @@ async def update_statistics(
 
 @router.get("/stats")
 async def get_database_stats(
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_super_admin)
 ):
     """
     Get current database statistics including size, connections, and cache hit ratio.
     Requires super admin privileges.
     """
-    result = DatabaseMaintenanceService.get_database_stats()
+    result = DatabaseMaintenanceService.get_database_stats(db)
     return result
 
 
 @router.get("/partitions")
 async def get_partition_info(
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_super_admin)
 ):
     """
     Get information about existing partitions.
     Requires super admin privileges.
     """
-    result = DatabaseMaintenanceService.get_partition_info()
+    result = DatabaseMaintenanceService.get_partition_info(db)
     return result
 
 
@@ -160,6 +162,7 @@ async def get_maintenance_schedule(
 @router.delete("/indexes/{index_name}")
 async def drop_unused_index(
     index_name: str,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_super_admin)
 ):
     """
@@ -167,7 +170,7 @@ async def drop_unused_index(
     Requires super admin privileges.
     WARNING: This operation cannot be undone easily.
     """
-    result = DatabaseMaintenanceService.drop_unused_index(index_name)
+    result = DatabaseMaintenanceService.drop_unused_index(index_name, db)
     return result
 
 

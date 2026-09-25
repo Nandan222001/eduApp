@@ -29,11 +29,22 @@ class StudyMaterialRepository:
         )
         self.db.add(material)
         self.db.commit()
-        self.db.refresh(material)
-        
+
+        # `_update_tag_usage` commits again internally. SQLAlchemy's default
+        # `expire_on_commit=True` means that second commit expires every
+        # object in the session -- including `material`, whose `.refresh()`
+        # used to run *before* this call. The service layer builds its
+        # response from `material.__dict__` (which a direct attribute
+        # access would repopulate lazily, but a raw `__dict__` read never
+        # triggers that reload), so an expired `material` produced an
+        # 18-field pydantic ValidationError on every upload that included
+        # tags (same shape as this session's `content_marketplace.py`
+        # `get_content_detail` fix). Fixed by refreshing only after all
+        # commits for this material are done.
         if material_data.tags:
             self._update_tag_usage(material_data.tags, institution_id)
-        
+
+        self.db.refresh(material)
         return material
     
     def get_material_by_id(
@@ -300,8 +311,7 @@ class StudyMaterialRepository:
         )
         self.db.add(share)
         self.db.commit()
-        self.db.refresh(share)
-        
+
         log = MaterialAccessLog(
             institution_id=institution_id,
             material_id=share_data.material_id,
@@ -310,7 +320,14 @@ class StudyMaterialRepository:
         )
         self.db.add(log)
         self.db.commit()
-        
+
+        # Same expired-object shape as the `create_material` fix above: the
+        # access-log commit just above expires every object in the session,
+        # so `share` must be refreshed *after* it, not before -- the service
+        # layer builds `MaterialShareResponse` straight from `share.__dict__`,
+        # which an expired instance leaves holding nothing but
+        # `_sa_instance_state`.
+        self.db.refresh(share)
         return share
     
     def get_share_by_token(self, token: str) -> Optional[MaterialShare]:
@@ -322,12 +339,24 @@ class StudyMaterialRepository:
     def get_recently_accessed(
         self, user_id: int, institution_id: int, limit: int = 10
     ) -> List[StudyMaterial]:
-        recent_ids = self.db.query(MaterialAccessLog.material_id).filter(
+        # `SELECT DISTINCT material_id ... ORDER BY accessed_at` 100% breaks
+        # on MySQL ("Expression #1 of ORDER BY clause is not in SELECT list
+        # ... this is incompatible with DISTINCT", error 3065) since
+        # `accessed_at` isn't one of the (distinct) selected columns -- and
+        # even where a dialect tolerates it, the ordering is ambiguous
+        # (which of a material's several `accessed_at` rows does DISTINCT
+        # keep?). Fixed by grouping by material_id and ordering by each
+        # material's own most recent access.
+        recent_ids = self.db.query(
+            MaterialAccessLog.material_id
+        ).filter(
             MaterialAccessLog.user_id == user_id,
             MaterialAccessLog.institution_id == institution_id,
             MaterialAccessLog.action == "view"
-        ).order_by(desc(MaterialAccessLog.accessed_at)).distinct().limit(limit).all()
-        
+        ).group_by(
+            MaterialAccessLog.material_id
+        ).order_by(desc(func.max(MaterialAccessLog.accessed_at))).limit(limit).all()
+
         material_ids = [r[0] for r in recent_ids]
         
         if not material_ids:

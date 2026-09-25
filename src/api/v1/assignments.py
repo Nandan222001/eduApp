@@ -45,6 +45,18 @@ async def create_assignment(
             detail="Not authorized to create assignment for this institution"
         )
 
+    if current_user.student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can create assignments"
+        )
+
+    if current_user.teacher_profile and current_user.teacher_profile.id != assignment_data.teacher_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Teachers can only create assignments for themselves"
+        )
+
     service = AssignmentService(db)
     assignment = service.create_assignment(assignment_data)
     return assignment
@@ -137,6 +149,12 @@ async def update_assignment(
             detail="Not authorized to update this assignment"
         )
 
+    if current_user.teacher_profile and assignment.teacher_id != current_user.teacher_profile.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this assignment"
+        )
+
     updated_assignment = service.update_assignment(assignment_id, assignment_data)
     return updated_assignment
 
@@ -157,6 +175,12 @@ async def delete_assignment(
         )
 
     if assignment.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this assignment"
+        )
+
+    if current_user.teacher_profile and assignment.teacher_id != current_user.teacher_profile.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete this assignment"
@@ -229,7 +253,7 @@ async def list_assignment_submissions(
     assignment_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    status: Optional[SubmissionStatus] = Query(None),
+    submission_status: Optional[SubmissionStatus] = Query(None, alias="status"),
     is_late: Optional[bool] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -254,7 +278,7 @@ async def list_assignment_submissions(
         assignment_id=assignment_id,
         skip=skip,
         limit=limit,
-        status=status,
+        status=submission_status,
         is_late=is_late
     )
 
@@ -463,13 +487,31 @@ async def grade_submission_with_rubric(
             detail="Not authorized to grade this submission"
         )
 
+    from src.models.teacher import Teacher
+    teacher = db.query(Teacher).filter(
+        Teacher.user_id == current_user.id,
+        Teacher.institution_id == current_user.institution_id
+    ).first()
+
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can grade submissions"
+        )
+
+    if assignment.teacher_id != teacher.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to grade this submission"
+        )
+
     rubric_service = RubricService(db)
     graded_submission = rubric_service.grade_submission_with_rubric(
         submission_id=submission_id,
-        grader_id=current_user.id,
+        grader_id=teacher.id,
         grade_data=grade_data
     )
-    
+
     return graded_submission
 
 

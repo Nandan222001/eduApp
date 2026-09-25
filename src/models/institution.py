@@ -141,6 +141,22 @@ class Institution(Base):
     phone = Column(String(50), nullable=True)
     logo_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    # `description` and `max_users` were referenced throughout the codebase
+    # (src/api/v1/super_admin.py's institution read/create/update responses,
+    # src/services/institution_health_service.py's description-completeness
+    # check, src/utils/tenant.py's check_user_limit -- the actual per-
+    # institution seat-limit enforcement) and declared on
+    # src/schemas/institution.py's InstitutionBase/InstitutionCreate/
+    # InstitutionUpdate, but were never defined as columns on this model.
+    # `InstitutionService.create_institution`'s `Institution(**data.model_dump())`
+    # therefore raised `TypeError: 'description' is an invalid keyword
+    # argument for Institution` on every single call -- POST /institutions
+    # (institution creation, a platform-level super-admin operation used to
+    # onboard every institution in the system) was completely broken.
+    # Restored as real columns so both the schema and every other reader of
+    # institution.description/institution.max_users get a real value again.
+    description = Column(Text, nullable=True)
+    max_users = Column(Integer, nullable=True)
     # JSON-serialized settings blob (json.dumps/json.loads at the call
     # sites, not a native JSON column) -- currently used for per-institution
     # ML training schedule config (src/api/v1/ml_training.py's

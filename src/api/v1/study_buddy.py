@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.database import get_db
 from src.models.user import User
+from src.models.student import Student
 from src.dependencies.auth import get_current_user
 from src.services.study_buddy_service import StudyBuddyService
 from src.schemas.study_buddy import (
@@ -22,12 +23,31 @@ from src.schemas.study_buddy import (
 router = APIRouter()
 
 
+def _require_own_institution_student(db: Session, student_id: int, current_user: User) -> Student:
+    """Look up a student, scoped to the caller's own institution.
+
+    Every endpoint below previously took a bare `student_id`/`session_id`/
+    `insight_id` path or query param with zero verification that it belonged
+    to the caller's own institution (bug class 17) -- any authenticated user
+    from any institution could read (and in the case of sessions/insights,
+    mutate) another institution's study-buddy data just by guessing an id.
+    """
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+    return student
+
+
 @router.post("/sessions", response_model=StudyBuddySessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(
     session_data: StudyBuddySessionCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _require_own_institution_student(db, session_data.student_id, current_user)
     service = StudyBuddyService(db)
     session = service.create_session(
         institution_id=current_user.institution_id,
@@ -46,9 +66,11 @@ async def get_sessions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _require_own_institution_student(db, student_id, current_user)
     service = StudyBuddyService(db)
     sessions = service.get_student_sessions(
         student_id=student_id,
+        institution_id=current_user.institution_id,
         is_active=is_active,
         limit=limit
     )
@@ -62,7 +84,7 @@ async def get_session(
     db: Session = Depends(get_db),
 ):
     service = StudyBuddyService(db)
-    session = service.get_session(session_id)
+    session = service.get_session(session_id, institution_id=current_user.institution_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -78,7 +100,7 @@ async def end_session(
     db: Session = Depends(get_db),
 ):
     service = StudyBuddyService(db)
-    session = service.end_session(session_id)
+    session = service.end_session(session_id, institution_id=current_user.institution_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -95,7 +117,13 @@ async def get_session_messages(
     db: Session = Depends(get_db),
 ):
     service = StudyBuddyService(db)
-    messages = service.get_session_messages(session_id, limit)
+    session = service.get_session(session_id, institution_id=current_user.institution_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    messages = service.get_session_messages(session_id, limit, institution_id=current_user.institution_id)
     return messages
 
 
@@ -130,6 +158,7 @@ async def analyze_study_patterns(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _require_own_institution_student(db, student_id, current_user)
     service = StudyBuddyService(db)
     analysis = service.analyze_study_patterns(student_id)
     return analysis
@@ -142,9 +171,10 @@ async def get_daily_plan(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _require_own_institution_student(db, student_id, current_user)
     if not target_date:
         target_date = date.today()
-    
+
     service = StudyBuddyService(db)
     plan = service.generate_daily_plan(student_id, target_date)
     return plan
@@ -156,6 +186,7 @@ async def get_motivational_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _require_own_institution_student(db, student_id, current_user)
     service = StudyBuddyService(db)
     message = service.generate_motivational_message(student_id)
     return message
@@ -169,9 +200,11 @@ async def get_insights(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _require_own_institution_student(db, student_id, current_user)
     service = StudyBuddyService(db)
     insights = service.get_student_insights(
         student_id=student_id,
+        institution_id=current_user.institution_id,
         is_read=is_read,
         limit=limit
     )
@@ -185,7 +218,7 @@ async def mark_insight_read(
     db: Session = Depends(get_db),
 ):
     service = StudyBuddyService(db)
-    insight = service.mark_insight_read(insight_id)
+    insight = service.mark_insight_read(insight_id, institution_id=current_user.institution_id)
     if not insight:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

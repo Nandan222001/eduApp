@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc, case, cast, Float
+from sqlalchemy import func, and_, or_, desc
 from datetime import datetime, timedelta
 from decimal import Decimal
 import statistics
@@ -73,7 +73,13 @@ async def get_cross_institution_analytics(
             Subscription.institution_id == inst.id
         ).order_by(desc(Subscription.created_at)).first()
         
-        if plan and subscription and subscription.plan_name != plan:
+        # An institution with no subscription at all clearly doesn't match
+        # a specific requested `plan` either -- the original
+        # `plan and subscription and ...` short-circuited to False (and so
+        # never filtered anything out) for every unsubscribed institution,
+        # silently ignoring the `plan` filter for exactly the institutions
+        # it matters most for.
+        if plan and (not subscription or subscription.plan_name != plan):
             continue
         
         # Calculate institution size
@@ -144,9 +150,17 @@ async def get_cross_institution_analytics(
             )
         ).scalar() or 0
         
-        total_submissions = db.query(func.count(Submission.id)).filter(
+        # `Submission` has no `institution_id` column of its own (only
+        # `Assignment` does) -- referencing `Submission.institution_id`
+        # raised an `AttributeError` on every single call to this endpoint
+        # (model/schema drift, bug class 11). Fixed by joining through
+        # `Assignment` and filtering on its `institution_id` instead, at
+        # every site below that made the same mistake.
+        total_submissions = db.query(func.count(Submission.id)).join(
+            Assignment, Submission.assignment_id == Assignment.id
+        ).filter(
             and_(
-                Submission.institution_id == inst.id,
+                Assignment.institution_id == inst.id,
                 Submission.submitted_at >= start_date,
                 Submission.submitted_at <= end_date,
                 Submission.status.in_([SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED, SubmissionStatus.RETURNED])
@@ -174,18 +188,22 @@ async def get_cross_institution_analytics(
         engagement_score = (submission_rate * 0.6 + points_engagement * 0.4)
         
         # Calculate teacher effectiveness (based on student performance and grading speed)
-        graded_submissions = db.query(func.count(Submission.id)).filter(
+        graded_submissions = db.query(func.count(Submission.id)).join(
+            Assignment, Submission.assignment_id == Assignment.id
+        ).filter(
             and_(
-                Submission.institution_id == inst.id,
+                Assignment.institution_id == inst.id,
                 Submission.graded_at >= start_date,
                 Submission.graded_at <= end_date,
                 Submission.status == SubmissionStatus.GRADED
             )
         ).scalar() or 0
-        
-        submitted_count = db.query(func.count(Submission.id)).filter(
+
+        submitted_count = db.query(func.count(Submission.id)).join(
+            Assignment, Submission.assignment_id == Assignment.id
+        ).filter(
             and_(
-                Submission.institution_id == inst.id,
+                Assignment.institution_id == inst.id,
                 Submission.submitted_at >= start_date,
                 Submission.submitted_at <= end_date
             )
@@ -193,21 +211,33 @@ async def get_cross_institution_analytics(
         
         grading_rate = (graded_submissions / submitted_count * 100) if submitted_count > 0 else 0
         
-        # Average grading time in days
-        avg_grading_time_result = db.query(
-            func.avg(
-                cast(func.extract('epoch', Submission.graded_at - Submission.submitted_at) / 86400, Float)
-            )
+        # Average grading time in days. `EXTRACT(EPOCH FROM ...)` is
+        # PostgreSQL-only syntax -- MySQL's EXTRACT() only accepts unit
+        # keywords like DAY/HOUR/SECOND, not "epoch", so this raised an
+        # OperationalError (unsupported MySQL SQL, bug class 1) on every
+        # single call to this endpoint regardless of data. Fixed by pulling
+        # the raw (graded_at, submitted_at) pairs and averaging the
+        # timedeltas in Python instead.
+        grading_time_pairs = db.query(
+            Submission.graded_at, Submission.submitted_at
+        ).join(
+            Assignment, Submission.assignment_id == Assignment.id
         ).filter(
             and_(
-                Submission.institution_id == inst.id,
+                Assignment.institution_id == inst.id,
                 Submission.graded_at.isnot(None),
                 Submission.submitted_at.isnot(None),
                 Submission.graded_at >= start_date
             )
-        ).scalar()
-        
-        avg_grading_time = float(avg_grading_time_result) if avg_grading_time_result else 7
+        ).all()
+
+        if grading_time_pairs:
+            avg_grading_time = statistics.mean(
+                (graded_at - submitted_at).total_seconds() / 86400
+                for graded_at, submitted_at in grading_time_pairs
+            )
+        else:
+            avg_grading_time = 7
         grading_speed_score = max(100 - (avg_grading_time * 10), 0)
         
         # Teacher effectiveness = 50% grading rate + 30% grading speed + 20% student performance
@@ -383,13 +413,19 @@ def _perform_trend_analysis(
 ) -> TrendAnalysis:
     """Perform trend analysis over time."""
     
-    # Calculate monthly trends
+    # Calculate monthly trends. Deliberately `<` rather than `<=`: with `<=`,
+    # once `current` reaches `end_date` exactly (which it always eventually
+    # does, since `month_end = min(current + 30d, end_date)` clamps to
+    # `end_date`), `month_end` computes to `current` itself and `current`
+    # never advances again -- an unconditional infinite loop (and, by
+    # extension, a full request-thread hang) on every single call to this
+    # endpoint, worse still immediate when `start_date == end_date`.
     monthly_trends = []
     current = start_date
-    
-    while current <= end_date:
+
+    while current < end_date:
         month_end = min(current + timedelta(days=30), end_date)
-        
+
         # Calculate average metrics for this month across all institutions
         month_attendance = []
         month_exam_pass = []

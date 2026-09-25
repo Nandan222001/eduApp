@@ -130,7 +130,7 @@ async def list_college_applications(
     )
 
 
-@router.get("/applications/{application_id}", response_model=CollegeApplicationResponse)
+@router.get("/applications/{application_id:int}", response_model=CollegeApplicationResponse)
 async def get_college_application(
     application_id: int,
     current_user: User = Depends(get_current_user),
@@ -146,7 +146,7 @@ async def get_college_application(
     return application
 
 
-@router.put("/applications/{application_id}", response_model=CollegeApplicationResponse)
+@router.put("/applications/{application_id:int}", response_model=CollegeApplicationResponse)
 async def update_college_application(
     application_id: int,
     update_data: CollegeApplicationUpdate,
@@ -167,7 +167,7 @@ async def update_college_application(
     return application
 
 
-@router.delete("/applications/{application_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/applications/{application_id:int}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_college_application(
     application_id: int,
     current_user: User = Depends(get_current_user),

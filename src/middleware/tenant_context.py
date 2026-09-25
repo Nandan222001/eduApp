@@ -6,7 +6,7 @@ from src.utils.context import set_request_context, clear_request_context, Reques
 from src.utils.security import decode_token
 from src.database import SessionLocal, set_rls_context
 from src.models.user import User
-from src.redis_client import redis_client
+from src.redis_client import get_redis
 from src.utils.session import SessionManager
 
 
@@ -24,6 +24,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
                 user_id = int(raw_sub) if raw_sub is not None else None
                 institution_id = payload.get("institution_id")
 
+                redis_client = await get_redis() if user_id else None
                 if user_id and redis_client:
                     session_manager = SessionManager(redis_client)
                     session_data = await session_manager.get_session(user_id, token)

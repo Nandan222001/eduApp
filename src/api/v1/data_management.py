@@ -95,7 +95,7 @@ async def get_entity_metadata(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
 
     if entity and entity in ENTITY_METADATA:
@@ -142,7 +142,7 @@ async def get_export_preview(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
 
     entity = config.get("entity")
@@ -179,7 +179,7 @@ async def export_data(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
 
     entity = config.get("entity")
@@ -218,7 +218,7 @@ async def get_scheduled_exports(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     return []
@@ -230,7 +230,7 @@ async def create_scheduled_export(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     return config
@@ -242,7 +242,7 @@ async def delete_scheduled_export(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     return {"status": "deleted"}
@@ -254,7 +254,7 @@ async def detect_columns(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     content = await file.read()
@@ -277,7 +277,7 @@ async def validate_import(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     content = await file.read()
@@ -319,7 +319,7 @@ async def import_data(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     content = await file.read()
@@ -347,7 +347,7 @@ async def get_import_history(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     history = [
@@ -374,7 +374,7 @@ async def rollback_import(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     return {"status": "rolled_back"}
@@ -386,7 +386,7 @@ async def download_import_errors(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "admin":
+    if not current_user.role or current_user.role.slug != "admin":
         raise HTTPException(status_code=403, detail="Only admins can access this feature")
     
     output = io.StringIO()

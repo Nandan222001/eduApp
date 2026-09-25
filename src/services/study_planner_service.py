@@ -199,9 +199,20 @@ class StudyPlannerService:
             
             topic_name = weak_area.topic.name if weak_area.topic else weak_area.chapter.name if weak_area.chapter else weak_area.subject.name
             chapter_name = weak_area.chapter.name if weak_area.chapter else None
-            
+
             topic_priorities.append(TopicPriority(
-                topic_id=weak_area.topic_id or weak_area.chapter_id or weak_area.subject_id,
+                # Was `weak_area.topic_id or weak_area.chapter_id or
+                # weak_area.subject_id` -- a subject-only or chapter-only
+                # weak area (no specific topic) fell back to using its
+                # *chapter* or *subject* id as a fake "topic_id". Harmless
+                # in this response taken alone, but `generate_study_plan`
+                # feeds this value straight into `TopicAssignment.topic_id`
+                # (a real FK to `topics`), so a fabricated id there was an
+                # `IntegrityError` waiting to happen on the very first
+                # subject-level weak area (100% reproducible: none of this
+                # session's other routers' fixture chapters/subjects happen
+                # to also exist as a row in `topics` with the same id).
+                topic_id=weak_area.topic_id,
                 topic_name=topic_name,
                 subject_id=weak_area.subject_id,
                 subject_name=weak_area.subject.name,
@@ -509,22 +520,30 @@ class StudyPlannerService:
         task = self.daily_task_repo.get_task_by_id(request.task_id, institution_id)
         if not task:
             return None
-        
+
+        # Captured *before* `update_task` runs -- `task` and the object
+        # `update_task` fetches/mutates are the same identity-mapped
+        # instance (one request, one session), so reading `task.task_date`
+        # again afterward (as this used to do below) would already see the
+        # new date, not the original one, and silently record the wrong
+        # "rescheduled from" date on every reschedule.
+        original_task_date = task.task_date
+
         update_data = DailyStudyTaskUpdate(
             task_date=request.new_date,
             status=TaskStatus.RESCHEDULED,
             metadata={
                 **(task.metadata_json or {}),
-                'rescheduled_from': str(task.task_date),
+                'rescheduled_from': str(original_task_date),
                 'reschedule_reason': request.reason
             }
         )
-        
+
         updated_task = self.daily_task_repo.update_task(
             request.task_id, institution_id, update_data
         )
-        
-        updated_task.rescheduled_from_date = task.task_date
+
+        updated_task.rescheduled_from_date = original_task_date
         updated_task.rescheduled_to_date = request.new_date
         updated_task.rescheduled_reason = request.reason
         updated_task.status = TaskStatus.PENDING

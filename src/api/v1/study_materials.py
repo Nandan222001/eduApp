@@ -270,6 +270,17 @@ async def create_bookmark(
     current_user: User = Depends(get_current_user)
 ):
     service = StudyMaterialService(db)
+    # `bookmark_data.material_id` came straight from the client and went
+    # unchecked into MaterialBookmark's FK -- an id that didn't exist raised
+    # an unhandled IntegrityError (500) instead of a clean 404, and one that
+    # belonged to another institution could be bookmarked anyway (same shape
+    # as this session's flashcards.py `create_flashcard`/deck_id fix).
+    material = service.get_material(bookmark_data.material_id, current_user.institution_id)
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
     bookmark = service.bookmark_material(
         bookmark_data,
         current_user.id,
@@ -335,6 +346,15 @@ async def share_material(
     current_user: User = Depends(get_current_user)
 ):
     service = StudyMaterialService(db)
+    # Same unvalidated-FK shape as create_bookmark above: an unknown or
+    # cross-institution material_id must not reach MaterialShare's FK
+    # unchecked.
+    material = service.get_material(share_data.material_id, current_user.institution_id)
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
     share = service.share_material(
         share_data,
         current_user.id,

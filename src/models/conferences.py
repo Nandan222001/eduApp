@@ -81,24 +81,48 @@ class ConferenceBooking(Base):
     conference_type = Column(String(20), nullable=False, index=True)
     topic = Column(String(500), nullable=True)
     notes = Column(Text, nullable=True)
-    
+    # Parent-supplied list of discussion topics for the conference. Added to
+    # match src/schemas/conference.py's `ConferenceBookingBase.parent_topics`
+    # (a `List[str]`), which was never backed by a real column here --
+    # `ConferenceBookingRepository.create(**data.model_dump())` passed
+    # `parent_topics=...` straight into this model's constructor, raising an
+    # unconditional `TypeError: 'parent_topics' is an invalid keyword
+    # argument for ConferenceBooking` on every single booking creation
+    # (including the auto-generated PTM speed dating bookings).
+    parent_topics = Column(JSON, nullable=True)
+
     booking_status = Column(String(20), default=BookingStatus.CONFIRMED.value, nullable=False, index=True)
-    
+
     video_meeting_link = Column(String(500), nullable=True)
     video_meeting_id = Column(String(255), nullable=True)
     video_meeting_password = Column(String(255), nullable=True)
-    
+
     teacher_notes = Column(Text, nullable=True)
     parent_notes = Column(Text, nullable=True)
-    
+    # Matches ConferenceBookingUpdate/ConferenceBookingResponse's
+    # follow_up_required/follow_up_notes fields, likewise never backed by a
+    # real column -- every booking response (create/list/get/update/cancel/
+    # check-in/complete/upload-recording) declares these as *required*
+    # fields on ConferenceBookingResponse, so response serialization raised
+    # a validation error on every single one of those endpoints.
+    follow_up_required = Column(Boolean, default=False, nullable=False)
+    follow_up_notes = Column(Text, nullable=True)
+
     checked_in_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     cancelled_at = Column(DateTime, nullable=True)
     cancellation_reason = Column(Text, nullable=True)
-    
+
     recording_url = Column(String(500), nullable=True)
     recording_s3_key = Column(String(500), nullable=True)
-    
+    # Also required (non-Optional, no default) on ConferenceBookingResponse,
+    # and also already assumed to exist by
+    # ConferenceBookingRepository.get_pending_reminders' filter on
+    # `ConferenceBooking.reminder_24h_sent`/`.reminder_1h_sent` -- confirming
+    # these are the model's real missing columns, not a schema mistake.
+    reminder_24h_sent = Column(Boolean, default=False, nullable=False)
+    reminder_1h_sent = Column(Boolean, default=False, nullable=False)
+
     # PTM Speed Dating fields
     speed_round = Column(Boolean, default=False, nullable=False, index=True)
     auto_talking_points = Column(JSON, nullable=True)
@@ -133,13 +157,24 @@ class ConferenceSurvey(Base):
     respondent_type = Column(String(20), nullable=False)
     rating = Column(Integer, nullable=True)
     feedback = Column(Text, nullable=True)
-    
+    # communication_rating/helpfulness_rating/suggestions and updated_at are
+    # required by src/schemas/conference.py's ConferenceSurveyCreate/
+    # ConferenceSurveyResponse but had no matching columns here --
+    # ConferenceSurveyRepository.create(**data.model_dump()) raised
+    # `TypeError: 'communication_rating' is an invalid keyword argument`
+    # on every survey submission, and ConferenceSurveyResponse's required
+    # `updated_at` field made every successful response fail validation too.
+    communication_rating = Column(Integer, nullable=True)
+    helpfulness_rating = Column(Integer, nullable=True)
+    suggestions = Column(Text, nullable=True)
+
     was_helpful = Column(Boolean, nullable=True)
     would_recommend = Column(Boolean, nullable=True)
-    
+
     submitted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
     booking = relationship("ConferenceBooking", back_populates="survey")
     
     __table_args__ = (

@@ -98,8 +98,15 @@ export default function AdminOnboardingDesigner() {
     try {
       const data = await onboardingApi.getFlowsByRole(selectedRole);
       setFlows(data);
-      if (data.length > 0 && !currentFlow) {
-        setCurrentFlow(data[0]);
+      if (currentFlow && currentFlow.role === selectedRole) {
+        // Keep the current selection (refreshed with any server-side changes)
+        // as long as it still belongs to the role we just loaded.
+        setCurrentFlow(data.find((f) => f.id === currentFlow.id) ?? data[0] ?? null);
+      } else {
+        // The role changed (or nothing was selected yet): select the new
+        // role's first flow instead of continuing to show the previous
+        // role's flow under a mismatched role selector.
+        setCurrentFlow(data[0] ?? null);
       }
     } catch (err) {
       setError('Failed to load onboarding flows');

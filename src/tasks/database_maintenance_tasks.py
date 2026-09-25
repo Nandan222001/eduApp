@@ -2,13 +2,21 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from sqlalchemy import text, inspect
 from celery import shared_task
+import asyncio
+import json
 import logging
 
 from src.celery_app import celery_app
 from src.database import SessionLocal, engine
-from src.redis_client import redis_client
+from src.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
+
+
+async def _redis_setex(key: str, ttl: int, value: str) -> None:
+    client = await get_redis()
+    if client:
+        await client.setex(key, ttl, value)
 
 
 @celery_app.task(name="db_maintenance.vacuum_analyze")
@@ -116,11 +124,11 @@ def analyze_index_usage_task():
             "total_indexes_analyzed": len(rows)
         }
         
-        redis_client.setex(
+        asyncio.run(_redis_setex(
             "db_maintenance:index_recommendations",
             86400 * 7,
-            str(recommendations)
-        )
+            json.dumps(recommendations)
+        ))
         
         logger.info(f"Index analysis completed. Found {len(unused_indexes)} unused and {len(rarely_used_indexes)} rarely used indexes")
         
@@ -282,14 +290,14 @@ def log_slow_queries_task():
                     f"{q['query_sample']}"
                 )
             
-            redis_client.setex(
+            asyncio.run(_redis_setex(
                 "db_maintenance:slow_queries",
                 86400,
-                str({
+                json.dumps({
                     "generated_at": datetime.utcnow().isoformat(),
                     "queries": slow_queries
                 })
-            )
+            ))
         
         db.close()
         
@@ -496,14 +504,14 @@ def table_bloat_report_task():
             }
             bloat_report.append(table_info)
         
-        redis_client.setex(
+        asyncio.run(_redis_setex(
             "db_maintenance:bloat_report",
             86400,
-            str({
+            json.dumps({
                 "generated_at": datetime.utcnow().isoformat(),
                 "tables": bloat_report
             })
-        )
+        ))
         
         db.close()
         

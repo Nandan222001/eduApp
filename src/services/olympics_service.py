@@ -390,13 +390,24 @@ class OlympicsService:
         for rank, participant in enumerate(sorted_participants, start=1):
             student = db.query(Student).filter(Student.id == participant['student_id']).first()
             if student:
+                # Field names here must match the `LeaderboardEntry` schema
+                # (participant_id/participant_name/score, not student_id/
+                # student_name/total_score) -- the router unpacks each of
+                # these dicts straight into `LeaderboardEntry(**entry_data)`
+                # in `update_competition_leaderboard`, and the mismatched
+                # names previously made that endpoint 100% fail with a
+                # pydantic ValidationError as soon as there was at least one
+                # ranked participant (model/schema drift, bug class 11).
                 rankings_list.append({
                     'rank': rank,
-                    'student_id': participant['student_id'],
-                    'student_name': f"{student.first_name} {student.last_name}",
-                    'total_score': float(participant['total_score']),
-                    'events_participated': participant['events_participated'],
-                    'institution_id': participant['institution_id']
+                    'participant_id': participant['student_id'],
+                    'participant_name': f"{student.first_name} {student.last_name}",
+                    'team_id': None,
+                    'team_name': None,
+                    'score': float(participant['total_score']),
+                    'time_taken': None,
+                    'institution_id': participant['institution_id'],
+                    'institution_name': None,
                 })
         
         return {

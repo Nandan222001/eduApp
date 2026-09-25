@@ -32,6 +32,7 @@ from src.models.student_employment import (
 )
 from src.dependencies.auth import get_current_user
 from src.models.user import User
+from src.models.student import Student
 
 router = APIRouter()
 
@@ -42,6 +43,15 @@ async def create_job_listing(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # `institution_id` is client-suppliable on the create schema but every
+    # other endpoint below scopes strictly by `current_user.institution_id`
+    # -- create never checked it, letting any authenticated caller plant a
+    # job listing in another institution.
+    if listing_data.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to create a job listing for this institution"
+        )
     job_listing = StudentJobListing(**listing_data.model_dump())
     db.add(job_listing)
     db.commit()
@@ -167,27 +177,48 @@ async def create_job_application(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # `institution_id`/`student_id`/`job_listing_id` are all client-suppliable
+    # on the create schema. Previously none were checked against the
+    # caller's own institution, so a caller could apply on behalf of another
+    # institution's student, or record an application against a job listing
+    # from a completely different institution (corrupting that institution's
+    # application_count/statistics). Scoped all three to the caller's own
+    # institution.
+    if application_data.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to create an application for this institution"
+        )
+
+    student = db.query(Student).filter(
+        Student.id == application_data.student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+
     existing_application = db.query(JobApplication).filter(
         JobApplication.student_id == application_data.student_id,
         JobApplication.job_listing_id == application_data.job_listing_id
     ).first()
-    
+
     if existing_application:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Student has already applied to this job"
         )
-    
+
     job_listing = db.query(StudentJobListing).filter(
-        StudentJobListing.id == application_data.job_listing_id
+        StudentJobListing.id == application_data.job_listing_id,
+        StudentJobListing.institution_id == current_user.institution_id
     ).first()
-    
+
     if not job_listing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Job listing not found"
         )
-    
+
     application = JobApplication(**application_data.model_dump())
     db.add(application)
     
@@ -273,6 +304,21 @@ async def create_work_permit(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Same cross-tenant gap: `institution_id`/`student_id` were never
+    # checked against the caller's own institution.
+    if permit_data.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to create a work permit for this institution"
+        )
+
+    student = db.query(Student).filter(
+        Student.id == permit_data.student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+
     work_permit = WorkPermit(**permit_data.model_dump())
     db.add(work_permit)
     db.commit()
@@ -299,7 +345,7 @@ async def get_student_work_permits(
     return permits
 
 
-@router.get("/work-permits/{permit_id}", response_model=WorkPermitResponse)
+@router.get("/work-permits/{permit_id:int}", response_model=WorkPermitResponse)
 async def get_work_permit(
     permit_id: int,
     current_user: User = Depends(get_current_user),
@@ -319,7 +365,7 @@ async def get_work_permit(
     return permit
 
 
-@router.put("/work-permits/{permit_id}", response_model=WorkPermitResponse)
+@router.put("/work-permits/{permit_id:int}", response_model=WorkPermitResponse)
 async def update_work_permit(
     permit_id: int,
     update_data: WorkPermitUpdate,
@@ -383,6 +429,30 @@ async def create_student_employment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Same cross-tenant gap: `institution_id`/`student_id` were never checked
+    # against the caller's own institution, and a `work_permit_id` from
+    # another institution could be attached to this record.
+    if employment_data.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to create an employment record for this institution"
+        )
+
+    student = db.query(Student).filter(
+        Student.id == employment_data.student_id,
+        Student.institution_id == current_user.institution_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+
+    if employment_data.work_permit_id is not None:
+        permit = db.query(WorkPermit).filter(
+            WorkPermit.id == employment_data.work_permit_id,
+            WorkPermit.institution_id == current_user.institution_id
+        ).first()
+        if not permit:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work permit not found")
+
     employment = StudentEmployment(**employment_data.model_dump())
     db.add(employment)
     db.commit()
@@ -413,7 +483,7 @@ async def get_student_employments(
     return employments
 
 
-@router.get("/employments/{employment_id}", response_model=StudentEmploymentResponse)
+@router.get("/employments/{employment_id:int}", response_model=StudentEmploymentResponse)
 async def get_student_employment(
     employment_id: int,
     current_user: User = Depends(get_current_user),
@@ -433,7 +503,7 @@ async def get_student_employment(
     return employment
 
 
-@router.put("/employments/{employment_id}", response_model=StudentEmploymentResponse)
+@router.put("/employments/{employment_id:int}", response_model=StudentEmploymentResponse)
 async def update_student_employment(
     employment_id: int,
     update_data: StudentEmploymentUpdate,

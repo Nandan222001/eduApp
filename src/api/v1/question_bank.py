@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models.user import User
-from src.models.previous_year_papers import QuestionType, DifficultyLevel, BloomTaxonomyLevel
+from src.models.previous_year_papers import QuestionType, DifficultyLevel, BloomTaxonomyLevel, PreviousYearPaper
 from src.dependencies.auth import get_current_user
 from src.schemas.previous_year_papers import (
     QuestionBankCreate,
@@ -105,6 +105,19 @@ async def get_questions_by_paper(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    paper = db.query(PreviousYearPaper).filter(PreviousYearPaper.id == paper_id).first()
+    if not paper:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Paper not found"
+        )
+
+    if paper.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this paper"
+        )
+
     service = QuestionBankService(db)
     questions, total = service.get_questions_by_paper(paper_id, skip, limit)
 

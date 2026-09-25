@@ -67,16 +67,30 @@ export const AdminDocumentVerification: React.FC = () => {
   const getFilteredDocuments = () => {
     if (!allDocuments) return [];
 
+    let filtered = allDocuments;
     switch (currentTab) {
       case 0:
-        return allDocuments.filter((d) => d.status === DocumentStatus.PENDING);
+        filtered = filtered.filter((d) => d.status === DocumentStatus.PENDING);
+        break;
       case 1:
-        return allDocuments.filter((d) => d.status === DocumentStatus.VERIFIED);
+        filtered = filtered.filter((d) => d.status === DocumentStatus.VERIFIED);
+        break;
       case 2:
-        return allDocuments.filter((d) => d.status === DocumentStatus.REJECTED);
-      default:
-        return allDocuments;
+        filtered = filtered.filter((d) => d.status === DocumentStatus.REJECTED);
+        break;
     }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter(
+        (d) =>
+          d.title.toLowerCase().includes(query) ||
+          d.file_name.toLowerCase().includes(query) ||
+          d.child_name.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
   };
 
   const filteredDocuments = getFilteredDocuments();

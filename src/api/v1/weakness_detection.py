@@ -151,13 +151,24 @@ def update_question_recommendation(
     db: Session = Depends(get_db)
 ):
     recommender = SmartQuestionRecommender(db)
-    
-    updated = recommender.update_spaced_repetition(
-        recommendation_id=recommendation_id,
-        performance_score=float(update_data.performance_score),
-        institution_id=current_user.institution_id
-    )
-    
+
+    # `update_spaced_repetition` raises a plain `ValueError` for an unknown
+    # (or cross-institution) recommendation id -- uncaught, that reaches
+    # Starlette's default handler as an unhandled 500 instead of a clean
+    # 404 (same shape as this session's `ml_monitoring.py`/`question_nlp.py`
+    # insufficient-data ValueError-miscategorization bugs).
+    try:
+        updated = recommender.update_spaced_repetition(
+            recommendation_id=recommendation_id,
+            performance_score=float(update_data.performance_score),
+            institution_id=current_user.institution_id
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question recommendation not found"
+        )
+
     return QuestionRecommendationResponse.model_validate(updated)
 
 

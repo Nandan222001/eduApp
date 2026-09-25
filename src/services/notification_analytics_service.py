@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func, desc
+from sqlalchemy import and_, func, desc, case
 
 from src.models.notification import (
     Notification,
@@ -30,13 +30,13 @@ class NotificationAnalyticsService:
         query = self.db.query(
             func.count(Notification.id).label('total'),
             func.sum(
-                func.case(
+                case(
                     (Notification.status == NotificationStatus.SENT.value, 1),
                     else_=0
                 )
             ).label('delivered'),
             func.sum(
-                func.case(
+                case(
                     (Notification.status == NotificationStatus.FAILED.value, 1),
                     else_=0
                 )
@@ -167,13 +167,13 @@ class NotificationAnalyticsService:
             query = self.db.query(
                 func.count(Notification.id).label('total'),
                 func.sum(
-                    func.case(
+                    case(
                         (Notification.status == NotificationStatus.SENT.value, 1),
                         else_=0
                     )
                 ).label('delivered'),
                 func.sum(
-                    func.case(
+                    case(
                         (Notification.status == NotificationStatus.READ.value, 1),
                         else_=0
                     )
@@ -214,13 +214,13 @@ class NotificationAnalyticsService:
             query = self.db.query(
                 func.count(Notification.id).label('total'),
                 func.sum(
-                    func.case(
+                    case(
                         (Notification.status == NotificationStatus.SENT.value, 1),
                         else_=0
                     )
                 ).label('delivered'),
                 func.sum(
-                    func.case(
+                    case(
                         (Notification.status == NotificationStatus.READ.value, 1),
                         else_=0
                     )
@@ -315,19 +315,19 @@ class NotificationAnalyticsService:
             query = self.db.query(
                 func.count(Notification.id).label('total'),
                 func.sum(
-                    func.case(
+                    case(
                         (Notification.status == NotificationStatus.SENT.value, 1),
                         else_=0
                     )
                 ).label('sent'),
                 func.sum(
-                    func.case(
+                    case(
                         (Notification.status == NotificationStatus.FAILED.value, 1),
                         else_=0
                     )
                 ).label('failed'),
                 func.sum(
-                    func.case(
+                    case(
                         (Notification.status == NotificationStatus.READ.value, 1),
                         else_=0
                     )
@@ -364,13 +364,13 @@ class NotificationAnalyticsService:
             Notification.notification_type,
             func.count(Notification.id).label('count'),
             func.sum(
-                func.case(
+                case(
                     (Notification.status == NotificationStatus.SENT.value, 1),
                     else_=0
                 )
             ).label('sent'),
             func.sum(
-                func.case(
+                case(
                     (Notification.status == NotificationStatus.READ.value, 1),
                     else_=0
                 )

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models.user import User
 from src.models.attendance import AttendanceStatus, CorrectionStatus
+from src.models.student import Student
 from src.dependencies.auth import get_current_user
 from src.schemas.attendance import (
     AttendanceCreate,
@@ -37,7 +38,20 @@ async def create_attendance(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create attendance for this institution"
         )
-    
+
+    if current_user.student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers or admins can mark attendance"
+        )
+
+    student = db.query(Student).filter(Student.id == attendance_data.student_id).first()
+    if not student or student.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
     service = AttendanceService(db)
     attendance = service.create_attendance(attendance_data)
     return attendance
@@ -49,12 +63,38 @@ async def bulk_mark_attendance(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers or admins can mark attendance"
+        )
+
+    requested_student_ids = {item.student_id for item in bulk_data.attendances}
+    valid_student_ids = {
+        s.id for s in db.query(Student.id).filter(
+            Student.id.in_(requested_student_ids),
+            Student.institution_id == current_user.institution_id
+        ).all()
+    }
+    invalid_items = [item for item in bulk_data.attendances if item.student_id not in valid_student_ids]
+    valid_items = [item for item in bulk_data.attendances if item.student_id in valid_student_ids]
+
     service = AttendanceService(db)
+    filtered_bulk_data = bulk_data.model_copy(update={"attendances": valid_items})
     result = service.bulk_mark_attendance(
         institution_id=current_user.institution_id,
-        data=bulk_data,
+        data=filtered_bulk_data,
         marked_by_id=current_user.id
     )
+
+    for item in invalid_items:
+        result["errors"].append({
+            "student_id": item.student_id,
+            "error": "Student not found in this institution"
+        })
+        result["failed"] += 1
+    result["total"] = len(bulk_data.attendances)
+
     return result
 
 
@@ -91,7 +131,7 @@ async def list_attendances(
     }
 
 
-@router.get("/{attendance_id}", response_model=AttendanceResponse)
+@router.get("/{attendance_id:int}", response_model=AttendanceResponse)
 async def get_attendance(
     attendance_id: int,
     current_user: User = Depends(get_current_user),
@@ -111,11 +151,17 @@ async def get_attendance(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this attendance"
         )
-    
+
+    if current_user.student_profile and attendance.student_id != current_user.student_profile.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this attendance"
+        )
+
     return attendance
 
 
-@router.put("/{attendance_id}", response_model=AttendanceResponse)
+@router.put("/{attendance_id:int}", response_model=AttendanceResponse)
 async def update_attendance(
     attendance_id: int,
     attendance_data: AttendanceUpdate,
@@ -136,12 +182,18 @@ async def update_attendance(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this attendance"
         )
-    
+
+    if current_user.student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers or admins can update attendance"
+        )
+
     updated_attendance = service.update_attendance(attendance_id, attendance_data)
     return updated_attendance
 
 
-@router.delete("/{attendance_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{attendance_id:int}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_attendance(
     attendance_id: int,
     current_user: User = Depends(get_current_user),
@@ -161,7 +213,13 @@ async def delete_attendance(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete this attendance"
         )
-    
+
+    if current_user.student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers or admins can delete attendance"
+        )
+
     service.delete_attendance(attendance_id)
     return None
 
@@ -177,8 +235,34 @@ async def request_correction(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create correction for this institution"
         )
-    
+
     service = AttendanceService(db)
+
+    # The check above only confirms the caller belongs to the institution
+    # they *claim* in the request body -- it says nothing about whether the
+    # target attendance record actually belongs to that institution. Without
+    # this, a caller could submit their own institution_id (passing the
+    # check above) while pointing attendance_id at a record that actually
+    # belongs to a different institution, creating a cross-institution
+    # correction request.
+    target_attendance = service.get_attendance(correction_data.attendance_id)
+    if not target_attendance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attendance record not found"
+        )
+    if target_attendance.institution_id != correction_data.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to create correction for this institution"
+        )
+
+    if current_user.student_profile and target_attendance.student_id != current_user.student_profile.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to request a correction for this attendance"
+        )
+
     correction = service.request_correction(correction_data)
     return correction
 
@@ -213,19 +297,20 @@ async def review_correction(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers or admins can review attendance corrections"
+        )
+
     service = AttendanceService(db)
     correction = service.review_correction(
         correction_id=correction_id,
         data=review_data,
-        reviewed_by_id=current_user.id
+        reviewed_by_id=current_user.id,
+        institution_id=current_user.institution_id
     )
-    
-    if correction.institution_id != current_user.institution_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to review this correction"
-        )
-    
+
     return correction
 
 

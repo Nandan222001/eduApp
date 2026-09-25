@@ -1,8 +1,33 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date, date as date_type, time
 from decimal import Decimal
 from src.models.study_planner import StudyPlanStatus, TaskStatus, TaskPriority
+
+
+def _read_metadata_json(data: Any) -> Any:
+    """`model_validator(mode="before")` for any response schema with a
+    `metadata` field built `from_attributes` off a `src.models.study_planner`
+    ORM object.
+
+    Every SQLAlchemy declarative model has a class-level `metadata`
+    attribute -- the `MetaData` registry, inherited from `Base` -- which
+    shadows the real, mapped `metadata_json` column (mapped to the
+    `metadata` DB column) on any instance that hasn't set an *instance*
+    attribute literally named `metadata`. So `getattr(obj, "metadata")`
+    (exactly what `from_attributes` validation does for a field named
+    `metadata`) always returns that `MetaData()` object, never the actual
+    JSON value, raising `Input should be a valid dictionary` on every
+    single response that includes one of these models -- unconditionally,
+    regardless of whether `metadata_json` is even populated. Fixed by
+    building the validated dict ourselves from the object's real mapped
+    columns before pydantic's own attribute extraction ever sees it.
+    """
+    if isinstance(data, dict) or not hasattr(data, 'metadata_json'):
+        return data
+    values = {c.key: getattr(data, c.key) for c in data.__table__.columns}
+    values['metadata'] = data.metadata_json
+    return values
 
 
 class WeakAreaBase(BaseModel):
@@ -85,6 +110,8 @@ class StudyPlanResponse(StudyPlanBase):
     created_at: datetime
     updated_at: datetime
 
+    _fix_metadata = model_validator(mode="before")(_read_metadata_json)
+
     class Config:
         from_attributes = True
 
@@ -141,6 +168,8 @@ class DailyStudyTaskResponse(DailyStudyTaskBase):
     calendar_event_id: Optional[str]
     created_at: datetime
     updated_at: datetime
+
+    _fix_metadata = model_validator(mode="before")(_read_metadata_json)
 
     class Config:
         from_attributes = True
@@ -204,6 +233,8 @@ class StudyProgressResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    _fix_metadata = model_validator(mode="before")(_read_metadata_json)
+
     class Config:
         from_attributes = True
 
@@ -265,7 +296,12 @@ class TopicPrioritizationRequest(BaseModel):
 
 
 class TopicPriority(BaseModel):
-    topic_id: int
+    # Only a genuine `topics.id`, or None -- this value is used verbatim as
+    # `TopicAssignment.topic_id`'s FK in `generate_study_plan` downstream,
+    # so it must never be a chapter or subject id wearing a topic's hat
+    # (see the comment where this is built in
+    # `StudyPlannerService.prioritize_topics`).
+    topic_id: Optional[int] = None
     topic_name: str
     subject_id: int
     subject_name: str

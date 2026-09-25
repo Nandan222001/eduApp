@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
@@ -6,6 +6,9 @@ import hashlib
 
 from src.database import get_db
 from src.redis_client import get_redis
+from src.dependencies.auth import get_current_user
+from src.models.user import User
+from src.models.ml_prediction import MLModel, PerformancePrediction
 from src.ml.prediction_service import PerformancePredictionService
 from src.ml.ml_service import MLService
 from src.schemas.prediction_schemas import (
@@ -33,11 +36,17 @@ def generate_cache_key(prefix: str, **kwargs) -> str:
 @router.post("/train", response_model=TrainModelResponse)
 async def train_prediction_model(
     request: TrainModelRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> TrainModelResponse:
+    if request.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to train a model for this institution"
+        )
     try:
         prediction_service = PerformancePredictionService(db)
-        
+
         ml_model, model_version = prediction_service.train_model(
             institution_id=request.institution_id,
             model_name=request.model_name,
@@ -77,25 +86,32 @@ async def train_prediction_model(
 @router.post("/predict", response_model=PredictPerformanceResponse)
 async def predict_student_performance(
     request: PredictPerformanceRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> PredictPerformanceResponse:
+    ml_model = db.query(MLModel).filter(MLModel.id == request.model_id).first()
+    if not ml_model or ml_model.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {request.model_id} not found"
+        )
     try:
         redis = await get_redis()
-        
+
         cache_key = generate_cache_key(
             "prediction",
             model_id=request.model_id,
             student_id=request.student_id,
             features=request.input_features
         )
-        
+
         cached_result = await redis.get(cache_key)
         if cached_result:
             cached_data = json.loads(cached_result)
             return PredictPerformanceResponse(**cached_data)
-        
+
         prediction_service = PerformancePredictionService(db)
-        
+
         prediction = prediction_service.predict_performance(
             model_id=request.model_id,
             student_id=request.student_id,
@@ -137,16 +153,26 @@ async def predict_student_performance(
 @router.post("/batch-predict", response_model=BatchPredictionResponse)
 async def batch_predict_performance(
     request: BatchPredictionRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> BatchPredictionResponse:
+    # `ml_model` used to be looked up with
+    # `db.query(prediction_service.db.query(prediction_service.db.query.__self__.__class__))`,
+    # which is not a valid SQLAlchemy query at all (it wraps a bound method's
+    # `__self__.__class__` -- the `Query` class itself -- as if it were a
+    # mapped entity) and raised a `TypeError`/`ArgumentError` on every single
+    # call, 100% breaking this endpoint regardless of input. Replaced with a
+    # real lookup of the model the request actually names.
+    ml_model = db.query(MLModel).filter(MLModel.id == request.model_id).first()
+    if not ml_model or ml_model.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {request.model_id} not found"
+        )
     try:
         prediction_service = PerformancePredictionService(db)
         ml_service = MLService(db)
-        
-        ml_model = db.query(prediction_service.db.query(
-            prediction_service.db.query.__self__.__class__
-        )).first()
-        
+
         predictions = []
         
         for student_id in request.student_ids:
@@ -191,29 +217,36 @@ async def batch_predict_performance(
 @router.post("/what-if", response_model=WhatIfAnalysisResponse)
 async def analyze_what_if_scenarios(
     request: WhatIfAnalysisRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> WhatIfAnalysisResponse:
     try:
         redis = await get_redis()
-        
+
         cache_key = generate_cache_key(
             "what_if",
             base_prediction_id=request.base_prediction_id,
             scenarios=[s.model_dump() for s in request.scenarios]
         )
-        
+
         cached_result = await redis.get(cache_key)
         if cached_result:
             cached_data = json.loads(cached_result)
             return WhatIfAnalysisResponse(**cached_data)
-        
+
         prediction_service = PerformancePredictionService(db)
-        
-        base_prediction = db.query(prediction_service.db.query(
-            prediction_service.db.query.__self__.__class__
-        )).filter_by(id=request.base_prediction_id).first()
-        
-        if not base_prediction:
+
+        # Same broken self-referential query pattern as batch-predict above
+        # (`db.query(prediction_service.db.query(...))`), which raised
+        # unconditionally rather than ever reaching the `not base_prediction`
+        # 404 branch below -- replaced with a real lookup, also scoped to the
+        # caller's own institution so a guessed prediction id from another
+        # institution can't be used as the base of a what-if analysis.
+        base_prediction = db.query(PerformancePrediction).filter(
+            PerformancePrediction.id == request.base_prediction_id
+        ).first()
+
+        if not base_prediction or base_prediction.institution_id != current_user.institution_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Base prediction {request.base_prediction_id} not found"
@@ -275,11 +308,18 @@ async def analyze_what_if_scenarios(
 @router.get("/models/{model_id}/metrics", response_model=ModelMetricsResponse)
 async def get_model_metrics(
     model_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> ModelMetricsResponse:
+    ml_model = db.query(MLModel).filter(MLModel.id == model_id).first()
+    if not ml_model or ml_model.institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {model_id} not found"
+        )
     try:
         redis = await get_redis()
-        
+
         cache_key = f"model_metrics:{model_id}"
         cached_result = await redis.get(cache_key)
         if cached_result:
@@ -314,30 +354,45 @@ async def get_model_metrics(
 @router.get("/models", response_model=ListModelsResponse)
 async def list_models(
     institution_id: int,
-    status: Optional[str] = None,
+    # Renamed from `status` (the query param's original name): it shadowed
+    # the module-level `from fastapi import ... status` import for this
+    # entire function body, so every `except` block below that referenced
+    # `status.HTTP_...` was actually attribute-accessing the *local string
+    # parameter* (or `None`) instead of the fastapi module, raising an
+    # unhandled `AttributeError` in place of the intended HTTPException any
+    # time this endpoint's try block actually failed -- masking the real
+    # error behind a generic, undiagnosable 500. `status=model_status` below
+    # keeps the same keyword the service method expects.
+    model_status: Optional[str] = Query(None, alias="status"),
     prediction_type: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> ListModelsResponse:
+    if institution_id != current_user.institution_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to list models for this institution"
+        )
     try:
         redis = await get_redis()
-        
+
         cache_key = generate_cache_key(
             "models_list",
             institution_id=institution_id,
-            status=status,
+            status=model_status,
             prediction_type=prediction_type
         )
-        
+
         cached_result = await redis.get(cache_key)
         if cached_result:
             cached_data = json.loads(cached_result)
             return ListModelsResponse(**cached_data)
-        
+
         prediction_service = PerformancePredictionService(db)
-        
+
         models = prediction_service.list_models(
             institution_id=institution_id,
-            status=status,
+            status=model_status,
             prediction_type=prediction_type
         )
         
@@ -375,21 +430,23 @@ async def list_models(
 async def get_prediction_history(
     student_id: int,
     limit: int = 10,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> PredictionHistoryResponse:
     try:
         redis = await get_redis()
-        
-        cache_key = f"prediction_history:{student_id}:{limit}"
+
+        cache_key = f"prediction_history:{current_user.institution_id}:{student_id}:{limit}"
         cached_result = await redis.get(cache_key)
         if cached_result:
             cached_data = json.loads(cached_result)
             return PredictionHistoryResponse(**cached_data)
-        
+
         prediction_service = PerformancePredictionService(db)
-        
+
         predictions = prediction_service.get_student_predictions_history(
             student_id=student_id,
+            institution_id=current_user.institution_id,
             limit=limit
         )
         

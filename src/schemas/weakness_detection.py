@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 from decimal import Decimal
+
+from src.schemas.study_planner import WeakAreaResponse, _read_metadata_json
 
 
 class ChapterPerformanceBase(BaseModel):
@@ -57,7 +59,17 @@ class QuestionRecommendationResponse(QuestionRecommendationBase):
     metadata: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
-    
+
+    # `metadata` collides with the class-level `MetaData` registry every
+    # SQLAlchemy declarative model inherits from `Base` -- see the detailed
+    # comment on `_read_metadata_json` in `src.schemas.study_planner`. That
+    # shadowing meant `GET /weakness-detection/question-recommendations`
+    # and the `PUT .../{id}` update both raised
+    # `pydantic_core.ValidationError` ("Input should be a valid dictionary")
+    # on every single call, and `POST /weakness-detection/analyze` failed
+    # the same way whenever it generated at least one recommendation.
+    _fix_metadata = model_validator(mode="before")(_read_metadata_json)
+
     class Config:
         from_attributes = True
 
@@ -183,7 +195,17 @@ class AnalysisSummary(BaseModel):
 class ComprehensiveAnalysisResponse(BaseModel):
     summary: AnalysisSummary
     chapter_performances: List[ChapterPerformanceResponse]
-    weak_areas: List[Any]
+    # Was `List[Any]` -- holding raw `WeakArea` ORM objects straight from
+    # the engine's query, unlike every sibling field here, which properly
+    # wraps its ORM objects in `.model_validate(...)`. Pydantic-core's
+    # serializer (what FastAPI's `response_model` actually uses to build
+    # the JSON body, not `fastapi.encoders.jsonable_encoder`) has no idea
+    # how to serialize an arbitrary SQLAlchemy model and raised
+    # `PydanticSerializationError: Unable to serialize unknown type` on
+    # every single call to `POST /weakness-detection/analyze` that found
+    # at least one weak area -- the endpoint's single most common,
+    # meaningful case.
+    weak_areas: List[WeakAreaResponse]
     focus_areas: List[FocusAreaResponse]
     question_recommendations: List[QuestionRecommendationResponse]
     personalized_insights: List[PersonalizedInsightResponse]
