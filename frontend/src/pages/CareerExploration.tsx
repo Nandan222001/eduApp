@@ -628,8 +628,9 @@ export default function CareerExploration() {
             </Grid>
             <Grid item xs={12} md={4}>
               <FormControl fullWidth>
-                <InputLabel>Industry</InputLabel>
+                <InputLabel id="career-industry-filter-label">Industry</InputLabel>
                 <Select
+                  labelId="career-industry-filter-label"
                   value={industryFilter}
                   onChange={handleIndustryFilterChange}
                   label="Industry"
@@ -1619,8 +1620,10 @@ export default function CareerExploration() {
                 required
               />
               <FormControl fullWidth margin="normal">
-                <InputLabel>Preferred Meeting Frequency</InputLabel>
-                <Select defaultValue="biweekly">
+                <InputLabel id="mentor-meeting-frequency-label">
+                  Preferred Meeting Frequency
+                </InputLabel>
+                <Select labelId="mentor-meeting-frequency-label" defaultValue="biweekly">
                   <MenuItem value="weekly">Weekly</MenuItem>
                   <MenuItem value="biweekly">Bi-weekly</MenuItem>
                   <MenuItem value="monthly">Monthly</MenuItem>
@@ -1661,8 +1664,8 @@ export default function CareerExploration() {
             required
           />
           <FormControl fullWidth margin="normal">
-            <InputLabel>Category</InputLabel>
-            <Select defaultValue="">
+            <InputLabel id="project-category-label">Category</InputLabel>
+            <Select labelId="project-category-label" defaultValue="">
               <MenuItem value="Web Development">Web Development</MenuItem>
               <MenuItem value="Data Science">Data Science</MenuItem>
               <MenuItem value="Mobile App">Mobile App</MenuItem>
@@ -1716,8 +1719,8 @@ export default function CareerExploration() {
             helperText="Separate with commas"
           />
           <FormControl fullWidth margin="normal">
-            <InputLabel>Status</InputLabel>
-            <Select defaultValue="pending">
+            <InputLabel id="partnership-status-label">Status</InputLabel>
+            <Select labelId="partnership-status-label" defaultValue="pending">
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="pending">Pending</MenuItem>
               <MenuItem value="inactive">Inactive</MenuItem>
