@@ -4364,12 +4364,73 @@ this list is the single source of truth for what's left.
    broken conditional rendering, wrong prop names, missing null-checks, API-shape mismatches
    between the page and its actual `@/api/*` module, not the backend's SQL-specific bug
    classes) and push.
-2. Continue with batches 2 through 8 in subsequent iterations, same 3-agents-per-round pattern.
-3. Once all 8 batches are done, do a final full-suite `npx vitest run` pass and update the
+
+## Frontend Phase 2/3, Batch 1 — commits 3652229..4cd54cd (complete)
+
+**Batch 1 (30 pages) is done.** 9 commits, 43 test files / 476 tests total (up from the 13/337
+baseline), independently re-verified with a fresh full-suite `npx vitest run` (43 passed, 476
+passed, 0 failures) after the last commit. Real bugs found and fixed:
+- **`CareerCounselorWorkflow.tsx`: the Approve/Reject buttons in the job-review dialog never
+  worked at all.** Each button called `setReviewDecision(...)` then immediately called
+  `handleSubmitJobReview()` in the same tick; since React state updates are async, the handler
+  always read the *previous* (`null`) value of `reviewDecision` and its own null-guard silently
+  aborted every submission -- no network request was ever sent, for any reviewer, ever. Fixed by
+  passing the decision as a direct function argument instead of round-tripping through state.
+- **A single bug found independently in `AttendanceCorrectionPage.tsx`,
+  `AttendanceDefaultersPage.tsx`, `AttendanceMarkingPage.tsx`, and `AttendanceSheetPage.tsx`
+  (4 pages, same root cause)**: each builds its section-picker dropdown by casting
+  `studentsApi.listStudents()`'s real `SectionInfo` results `as Section[]`, where the local
+  `Section` type expects a flat `grade_name` field that doesn't exist on the real shape (the
+  real grade name is nested at `section.grade?.name`). Since a TypeScript `as` cast is
+  compile-time only, `section.grade_name` was always `undefined` at runtime -- every section
+  dropdown across attendance-related pages showed only the bare section name ("A") instead of
+  "Grade 8 - A", making same-named sections in different grades indistinguishable everywhere.
+  Fixed in all 4 pages by mapping `grade_name` from `section.grade?.name` explicitly.
+- **`AdminDocumentVerification.tsx`/`AdminVerificationQueue.tsx`: two real bugs.** The shared
+  queue component always re-filtered its `documents` prop down to `status === PENDING`
+  regardless of what its caller had already filtered for, so the page's Verified and Rejected
+  tabs always rendered zero documents no matter the data. Also, the "Search documents..." box
+  updated state that nothing ever read, so typing in it had zero effect. Both fixed; also fixed
+  the approve/reject mutation invalidating a query key (`'documents'`) nothing actually
+  subscribes to instead of the real keys (`'all-documents'`, `'document-vault-stats'`), so the
+  list/stats never refreshed without a manual reload.
+- **`AdminOnboardingDesigner.tsx`**: switching the role filter while a flow from the previous
+  role was still selected kept showing that stale flow under the new role's selector (the
+  auto-select effect only fired when nothing was selected yet, never re-evaluating once
+  something was). Fixed to re-select only if the current flow still belongs to the newly-loaded
+  role.
+- **`CareerExploration.tsx`**: 4 `<Select>` fields had an `<InputLabel>` with no `id`/`labelId`
+  pairing (MUI's `Select` needs an explicit `labelId` since it doesn't render a real `<label
+  for>`), breaking both screen-reader association and `getByLabelText` queries. Fixed.
+- Pages confirmed already correct, tests added with no bugs found: `AdminVolunteerAnalytics`,
+  `AdministratorsList`, `Analytics/AnalyticsDashboard` + its 6 tab sub-components,
+  `AnnouncementManagement`, `AIPredictionDashboard`, `AIStudyBuddy`, `About`,
+  `AcademicStructure`, `AccessibilityDemo`, `AdaptiveLearningLibrary`,
+  `AdminGraduationRequirementDashboard`, `AppreciationWall`, `AssignmentManagement`,
+  `AttendanceOverviewPage`, `AdminMerchandiseManager`, `CampaignManager` (one page,
+  `AIStudyBuddy.tsx`, had "fix real bug" in its commit title per the agent's report but the
+  detail wasn't large enough to need its own paragraph here -- see `git show 0c8bbbf` if
+  needed).
+- **Process note**: two of the three batch-1 agents were rate-limited mid-flight a third time
+  this session, both right at their final full-suite-verification checkpoint with all their
+  actual test-writing/bug-fixing already done. Rather than dispatch continuation agents for
+  such a small remainder, the last 5 files (2 from one agent, 3 from the other) were finished
+  directly: verified each diff by hand, ran the specific new test files, ran the full suite, and
+  committed. For a small enough remainder (single-digit files, work already complete pending
+  only verification), finishing directly is faster than the continuation-agent dance used for
+  larger remainders in the backend audit -- use judgment on which fits.
+
+## Next resume point (current, supersedes the ones above)
+1. Continue with Frontend Phase 2/3 batches 2 through 8 in subsequent iterations, same
+   3-agents-per-round pattern as Batch 1 (see the "Frontend Phase 2/3 — kickoff" section above
+   for the full batch inventory and conventions).
+2. Once all 8 batches are done, do a final full-suite `npx vitest run` pass and update the
    Status line near the top of this file.
-4. Backend follow-ups still open (unchanged): `analytics.py` auth decision pending user input;
+3. Backend follow-ups still open (unchanged): `analytics.py` auth decision pending user input;
    5 routers with import errors (`branding`, `collaboration`, `parent_education`, `sel`,
    `timetable` singular); `BrandingMiddleware` registration; the still-unanswered
    security-posture audit (do not act on it without the user's go-ahead).
-5. Mobile app (`/home/user/eduApp/mobile`, no `node_modules`) remains the lowest-priority,
+4. Mobile app (`/home/user/eduApp/mobile`, no `node_modules`) remains the lowest-priority,
    not-yet-started body of work, explicitly deprioritized in the original task framing.
+5. **A PR was opened this iteration** at the user's explicit request ("create a new pr") --
+   check its state/CI on resume rather than opening a duplicate.
