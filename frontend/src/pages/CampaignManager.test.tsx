@@ -29,7 +29,12 @@ vi.mock('react-chartjs-2', () => ({
 }));
 
 const mockTemplates: PosterTemplate[] = [
-  { id: 1, name: 'Classic Blue', thumbnail_url: '/templates/blue.png', template_url: '/templates/blue-full.png' },
+  {
+    id: '1',
+    name: 'Classic Blue',
+    thumbnail_url: '/templates/blue.png',
+    template_data: { background: '#1976d2' },
+  },
 ];
 
 describe('CampaignManager', () => {

@@ -48,6 +48,7 @@ const mockAnnouncements: Announcement[] = [
     is_published: true,
     published_at: '2024-01-10T09:00:00Z',
     created_at: '2024-01-09T09:00:00Z',
+    updated_at: '2024-01-09T09:00:00Z',
   },
   {
     id: 2,
@@ -61,6 +62,7 @@ const mockAnnouncements: Announcement[] = [
     channels: ['in_app'],
     is_published: false,
     created_at: '2024-01-11T09:00:00Z',
+    updated_at: '2024-01-11T09:00:00Z',
   },
 ];
 
@@ -161,6 +163,7 @@ describe('AnnouncementManagement', () => {
       channels: ['in_app'],
       is_published: false,
       created_at: '2024-01-13T09:00:00Z',
+      updated_at: '2024-01-13T09:00:00Z',
     });
 
     renderWithDemoAdmin(<AnnouncementManagement />);

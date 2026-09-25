@@ -12,8 +12,8 @@ vi.mock('@/api/volunteer', () => ({
 
 const mockAnalytics: VolunteerAnalytics = {
   engagement_trends: [
-    { date: '2024-01-01', total_hours: 20, unique_volunteers: 5 },
-    { date: '2024-01-02', total_hours: 25, unique_volunteers: 6 },
+    { date: '2024-01-01', total_hours: 20, unique_volunteers: 5, activities_count: 3 },
+    { date: '2024-01-02', total_hours: 25, unique_volunteers: 6, activities_count: 4 },
   ],
   popular_activities: [
     {

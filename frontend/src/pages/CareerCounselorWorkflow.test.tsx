@@ -52,7 +52,10 @@ const pendingEmployment: StudentEmployment = {
   start_date: '2024-01-01',
   hours_per_week: 10,
   is_current: true,
+  is_active: true,
   verified_for_graduation: false,
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
 };
 
 describe('CareerCounselorWorkflow', () => {
